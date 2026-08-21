@@ -38,9 +38,20 @@ def test_fastapi_evaluate_verify_and_schema_are_canonical() -> None:
     evaluated = client.post("/v1/modules/M21-04/evaluate", json=request.model_dump(mode="json"))
     assert evaluated.status_code == _HTTP_OK
     result = evaluated.json()
-    verified = client.post("/v1/modules/M21-04/verify", json={"result": result})
+    request_payload = request.model_dump(mode="json")
+    verified = client.post(
+        "/v1/modules/M21-04/verify",
+        json={"request": request_payload, "result": result},
+    )
+    forged = dict(request_payload)
+    forged["request_id"] = "request.m2104.forged"
+    mismatch = client.post(
+        "/v1/modules/M21-04/verify",
+        json={"request": forged, "result": result},
+    )
     assert verified.status_code == _HTTP_OK
     assert verified.json()["verified"] is True
+    assert mismatch.status_code == _HTTP_UNPROCESSABLE_ENTITY
     schema = client.get("/v1/modules/M21-04/schemas/output")
     assert schema.status_code == _HTTP_OK
     assert schema.json()["x-glio-contract"]["upstreamInputMediaType"].endswith("m21-03+json")
