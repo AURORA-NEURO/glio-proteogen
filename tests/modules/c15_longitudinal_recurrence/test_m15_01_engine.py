@@ -1,6 +1,6 @@
 """M15-01 runtime, replay, authorization, and safety tests."""
 
-# ruff: noqa: PLR2004, TRY003
+# ruff: noqa: TRY003
 
 from __future__ import annotations
 
@@ -209,7 +209,9 @@ def test_supported_registry_is_deterministic_and_replayable() -> None:
     assert result.registry is not None
     assert result.parent_target == "complex_activity"
     assert result.emits_parent is False
-    assert result.uncertainty.measurement.probability == 0.9
+    assert result.support_decision.status is SupportStatus.REVIEW_REQUIRED
+    assert result.human_review_required is True
+    assert result.uncertainty.measurement.probability is None
     assert result.falsification_evaluations[0].outcome is FalsificationOutcome.PASSED
     assert engine.verify(result) == result
 

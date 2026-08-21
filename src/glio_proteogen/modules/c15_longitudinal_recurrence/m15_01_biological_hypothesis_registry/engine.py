@@ -312,19 +312,20 @@ class M1501HypothesisRegistry:
             if supported
             else "One or more hypotheses or falsification rules are not safely promotable.",
             "support_decision": SupportDecision(
-                status=SupportStatus.SUPPORTED if supported else SupportStatus.REVIEW_REQUIRED,
-                reason_code="m1501_supported" if supported else "m1501_review_required",
+                status=SupportStatus.REVIEW_REQUIRED,
+                reason_code="m1501_review_only" if supported else "m1501_review_required",
                 rationale=(
-                    "All hypotheses and falsification rules passed."
+                    "Caller-declared hypotheses and falsification rules passed structurally; "
+                    "scientific validity remains unverified and requires human review."
                     if supported
                     else "Promotion is blocked pending evidence or human review."
                 ),
             ),
-            "uncertainty": expected_uncertainty(supported=supported),
+            "uncertainty": expected_uncertainty(supported=False),
             "provenance": expected_provenance(typed, request_digest),
             "evidence": evidence,
-            "limitations": _limitations(supported=supported),
-            "human_review_required": not supported,
+            "limitations": _limitations(supported=False),
+            "human_review_required": True,
         }
         constructed = ComplexActivityHypothesisRegistryResult.model_construct(**payload)
         payload["result_digest"] = result_payload_digest(constructed)
