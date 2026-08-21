@@ -24,9 +24,6 @@ from glio_proteogen.contracts.m18_01 import (
     result_payload_digest,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
-from glio_proteogen.modules.c17_metabolomic_lipidomic_integration.m18_01_upstream_contract_resolver.service import (
-    M1801Service,
-)
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     ConsentReference,
@@ -42,6 +39,9 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
     UpstreamDecisionReference,
     UpstreamDecisionState,
+)
+from glio_proteogen.modules.c17_metabolomic_lipidomic_integration.m18_01_upstream_contract_resolver.service import (
+    M1801Service,
 )
 
 _WHEN = datetime(2026, 1, 1, tzinfo=UTC)
