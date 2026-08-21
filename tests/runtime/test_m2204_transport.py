@@ -251,6 +251,17 @@ def test_replay_rejects_tampering() -> None:
         M2204Engine().replay(result.model_copy(update={"result_digest": "sha256:" + "0" * 64}))
 
 
+def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
+    request = _request()
+    service = M2204Service()
+    result = service.evaluate(request)
+    altered = request.model_copy(update={"request_id": "request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.replay(result, altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        M2204Plugin(service).replay(result, altered)
+
+
 def test_api_verify_binds_supplied_request_before_replay() -> None:
     request = _request()
     result = M2204Engine().evaluate(request)

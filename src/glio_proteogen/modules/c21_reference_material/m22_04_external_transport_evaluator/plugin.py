@@ -89,8 +89,12 @@ class M2204Plugin:
             raise M2204TokenError
         return self._service._engine.evaluate(token.request)
 
-    def replay(self, result: object) -> ProteinRnaDiscordanceExternalTransportResult:
-        return self._service.replay(result)
+    def replay(
+        self,
+        result: object,
+        request: EvaluateProteinRnaDiscordanceExternalTransportRequest | None = None,
+    ) -> ProteinRnaDiscordanceExternalTransportResult:
+        return self._service.replay(result, request)
 
 
 __all__ = [
