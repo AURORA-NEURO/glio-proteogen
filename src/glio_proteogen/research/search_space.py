@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from hashlib import sha256
-from typing import Iterable
 
 from .fasta import FastaEntry, digest_entry_trypsin
 from .modifications import expand_peptide, normalize_modification_rules
@@ -76,6 +76,7 @@ class SearchSpaceReceipt:
     modified_decoy_peptides: int = 0
     modified_target_decoy_overlap_peptides: int = 0
     modified_peptide_count: int = 0
+    peptide_map_digest: str = ""
 
     @property
     def target_entries(self) -> int:
@@ -111,6 +112,8 @@ class SearchSpaceReceipt:
             "unmatched_target_proteins": self.unmatched_target_proteins,
             "version": self.version,
         }
+        if self.peptide_map_digest:
+            payload["peptide_map_digest"] = self.peptide_map_digest
         if self.modification_rules:
             payload.update(
                 {
@@ -129,6 +132,33 @@ class SearchSpaceReceipt:
 
 def _digest(payload: object) -> str:
     return sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def _canonical_peptide_map(
+    peptide_map: Mapping[str, tuple[str, ...]],
+) -> tuple[tuple[str, tuple[str, ...]], ...]:
+    """Return a strict, deterministic representation of searched candidates."""
+
+    if not isinstance(peptide_map, Mapping):
+        raise TypeError("peptide_map must be a mapping")
+    canonical: list[tuple[str, tuple[str, ...]]] = []
+    for peptide, accessions in peptide_map.items():
+        if type(peptide) is not str or not peptide:
+            raise ValueError("peptide map keys must be non-empty strings")
+        if type(accessions) is not tuple or not accessions:
+            raise ValueError("peptide map accession values must be non-empty tuples")
+        if any(type(accession) is not str or not accession for accession in accessions):
+            raise ValueError("peptide map accessions must be non-empty strings")
+        if tuple(sorted(set(accessions))) != accessions:
+            raise ValueError("peptide map accessions must be unique and canonically ordered")
+        canonical.append((peptide, accessions))
+    return tuple(sorted(canonical))
+
+
+def _peptide_map_digest(
+    peptide_map: tuple[tuple[str, tuple[str, ...]], ...],
+) -> str:
+    return _digest([list(item) for item in peptide_map])
 
 
 def _validate_entries(entries: tuple[FastaEntry, ...]) -> None:
@@ -150,6 +180,7 @@ def build_search_space_receipt(  # noqa: PLR0915 - receipt construction binds ev
     decoy_strategy: str = "caller_declared",
     modification_rules: tuple[str, ...] = (),
     max_variable_modifications: int = 0,
+    peptide_map: Mapping[str, tuple[str, ...]] | None = None,
 ) -> SearchSpaceReceipt:
     """Digest entries and bind target/decoy pairing to the source bytes.
 
@@ -236,6 +267,22 @@ def build_search_space_receipt(  # noqa: PLR0915 - receipt construction binds ev
     modified_decoy_peptide_set = {
         peptide for accession in decoys for peptide in modified_digests[accession]
     }
+    expected_peptide_map: dict[str, set[str]] = {}
+    for accession, peptides in modified_digests.items():
+        for peptide in peptides:
+            expected_peptide_map.setdefault(peptide, set()).add(accession)
+    expected_peptide_map_canonical = _canonical_peptide_map(
+        {
+            peptide: tuple(sorted(accessions))
+            for peptide, accessions in expected_peptide_map.items()
+        }
+    )
+    peptide_map_digest = ""
+    if peptide_map is not None:
+        observed_peptide_map = _canonical_peptide_map(peptide_map)
+        if observed_peptide_map != expected_peptide_map_canonical:
+            raise ValueError("peptide map does not match the digested search space")
+        peptide_map_digest = _peptide_map_digest(observed_peptide_map)
     modified_target_decoy_overlap = len(modified_target_peptide_set & modified_decoy_peptide_set)
     modified_peptide_count = len(modified_target_peptide_set | modified_decoy_peptide_set)
     pairs: list[DecoyPair] = []
@@ -303,6 +350,8 @@ def build_search_space_receipt(  # noqa: PLR0915 - receipt construction binds ev
         "unmatched_target_proteins": unmatched_targets,
         "version": receipt_version,
     }
+    if peptide_map_digest:
+        payload["peptide_map_digest"] = peptide_map_digest
     if modification_rules:
         payload.update(
             {
@@ -358,6 +407,7 @@ def build_search_space_receipt(  # noqa: PLR0915 - receipt construction binds ev
             modified_target_decoy_overlap if modification_rules else 0
         ),
         modified_peptide_count=modified_peptide_count if modification_rules else 0,
+        peptide_map_digest=peptide_map_digest,
     )
 
 
@@ -376,6 +426,10 @@ def _validate_receipt_structure(receipt: SearchSpaceReceipt) -> None:  # noqa: P
     ):
         if type(value) is not str or _SHA256.fullmatch(value) is None:
             raise ValueError(f"search-space {field} is not a lowercase SHA-256")
+    if type(receipt.peptide_map_digest) is not str or (
+        receipt.peptide_map_digest and _SHA256.fullmatch(receipt.peptide_map_digest) is None
+    ):
+        raise ValueError("search-space peptide-map digest is not a lowercase SHA-256")
     if receipt.digestion_enzyme != "trypsin":
         raise ValueError("search-space digestion enzyme is unsupported")
     if receipt.decoy_strategy not in {"caller_declared", "reverse_protein"}:

@@ -548,6 +548,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         max_peptide_length=request.max_peptide_length,
         modification_rules=request.variable_modifications,
         max_variable_modifications=request.max_variable_modifications,
+        peptide_map=peptide_map,
     )
     parameters = SearchParameters(
         precursor_tolerance_ppm=request.precursor_tolerance_ppm,
