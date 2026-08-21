@@ -13,6 +13,7 @@ from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_06_reviewer_adjudi
     M1906Engine,
     M1906Plugin,
     M1906ReplayError,
+    M1906Service,
 )
 from tests.contract.test_m19_06_provisional import _assignment, _entry, _request
 
@@ -86,3 +87,12 @@ def test_plugin_descriptor_and_runtime_are_bounded() -> None:
     assert plugin.descriptor.kinase_activity is False
     assert plugin.descriptor.treatment_recommendation is False
     assert plugin.replay(result) == result
+
+
+def test_service_replay_rejects_supplied_request_mismatch() -> None:
+    request = _request()
+    result = M1906Service().adjudicate(request)
+    altered = request.model_copy(update={"request_id": "request.m1906.altered"})
+
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        M1906Service().replay(result, altered)
