@@ -41,7 +41,11 @@ class M2704Service:
     def publish(self, request: object) -> ComplexActivityAccessSurfaceResult:
         return self._engine.publish(self.validate_request(request))
 
-    def replay(self, result: object) -> ComplexActivityAccessSurfaceResult:
+    def replay(
+        self,
+        result: object,
+        request: PublishComplexActivityAccessSurfaceRequest | None = None,
+    ) -> ComplexActivityAccessSurfaceResult:
         if isinstance(result, (bytes, bytearray, str)):
             decoded = strict_json_loads(result, max_bytes=M2704_MAX_CANONICAL_RESULT_BYTES)
             typed = ComplexActivityAccessSurfaceResult.model_validate_json(
@@ -53,6 +57,10 @@ class M2704Service:
             )
         else:
             typed = ComplexActivityAccessSurfaceResult.model_validate(result, strict=True)
+        if request is not None and typed.request.model_dump(mode="json") != request.model_dump(
+            mode="json"
+        ):
+            raise ValueError from None
         return self._engine.replay(typed)
 
     @property
