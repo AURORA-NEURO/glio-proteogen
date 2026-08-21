@@ -41,8 +41,15 @@ class M2602LineageService:
         return self._engine.build(self.validate_request(request))
 
     @staticmethod
-    def verify(result: object) -> ProteinSubtypeLineageResult:
+    def verify(
+        result: object,
+        request: BuildProteinSubtypeLineageRequest | None = None,
+    ) -> ProteinSubtypeLineageResult:
         validated = _RESULT_ADAPTER.validate_python(result, strict=True)
+        if request is not None and validated.request.model_dump(mode="json") != request.model_dump(
+            mode="json"
+        ):
+            raise ValueError("lineage replay request mismatch")  # noqa: TRY003
         return verify_lineage_result(validated)
 
 
