@@ -84,7 +84,6 @@ async def central_present(request: Request) -> JSONResponse:
 def create_app(service: M1905Service | None = None) -> FastAPI:
     """Create an isolated strict M19-05 API."""
 
-    operation = service or M1905Service()
     api = FastAPI(title="GLIO-PROTEOGEN M19-05", version="0.1.0-provisional")
 
     @api.get("/v1/m19-05/schema/{name}")
