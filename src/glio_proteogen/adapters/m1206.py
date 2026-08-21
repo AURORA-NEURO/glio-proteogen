@@ -15,7 +15,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
-from glio_proteogen.adapters.limits import read_bounded
+from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware, read_bounded
 from glio_proteogen.contracts.m12_06 import (
     M1206_MAX_CANONICAL_REQUEST_BYTES,
     M1206_MAX_CANONICAL_RESULT_BYTES,
@@ -77,6 +77,11 @@ def _json_model(value: object) -> dict[str, object]:
 
 
 app = FastAPI(title="GLIO-PROTEOGEN M12-06", version="0.1.0-provisional")
+app.add_middleware(
+    RequestSizeLimitMiddleware,
+    max_bytes=M1206_MAX_CANONICAL_REQUEST_BYTES,
+    result_max_bytes=M1206_MAX_CANONICAL_RESULT_BYTES,
+)
 
 
 @app.get("/v1/m12-06/schema/{name}")

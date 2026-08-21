@@ -17,7 +17,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import TypeAdapter, ValidationError
 
-from glio_proteogen.adapters.limits import read_bounded
+from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware, read_bounded
 from glio_proteogen.contracts.m12_01 import (
     M1201_MAX_CANONICAL_REQUEST_BYTES,
     M1201_MAX_CANONICAL_RESULT_BYTES,
@@ -50,6 +50,11 @@ _OUTPUT_EXISTS: Final = "output already exists"
 app = FastAPI(
     title="GLIO-PROTEOGEN M12-01 biological hypothesis registry",
     version="0.1.0-provisional",
+)
+app.add_middleware(
+    RequestSizeLimitMiddleware,
+    max_bytes=M1201_MAX_CANONICAL_REQUEST_BYTES,
+    result_max_bytes=M1201_MAX_CANONICAL_RESULT_BYTES,
 )
 m1201_app = typer.Typer(no_args_is_help=True, pretty_exceptions_enable=False)
 
