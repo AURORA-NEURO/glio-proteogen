@@ -4,13 +4,13 @@
   "passed": true,
   "sdist": {
     "filename": "glio_proteogen-0.1.0.tar.gz",
-    "sha256": "6f2335e0e32a8ca728e569b668d74013e318b1c0c38c3b51dade80e1e3deca5c",
-    "size_bytes": 3382927
+    "sha256": "0bbe5e057b7dca3b8e131003aa538389c187fa322dad2c5387505f94decc2f6f",
+    "size_bytes": 4625742
   },
   "wheel": {
     "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
-    "member_count": 1543,
-    "sha256": "41e619ff89ac610b9a49812366f46edabfa96ce209a4d84a4b966da678b35e40",
-    "size_bytes": 2888317
+    "member_count": 1997,
+    "sha256": "d173990253c33696c85673d4581dbe47cc83412428dbfdeebedd0815cd3d66a2",
+    "size_bytes": 3930509
   }
 }
