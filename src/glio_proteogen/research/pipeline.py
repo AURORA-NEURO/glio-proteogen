@@ -56,7 +56,10 @@ from .search_space import (
 
 _PIPELINE_VERSION = "research-pipeline-1"
 _MZML_PARSER_VERSION = "mzml-parser-1"
-_SEARCH_VERSION = "fragment-search-6-candidate-audit-decoy-tie-abstention-charge-assignment"
+_SEARCH_VERSION = (
+    "fragment-search-7-candidate-audit-decoy-tie-abstention-charge-assignment"
+    "-intensity-canonicalization"
+)
 _DIGESTION_VERSION = "trypsin-digest-1"
 _MODIFICATION_VERSION = "residue-local-unimod-1"
 _MAX_PRECURSOR_CHARGE = 20

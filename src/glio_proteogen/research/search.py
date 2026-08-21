@@ -404,6 +404,8 @@ def _assign_fragment_peaks(
     theoretical: tuple[float, ...],
     observed_mz: tuple[float, ...],
     tolerance_da: float,
+    *,
+    observed_intensity: tuple[float, ...] | None = None,
 ) -> tuple[tuple[int, int], ...]:
     """Select a deterministic maximum-cardinality peak assignment.
 
@@ -412,19 +414,34 @@ def _assign_fragment_peaks(
     the one-dimensional m/z axis, an optimal assignment can be chosen without
     crossing edges after sorting both sides, so a bounded suffix dynamic
     program is sufficient.  The objective is maximum matched-ion count first,
-    then minimum total absolute error; stable index ordering resolves exact
-    ties.  The returned indices refer to the caller's original sequences.
+    then minimum total absolute error; equal-m/z observations are canonically
+    ordered by descending intensity before stable index ordering resolves any
+    remaining ties.  The intensity tie-break is part of the search path because
+    the matched intensity contributes to the PSM score; without it, permuting
+    otherwise identical paired peak arrays could change the score.  The returned
+    indices refer to the caller's original sequences.
     """
 
     ordered_theoretical = tuple(sorted(enumerate(theoretical), key=lambda item: (item[1], item[0])))
-    ordered_observed = tuple(sorted(enumerate(observed_mz), key=lambda item: (item[1], item[0])))
+    if observed_intensity is not None and len(observed_intensity) != len(observed_mz):
+        raise ValueError("observed m/z and intensity lengths differ")
+    ordered_observed = tuple(
+        sorted(
+            enumerate(observed_mz),
+            key=(
+                (lambda item: (item[1], -observed_intensity[item[0]], item[0]))
+                if observed_intensity is not None
+                else (lambda item: (item[1], item[0]))
+            ),
+        )
+    )
     theoretical_count = len(ordered_theoretical)
     observed_count = len(ordered_observed)
     counts = [[0] * (observed_count + 1) for _ in range(theoretical_count + 1)]
     errors = [[0.0] * (observed_count + 1) for _ in range(theoretical_count + 1)]
     actions = [["" for _ in range(observed_count + 1)] for _ in range(theoretical_count + 1)]
 
-    def better(  # noqa: PLR0917
+    def better(
         candidate_count: int,
         candidate_error: float,
         candidate_action: str,
@@ -579,7 +596,12 @@ def search_spectrum_candidates(
             parameters.fragment_charges,
             allowed_modifications=parameters.allowed_modifications,
         )
-        assignments = _assign_fragment_peaks(theoretical, mz, parameters.fragment_tolerance_da)
+        assignments = _assign_fragment_peaks(
+            theoretical,
+            mz,
+            parameters.fragment_tolerance_da,
+            observed_intensity=intensity,
+        )
         matched = len(assignments)
         intensity_score = 0.0
         matched_intensity = 0.0
