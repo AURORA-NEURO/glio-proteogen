@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from math import isfinite
 from typing import Any, Final
 
 from pydantic import TypeAdapter
@@ -14,19 +13,11 @@ from glio_proteogen.contracts.m27_05 import (
     M2705_MAX_CANONICAL_REQUEST_BYTES,
     M2705_MODULE_ID,
     M2705_PARENT,
-    AlertRecord,
-    AlertSeverity,
-    AlertState,
     DashboardDefinition,
     EmitProteomicsTelemetryRequest,
     ProteomicsTelemetryResult,
     SafeFailureReport,
-    TelemetryFinding,
-    TelemetryFindingCode,
-    TelemetrySample,
     TelemetryStatus,
-    TelemetryStream,
-    TelemetryUnit,
 )
 from glio_proteogen.contracts.m27_05.canonical import (
     canonical_request_digest,
@@ -208,64 +199,6 @@ def _provenance(request: EmitProteomicsTelemetryRequest, request_digest: str) ->
     )
 
 
-def _sample_value(metric: str) -> float:
-    values = {
-        "input_quality": 1.0,
-        "model_behavior": 1.0,
-        "uncertainty": 0.0,
-        "abstention": 0.0,
-        "drift": 0.0,
-        "latency": 1.0,
-        "errors": 0.0,
-        "resources": 1.0,
-        "reviewer_actions": 0.0,
-    }
-    value = values[metric]
-    if not isfinite(value):
-        raise ValueError("telemetry value must be finite")  # noqa: TRY003
-    return value
-
-
-def _stream(
-    request: EmitProteomicsTelemetryRequest,
-    evidence: tuple[EvidenceReference, ...],
-) -> TelemetryStream:
-    observed_at = request.context.occurred_at
-    samples = tuple(
-        TelemetrySample(
-            sample_id=f"m2705.sample.{metric.value}",
-            metric=metric,
-            value=_sample_value(metric.value),
-            # Operational metadata has a stable unit per metric; no scientific quantity is inferred.
-            unit={
-                "latency": TelemetryUnit.MILLISECONDS,
-                "resources": TelemetryUnit.RATIO,
-            }.get(metric.value, TelemetryUnit.SCORE),
-            observed_at=observed_at,
-            source="caller-declared-m27-05-observability",
-            evidence=evidence,
-        )
-        for metric in request.requested_metrics
-    )
-    return TelemetryStream(
-        stream_id="m2705.stream." + request.request_id,
-        version="1.0.0",
-        samples=samples,
-        reviewer_actions=(),
-        findings=(),
-        evidence=evidence,
-    )
-
-
-def _finding(evidence: tuple[EvidenceReference, ...]) -> TelemetryFinding:
-    return TelemetryFinding(
-        finding_id="m2705.finding.provisional-review",
-        code=TelemetryFindingCode.PROVISIONAL_ABI_PENDING_REVIEW,
-        message="Telemetry is operational metadata only; provisional ABI requires governed review.",
-        evidence=evidence[:1],
-    )
-
-
 class M2705TelemetryEngine:
     """Emit one deterministic observability stream or an explicit safe failure."""
 
@@ -277,50 +210,48 @@ class M2705TelemetryEngine:
         request_digest = canonical_request_digest(canonical)
         evidence = _evidence(canonical)
         blocking = canonical.upstream_result.media_type != M2705_M2704_INPUT_MEDIA_TYPE
+        status = TelemetryStatus.ABSTAINED
+        support = SupportDecision(
+            status=SupportStatus.UNSUPPORTED if blocking else SupportStatus.REVIEW_REQUIRED,
+            reason_code=(
+                "upstream_media_type_unsupported" if blocking else "telemetry_observations_missing"
+            ),
+            rationale=(
+                "The caller-declared upstream is not the reviewed M27-04 gateway media type."
+                if blocking
+                else (
+                    "The request declares metric kinds and evidence only; no observed "
+                    "telemetry values are bound."
+                )
+            ),
+        )
+        stream = None
         dashboards: tuple[DashboardDefinition, ...] = ()
-        if blocking:
-            status = TelemetryStatus.ABSTAINED
-            support = SupportDecision(
-                status=SupportStatus.UNSUPPORTED,
-                reason_code="upstream_media_type_unsupported",
-                rationale=(
-                    "The caller-declared upstream is not the reviewed M27-04 gateway media type."
-                ),
-            )
-            stream = None
-            alert = None
-            failure = SafeFailureReport(
-                report_id="m2705.safe-failure." + request_digest.removeprefix("sha256:"),
-                version=M2705_CONTRACT_VERSION,
-                trigger="upstream_media_type_unsupported",
-                action="abstain_without_telemetry_traversal",
-                recovery_note="Supply a reviewed M27-04 gateway artifact reference and rerun.",
-                evidence=evidence,
-            )
-            reason = "upstream M27-04 media type is unsupported"
-        else:
-            status = TelemetryStatus.EMITTED
-            support = SupportDecision(
-                status=SupportStatus.SUPPORTED,
-                reason_code="telemetry_metadata_supported",
-                rationale="Caller-declared operational telemetry is structurally supported.",
-            )
-            stream = _stream(canonical, evidence)
-            dashboards = canonical.dashboard_definitions
-            alert = AlertRecord(
-                alert_id="m2705.alert." + canonical.request_id,
-                state=AlertState.CLEAR,
-                severity=AlertSeverity.INFO,
-                metric=canonical.requested_metrics[0],
-                message=(
-                    "No telemetry alert was triggered by the caller-declared operational sample."
-                ),
-                triggered_at=None,
-                resolved_at=canonical.context.occurred_at,
-                evidence=evidence,
-            )
-            failure = None
-            reason = None
+        alert = None
+        trigger = (
+            "upstream_media_type_unsupported" if blocking else "telemetry_observations_missing"
+        )
+        failure = SafeFailureReport(
+            report_id="m2705.safe-failure." + request_digest.removeprefix("sha256:"),
+            version=M2705_CONTRACT_VERSION,
+            trigger=trigger,
+            action=(
+                "abstain_without_telemetry_traversal"
+                if blocking
+                else "abstain_without_fabricating_telemetry"
+            ),
+            recovery_note=(
+                "Supply a reviewed M27-04 gateway artifact reference and rerun."
+                if blocking
+                else "Supply bounded observed values with a confirmed M27-05 ABI and rerun."
+            ),
+            evidence=evidence,
+        )
+        reason = (
+            "upstream M27-04 media type is unsupported"
+            if blocking
+            else "M27-05 telemetry observations are not present in the request"
+        )
         payload: dict[str, Any] = {
             "result_id": "m2705.result." + request_digest.removeprefix("sha256:"),
             "result_digest": _ZERO_DIGEST,
@@ -356,10 +287,6 @@ class M2705TelemetryEngine:
             ),
             "human_review_required": True,
         }
-        if stream is not None:
-            payload["telemetry_stream"] = stream.model_copy(
-                update={"findings": (_finding(evidence),)}
-            )
         provisional = ProteomicsTelemetryResult.model_construct(**payload)
         payload["result_digest"] = result_payload_digest(provisional)
         return _RESULT_ADAPTER.validate_python(payload, strict=True)
