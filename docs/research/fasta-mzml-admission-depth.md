@@ -62,6 +62,13 @@ non-negative, retention time non-negative, and MS level positive. Invalid
 measurements fail before fragment search so malformed signal cannot be
 silently converted into an empty result.
 
+Binary arrays honor the mzML endianness CV parameters (`MS:1000140` little
+endian and `MS:1000141` big endian) for both 32-bit and 64-bit values. A
+conflicting declaration is rejected; legacy fixtures that omit the CV retain
+the parser's little-endian default. This prevents a valid big-endian array from
+being decoded as tiny nonphysical measurements and silently disappearing from
+fragment evidence.
+
 ## Validation
 
 - 349 research tests pass without repository coverage add-ons.

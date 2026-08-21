@@ -111,6 +111,46 @@ def test_parser_rejects_ambiguous_arrays_and_nonphysical_values() -> None:
         parse_mzml(b"<mzML/>", max_bytes=True)
 
 
+def test_parser_honors_declared_binary_array_endianness() -> None:
+    def array(
+        values: tuple[float, ...], accession: str, *, precision: str, byte_order: str
+    ) -> bytes:
+        format_code = "f" if precision == "float" else "d"
+        precision_accession = "MS:1000523" if precision == "float" else "MS:1000521"
+        endian_accession = "MS:1000141" if byte_order == "big" else "MS:1000140"
+        encoded = base64.b64encode(struct.pack(f">{len(values)}{format_code}", *values))
+        return (
+            b'<binaryDataArray><cvParam accession="'
+            + accession.encode()
+            + b'"/><cvParam accession="'
+            + precision_accession.encode()
+            + b'"/><cvParam accession="'
+            + endian_accession.encode()
+            + b'"/><binary>'
+            + encoded
+            + b"</binary></binaryDataArray>"
+        )
+
+    payload = (
+        b'<mzML><run><spectrumList><spectrum id="big-endian">'
+        b'<cvParam accession="MS:1000511" value="2"/><binaryDataArrayList>'
+        + array((100.0, 200.0), "MS:1000514", precision="double", byte_order="big")
+        + array((10.0, 20.0), "MS:1000515", precision="float", byte_order="big")
+        + b"</binaryDataArrayList></spectrum></spectrumList></run></mzML>"
+    )
+    spectrum = parse_mzml(payload)[0]
+    assert spectrum.mz == pytest.approx((100.0, 200.0))
+    assert spectrum.intensity == pytest.approx((10.0, 20.0))
+
+    conflicting = payload.replace(
+        b'<cvParam accession="MS:1000141"/>',
+        b'<cvParam accession="MS:1000141"/><cvParam accession="MS:1000140"/>',
+        1,
+    )
+    with pytest.raises(ValueError, match="conflicting endianness"):
+        parse_mzml(conflicting)
+
+
 def test_pipeline_abstains_ambiguous_ms2_before_precursor_search() -> None:
     result = run_research_protein_inference(
         ResearchRunRequest(

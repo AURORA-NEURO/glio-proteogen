@@ -52,6 +52,10 @@ def _binary_array(element: Element, *, max_output_bytes: int) -> tuple[float, ..
     compression = {item.attrib.get("accession") for item in element.findall("{*}cvParam")}
     if "MS:1000574" in compression:
         data = _bounded_zlib(data, max_output_bytes)
+    endianness = compression.intersection({"MS:1000140", "MS:1000141"})
+    if len(endianness) > 1:
+        raise ValueError("mzML binary array declares conflicting endianness")
+    byte_order = ">" if "MS:1000141" in endianness else "<"
     if "MS:1000523" in compression:
         width, fmt = 4, "f"
     elif "MS:1000521" in compression:
@@ -60,7 +64,7 @@ def _binary_array(element: Element, *, max_output_bytes: int) -> tuple[float, ..
         raise ValueError("mzML binary array has no supported precision")
     if len(data) % width:
         raise ValueError("mzML binary array has a partial value")
-    return tuple(struct.unpack(f"<{len(data) // width}{fmt}", data))
+    return tuple(struct.unpack(f"{byte_order}{len(data) // width}{fmt}", data))
 
 
 def _read_bounded_gzip(source: BinaryIO, max_bytes: int) -> bytes:
