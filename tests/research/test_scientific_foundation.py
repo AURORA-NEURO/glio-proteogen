@@ -945,6 +945,8 @@ def test_exact_target_decoy_tie_favors_decoy_winner() -> None:
         target_decoy_qvalues((replace(target, score=math.nan),))
     with pytest.raises(ValueError):
         target_decoy_qvalues((replace(target, score=cast("float", True)),))  # noqa: FBT003
+    with pytest.raises(ValueError, match="scores"):
+        target_decoy_qvalues((replace(target, score=cast("float", 10**10000)),))
 
 
 def test_many_exact_target_decoy_ties_cannot_create_zero_fdr_targets() -> None:

@@ -303,7 +303,13 @@ def _is_finite_real(value: object) -> bool:
 
     if type(value) not in (int, float):
         return False
-    return isfinite(cast("int | float", value))
+    try:
+        return isfinite(cast("int | float", value))
+    except OverflowError:
+        # ``math.isfinite`` converts integers through a C double.  An
+        # adversarially large integer can overflow that conversion; it is
+        # malformed measurement input, not an uncaught search failure.
+        return False
 
 
 def _fragments(

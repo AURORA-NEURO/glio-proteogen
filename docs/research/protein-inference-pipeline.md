@@ -59,6 +59,9 @@ one deterministic, auditable path:
    zero matched fragments or ambiguous accession identity before competition; an unobserved
    decoy count is never treated as zero FDR. PSMs are accepted only at the caller-declared
    q-value threshold.
+   Numeric score validation also fails closed for integers too large to convert to a
+   floating-point measurement. Such malformed input is rejected as invalid score evidence
+   rather than escaping as an interpreter overflow during FDR admission.
 7. Resolve protein-group candidates from the scored PSMs, including target, decoy, and
    mixed target/decoy collision evidence. Duplicate contenders for one spectrum are reduced to
    one deterministic winner for scoring, while a canonical digest of every contender remains in
