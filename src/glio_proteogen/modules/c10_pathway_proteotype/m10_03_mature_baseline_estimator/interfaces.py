@@ -12,9 +12,10 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
-from glio_proteogen.adapters.limits import read_bounded
+from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware, read_bounded
 from glio_proteogen.contracts.m10_03 import (
     M1003_MAX_CANONICAL_REQUEST_BYTES,
+    M1003_MAX_CANONICAL_RESULT_BYTES,
     contract_json_schema,
     contract_json_schemas,
 )
@@ -49,6 +50,11 @@ def _error_response(error: Exception) -> JSONResponse:
 
 def create_m1003_app() -> FastAPI:
     app = FastAPI(title="GLIO-PROTEOGEN M10-03", version="0.1.0-provisional")
+    app.add_middleware(
+        RequestSizeLimitMiddleware,
+        max_bytes=M1003_MAX_CANONICAL_REQUEST_BYTES,
+        result_max_bytes=M1003_MAX_CANONICAL_RESULT_BYTES,
+    )
     plugin = M1003Plugin(M1003Service())
 
     @app.get("/v1/m10-03/schema/{name}")
@@ -61,6 +67,13 @@ def create_m1003_app() -> FastAPI:
     @app.post("/v1/m10-03/validate")
     async def validate(request: Request) -> JSONResponse:
         try:
+            if (
+                request.headers.get("content-type", "").partition(";")[0].strip().lower()
+                != "application/json"
+            ):
+                return JSONResponse(
+                    status_code=415, content={"errors": [{"type": "unsupported_media_type"}]}
+                )
             token = plugin.validate(await request.body())
             return JSONResponse(content=token.request.model_dump(mode="json"))
         except Exception as error:
@@ -69,6 +82,13 @@ def create_m1003_app() -> FastAPI:
     @app.post("/v1/m10-03/estimate")
     async def estimate(request: Request) -> JSONResponse:
         try:
+            if (
+                request.headers.get("content-type", "").partition(";")[0].strip().lower()
+                != "application/json"
+            ):
+                return JSONResponse(
+                    status_code=415, content={"errors": [{"type": "unsupported_media_type"}]}
+                )
             token = plugin.validate(await request.body())
             return JSONResponse(content=plugin.run(token).model_dump(mode="json"))
         except Exception as error:
