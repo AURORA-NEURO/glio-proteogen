@@ -38,7 +38,14 @@ def test_fastapi_schema_validate_control_and_verify_routes() -> None:
         controlled = client.post("/v1/modules/M26-07/control", content=body)
         verified = client.post(
             "/v1/modules/M26-07/verify",
-            content=canonical_json_bytes({"result": controlled.json()}),
+            content=canonical_json_bytes(
+                {"request": request.model_dump(mode="json"), "result": controlled.json()}
+            ),
+        )
+        forged = request.model_copy(update={"request_id": "request.m2607.forged"})
+        mismatch = client.post(
+            "/v1/modules/M26-07/verify",
+            json={"request": forged.model_dump(mode="json"), "result": controlled.json()},
         )
 
     assert schemas.status_code == HTTP_OK
@@ -48,6 +55,7 @@ def test_fastapi_schema_validate_control_and_verify_routes() -> None:
     assert controlled.json()["status"] == "approved"
     assert verified.status_code == HTTP_OK
     assert verified.json()["verified"] is True
+    assert mismatch.status_code == HTTP_UNPROCESSABLE
 
 
 def test_fastapi_rejects_duplicate_keys_and_unknown_schema() -> None:

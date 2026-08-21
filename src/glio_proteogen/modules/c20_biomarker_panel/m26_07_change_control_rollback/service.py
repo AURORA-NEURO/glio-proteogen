@@ -43,9 +43,17 @@ class M2607ChangeControlService:
         return self._engine.control(self.validate_request(request))
 
     @staticmethod
-    def verify(result: object) -> ProteinSubtypeChangeControlResult:
+    def verify(
+        result: object,
+        request: ControlProteinSubtypeChangeRequest | None = None,
+    ) -> ProteinSubtypeChangeControlResult:
         try:
             typed = _RESULT_ADAPTER.validate_python(result, strict=True)
+            if request is not None:
+                result_request = typed.request.model_dump(mode="json")
+                supplied_request = request.model_dump(mode="json")
+                if result_request != supplied_request:
+                    raise M2607ReplayError
             return verify_change_control_result(typed)
         except M2607ReplayError:
             raise
