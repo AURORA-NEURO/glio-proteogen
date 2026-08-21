@@ -8,6 +8,7 @@ from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.modules.c21_reference_material.m21_03_internal_benchmark_ablation import (
     M2103AuthorizationError,
     M2103ReplayError,
+    M2103Plugin,
     M2103Service,
     preflight_m2103_authorization,
     run_complex_activity_internal_benchmark,
@@ -59,3 +60,14 @@ def test_runtime_replay_rejects_request_and_identifier_tampering() -> None:
         service.replay(result.model_copy(update={"result_id": "m2103.result.tampered"}))
     with pytest.raises(M2103AuthorizationError):
         preflight_m2103_authorization({})
+
+
+def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
+    request = _request()
+    service = M2103Service()
+    result = service.generate(request)
+    altered = request.model_copy(update={"request_id": "request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.replay(result, altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        M2103Plugin(service).replay(result, altered)

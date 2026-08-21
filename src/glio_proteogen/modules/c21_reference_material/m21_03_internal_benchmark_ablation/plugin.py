@@ -93,8 +93,9 @@ class M2103Plugin(
     def replay(
         self,
         result: ComplexActivityInternalBenchmarkResult,
+        request: RunComplexActivityInternalBenchmarkRequest | None = None,
     ) -> ComplexActivityInternalBenchmarkResult:
-        return self._service.replay(result)
+        return self._service.replay(result, request)
 
 
 __all__ = ["BenchmarkSubmission", "M2103Plugin", "ValidatedM2103Request"]
