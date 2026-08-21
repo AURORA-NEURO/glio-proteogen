@@ -190,6 +190,12 @@ def test_replay_verification_detects_tampering() -> None:
     with pytest.raises(ValueError, match="replay verification failed"):
         verify_mechanistic_feature_replay(tampered)
 
+    diagnostic = result.diagnostics[0].model_copy(update={"message": "forged diagnostic"})
+    rehashed = result.model_copy(update={"diagnostics": (diagnostic, *result.diagnostics[1:])})
+    rehashed = rehashed.model_copy(update={"result_digest": result_payload_digest(rehashed)})
+    with pytest.raises(ValueError, match="replay verification failed"):
+        verify_mechanistic_feature_replay(rehashed)
+
 
 def test_plugin_accepts_strict_json_once() -> None:
     plugin = M1303Plugin(M1303Service())

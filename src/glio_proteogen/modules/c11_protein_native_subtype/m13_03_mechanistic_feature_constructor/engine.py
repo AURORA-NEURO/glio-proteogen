@@ -122,7 +122,7 @@ def preflight_mechanistic_feature_authorization(candidate: object) -> None:
 def verify_mechanistic_feature_replay(
     result: ProteotypeMechanisticFeatureResult,
 ) -> ProteotypeMechanisticFeatureResult:
-    """Re-validate request and result digests before releasing a result."""
+    """Reconstruct the complete result from its embedded request before release."""
 
     if type(result) is not ProteotypeMechanisticFeatureResult:
         raise _InvalidReplayError
@@ -131,9 +131,15 @@ def verify_mechanistic_feature_replay(
     if result.result_digest != result_payload_digest(result):
         raise _InvalidReplayError
     try:
-        return ProteotypeMechanisticFeatureResult.model_validate(result.model_dump(mode="python"))
+        validated = ProteotypeMechanisticFeatureResult.model_validate(
+            result.model_dump(mode="python"), strict=True
+        )
+        expected = _compute_result(validated.request)
     except ValueError as exc:
         raise _InvalidReplayError from exc
+    if validated.model_dump(mode="json") != expected.model_dump(mode="json"):
+        raise _InvalidReplayError
+    return validated
 
 
 def _validated_request(candidate: object) -> ConstructProteotypeMechanisticFeaturesRequest:
@@ -208,7 +214,9 @@ def _compute_result(
     assembled = ProteotypeMechanisticFeatureResult.model_construct(**payload)  # type: ignore[arg-type]
     payload["result_digest"] = result_payload_digest(assembled)
     assembled = ProteotypeMechanisticFeatureResult.model_construct(**payload)  # type: ignore[arg-type]
-    return verify_mechanistic_feature_replay(assembled)
+    return ProteotypeMechanisticFeatureResult.model_validate(
+        assembled.model_dump(mode="python"), strict=True
+    )
 
 
 def _abstained_result(
@@ -263,7 +271,9 @@ def _abstained_result(
     assembled = ProteotypeMechanisticFeatureResult.model_construct(**payload)  # type: ignore[arg-type]
     payload["result_digest"] = result_payload_digest(assembled)
     assembled = ProteotypeMechanisticFeatureResult.model_construct(**payload)  # type: ignore[arg-type]
-    return verify_mechanistic_feature_replay(assembled)
+    return ProteotypeMechanisticFeatureResult.model_validate(
+        assembled.model_dump(mode="python"), strict=True
+    )
 
 
 def _safe_failure(

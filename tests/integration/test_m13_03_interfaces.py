@@ -10,7 +10,7 @@ from typer.testing import CliRunner
 
 import glio_proteogen.adapters.m1303 as m1303_adapter
 from glio_proteogen.adapters.m1303 import app, m1303_app
-from glio_proteogen.contracts.m13_03 import MechanisticConstructionStatus
+from glio_proteogen.contracts.m13_03 import MechanisticConstructionStatus, result_payload_digest
 from tests.contract.test_m13_03_runtime import request
 
 
@@ -46,6 +46,21 @@ def test_api_verifies_released_result() -> None:
 
     assert verified.status_code == HTTPStatus.OK
     assert verified.json()["verified"] is True
+
+
+def test_api_and_cli_reject_self_rehashed_semantic_mutation(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    payload = json.loads(request().model_dump_json())
+    with TestClient(app) as client:
+        result = client.post("/v1/modules/M13-03/features", json=payload).json()
+        result["diagnostics"][0]["message"] = "forged diagnostic"
+        result["result_digest"] = result_payload_digest(result)
+        forged = client.post("/v1/modules/M13-03/verify", json=result)
+
+    assert forged.status_code == HTTPStatus.CONFLICT
+    result_path = tmp_path / "forged-result.json"
+    result_path.write_text(json.dumps(result), encoding="utf-8")
+    cli = CliRunner().invoke(m1303_app, ["verify", str(result_path)])
+    assert cli.exit_code != 0
 
 
 def test_api_error_matrix_is_sanitized() -> None:
