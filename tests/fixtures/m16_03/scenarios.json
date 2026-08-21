@@ -3,7 +3,7 @@
   "dossier_sha256": "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
   "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:5524-5564",
   "cases": [
-    {"id": "supported-attributable-integration", "kind": "supported", "expected": "integrated"},
+    {"id": "provisional-abi-abstention", "kind": "supported", "expected": "abstained"},
     {"id": "low-reliability-abstention", "kind": "low_reliability", "expected": "abstained"},
     {"id": "not-evaluable-abstention", "kind": "not_evaluable", "expected": "abstained"},
     {"id": "withheld-consent", "kind": "denied_control", "expected": "authorization_error"},
