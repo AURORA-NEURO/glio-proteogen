@@ -275,9 +275,10 @@ class ProteinSubtypeHypothesisRegistryResult(FrozenModel):
             if (
                 self.registry is None
                 or self.abstention_reason is not None
-                or self.support_decision.status is not SupportStatus.SUPPORTED
+                or self.support_decision.status is not SupportStatus.REVIEW_REQUIRED
+                or not self.human_review_required
             ):
-                raise ValueError("registered result requires a supported registry")
+                raise ValueError("registered result requires a review-only registry")
         elif (
             self.registry is not None
             or self.abstention_reason is None

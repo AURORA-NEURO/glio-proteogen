@@ -274,8 +274,12 @@ class M1401HypothesisEngine:
             "parent_target": M1401_PARENT,
             "emits_parent": False,
             "support_decision": SupportDecision(
-                status=SupportStatus.SUPPORTED if supported else SupportStatus.UNSUPPORTED,
-                reason_code="m1401_registry_supported" if supported else "m1401_registry_abstained",
+                status=SupportStatus.REVIEW_REQUIRED if supported else SupportStatus.UNSUPPORTED,
+                reason_code=(
+                    "m1401_registry_review_required"
+                    if supported
+                    else "m1401_registry_abstained"
+                ),
                 rationale=(
                     "All hypotheses and falsification rules passed the closed registry gates."
                     if supported
@@ -285,11 +289,11 @@ class M1401HypothesisEngine:
                     )
                 ),
             ),
-            "uncertainty": expected_uncertainty(supported=supported),
+            "uncertainty": expected_uncertainty(supported=False if supported else supported),
             "provenance": expected_provenance(request, request_hash),
             "evidence": _evidence(request),
             "limitations": _limitations(supported=supported),
-            "human_review_required": not supported,
+            "human_review_required": True if supported else not supported,
         }
         constructed = ProteinSubtypeHypothesisRegistryResult.model_construct(**payload)  # type: ignore[arg-type]
         payload["result_digest"] = result_payload_digest(constructed)
