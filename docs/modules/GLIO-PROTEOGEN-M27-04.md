@@ -23,3 +23,7 @@ retained as typed review/abstention state rather than converted into a negative 
 
 Authorization records are graph-closed: each record must reference a declared operation and its
 scope must exactly match that operation's declared authorization scope before publication.
+
+The source manifest must also include the exact mass-spectrometry/proteome, genome/transcriptome,
+and PTM input references declared by the request. This keeps gateway provenance bound to every
+named input rather than only to an arbitrary caller-selected evidence subset.
