@@ -20,6 +20,8 @@ from glio_proteogen.modules.c10_pathway_proteotype.m10_01_formal_state_feature_s
 )
 from tests.modules.c10_pathway_proteotype.test_m10_01_formal_state import _request
 
+HTTP_TOO_LARGE = 413
+
 
 def test_api_validate_execute_and_schema_are_strict() -> None:
     request = _request()
@@ -49,6 +51,16 @@ def test_api_rejects_duplicate_json_keys_without_leaking_details() -> None:
 
     assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
     assert "traceback" not in response.text.casefold()
+
+
+def test_api_enforces_preparse_result_limit_on_execute() -> None:
+    client = TestClient(create_app(M1001Service()))
+    oversized = client.post(
+        "/v1/modules/M10-01/execute",
+        content=b"{" + b"x" * (8 * 1024 * 1024 + 1) + b"}",
+        headers={"content-type": "application/json"},
+    )
+    assert oversized.status_code == HTTP_TOO_LARGE
 
 
 def test_cli_and_plugin_share_canonical_result(tmp_path) -> None:
