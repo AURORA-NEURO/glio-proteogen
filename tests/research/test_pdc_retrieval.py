@@ -182,6 +182,55 @@ def test_source_content_verifier_rejects_hash_length_and_limit_tampering() -> No
         verify_pdc_source_content(receipt, io.StringIO("not bytes"))  # type: ignore[arg-type]
 
 
+@pytest.mark.parametrize(
+    ("snapshot_change", "message"),
+    [
+        (
+            lambda snapshot: replace(snapshot, counts=(("Raw", "Mass", 0),)),
+            "exceeds",
+        ),
+        (
+            lambda snapshot: replace(
+                snapshot,
+                files=(replace(snapshot.files[0], data_category="Other"),),
+            ),
+            "exceeds",
+        ),
+        (
+            lambda snapshot: replace(
+                snapshot,
+                counts=(("Raw", "Mass", 2),),
+                files=(snapshot.files[0], snapshot.files[0]),
+            ),
+            "duplicate",
+        ),
+        (
+            lambda snapshot: replace(
+                snapshot,
+                counts=(("Raw", "Mass", 1), ("Raw", "Mass", 1)),
+            ),
+            "unique",
+        ),
+    ],
+)
+def test_pdc_receipt_rejects_inconsistent_catalog_inventory(
+    snapshot_change: object, message: str
+) -> None:
+    payload = b"<mzML>catalog-inventory</mzML>"
+    file = _file("memory://PDC000204/inventory", payload)
+    snapshot, reference = _snapshot_and_reference(file, payload)
+    forged_snapshot = snapshot_change(snapshot)  # type: ignore[operator]
+    with pytest.raises(ValueError, match=message):
+        PdcSourceReceipt(
+            snapshot=forged_snapshot,
+            file=file,
+            source_reference=reference,
+            observed_sha256=reference.sha256,
+            observed_md5=file.md5 or "",
+            observed_size=len(payload),
+        )
+
+
 def test_receipt_rejects_tampered_observed_media_type() -> None:
     payload = b"<mzML>verified</mzML>"
     with _http_server({"/ok": _Route(200, payload, "application/mzML; charset=binary")}) as base:

@@ -109,6 +109,7 @@ class PdcSourceReceipt:
             raise TypeError("source_reference must be a SourceReference")
         if self.file.study_id != self.snapshot.study_id:
             raise ValueError("PDC file study does not match the catalog snapshot")
+        _validate_catalog_snapshot(self.snapshot)
         if self.file not in self.snapshot.files:
             raise ValueError("PDC file is absent from the captured catalog snapshot")
         if not _HEX64.fullmatch(self.snapshot.response_sha256):
@@ -241,6 +242,47 @@ def verify_pdc_source_content(
     if md5_digest.hexdigest().lower() != expected_md5:
         raise PdcError("content MD5 differs from the PDC receipt")
     return receipt
+
+
+def _validate_catalog_snapshot(snapshot: PdcStudySnapshot) -> None:
+    """Validate catalog projections before they become source evidence."""
+
+    if snapshot.source_url != PDC_STUDY_URL.format(study_id=snapshot.study_id):
+        raise ValueError("PDC snapshot source URL does not match the study")
+    if type(snapshot.counts) is not tuple:
+        raise TypeError("PDC snapshot counts must be a tuple")
+    declared_counts: dict[tuple[str, str], int] = {}
+    for count_row in snapshot.counts:
+        if (
+            type(count_row) is not tuple
+            or len(count_row) != 3
+            or type(count_row[0]) is not str
+            or not count_row[0]
+            or type(count_row[1]) is not str
+            or not count_row[1]
+            or type(count_row[2]) is not int
+            or count_row[2] < 0
+        ):
+            raise ValueError("PDC snapshot count rows are malformed")
+        key = (count_row[0], count_row[1])
+        if key in declared_counts:
+            raise ValueError("PDC snapshot count rows must be unique")
+        declared_counts[key] = count_row[2]
+
+    inventory_counts: dict[tuple[str, str], int] = {}
+    inventory_identities: set[str] = set()
+    for file in snapshot.files:
+        if not isinstance(file, PdcFile):
+            raise TypeError("PDC snapshot files must be PdcFile values")
+        identity = json.dumps(_file_dict(file), sort_keys=True, separators=(",", ":"))
+        if identity in inventory_identities:
+            raise ValueError("PDC snapshot file inventory contains duplicate files")
+        inventory_identities.add(identity)
+        key = (file.data_category, file.file_type)
+        inventory_counts[key] = inventory_counts.get(key, 0) + 1
+        declared = declared_counts.get(key)
+        if declared is None or inventory_counts[key] > declared:
+            raise ValueError("PDC snapshot file inventory exceeds its declared category/type count")
 
 
 def _post(query: str, *, timeout: float = 30.0) -> tuple[dict[str, Any], bytes]:
@@ -462,13 +504,15 @@ class PdcClient:
                 )
             )
         files = tuple(_file(item) for item in raw_files)
-        return PdcStudySnapshot(
+        snapshot = PdcStudySnapshot(
             study_id=study_id,
             counts=tuple(sorted(counts)),
             files=tuple(sorted(files, key=lambda item: item.file_name)),
             source_url=PDC_STUDY_URL.format(study_id=study_id),
             response_sha256=sha256(raw).hexdigest(),
         )
+        _validate_catalog_snapshot(snapshot)
+        return snapshot
 
     def download_file(
         self,
