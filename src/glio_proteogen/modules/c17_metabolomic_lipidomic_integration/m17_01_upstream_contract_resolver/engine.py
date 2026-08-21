@@ -329,11 +329,11 @@ class M1701Engine:
             )
             status = ResolverStatus.VALIDATED
             support = SupportDecision(
-                status=SupportStatus.SUPPORTED,
-                reason_code="compatible_upstream",
+                status=SupportStatus.REVIEW_REQUIRED,
+                reason_code="compatible_upstream_review",
                 rationale=(
-                    "At least one upstream candidate satisfies the configured "
-                    "compatibility rules."
+                    "Caller-declared compatibility is retained for human review; "
+                    "no calibrated scientific support is inferred."
                 ),
             )
             abstention_reason = None
@@ -368,7 +368,7 @@ class M1701Engine:
             "provenance": _provenance(request),
             "evidence": _evidence(request),
             "limitations": _limitations(),
-            "human_review_required": bool(unresolved) or not selected,
+            "human_review_required": True,
         }
         payload["result_digest"] = result_payload_digest(
             VariantPeptideUpstreamResolutionResult.model_construct(**payload)
