@@ -6,6 +6,7 @@ from typing import Any
 
 import pytest
 from evals.m21_02.fixture import build_request, denied_request
+from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from glio_proteogen.contracts.m21_02 import (
@@ -19,6 +20,7 @@ from glio_proteogen.modules.c21_reference_material.m21_02_synthetic_truth_simula
     M2102AuthorizationError,
     M2102ReplayError,
     M2102Service,
+    create_app,
     preflight_m2102_authorization,
 )
 
@@ -105,3 +107,26 @@ def test_replay_rejects_self_rehashed_corpus_mutation() -> None:
     )
     with pytest.raises(M2102ReplayError, match="deterministic replay"):
         service.replay(forged)
+
+
+def test_api_verify_binds_supplied_request_before_replay() -> None:
+    request = build_request()
+    result = M2102Service().generate(request)
+    assert result.corpus is not None
+    mutated_case = result.corpus.cases[0].model_copy(update={"truth_values": ("forged",)})
+    mutated = result.model_copy(
+        update={
+            "corpus": result.corpus.model_copy(
+                update={"cases": (mutated_case, *result.corpus.cases[1:])}
+            )
+        }
+    )
+    resigned = mutated.model_copy(update={"result_digest": result_payload_digest(mutated)})
+    response = TestClient(create_app()).post(
+        "/v1/modules/M21-02/verify",
+        json={
+            "request": request.model_dump(mode="json"),
+            "result": resigned.model_dump(mode="json"),
+        },
+    )
+    assert response.status_code == 422  # noqa: PLR2004
