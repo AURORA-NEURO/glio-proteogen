@@ -213,8 +213,7 @@ def _uncertainty() -> UncertaintyProfile:
         "identification": "Identity, lineage, and subtype are not inferred by this module.",
         "support": "Support reflects caller controls, not external evidence authenticity.",
         "transport": (
-            "Transport across cohorts, assays, platforms, and treatment eras is not "
-            "estimable."
+            "Transport across cohorts, assays, platforms, and treatment eras is not estimable."
         ),
     }
     estimate = {

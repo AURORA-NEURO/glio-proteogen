@@ -256,8 +256,6 @@ def test_replay_detects_digest_valid_but_semantically_tampered_result() -> None:
     service = m1502.M1502Service()
     result = service.execute(_request())
     tampered = result.model_copy(update={"human_review_required": False})
-    tampered = tampered.model_copy(
-        update={"result_digest": result_payload_digest(tampered)}
-    )
+    tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
     with pytest.raises(m1502.M1502ReplayVerificationError):
         service.verify(tampered)
