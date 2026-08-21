@@ -104,13 +104,16 @@ def preflight_change_control_authorization(request: ControlComplexActivityChange
             raise ChangeControlAuthorizationError("required control is not accepted")
     if not _source_artifacts_are_bound(request):
         raise ChangeControlAuthorizationError(
-            "source artifact IDs must be unique and source artifacts must bind upstream and nested evidence exactly"
+            "source artifacts must uniquely bind upstream, champion/challenger digests, and nested evidence exactly"
         )
 
 
 def _source_artifacts_are_bound(request: ControlComplexActivityChangeRequest) -> bool:
     source_by_id = {item.artifact_id: item for item in request.source_artifacts}
     if len(source_by_id) != len(request.source_artifacts):
+        return False
+    source_digests = {item.digest for item in request.source_artifacts}
+    if not {request.champion_digest, request.challenger_digest} <= source_digests:
         return False
     declared_artifacts = (
         request.upstream_result,
