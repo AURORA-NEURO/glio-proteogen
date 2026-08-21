@@ -126,8 +126,17 @@ def test_service_verify_rejects_different_supplied_request() -> None:
     request = build_request()
     result = service.execute(request)
     forged = request.model_copy(update={"request_id": "request.m2508.forged"})
-    with pytest.raises(ValueError, match=r"^$"):
+    with pytest.raises(ValueError, match="replay request mismatch"):
         service.verify(result, request=forged)
+
+
+def test_plugin_verify_rejects_different_supplied_request() -> None:
+    service = M2508Service()
+    request = build_request()
+    result = service.execute(request)
+    forged = request.model_copy(update={"request_id": "request.m2508.forged"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        M2508Plugin(service).verify(result, request=forged)
 
 
 def test_service_accepts_mapping_and_canonical_json() -> None:
