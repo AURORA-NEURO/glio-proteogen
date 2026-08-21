@@ -122,7 +122,10 @@ C03/C04 computation contract:
   non-reportable,
   exposes unique-peptide versus shared-only identifiability before quantification. The summary
   records input-versus-unique spectra and shared-peptide counts, so a changed lower-scoring
-  contender cannot replay as the same group result. A target group supported only by shared
+  contender cannot replay as the same group result. For an exact score/class/identity tie,
+  an existing lower peptide q-value wins the duplicate-contender selection and a missing
+  q-value is least informative; the complete PSM projection remains bound in the competition
+  digest. A target group supported only by shared
   peptides remains visible with shared signal and an explicit `abstained` acceptance; a connected
   group in which only some accessions have unique-peptide support is also marked
   `partially_unique_ambiguous` and abstained. Neither can become a reportable primary estimate

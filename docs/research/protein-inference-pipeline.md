@@ -257,7 +257,9 @@ The
 latter binds candidate/target/decoy/collision counts, the max-PSM-score group method,
 group threshold, accepted target groups, descriptive decoy/target ratio, input versus unique
 spectra, duplicate-contender count, a digest of every group contender, and shared-only/ambiguous
-group counts. Accession-derived target/decoy labels are checked against each PSM's declared flags
+group counts. Within an exact score/class/identity tie, duplicate contenders prefer the lower
+existing peptide q-value (missing q-values are least informative) before the complete PSM
+projection is used as the replay tie-break. Accession-derived target/decoy labels are checked against each PSM's declared flags
 before group scoring. Both peptide- and group-level descriptive decoy/target ratios count
 collision evidence conservatively, even though collision records remain non-reportable. Target-
 only group candidates retain their evidence but have `null` q-values and cannot become accepted
