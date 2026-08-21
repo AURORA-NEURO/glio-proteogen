@@ -120,9 +120,15 @@ def create_app(service: M2804Service | None = None) -> FastAPI:
             await _read_bounded(request, max_bytes=M2804_MAX_CANONICAL_RESULT_BYTES)
         )
         candidate = envelope.get("result", envelope)
+        supplied_request = envelope.get("request")
         try:
             result = _RESULT_ADAPTER.validate_json(canonical_json_bytes(candidate), strict=True)
-            replay = boundary.replay(result)
+            typed_request = (
+                _REQUEST_ADAPTER.validate_json(canonical_json_bytes(supplied_request), strict=True)
+                if supplied_request is not None
+                else None
+            )
+            replay = boundary.replay(result, typed_request)
         except (ValidationError, ValueError, TypeError) as error:
             raise HTTPException(status_code=422, detail="replay envelope is invalid") from error
         return {
