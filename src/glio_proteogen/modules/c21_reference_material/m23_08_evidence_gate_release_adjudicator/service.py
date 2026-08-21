@@ -41,7 +41,11 @@ class M2308Service:
     def adjudicate(self, request: object) -> VariantPeptideEvidenceGateResult:
         return self._engine.adjudicate(self.validate_request(request))
 
-    def replay(self, result: object) -> VariantPeptideEvidenceGateResult:
+    def replay(
+        self,
+        result: object,
+        request: AdjudicateVariantPeptideEvidenceGateRequest | None = None,
+    ) -> VariantPeptideEvidenceGateResult:
         if isinstance(result, (bytes, bytearray, str)):
             decoded = strict_json_loads(result, max_bytes=M2308_MAX_CANONICAL_RESULT_BYTES)
             typed = VariantPeptideEvidenceGateResult.model_validate_json(
@@ -53,6 +57,11 @@ class M2308Service:
             )
         else:
             typed = VariantPeptideEvidenceGateResult.model_validate(result, strict=True)
+        if request is not None:
+            result_request = typed.request.model_dump(mode="json")
+            supplied_request = request.model_dump(mode="json")
+            if result_request != supplied_request:
+                raise ValueError
         return self._engine.replay(typed)
 
     @property
