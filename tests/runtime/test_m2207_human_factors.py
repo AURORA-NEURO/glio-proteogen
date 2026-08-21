@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import pytest
+from fastapi.testclient import TestClient
 
 from glio_proteogen.contracts.m22_07 import (
     EvaluationStatus,
     OperationalStatus,
     ProteinRnaDiscordanceHumanFactorsResult,
 )
+from glio_proteogen.contracts.m22_07.canonical import result_payload_digest
 from glio_proteogen.modules.c21_reference_material import (
     m22_07_human_factors_operational_evaluator as m2207,
 )
@@ -26,6 +28,21 @@ def test_runtime_evaluates_supported_operational_material_deterministically() ->
     assert first.result_digest == second.result_digest
     assert first.human_review_required is True
     assert engine.replay(first).result_digest == first.result_digest
+
+
+def test_api_verify_binds_supplied_request_before_replay() -> None:
+    request = _request()
+    result = m2207.M2207OperationalEngine().generate(request)
+    forged = result.model_copy(update={"human_review_required": False})
+    resigned = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    response = TestClient(m2207.create_app()).post(
+        "/v1/modules/M22-07/verify",
+        json={
+            "request": request.model_dump(mode="json"),
+            "result": resigned.model_dump(mode="json"),
+        },
+    )
+    assert response.status_code == 422  # noqa: PLR2004
 
 
 def test_runtime_abstains_when_operational_dimension_is_not_evaluable() -> None:
