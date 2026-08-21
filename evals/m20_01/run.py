@@ -127,7 +127,12 @@ def evaluate() -> EvaluationReport:
             continue
         results[name] = result
         if name == "validated_compatible":
-            scenario_passed &= result.status.value == "validated" and result.bundle is not None
+            scenario_passed &= (
+                result.status.value == "validated"
+                and result.bundle is not None
+                and result.support_decision.status is SupportStatus.REVIEW_REQUIRED
+                and result.human_review_required
+            )
         elif name == "mixed_review":
             scenario_passed &= (
                 result.compatibility_report.selected_candidate_ids == ("candidate.accepted",)
@@ -175,7 +180,9 @@ def evaluate() -> EvaluationReport:
             ),
         )
     )
-    tampered = results["replay_tamper"].model_copy(update={"human_review_required": True})
+    tampered = results["replay_tamper"].model_copy(
+        update={"result_id": "result.tampered.semantic"}
+    )
     replay_denied = False
     try:
         engine.replay(tampered)

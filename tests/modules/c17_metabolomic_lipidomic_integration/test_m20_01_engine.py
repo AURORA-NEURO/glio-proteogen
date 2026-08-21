@@ -35,6 +35,8 @@ def test_supported_resolution_is_deterministic_and_replayable() -> None:
 
     assert first.status is ResolverStatus.VALIDATED
     assert first.bundle is not None
+    assert first.support_decision.status is SupportStatus.REVIEW_REQUIRED
+    assert first.human_review_required is True
     assert first.result_digest == second.result_digest
     assert first.result_id == second.result_id
     assert engine.replay(first) == first

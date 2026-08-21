@@ -349,10 +349,13 @@ class M2001Engine:
         )
         status = ResolverStatus.VALIDATED if can_validate else ResolverStatus.ABSTAINED
         support = SupportDecision(
-            status=SupportStatus.SUPPORTED if can_validate else SupportStatus.REVIEW_REQUIRED,
-            reason_code="compatible_upstream" if can_validate else "upstream_review_required",
+            status=SupportStatus.REVIEW_REQUIRED,
+            reason_code=(
+                "compatible_upstream_review" if can_validate else "upstream_review_required"
+            ),
             rationale=(
-                "All promoted upstream candidates satisfy compatibility and safety controls."
+                "Caller-declared compatible candidates are retained for human review; "
+                "no calibrated scientific support is inferred."
                 if can_validate
                 else (
                     "Unresolved or unsupported upstream inputs require safe review "
@@ -384,7 +387,7 @@ class M2001Engine:
             "provenance": _provenance(request),
             "evidence": _evidence(request),
             "limitations": _limitations(),
-            "human_review_required": not can_validate,
+            "human_review_required": True,
         }
         payload["result_digest"] = result_payload_digest(
             ProteinSubtypeUpstreamResolutionResult.model_construct(**payload)
