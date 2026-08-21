@@ -239,3 +239,23 @@ def test_checked_in_pilot_evidence_and_package_receipt_are_closed() -> None:
         "passed": True,
         "artifacts": ["wheel", "sdist"],
     }
+
+
+def test_pilot_evidence_verifier_rejects_scenario_inventory_tampering(tmp_path: Path) -> None:
+    evidence = _ROOT / "docs" / "evidence" / "research_pilot"
+    destination = tmp_path / "docs" / "evidence" / "research_pilot"
+    destination.mkdir(parents=True)
+    for name in (
+        "manifest.json",
+        "coverage.json",
+        "evaluation.json",
+        "benchmark.json",
+        "package.json",
+    ):
+        (destination / name).write_bytes((evidence / name).read_bytes())
+    evaluation_path = destination / "evaluation.json"
+    evaluation = json.loads(evaluation_path.read_text(encoding="utf-8"))
+    evaluation["scenarios"]["attacker_case"] = {"passed": True}
+    evaluation_path.write_text(json.dumps(evaluation), encoding="utf-8")
+    with pytest.raises(Exception, match="scenario inventory"):
+        verify_pilot_evidence(tmp_path)

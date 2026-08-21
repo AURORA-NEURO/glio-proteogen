@@ -18,6 +18,16 @@ MAX_ARTIFACT_BYTES = 72 * 1024 * 1024
 EXPECTED_ARTIFACTS = 2
 SHA256_LENGTH = 64
 SOURCE_DATE_EPOCH = 315532800
+MIN_BENCHMARK_ITERATIONS = 10
+EXPECTED_SCENARIOS = frozenset(
+    {
+        "positive_ms2_search",
+        "checked_in_fixture",
+        "replay",
+        "strict_precursor_without_metadata",
+        "policy_true_claim_rejection",
+    }
+)
 
 
 class ResearchPilotEvidenceError(ValueError):
@@ -131,7 +141,7 @@ def _verify_package(evidence_root: Path, artifacts_root: Path | None) -> dict[st
     return {"passed": True, "artifacts": [receipt.kind for receipt in receipts]}
 
 
-def verify(root: Path = Path(), artifacts_root: Path | None = None) -> dict[str, object]:
+def verify(root: Path = Path(), artifacts_root: Path | None = None) -> dict[str, object]:  # noqa: C901
     """Verify policy, evaluation, benchmark, and scoped coverage receipts."""
 
     evidence_root = root / "docs/evidence/research_pilot"
@@ -162,8 +172,41 @@ def verify(root: Path = Path(), artifacts_root: Path | None = None) -> dict[str,
     if evaluation.get("module_id") != MODULE or evaluation.get("passed") is not True:
         raise ResearchPilotEvidenceError("evaluation evidence did not pass")
     scenarios = evaluation.get("scenarios")
-    if not isinstance(scenarios, dict) or scenarios.get("replay", {}).get("passed") is not True:
+    if not isinstance(scenarios, dict) or set(scenarios) != EXPECTED_SCENARIOS:
+        raise ResearchPilotEvidenceError("evaluation scenario inventory is not locked")
+    positive = scenarios.get("positive_ms2_search")
+    checked_in = scenarios.get("checked_in_fixture")
+    replay = scenarios.get("replay")
+    strict_precursor = scenarios.get("strict_precursor_without_metadata")
+    policy = scenarios.get("policy_true_claim_rejection")
+    positive_matches = positive.get("matched_psms") if isinstance(positive, dict) else None
+    if (
+        not isinstance(positive, dict)
+        or positive.get("status") != "COMPLETED"
+        or type(positive_matches) is not int
+        or positive_matches < 1
+        or not isinstance(positive.get("result_digest"), str)
+        or not isinstance(checked_in, dict)
+        or checked_in.get("status") != "ABSTAINED"
+        or not isinstance(checked_in.get("result_digest"), str)
+        or not isinstance(replay, dict)
+        or replay.get("passed") is not True
+        or replay.get("full_psm_projection_mutation_rejected") is not True
+        or replay.get("resource_limit_mutation_rejected") is not True
+        or not isinstance(strict_precursor, dict)
+        or strict_precursor.get("status") != "ABSTAINED"
+        or not isinstance(policy, dict)
+        or policy.get("passed") is not True
+    ):
         raise ResearchPilotEvidenceError("replay scenario evidence is incomplete")
+    benchmark_iterations = benchmark.get("iterations")
+    warmup_iterations = benchmark.get("warmup_iterations")
+    if type(benchmark_iterations) is not int or type(warmup_iterations) is not int:
+        raise ResearchPilotEvidenceError("benchmark iteration evidence is incomplete")
+    benchmark_iterations_int = benchmark_iterations
+    warmup_iterations_int = warmup_iterations
+    if benchmark_iterations_int < MIN_BENCHMARK_ITERATIONS or warmup_iterations_int < 1:
+        raise ResearchPilotEvidenceError("benchmark iteration evidence is incomplete")
     if (
         benchmark.get("module_id") != MODULE
         or benchmark.get("passed") is not True
