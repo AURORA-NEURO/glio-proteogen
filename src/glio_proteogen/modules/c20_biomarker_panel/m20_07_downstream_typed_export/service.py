@@ -42,7 +42,7 @@ class M2007Service:
         if request is not None:
             parsed = self._engine.verify(result, replay=False)
             if parsed.request.model_dump(mode="json") != request.model_dump(mode="json"):
-                raise ValueError
+                raise ValueError("replay request mismatch")  # noqa: TRY003
         return self._engine.verify(result, replay=replay)
 
 

@@ -97,6 +97,17 @@ def test_service_and_plugin_share_canonical_execution() -> None:
         plugin.run(request)  # type: ignore[arg-type]
 
 
+def test_service_and_plugin_verify_reject_supplied_request_mismatch() -> None:
+    request = _request()
+    service = M2007Service()
+    result = service.execute(request)
+    altered = request.model_copy(update={"request_id": "request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.verify(result, request=altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        M2007Plugin(service).verify(result, request=altered)
+
+
 def test_plugin_strict_json_rejects_duplicate_and_non_object_payloads() -> None:
     plugin = M2007Plugin()
     request = _request().model_dump(mode="json")

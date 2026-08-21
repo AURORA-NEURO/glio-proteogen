@@ -74,10 +74,11 @@ class M2007Plugin:
         self,
         result: object,
         *,
+        request: ExportProteinSubtypeDownstreamContractRequest | None = None,
         replay: bool = True,
     ) -> ProteinSubtypeDownstreamExportResult:
         _RESULT_ADAPTER.validate_python(result, strict=True)
-        return self._service.verify(result, replay=replay)
+        return self._service.verify(result, request=request, replay=replay)
 
 
 __all__ = ["M2007Plugin", "ValidatedM2007Request"]
