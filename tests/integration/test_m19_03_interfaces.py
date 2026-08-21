@@ -12,6 +12,8 @@ from typer.testing import CliRunner
 from glio_proteogen.adapters.api import create_app
 from glio_proteogen.adapters.cli import app as cli_app
 from glio_proteogen.contracts.m19_03 import (
+    M1903_MAX_CANONICAL_REQUEST_BYTES,
+    M1903_MAX_CANONICAL_RESULT_BYTES,
     FuseProteotypeEvidenceRequest,
     ProteotypeIntegratedEvidenceResult,
     contract_json_schema,
@@ -115,6 +117,27 @@ def test_central_api_sanitizes_self_rehashed_replay_mutation(tmp_path: Path) -> 
 
     assert response.status_code == HTTP_UNPROCESSABLE
     assert response.json() == {"detail": "M19-03 result verification failed"}
+
+
+def test_central_api_accepts_result_between_request_and_result_ceilings(tmp_path: Path) -> None:
+    result = M1903Service().fuse(_request())
+    serialized = canonical_json_bytes(result.model_dump(mode="json"))
+    target_size = M1903_MAX_CANONICAL_REQUEST_BYTES + 1
+    assert target_size < M1903_MAX_CANONICAL_RESULT_BYTES
+    padded = serialized + b" " * (target_size - len(serialized))
+
+    with TestClient(create_app(tmp_path / "large-result.sqlite3")) as client:
+        response = client.post(
+            "/v1/modules/M19-03/verify",
+            content=padded,
+            headers={"content-type": "application/json"},
+        )
+
+    assert len(padded) == target_size
+    assert response.status_code == HTTP_OK, response.text
+    assert ProteotypeIntegratedEvidenceResult.model_validate_json(
+        response.content, strict=True
+    ) == result
 
 
 def test_api_and_cli_abstain_on_prohibited_caller_claim(tmp_path: Path) -> None:
