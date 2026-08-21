@@ -168,6 +168,19 @@ def test_tampered_contract_and_payload_never_replay() -> None:
         engine.verify(replay_tampered)
 
 
+def test_self_rehashed_semantic_mutation_cannot_disable_replay() -> None:
+    engine = M2007Engine()
+    result = engine.export(_request())
+    assert result.contract is not None
+    changed_contract = result.contract.model_copy(
+        update={"ownership": result.contract.ownership.model_copy(update={"owner": "tampered"})}
+    )
+    forged = result.model_copy(update={"contract": changed_contract})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(M2007ReplayError, match="cannot be disabled"):
+        engine.verify(forged, replay=False)
+
+
 def test_unsupported_and_negative_claim_text_abstain() -> None:
     request = _request().model_copy(
         update={
