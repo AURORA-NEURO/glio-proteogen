@@ -9,8 +9,10 @@ from typing import Annotated
 import typer
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import RequestBodyTooLargeError, read_bounded
 from glio_proteogen.contracts.m24_02 import (
     M2402_MAX_CANONICAL_REQUEST_BYTES,
+    M2402_MAX_CANONICAL_RESULT_BYTES,
     BiomarkerPanelSyntheticTruthResult,
     GenerateBiomarkerPanelSyntheticTruthRequest,
     contract_json_schema,
@@ -43,8 +45,15 @@ def _read_request(path: Path) -> GenerateBiomarkerPanelSyntheticTruthRequest:
 
 def _read_result(path: Path) -> BiomarkerPanelSyntheticTruthResult:
     try:
-        return _RESULT_ADAPTER.validate_json(path.read_bytes(), strict=True)
-    except (OSError, StrictJsonError, ValueError, ValidationError) as error:
+        data = read_bounded(path, M2402_MAX_CANONICAL_RESULT_BYTES)
+        return _RESULT_ADAPTER.validate_json(data, strict=True)
+    except (
+        OSError,
+        RequestBodyTooLargeError,
+        StrictJsonError,
+        ValueError,
+        ValidationError,
+    ) as error:
         raise M2402CliError("input must be a valid M24-02 result") from error  # noqa: TRY003
 
 

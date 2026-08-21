@@ -7,8 +7,10 @@ from typing import Any, cast
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware
 from glio_proteogen.contracts.m24_02 import (
     M2402_MAX_CANONICAL_REQUEST_BYTES,
+    M2402_MAX_CANONICAL_RESULT_BYTES,
     BiomarkerPanelSyntheticTruthResult,
     GenerateBiomarkerPanelSyntheticTruthRequest,
     contract_json_schema,
@@ -40,7 +42,7 @@ def _parse_request(body: bytes) -> GenerateBiomarkerPanelSyntheticTruthRequest:
 
 def _parse_object(body: bytes) -> dict[str, Any]:
     try:
-        value = strict_json_loads(body)
+        value = strict_json_loads(body, max_bytes=M2402_MAX_CANONICAL_RESULT_BYTES)
     except (StrictJsonError, ValueError) as error:
         raise HTTPException(status_code=422, detail="request JSON is invalid") from error
     if not isinstance(value, dict):
@@ -53,6 +55,11 @@ def create_app(service: M2402Service | None = None) -> FastAPI:
 
     boundary = service or M2402Service()
     app = FastAPI(title="GLIO-PROTEOGEN M24-02", version="0.1.0-provisional")
+    app.add_middleware(
+        RequestSizeLimitMiddleware,
+        max_bytes=M2402_MAX_CANONICAL_REQUEST_BYTES,
+        result_max_bytes=M2402_MAX_CANONICAL_RESULT_BYTES,
+    )
 
     @app.get("/v1/modules/M24-02/schemas")
     async def schemas() -> dict[str, dict[str, object]]:
