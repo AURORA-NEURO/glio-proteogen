@@ -307,9 +307,9 @@ def _result() -> ComplexActivitySubgroupEvaluationResult:
         "parent_target": "complex activity",
         "emits_parent": False,
         "support_decision": SupportDecision(
-            status=SupportStatus.SUPPORTED,
-            reason_code="synthetic_supported",
-            rationale="Caller-declared subgroup evidence is supported.",
+            status=SupportStatus.REVIEW_REQUIRED,
+            reason_code="synthetic_review_required",
+            rationale="Caller-declared subgroup evidence remains review-only.",
         ),
         "uncertainty": _uncertainty(),
         "provenance": _provenance(request),
@@ -317,7 +317,7 @@ def _result() -> ComplexActivitySubgroupEvaluationResult:
         "limitations": (
             Limitation(code="provisional", statement="ABI remains provisional pending review."),
         ),
-        "human_review_required": False,
+        "human_review_required": True,
     }
     constructed = ComplexActivitySubgroupEvaluationResult.model_construct(**payload)
     payload["result_digest"] = result_payload_digest(constructed)

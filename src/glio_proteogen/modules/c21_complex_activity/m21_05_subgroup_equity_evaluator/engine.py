@@ -400,7 +400,7 @@ class M2105Engine:
         )
         status = EvaluationStatus.EVALUATED if report is not None else EvaluationStatus.ABSTAINED
         support = SupportDecision(
-            status=SupportStatus.SUPPORTED
+            status=SupportStatus.REVIEW_REQUIRED
             if evaluated
             else (
                 SupportStatus.UNSUPPORTED
