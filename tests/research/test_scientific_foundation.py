@@ -1762,6 +1762,17 @@ def test_protein_group_quantification_is_unique_signal_bound_and_deterministic()
     assert p1.input_psm_peptides == 2
 
 
+def test_protein_group_quantification_canonicalizes_partition_member_order() -> None:
+    forward = (ProteinGroup(("P2", "P1"), ("B", "A"), ("SHARED",)),)
+    reverse = (ProteinGroup(("P1", "P2"), ("A", "B"), ("SHARED",)),)
+    intensities = {"A": 10.0, "B": 30.0, "SHARED": 5.0}
+    counts = {"A": 1, "B": 2, "SHARED": 3}
+
+    assert quantify_protein_groups(forward, intensities, counts) == quantify_protein_groups(
+        reverse, intensities, counts
+    )
+
+
 def test_protein_group_quantification_rejects_overlapping_partition() -> None:
     overlapping = (
         ProteinGroup(("P1",), ("UNIQUE_A",), ("SHARED",)),

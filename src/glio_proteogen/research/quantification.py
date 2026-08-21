@@ -632,9 +632,25 @@ def quantify_protein_groups(
     cannot create an apparently resolved protein value on its own.
     """
 
-    materialized_groups = tuple(groups)
-    if not materialized_groups:
+    raw_groups = tuple(groups)
+    if not raw_groups:
         return ()
+    # Validate before sorting so malformed members retain the normal public
+    # error instead of failing inside Python's ordering operation.
+    _validate_group_partition(raw_groups)
+    # ``ProteinGroup`` is a public immutable value, but its tuple members can
+    # still arrive in a caller-chosen order. Canonicalize the partition before
+    # deriving evidence digests so equivalent membership cannot produce
+    # different replay receipts merely because tuple order changed.
+    canonical_groups = tuple(
+        ProteinGroup(
+            tuple(sorted(group.accessions)),
+            tuple(sorted(group.unique_peptides)),
+            tuple(sorted(group.shared_peptides)),
+        )
+        for group in raw_groups
+    )
+    materialized_groups = canonical_groups
     declared_peptides = _validate_group_partition(materialized_groups)
     normalized_intensities = _normalize_group_intensities(peptide_intensities, declared_peptides)
     normalized_counts = _normalize_group_psm_counts(peptide_psm_counts, declared_peptides)

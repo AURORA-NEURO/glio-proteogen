@@ -93,6 +93,8 @@ one deterministic, auditable path:
 9. Quantify each reportable protein group from the median positive unique-peptide
    intensity. Shared signal remains visible, but shared-only groups are explicitly
    non-quantifiable rather than assigned a fabricated protein value.
+   Group accessions and peptide partitions are canonicalized before the quantification
+   evidence digest, so equivalent memberships cannot produce order-dependent replay receipts.
 10. Emit SHA-256 input/evidence/result digests and permit a complete deterministic replay.
 
 ## Multi-sample cohort evidence
