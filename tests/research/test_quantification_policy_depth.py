@@ -136,6 +136,12 @@ def test_pipeline_binds_non_default_policy_to_configuration_and_replay() -> None
     assert result.quantification_receipt.limit_of_quantification == 25.0
     assert result.quantification_receipt.below_loq_peptides == 0
     assert replay_research_protein_inference(request, result).result_digest == result.result_digest
+
+
+def test_pipeline_default_policy_is_explicit_in_configuration() -> None:
+    request = ResearchRunRequest("default-policy", _mzml(), b">P1\nMPEPTIDER\n")
+    result = run_research_protein_inference(request)
+    assert dict(result.configuration)["quantification_policy"] == QuantificationPolicy().as_dict()
     forged = replace(
         result,
         quantification_receipt=replace(

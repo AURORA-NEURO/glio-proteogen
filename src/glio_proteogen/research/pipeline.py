@@ -689,8 +689,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
                 "variable_modifications": list(request.variable_modifications),
             }
         )
-    if request.quantification_policy != QuantificationPolicy():
-        configuration_payload["quantification_policy"] = request.quantification_policy.as_dict()
+    configuration_payload["quantification_policy"] = request.quantification_policy.as_dict()
     if mzidentml_structure is not None:
         configuration_payload.update(
             {
