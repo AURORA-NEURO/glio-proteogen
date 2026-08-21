@@ -38,7 +38,7 @@ class M2702Service:
         result: ComplexActivityLineageResult,
         request: ResolveComplexActivityLineageRequest | None = None,
     ) -> ComplexActivityLineageResult:
-        typed_request = request or result.request
+        typed_request = request if request is not None else result.request
         expected = self.execute(typed_request)
         if expected.model_dump(mode="json") != result.model_dump(mode="json"):
             raise ValueError("lineage replay mismatch")  # noqa: TRY003
