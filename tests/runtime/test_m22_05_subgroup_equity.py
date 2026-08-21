@@ -6,13 +6,16 @@ import json
 from collections.abc import Iterator, Mapping
 
 import pytest
+from fastapi.testclient import TestClient
 
 from glio_proteogen.contracts.m22_05 import CoverageStatus, EvaluationStatus
+from glio_proteogen.contracts.m22_05.canonical import result_payload_digest
 from glio_proteogen.kernel.models import UpstreamDecisionState
 from glio_proteogen.modules.c21_reference_material.m22_05_subgroup_equity_evaluator import (
     M2205AuthorizationError,
     M2205ReplayError,
     M2205Service,
+    create_app,
     evaluate_protein_rna_discordance_subgroup_equity,
     preflight_m2205_authorization,
 )
@@ -59,6 +62,21 @@ def test_replay_rejects_identifier_digest_and_request_tampering() -> None:
         service.replay(result.model_copy(update={"result_digest": "sha256:" + "f" * 64}))
     with pytest.raises(M2205ReplayError, match="request digest"):
         service.replay(result.model_copy(update={"request_digest": "sha256:" + "a" * 64}))
+
+
+def test_api_verify_binds_supplied_request_before_replay() -> None:
+    request = _request()
+    result = M2205Service().evaluate(request)
+    tampered = result.model_copy(update={"status": "abstained"})
+    resigned = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+    response = TestClient(create_app()).post(
+        "/v1/modules/M22-05/verify",
+        json={
+            "request": request.model_dump(mode="json"),
+            "result": resigned.model_dump(mode="json"),
+        },
+    )
+    assert response.status_code == 422  # noqa: PLR2004
 
 
 def test_authorization_fails_closed_before_material_traversal() -> None:
