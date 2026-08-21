@@ -135,6 +135,42 @@ def test_result_contract_rejects_self_rehashed_provenance_forgery(field: str) ->
         )
 
 
+def test_result_provenance_binds_declared_scientific_input_digests() -> None:
+    result = M2708Service().execute(build_request())
+    assert result.provenance.input_digests == (
+        result.request_digest,
+        result.request.mass_spectrometry_proteome.digest,
+        result.request.genome_transcriptome.digest,
+        result.request.ptm_annotations.digest,
+        *(item.digest for item in result.request.source_artifacts),
+    )
+
+    changed_request = result.request.model_copy(
+        update={
+            "mass_spectrometry_proteome": result.request.mass_spectrometry_proteome.model_copy(
+                update={"digest": "sha256:" + "f" * 64}
+            )
+        }
+    )
+    changed_digest = canonical_request_digest(changed_request)
+    forged = result.model_copy(
+        update={
+            "request": changed_request,
+            "request_digest": changed_digest,
+            "provenance": result.provenance.model_copy(
+                update={
+                    "activity_id": "activity.m2708." + changed_digest.removeprefix("sha256:")
+                }
+            ),
+        }
+    )
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValueError, match="provenance input digests"):
+        ComplexActivityRetirementResult.model_validate(
+            forged.model_dump(mode="python"), strict=True
+        )
+
+
 def test_result_replay_rejects_stale_request_identity_after_rehash() -> None:
     result = M2708Service().execute(build_request())
     changed_request = build_request(request_id="m2708.request.changed")
