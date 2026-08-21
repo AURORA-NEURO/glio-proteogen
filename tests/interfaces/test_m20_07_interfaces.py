@@ -22,6 +22,7 @@ from glio_proteogen.modules.c20_biomarker_panel.m20_07_downstream_typed_export i
 from tests.contract.test_m20_07_hardening import _request
 
 _HTTP_OK = 200
+_HTTP_PAYLOAD_TOO_LARGE = 413
 _HTTP_NOT_FOUND = 404
 _HTTP_UNPROCESSABLE = 422
 
@@ -68,6 +69,15 @@ def test_plugin_is_strict_parse_once_and_requires_execution_token() -> None:
         plugin.validate(object())
     with pytest.raises(TypeError):
         plugin.run(cast("Any", request))
+
+
+def test_fastapi_request_ceiling_applies_before_route_parsing() -> None:
+    client = TestClient(create_app())
+    response = client.post(
+        "/v1/modules/M20-07/export",
+        content=b"{" + b"x" * M2007_MAX_CANONICAL_REQUEST_BYTES + b"}",
+    )
+    assert response.status_code == _HTTP_PAYLOAD_TOO_LARGE
 
 
 def test_typer_export_validate_verify_and_no_overwrite(tmp_path: Any) -> None:
