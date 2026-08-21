@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import argparse
-from contextlib import suppress
 import json
 import sys
+from contextlib import suppress
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Final
