@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import replace
+from hashlib import sha256
 from typing import Any
 
 import pytest
@@ -175,6 +177,37 @@ def test_group_summary_binds_partition_and_rejects_tampering() -> None:
             candidates,
             replace(summary, group_partition_digest="0" * 64),
         )
+
+
+def test_group_verifier_rejects_rehashed_decoy_acceptance() -> None:
+    candidates, summary = infer_protein_group_candidates(
+        (
+            Psm("target", "PEPTIDE", ("P1",), 10.0, 3, decoy=False),
+            Psm("decoy", "DECOY_PEPTIDE", ("DECOY_P2",), 1.0, 3, decoy=True),
+        ),
+        q_value_threshold=0.01,
+    )
+    forged = tuple(
+        replace(candidate, acceptance="accepted", q_value=0.0)
+        if candidate.status == "decoy"
+        else candidate
+        for candidate in candidates
+    )
+    partition_digest = sha256(
+        json.dumps(
+            [candidate.as_dict() for candidate in forged],
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode()
+    ).hexdigest()
+    forged_summary = replace(
+        summary,
+        accepted_targets=sum(candidate.acceptance == "accepted" for candidate in forged),
+        group_partition_digest=partition_digest,
+    )
+
+    with pytest.raises(ValueError, match="decoy and collision groups"):
+        verify_protein_group_fdr_summary(forged, forged_summary)
 
 
 def test_decoy_only_group_receipt_abstains_undefined_ratio() -> None:
