@@ -84,8 +84,12 @@ class M2104Plugin:
             raise M2104TokenError
         return self._service._engine.evaluate(token.request)
 
-    def replay(self, result: object) -> ComplexActivityExternalTransportResult:
-        return self._service.replay(result)
+    def replay(
+        self,
+        result: object,
+        request: EvaluateComplexActivityExternalTransportRequest | None = None,
+    ) -> ComplexActivityExternalTransportResult:
+        return self._service.replay(result, request=request)
 
 
 __all__ = [
