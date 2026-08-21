@@ -33,6 +33,24 @@ def test_api_rejects_non_object_replay_and_service_json_is_strict() -> None:
     assert parsed.request_id == request.request_id
 
 
+def test_api_enforces_request_and_replay_body_ceilings(monkeypatch: Any) -> None:
+    monkeypatch.setattr(m2307.api, "M2307_MAX_CANONICAL_REQUEST_BYTES", 32)
+    monkeypatch.setattr(m2307.api, "M2307_MAX_CANONICAL_RESULT_BYTES", 32)
+    client = TestClient(m2307.create_app(m2307.M2307Service()))
+
+    oversized_request = b'{"request_id":"' + (b"x" * 32) + b'"}'
+    assert (
+        client.post("/v1/modules/M23-07/validate", content=oversized_request).status_code
+        == _HTTP_UNPROCESSABLE
+    )
+
+    oversized_result = b'{"result":' + (b" " * 32) + b"}"
+    assert (
+        client.post("/v1/modules/M23-07/verify", content=oversized_result).status_code
+        == _HTTP_UNPROCESSABLE
+    )
+
+
 def test_cli_covers_outputless_schema_denial_abstention_and_mismatch(
     tmp_path: Any,
     monkeypatch: Any,
