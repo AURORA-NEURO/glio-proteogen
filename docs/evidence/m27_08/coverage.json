@@ -1,10 +1,13 @@
 {
   "module_id": "GLIO-PROTEOGEN-M27-08",
   "passed": true,
-  "coverage_percent": 95.0,
+  "coverage_percent": 95.2991452991453,
   "fail_under": 95.0,
-  "statements": 489,
-  "branches": 96,
-  "tests": 40,
+  "statements": 380,
+  "branches": 88,
+  "tests": 76,
+  "covered_statements": 368,
+  "partial_branches": 10,
+  "scope": "M27-08 contracts (canonical/schema/v1), retirement engine, and plugin; API/CLI are exercised separately",
   "exclusions": []
 }
