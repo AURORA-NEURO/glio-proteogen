@@ -207,9 +207,7 @@ def test_plugin_rejects_forged_cross_instance_and_nested_mutated_tokens() -> Non
     with pytest.raises(TypeError, match="validated request token"):
         other.run(token)
 
-    changed_item = token.request.review_items[0].model_copy(
-        update={"title": "forged review item"}
-    )
+    changed_item = token.request.review_items[0].model_copy(update={"title": "forged review item"})
     object.__setattr__(
         token.request,
         "review_items",
