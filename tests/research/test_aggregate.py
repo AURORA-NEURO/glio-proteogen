@@ -8,6 +8,7 @@ from typing import cast
 import pytest
 
 from glio_proteogen.research.public_proteomics import (
+    EvidenceAggregate,
     FastaStructure,
     FeatureRecord,
     MzIdentMlStructure,
@@ -223,3 +224,84 @@ def test_public_receipt_constructors_close_identity_and_canonicalization() -> No
         )
     with pytest.raises(ValueError, match="limitations"):
         replace(aggregate, limitations=("forged",))
+
+
+def test_public_receipt_constructors_reject_all_structural_boundary_shapes() -> None:
+    digest = "sha256:" + "a" * 64
+    with pytest.raises(ValueError, match="source_id"):
+        FeatureRecord(" ", "fasta", 1, digest, ())
+    with pytest.raises(ValueError, match="format"):
+        FeatureRecord("local:fasta", "not-a-format", 1, digest, ())
+    with pytest.raises(TypeError, match="attributes must be a tuple"):
+        FeatureRecord("local:fasta", "fasta", 1, digest, cast("object", []))  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="attribute names"):
+        FeatureRecord("local:fasta", "fasta", 1, digest, (("", 1),))
+
+    record = FeatureRecord("local:fasta", "fasta", 1, digest, ())
+    structural_counts = (
+        ("fasta_byte_length", 1),
+        ("local_source_count", 1),
+        ("pdc_aliquots_count", 0),
+        ("pdc_cases_count", 0),
+    )
+    base = {
+        "feature_records": [record.as_dict()],
+        "manifest_digest": digest,
+        "pdc_snapshot_digest": digest,
+        "structural_counts": dict(structural_counts),
+    }
+    aggregate_id = sha256_digest(base)
+    with pytest.raises(ValueError, match="sha256"):
+        EvidenceAggregate("forged", digest, digest, (record,), structural_counts)
+    with pytest.raises(TypeError, match="feature_records"):
+        EvidenceAggregate(aggregate_id, digest, digest, cast("object", []), structural_counts)  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="canonically ordered"):
+        EvidenceAggregate(
+            aggregate_id, digest, digest, (record,), tuple(reversed(structural_counts))
+        )
+    with pytest.raises(TypeError, match="structural_counts must be a tuple"):
+        EvidenceAggregate(aggregate_id, digest, digest, (record,), cast("object", []))  # type: ignore[arg-type]
+    with pytest.raises(TypeError, match="string/non-negative"):
+        EvidenceAggregate(aggregate_id, digest, digest, (record,), (("bad", "1"),))  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="unique names"):
+        EvidenceAggregate(
+            aggregate_id,
+            digest,
+            digest,
+            (record,),
+            (("fasta_byte_length", 1), ("fasta_byte_length", 1)),
+        )
+
+    class _Summary:
+        def __init__(self, values: dict[str, object]) -> None:
+            self.values = values
+
+        def as_dict(self) -> dict[str, object]:
+            return dict(self.values)
+
+    with pytest.raises(TypeError, match="identity fields"):
+        _feature_record(
+            "local:fasta",
+            cast(
+                "FastaStructure",
+                _Summary({"format": "fasta", "byte_length": True, "sha256": digest}),
+            ),
+        )
+    with pytest.raises(TypeError, match="boolean structural attribute"):
+        _feature_record(
+            "local:fasta",
+            cast(
+                "FastaStructure",
+                _Summary({"format": "fasta", "byte_length": 1, "sha256": digest, "values": [True]}),
+            ),
+        )
+    with pytest.raises(TypeError, match="unsupported structural attribute"):
+        _feature_record(
+            "local:fasta",
+            cast(
+                "FastaStructure",
+                _Summary(
+                    {"format": "fasta", "byte_length": 1, "sha256": digest, "values": {"x": 1}}
+                ),
+            ),
+        )
