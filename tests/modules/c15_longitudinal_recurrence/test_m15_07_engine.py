@@ -15,7 +15,7 @@ from glio_proteogen.contracts.m15_07 import (
     PlausibilityAdjudicationStatus,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
-from glio_proteogen.kernel.models import ArtifactReference
+from glio_proteogen.kernel.models import ArtifactReference, SupportStatus
 from glio_proteogen.modules.c15_longitudinal_recurrence.m15_07_plausibility_negative_control_adjudicator import (
     M1507AuthorizationError,
     M1507InferenceError,
@@ -51,7 +51,9 @@ def test_positive_adjudication_is_deterministic_and_replayable() -> None:
     assert all(item.outcome is ControlOutcome.PASSED for item in result.evaluations)
     assert result.conflicts == ()
     assert len(result.provenance.control_decisions) == 7
-    assert result.uncertainty.measurement.probability == 0.9
+    assert result.support_decision.status is SupportStatus.REVIEW_REQUIRED
+    assert result.human_review_required is True
+    assert result.uncertainty.measurement.probability is None
     assert engine.verify(result) == result
     assert adjudicate_complex_activity_plausibility(_request()) == result
 

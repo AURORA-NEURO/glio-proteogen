@@ -210,10 +210,12 @@ class ComplexActivityPlausibilityAdjudicationResult(FrozenModel):
                 or self.abstention_reason is not None
                 or has_blocking_outcome
                 or self.conflicts
-                or self.support_decision.status is not SupportStatus.SUPPORTED
-                or self.human_review_required
+                or self.support_decision.status is not SupportStatus.REVIEW_REQUIRED
+                or not self.human_review_required
             ):
-                raise ValueError("adjudicated result requires all controls passed and no conflicts")
+                raise ValueError(
+                    "adjudicated result requires review-only controls and no conflicts"
+                )
         elif (
             self.grade is not None
             or self.abstention_reason is None
