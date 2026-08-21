@@ -368,6 +368,16 @@ def bind_mzidentml_references(  # noqa: PLR0915
             if accession is None:
                 raise FormatError("mzIdentML PeptideEvidence has an unresolved DBSequence_ref")
             protein_references.append(accession)
+        elif local == "ProteinDetectionHypothesis":
+            db_sequence_ref = element.attrib.get("dBSequence_ref")
+            if db_sequence_ref is None:
+                continue
+            accession = db_sequences.get(db_sequence_ref)
+            if accession is None:
+                raise FormatError(
+                    "mzIdentML ProteinDetectionHypothesis has an unresolved DBSequence_ref"
+                )
+            protein_references.append(accession)
     unknown_proteins = tuple(
         value for value in protein_references if value not in protein_catalogue
     )
