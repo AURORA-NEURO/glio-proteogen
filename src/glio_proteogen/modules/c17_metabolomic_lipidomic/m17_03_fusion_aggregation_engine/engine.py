@@ -262,6 +262,9 @@ class M1703FusionAggregationEngine:
         request_hash = canonical_request_digest(request)
         evidence = _evidence(request)
         status, review, codes = _classify(request)
+        provisional_boundary = status is FusionStatus.INTEGRATED
+        if provisional_boundary:
+            review = True
         integrated = (
             IntegratedEvidenceObject(
                 integrated_id=f"integrated.{request_hash.removeprefix('sha256:')}",
@@ -289,13 +292,19 @@ class M1703FusionAggregationEngine:
             "parent_target": "variant_peptide",
             "emits_parent": False,
             "support_decision": SupportDecision(
-                status=SupportStatus.SUPPORTED if not review else SupportStatus.REVIEW_REQUIRED,
-                reason_code="m1703_fusion_supported" if not review else "m1703_fusion_review",
+                status=SupportStatus.REVIEW_REQUIRED if review else SupportStatus.SUPPORTED,
+                reason_code=(
+                    "m1703_provisional_abi_review"
+                    if provisional_boundary
+                    else "m1703_fusion_review"
+                    if review
+                    else "m1703_fusion_supported"
+                ),
                 rationale="All attributable contributions meet the declared support envelope."
                 if not review
                 else "Reliability, disagreement, or support limitations require human review.",
             ),
-            "uncertainty": _uncertainty(estimable=status is FusionStatus.INTEGRATED),
+            "uncertainty": _uncertainty(estimable=False),
             "provenance": _provenance(request, request_hash),
             "evidence": evidence,
             "limitations": _limitations(supported=status is FusionStatus.INTEGRATED),

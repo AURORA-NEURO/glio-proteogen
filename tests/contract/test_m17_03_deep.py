@@ -44,7 +44,8 @@ def test_runtime_statuses_preserve_attribution_disagreement_and_abstention() -> 
     healthy = engine.infer(build_scenario_request())
     assert healthy.integrated_evidence is not None
     assert healthy.status.value == "integrated"
-    assert healthy.support_decision.status is SupportStatus.SUPPORTED
+    assert healthy.support_decision.status is SupportStatus.REVIEW_REQUIRED
+    assert healthy.uncertainty.transport.probability is None
     disagreement = engine.infer(build_scenario_request("disagreement"))
     assert disagreement.integrated_evidence is not None
     assert disagreement.integrated_evidence.disagreements[0].status is DisagreementStatus.OPEN
