@@ -101,8 +101,12 @@ class M2308Plugin:
             raise M2308TokenError
         return self._service.adjudicate(token.request)
 
-    def replay(self, result: object) -> VariantPeptideEvidenceGateResult:
-        return self._service.replay(result)
+    def replay(
+        self,
+        result: object,
+        request: AdjudicateVariantPeptideEvidenceGateRequest | None = None,
+    ) -> VariantPeptideEvidenceGateResult:
+        return self._service.replay(result, request)
 
 
 __all__ = [

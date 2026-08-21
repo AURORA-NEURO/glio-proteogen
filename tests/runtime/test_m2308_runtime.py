@@ -118,6 +118,17 @@ def test_plugin_requires_capability_token_and_supports_string_submission() -> No
         plugin.run(object())  # type: ignore[arg-type]
 
 
+def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
+    request = _request()
+    service = M2308Service()
+    result = service.adjudicate(request)
+    altered = request.model_copy(update={"request_id": "m2308.request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.replay(result, altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        M2308Plugin(service).replay(result, altered)
+
+
 def test_replay_rejects_tampered_result_and_tampered_request() -> None:
     result = M2308EvidenceGateEngine().adjudicate(_request())
     tampered_result = result.model_copy(update={"result_digest": sha256_digest("tampered")})
