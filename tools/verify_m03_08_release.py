@@ -7,8 +7,10 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import io
 import json
 import math
+import stat
 import sys
 import tarfile
 import zipfile
@@ -234,15 +236,68 @@ def _verify_external_artifact(path: Path, receipt: Mapping[str, object]) -> None
         raise M0308ReleaseEvidenceError(f"artifact digest mismatch: {path.name}")
     try:
         if receipt.get("kind") == "wheel":
-            with zipfile.ZipFile(path) as archive:
+            with zipfile.ZipFile(io.BytesIO(payload)) as archive:
                 members = len(archive.namelist())
         else:
-            with tarfile.open(path) as archive:
+            with tarfile.open(fileobj=io.BytesIO(payload), mode="r:*") as archive:
                 members = len(archive.getnames())
     except (OSError, tarfile.TarError, zipfile.BadZipFile) as error:
         raise M0308ReleaseEvidenceError(f"artifact archive is unreadable: {path.name}") from error
     if members != receipt.get("members"):
         raise M0308ReleaseEvidenceError(f"artifact member count mismatch: {path.name}")
+
+
+def _is_reparse_path(path: Path) -> bool:
+    """Return whether *path* is a link or platform reparse point."""
+
+    try:
+        metadata = path.lstat()
+    except OSError:
+        return False
+    reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+    file_attributes = getattr(metadata, "st_file_attributes", 0)
+    return path.is_symlink() or path.is_junction() or bool(file_attributes & reparse_flag)
+
+
+def _bound_external_artifact(root: Path, filename: str) -> Path:
+    """Admit one receipt artifact only as a non-reparse regular file below *root*."""
+
+    candidate = root / filename
+    if _is_reparse_path(candidate):
+        raise M0308ReleaseEvidenceError(
+            f"artifact must be a regular non-linked file: {candidate.name}"
+        )
+    try:
+        resolved = candidate.resolve(strict=True)
+    except OSError as error:
+        raise M0308ReleaseEvidenceError(f"artifact unavailable: {candidate.name}") from error
+    try:
+        resolved.relative_to(root)
+    except ValueError as error:
+        raise M0308ReleaseEvidenceError(
+            f"artifact escapes artifact directory: {candidate.name}"
+        ) from error
+    if _is_reparse_path(resolved) or not resolved.is_file():
+        raise M0308ReleaseEvidenceError(
+            f"artifact must be a regular non-linked file: {candidate.name}"
+        )
+    return candidate
+
+
+def _verify_external_artifacts(artifacts_dir: Path, receipts: list[dict[str, object]]) -> None:
+    """Verify receipt-bound artifacts from one non-reparse directory."""
+
+    if _is_reparse_path(artifacts_dir):
+        raise M0308ReleaseEvidenceError("artifact directory cannot be a link or reparse point")
+    try:
+        artifact_root = artifacts_dir.resolve(strict=True)
+    except OSError as error:
+        raise M0308ReleaseEvidenceError("artifact directory is unavailable") from error
+    if not artifact_root.is_dir():
+        raise M0308ReleaseEvidenceError("artifact directory is unavailable")
+    for receipt in receipts:
+        artifact_path = _bound_external_artifact(artifact_root, str(receipt["filename"]))
+        _verify_external_artifact(artifact_path, receipt)
 
 
 def verify_release(directory: Path, artifacts_dir: Path | None = None) -> dict[str, object]:
@@ -272,11 +327,7 @@ def verify_release(directory: Path, artifacts_dir: Path | None = None) -> dict[s
         raise M0308ReleaseEvidenceError("package reproducibility/import closure is incomplete")
     receipts = _artifact_receipts(package)
     if artifacts_dir is not None:
-        artifact_root = artifacts_dir.resolve()
-        if not artifact_root.is_dir():
-            raise M0308ReleaseEvidenceError("artifact directory is unavailable")
-        for receipt in receipts:
-            _verify_external_artifact(artifact_root / str(receipt["filename"]), receipt)
+        _verify_external_artifacts(artifacts_dir, receipts)
     return {
         "module_id": MODULE_ID,
         "contract_version": CONTRACT_VERSION,
