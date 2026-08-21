@@ -263,7 +263,10 @@ projection is used as the replay tie-break. Accession-derived target/decoy label
 before group scoring. Both peptide- and group-level descriptive decoy/target ratios count
 collision evidence conservatively, even though collision records remain non-reportable. Target-
 only group candidates retain their evidence but have `null` q-values and cannot become accepted
-groups without decoy/collision error evidence.
+groups without decoy/collision error evidence. The public summary verifier also closes candidate
+status against acceptance and q-value fields: decoy/collision groups cannot be accepted or carry
+q-values, accepted targets must have unique support and a q-value, and support accessions must
+cover the declared group.
 When the target denominator is zero (decoy-only or collision-only evidence), the descriptive
 decoy/target ratio is `null` rather than `0.0`: the error rate is undefined, not zero. A numeric
 zero is reserved for a positive target denominator with no decoy or collision winners.
