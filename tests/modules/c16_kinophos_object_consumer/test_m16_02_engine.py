@@ -36,11 +36,12 @@ def test_aligned_request_reconciles_with_complete_evidence() -> None:
     assert result.bundle is not None
     assert result.bundle.links[0].status is AlignmentLinkStatus.ALIGNED
     assert not result.bundle.discrepancies
-    assert result.support_decision.status is SupportStatus.SUPPORTED
-    assert not result.human_review_required
+    assert result.support_decision.status is SupportStatus.REVIEW_REQUIRED
+    assert result.human_review_required is True
+    assert result.uncertainty.measurement.probability is None
     assert result.abstention_reason is None
     assert len(result.provenance.control_decisions) == 7
-    assert result.uncertainty.transport.probability == 0.9
+    assert result.uncertainty.transport.probability is None
 
 
 @pytest.mark.parametrize(
@@ -65,7 +66,7 @@ def test_resolved_discrepancy_is_reconciled_but_remains_explicit() -> None:
     assert result.status is AlignmentDecisionStatus.RECONCILED
     assert result.bundle is not None
     assert result.bundle.discrepancies[0].resolution_status is DiscrepancyResolutionStatus.RESOLVED
-    assert result.human_review_required is False
+    assert result.human_review_required is True
 
 
 @pytest.mark.parametrize("label", ["unsupported", "ood"])

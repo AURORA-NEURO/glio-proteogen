@@ -298,10 +298,10 @@ class M1602AlignmentEngine:
             item.resolution_status is not DiscrepancyResolutionStatus.RESOLVED
             for item in discrepancies
         )
-        supported = (
+        structurally_reconciled = (
             not prohibited and not not_evaluable and not critical_open and not open_discrepancy
         )
-        review_required = not supported and not prohibited and not not_evaluable
+        review_required = not structurally_reconciled and not prohibited and not not_evaluable
         bundle = (
             None
             if prohibited or not_evaluable
@@ -332,7 +332,7 @@ class M1602AlignmentEngine:
             AlignmentDecisionStatus.ABSTAINED
             if prohibited or not_evaluable
             else AlignmentDecisionStatus.RECONCILED
-            if supported
+            if structurally_reconciled
             else AlignmentDecisionStatus.REVIEW_REQUIRED
         )
         payload: dict[str, Any] = {
@@ -345,26 +345,25 @@ class M1602AlignmentEngine:
             "diagnostics": _diagnostic(status, evidence),
             "findings": unique_findings,
             "abstention_reason": None
-            if supported or review_required
+            if structurally_reconciled or review_required
             else "Alignment inputs are not safely evaluable.",
             "support_decision": SupportDecision(
-                status=SupportStatus.SUPPORTED
-                if supported
-                else SupportStatus.REVIEW_REQUIRED
-                if review_required
+                status=SupportStatus.REVIEW_REQUIRED
+                if structurally_reconciled or review_required
                 else SupportStatus.UNSUPPORTED,
-                reason_code="m1602_supported" if supported else "m1602_review_required",
+                reason_code="m1602_review_only" if structurally_reconciled else "m1602_review_required",
                 rationale=(
-                    "All configured source dimensions reconciled without critical conflict."
-                    if supported
+                    "Caller-declared source dimensions reconcile structurally; scientific support "
+                    "remains unverified and requires human review."
+                    if structurally_reconciled
                     else "Alignment promotion is blocked pending discrepancy, support, or input review."
                 ),
             ),
-            "uncertainty": expected_uncertainty(supported=supported),
+            "uncertainty": expected_uncertainty(supported=False),
             "provenance": expected_provenance(typed, request_digest),
             "evidence": evidence,
-            "limitations": _limitations(supported=supported),
-            "human_review_required": not supported,
+            "limitations": _limitations(supported=False),
+            "human_review_required": True,
         }
         constructed = ProteinRnaDiscordanceAlignmentResult.model_construct(**payload)
         payload["result_digest"] = result_payload_digest(constructed)

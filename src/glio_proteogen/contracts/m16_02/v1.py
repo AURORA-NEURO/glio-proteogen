@@ -281,10 +281,10 @@ class ProteinRnaDiscordanceAlignmentResult(FrozenModel):
                 self.bundle is None
                 or critical_open
                 or self.abstention_reason is not None
-                or self.support_decision.status is not SupportStatus.SUPPORTED
-                or self.human_review_required
+                or self.support_decision.status is not SupportStatus.REVIEW_REQUIRED
+                or not self.human_review_required
             ):
-                raise ValueError("reconciled result requires supported conflict-free alignment")
+                raise ValueError("reconciled result requires review-only conflict-free alignment")
         elif self.status is AlignmentDecisionStatus.REVIEW_REQUIRED:
             if (
                 self.bundle is None
