@@ -175,6 +175,7 @@ def test_manifest_rejects_duplicate_biological_acquisition_identity(field: str) 
     samples = (_sample("a", "r1"), _sample("b", "r2"))
     manifest = _manifest(samples, "biological")
     first, second = manifest.bindings
+    second = replace(second, source_sha256="b" * 64)
     shared = "shared-biological-identity"
     forged = CohortSourceManifest(
         (
