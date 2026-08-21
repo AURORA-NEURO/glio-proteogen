@@ -43,6 +43,12 @@ def _invalid_request(error: Exception) -> HTTPException:
     return HTTPException(status_code=422, detail="request does not satisfy the M27-05 contract")
 
 
+def _require_object(value: object) -> dict[str, object]:
+    if not isinstance(value, dict):
+        raise TypeError("replay envelope must be an object")
+    return value
+
+
 def _parse_request(body: bytes) -> EmitProteomicsTelemetryRequest:
     try:
         strict_json_loads(body, max_bytes=M2705_MAX_CANONICAL_REQUEST_BYTES)
@@ -103,7 +109,8 @@ def create_app(service: M2705Service | None = None) -> FastAPI:  # noqa: C901
     async def verify(request: Request) -> dict[str, object]:
         _require_json(request)
         try:
-            envelope = strict_json_loads(await request.body())
+            decoded = strict_json_loads(await request.body())
+            envelope = _require_object(decoded)
             candidate = envelope.get("result", envelope)
             supplied_request = envelope.get("request")
             result = _RESULT_ADAPTER.validate_json(canonical_json_bytes(candidate), strict=True)
