@@ -254,7 +254,14 @@ def test_tampered_result_digest_is_rejected() -> None:
 
 def test_replay_rejects_resigned_semantic_mutation() -> None:
     result = m1708.M1708Engine().adapt(_request())
-    tampered = result.model_copy(update={"human_review_required": False})
+    assert result.health_report is not None
+    tampered = result.model_copy(
+        update={
+            "health_report": result.health_report.model_copy(
+                update={"health_state": TranslationHealthState.SUSPENDED}
+            )
+        }
+    )
     tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
 
     with pytest.raises(m1708.M1708ReplayError, match="deterministic replay"):
