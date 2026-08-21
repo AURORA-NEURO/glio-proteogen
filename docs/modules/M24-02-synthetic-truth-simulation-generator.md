@@ -25,7 +25,9 @@ Contract and safety boundaries:
   finding or an inferred biological claim.
 - Replay verifies canonical request digest, deterministic result identity,
   upstream digest binding, provenance module, and canonical result payload
-  digest. The service and plugin share that replay path.
+  digest, then regenerates the deterministic corpus from the bound request and
+  compares the complete canonical result. Self-rehashed corpus mutations are
+  rejected. The service and plugin share that replay path.
 - FastAPI and Typer adapters parse once, sanitize validation failures, refuse
   output overwrite, and preserve the same canonical result bytes.
 - KINOPHOS kinase-state ownership, generic all-omics fusion, treatment
