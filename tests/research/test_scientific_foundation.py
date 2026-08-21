@@ -317,7 +317,9 @@ def test_matched_ion_quantification_receipt_binds_units_duplicates_and_missingne
     ]
 
 
-@pytest.mark.parametrize("observation", [("", 1.0), ("P", -1.0), ("P", math.nan)])
+@pytest.mark.parametrize(
+    "observation", [("", 1.0), ("P", -1.0), ("P", math.nan), ("P", True)]
+)
 def test_matched_ion_quantification_rejects_invalid_observations(
     observation: tuple[str, float],
 ) -> None:
