@@ -39,6 +39,8 @@ def test_policy_rejects_open_ended_units_and_controls() -> None:
         QuantificationPolicy(missingness_policy="zero_imputed")
     with pytest.raises(ValueError, match="finite"):
         QuantificationPolicy(limit_of_quantification=float("nan"))
+    with pytest.raises(ValueError):
+        QuantificationPolicy(limit_of_quantification=True)
     with pytest.raises(ValueError, match="max_input_observations"):
         QuantificationPolicy(max_input_observations=0)
 
