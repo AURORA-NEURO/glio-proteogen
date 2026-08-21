@@ -16,6 +16,9 @@ from glio_proteogen.modules.c21_reference_material.m25_02_synthetic_truth_simula
     generate_proteotype_synthetic_truth,
     preflight_m2502_authorization,
 )
+from glio_proteogen.modules.c21_reference_material.m25_02_synthetic_truth_simulation_generator.engine import (  # noqa: E501
+    M2502SyntheticTruthGenerator,
+)
 from tests.contract.test_m25_02_deep import _request
 
 _CASE_COUNT = 2
@@ -92,6 +95,15 @@ def test_authorization_fails_closed_before_material_traversal() -> None:
     )
     with pytest.raises(M2502AuthorizationError):
         M2502Service().generate(request.model_copy(update={"context": context}))
+
+
+def test_authorization_rejects_context_request_identity_drift() -> None:
+    request = _request()
+    mismatched_context = request.context.model_copy(update={"request_id": "m2502.request.other"})
+    with pytest.raises(M2502AuthorizationError):
+        M2502SyntheticTruthGenerator().generate(
+            request.model_copy(update={"context": mismatched_context})
+        )
 
 
 def test_hostile_mapping_fails_closed() -> None:
