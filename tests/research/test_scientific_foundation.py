@@ -858,6 +858,35 @@ def test_search_requires_precursor_and_matches_each_peak_once() -> None:
     )
 
 
+def test_search_rejects_boolean_numeric_measurements() -> None:
+    parameters = SearchParameters(
+        fragment_tolerance_da=0.2, min_matched_ions=1, require_precursor_mz=True
+    )
+    peptide_map = {"MPEPTIDER": ("P1",)}
+    assert (
+        search_spectrum(
+            "bool-precursor",
+            True,  # type: ignore[arg-type]  # noqa: FBT003
+            peptide_map,
+            (132.047761466,),
+            (10.0,),
+            parameters=parameters,
+        )
+        is None
+    )
+    assert (
+        search_spectrum(
+            "bool-intensity",
+            1087.508837466,
+            peptide_map,
+            (132.047761466,),
+            (True,),  # type: ignore[arg-type]
+            parameters=parameters,
+        )
+        is None
+    )
+
+
 def test_fragment_assignment_maximizes_cardinality_before_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

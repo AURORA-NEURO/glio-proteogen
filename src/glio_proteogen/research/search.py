@@ -11,6 +11,10 @@ from math import hypot, isfinite
 from .modifications import normalize_modification_rules, parse_modified_peptide
 
 
+def _finite_number(value: object) -> bool:
+    return type(value) in (int, float) and isfinite(value)
+
+
 @dataclass(frozen=True, slots=True)
 class SearchParameters:
     precursor_tolerance_ppm: int = 20
@@ -394,15 +398,15 @@ def search_spectrum_candidates(
     open-search workflow.  Candidates are returned in the same total order used
     by target/decoy competition so the caller can retain an auditable receipt.
     """
-    if parameters.require_precursor_mz and (not isfinite(precursor_mz) or precursor_mz <= 0):
+    if parameters.require_precursor_mz and (not _finite_number(precursor_mz) or precursor_mz <= 0):
         return ()
     mz = tuple(observed_mz)
     intensity = tuple(observed_intensity)
     if len(mz) != len(intensity):
         raise ValueError("observed m/z and intensity lengths differ")
-    if any(not isfinite(value) or value < 0 for value in mz):
+    if any(not _finite_number(value) or value < 0 for value in mz):
         return ()
-    if any(not isfinite(value) or value < 0 for value in intensity):
+    if any(not _finite_number(value) or value < 0 for value in intensity):
         return ()
     norm = hypot(*intensity) if intensity else 0.0
     all_candidates: list[Psm] = []
@@ -495,7 +499,7 @@ def target_decoy_qvalues(psms: Iterable[Psm], *, decoy_prefix: str = "DECOY_") -
     winners: dict[str, Psm] = {}
     for psm in psms:
         _validate_target_decoy_psm(psm, decoy_prefix=decoy_prefix)
-        if not isfinite(psm.score) or psm.score < 0:
+        if not _finite_number(psm.score) or psm.score < 0:
             raise ValueError("PSM scores must be finite and non-negative")
         current = winners.get(psm.spectrum_id)
         if current is None or _competition_sort_key(psm) > _competition_sort_key(current):
