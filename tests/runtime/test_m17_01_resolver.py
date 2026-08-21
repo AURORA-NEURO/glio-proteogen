@@ -252,3 +252,13 @@ def test_replay_rejects_semantic_mutation_even_when_digest_is_resigned() -> None
 
     with pytest.raises(m1701.M1701ReplayError, match="deterministic replay"):
         m1701.M1701Engine().replay(tampered)
+
+
+def test_service_replay_rejects_supplied_request_mismatch() -> None:
+    request = _request(
+        _candidate("candidate.accepted", compatibility=CompatibilityStatus.COMPATIBLE)
+    )
+    result = m1701.M1701Service().resolve(request)
+    altered = request.model_copy(update={"request_id": "req-mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        m1701.M1701Service().replay(result, altered)
