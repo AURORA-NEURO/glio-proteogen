@@ -14,6 +14,7 @@ from glio_proteogen.contracts.m27_05 import (
     TelemetryStatus,
     TelemetryUnit,
 )
+from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.modules.c27_complex_activity.m27_05_observability_telemetry import (
     M2705AuthorizationError,
     M2705Plugin,
@@ -117,3 +118,24 @@ def test_contract_rejects_nonfinite_telemetry_and_bad_result_identity() -> None:
     payload["result_id"] = "m2705.result.other"
     with pytest.raises(ValidationError):
         ProteomicsTelemetryResult.model_validate(payload, strict=True)
+
+
+def test_provenance_binds_upstream_and_telemetry_configuration() -> None:
+    request = build_request()
+    result = M2705Service().emit(request)
+
+    assert request.upstream_result.digest in result.provenance.input_digests
+    assert result.evidence[0].reference == request.upstream_result
+    expected_configuration_digest = sha256_digest(
+        {
+            "module": "GLIO-PROTEOGEN-M27-05",
+            "contract": "0.1.0-provisional",
+            "requested_metrics": request.requested_metrics,
+            "dashboard_definitions": request.dashboard_definitions,
+        }
+    )
+    assert result.provenance.configuration_digest == expected_configuration_digest
+
+    changed = request.model_copy(update={"requested_metrics": request.requested_metrics[:1]})
+    changed_result = M2705Service().emit(changed)
+    assert changed_result.provenance.configuration_digest != result.provenance.configuration_digest
