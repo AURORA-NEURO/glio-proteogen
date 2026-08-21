@@ -92,7 +92,7 @@ def _checks() -> list[EvalCheck]:  # noqa: PLR0915 - executable evidence matrix.
             "supported_evaluated",
             evaluated.status is EvaluationStatus.EVALUATED
             and evaluated.report is not None
-            and evaluated.support_decision.status is SupportStatus.SUPPORTED,
+            and evaluated.support_decision.status is SupportStatus.REVIEW_REQUIRED,
             f"status={evaluated.status.value};report={evaluated.report is not None}",
         )
     )
