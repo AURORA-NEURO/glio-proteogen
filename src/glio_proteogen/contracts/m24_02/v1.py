@@ -196,8 +196,15 @@ class GenerateBiomarkerPanelSyntheticTruthRequest(FrozenModel):
         artifact_ids = tuple(artifact.artifact_id for artifact in self.source_artifacts)
         if len(artifact_ids) != len(set(artifact_ids)):
             raise ValueError("source artifact ids must be unique")
-        if self.upstream_result.artifact_id not in set(artifact_ids):
+        upstream_matches = tuple(
+            artifact
+            for artifact in self.source_artifacts
+            if artifact.artifact_id == self.upstream_result.artifact_id
+        )
+        if not upstream_matches:
             raise ValueError("source artifacts must include the upstream result")
+        if upstream_matches[0] != self.upstream_result:
+            raise ValueError("source artifact must match the full upstream identity")
         return self
 
 
@@ -245,6 +252,10 @@ class BiomarkerPanelSyntheticTruthResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("generated result requires a supported corpus and manifest")
+            if self.manifest != self.corpus.manifest:
+                raise ValueError("generated result manifest must match corpus manifest")
+            if len(self.corpus.cases) != self.request.requested_case_count:
+                raise ValueError("generated corpus case count must match request")
         elif (
             self.corpus is not None
             or self.manifest is not None
