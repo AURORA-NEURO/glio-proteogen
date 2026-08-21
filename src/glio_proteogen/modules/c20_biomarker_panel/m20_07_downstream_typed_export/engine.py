@@ -473,6 +473,12 @@ class M2007Engine:
         *,
         replay: bool = True,
     ) -> ProteinSubtypeDownstreamExportResult:
+        if replay is False:
+            # A payload digest proves only internal consistency.  M20-07 is
+            # deterministic, so verification must regenerate the export from
+            # its bound request; accepting an opt-out would allow a caller to
+            # re-sign a semantic mutation as a valid downstream contract.
+            raise M2007ReplayError("M20-07 replay verification cannot be disabled")
         try:
             validated = _RESULT_ADAPTER.validate_python(result, strict=True)
         except Exception as error:
