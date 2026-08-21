@@ -247,10 +247,11 @@ def test_cohort_label_contrast_is_descriptive_and_replay_bound() -> None:
     assert dict(result.configuration)["cohort_contrast_version"] == (
         "caller-label-median-contrast-v1"
     )
-    tampered = replace(
-        result,
-        label_contrasts=(replace(contrast, median_ratio=2.0),),
-    )
+    tampered_contrast = object.__new__(type(contrast))
+    for field in contrast.__dataclass_fields__:
+        object.__setattr__(tampered_contrast, field, getattr(contrast, field))
+    object.__setattr__(tampered_contrast, "median_ratio", 2.0)
+    tampered = replace(result, label_contrasts=(tampered_contrast,))
     with pytest.raises(ValueError, match="not reproducible"):
         aggregate_cohort_evidence(tampered)
 
