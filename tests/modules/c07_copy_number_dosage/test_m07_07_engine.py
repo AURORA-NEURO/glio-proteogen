@@ -122,7 +122,7 @@ def _upstream(*, supported: bool) -> CopyNumberDosageUncertaintyDecompositionRes
         calibration_reference=_artifact("calibration"),
     )
     upstream_request = DecomposeCopyNumberDosageUncertaintyRequest(
-        request_id="request.upstream",
+        request_id="request.context",
         context=_context(),
         constraint_result=_artifact("constraint", M0706_CONSTRAINT_MEDIA_TYPE),
         policy=policy,
