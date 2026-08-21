@@ -75,13 +75,19 @@ class M2703Plugin:
             raise TypeError("M27-03 run requires a validated request token")
         return self._service._execute_validated(request.request)
 
-    def verify(self, result: object, *, replay: bool = True) -> ComplexActivityPipelineResult:
+    def verify(
+        self,
+        result: object,
+        *,
+        replay: bool = True,
+        request: OrchestrateComplexActivityPipelineRequest | None = None,
+    ) -> ComplexActivityPipelineResult:
         if isinstance(result, (bytes, bytearray, str)):
             decoded = strict_json_loads(result, max_bytes=M2703_MAX_CANONICAL_RESULT_BYTES)
             typed = _RESULT_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
         else:
             typed = _RESULT_ADAPTER.validate_python(result, strict=True)
-        return self._service.verify(typed, replay=replay)
+        return self._service.verify(typed, replay=replay, request=request)
 
 
 __all__ = ["M2703Plugin", "ValidatedM2703Request"]
