@@ -71,7 +71,11 @@ def create_m1006_app(  # noqa: C901
 
     lane = service or M1006UncertaintyDecompositionService()
     app = FastAPI(title="GLIO-PROTEOGEN M10-06 (provisional)", version="0.1.0-provisional")
-    app.add_middleware(RequestSizeLimitMiddleware, max_bytes=M1006_MAX_CANONICAL_REQUEST_BYTES)
+    app.add_middleware(
+        RequestSizeLimitMiddleware,
+        max_bytes=M1006_MAX_CANONICAL_REQUEST_BYTES,
+        result_max_bytes=M1006_MAX_CANONICAL_RESULT_BYTES,
+    )
 
     @app.get("/v1/m10-06/schema/{contract}")
     async def export_schema(contract: str) -> JSONResponse:

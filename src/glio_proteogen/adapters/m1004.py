@@ -69,7 +69,11 @@ def create_m1004_app(service: M1004Service | None = None) -> FastAPI:  # noqa: C
 
     lane = service or M1004Service()
     app = FastAPI(title="GLIO-PROTEOGEN M10-04 (provisional)", version="0.1.0-provisional")
-    app.add_middleware(RequestSizeLimitMiddleware, max_bytes=M1004_MAX_CANONICAL_REQUEST_BYTES)
+    app.add_middleware(
+        RequestSizeLimitMiddleware,
+        max_bytes=M1004_MAX_CANONICAL_REQUEST_BYTES,
+        result_max_bytes=M1004_MAX_CANONICAL_RESULT_BYTES,
+    )
 
     @app.get("/v1/m10-04/schema/{contract}")
     async def export_schema(contract: str) -> JSONResponse:
