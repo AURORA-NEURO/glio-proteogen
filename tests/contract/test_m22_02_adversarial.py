@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from glio_proteogen.contracts.m22_02 import (
@@ -14,7 +15,9 @@ from glio_proteogen.contracts.m22_02 import (
 )
 from glio_proteogen.modules.c21_reference_material.m22_02_synthetic_truth_simulation_generator import (  # noqa: E501
     M2202Service,
+    create_app,
 )
+from glio_proteogen.contracts.m22_02.canonical import result_payload_digest
 from tests.contract.test_m22_02_hardening import _request
 
 
@@ -24,6 +27,23 @@ def test_result_identity_and_provenance_tamper_are_rejected() -> None:
     payload["result_id"] = "m2202.result.tampered"
     with pytest.raises(ValidationError, match="deterministically bound"):
         ProteinRnaDiscordanceSyntheticTruthResult(**payload)
+
+
+def test_api_verify_binds_supplied_request_before_replay() -> None:
+    request = _request()
+    result = M2202Service().generate(request)
+    assert result.manifest is not None
+    forged_manifest = result.manifest.model_copy(update={"version": "forged"})
+    forged = result.model_copy(update={"manifest": forged_manifest})
+    resigned = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    response = TestClient(create_app()).post(
+        "/v1/modules/M22-02/verify",
+        json={
+            "request": request.model_dump(mode="json"),
+            "result": resigned.model_dump(mode="json"),
+        },
+    )
+    assert response.status_code == 422  # noqa: PLR2004
 
     payload = result.model_dump(mode="python")
     payload["provenance"]["module_id"] = "GLIO-PROTEOGEN-M22-01"

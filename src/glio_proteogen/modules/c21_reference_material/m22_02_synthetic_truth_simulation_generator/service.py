@@ -41,7 +41,12 @@ class M2202Service:
     def verify_replay(
         self,
         result: ProteinRnaDiscordanceSyntheticTruthResult,
+        request: GenerateProteinRnaDiscordanceSyntheticTruthRequest | None = None,
     ) -> ProteinRnaDiscordanceSyntheticTruthResult:
+        if request is not None and (
+            result.request.model_dump(mode="json") != request.model_dump(mode="json")
+        ):
+            raise ValueError
         return self._engine.verify_replay(result)
 
     @staticmethod
