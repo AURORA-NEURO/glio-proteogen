@@ -18,6 +18,7 @@ from glio_proteogen.modules.c20_biomarker_panel.m20_05_workflow_presentation_ser
     M2005Plugin,
     M2005Service,
     WorkflowPresentationSubmission,
+    api,
     cli_app,
     create_app,
 )
@@ -64,6 +65,24 @@ def test_fastapi_schema_validate_present_verify_and_sanitized_errors() -> None:
     assert client.post("/v1/modules/M20-05/verify", json={"result": {}}).status_code == (
         _HTTP_UNPROCESSABLE
     )
+
+
+def test_fastapi_rejects_oversized_stream_before_json_parse() -> None:
+    client = TestClient(create_app(M2005Service()))
+    request_body = b"{}"
+    result_body = b"{}"
+    original_request_limit = api.M2005_MAX_CANONICAL_REQUEST_BYTES
+    original_result_limit = api.M2005_MAX_CANONICAL_RESULT_BYTES
+    api.M2005_MAX_CANONICAL_REQUEST_BYTES = 1
+    api.M2005_MAX_CANONICAL_RESULT_BYTES = 1
+    try:
+        request_response = client.post("/v1/modules/M20-05/validate", content=request_body)
+        result_response = client.post("/v1/modules/M20-05/verify", content=result_body)
+    finally:
+        api.M2005_MAX_CANONICAL_REQUEST_BYTES = original_request_limit
+        api.M2005_MAX_CANONICAL_RESULT_BYTES = original_result_limit
+    assert request_response.status_code == _HTTP_UNPROCESSABLE
+    assert result_response.status_code == _HTTP_UNPROCESSABLE
 
 
 def test_plugin_is_strict_parse_once_and_requires_execution_token() -> None:
