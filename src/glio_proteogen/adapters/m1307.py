@@ -11,7 +11,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
-from glio_proteogen.adapters.limits import read_bounded
+from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware, read_bounded
 from glio_proteogen.contracts.m13_07 import (
     M1307_MAX_CANONICAL_REQUEST_BYTES,
     M1307_MAX_CANONICAL_RESULT_BYTES,
@@ -62,6 +62,11 @@ class VerifyPayload(FrozenModel):
 
 
 app = FastAPI(title="GLIO-PROTEOGEN M13-07", version="0.1.0-provisional")
+app.add_middleware(
+    RequestSizeLimitMiddleware,
+    max_bytes=M1307_MAX_CANONICAL_REQUEST_BYTES,
+    result_max_bytes=M1307_MAX_CANONICAL_RESULT_BYTES,
+)
 m1307_app = typer.Typer(no_args_is_help=True, pretty_exceptions_enable=False)
 
 
@@ -129,9 +134,13 @@ async def verify(request: Request) -> JSONResponse:
     return JSONResponse(content={"verified": True, "result_digest": result.result_digest})
 
 
-def _read_json(path: Path, max_bytes: int) -> bytes:
+def _read_json(
+    path: Path,
+    max_bytes: int | None = None,
+) -> bytes:
     try:
-        return read_bounded(path, max_bytes)
+        limit = M1307_MAX_CANONICAL_REQUEST_BYTES if max_bytes is None else max_bytes
+        return read_bounded(path, limit)
     except OSError as error:
         raise _CliParameterError("read") from error
     except ValueError as error:

@@ -63,6 +63,7 @@ app = FastAPI(title="GLIO-PROTEOGEN M13-02", version="0.1.0-provisional")
 app.add_middleware(
     RequestSizeLimitMiddleware,
     max_bytes=M1302_MAX_CANONICAL_REQUEST_BYTES,
+    result_max_bytes=M1302_MAX_CANONICAL_RESULT_BYTES,
 )
 
 
