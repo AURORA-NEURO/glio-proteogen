@@ -52,6 +52,28 @@ _CONTROL_COUNT = 8
 _SCHEMA_COUNT = 8
 
 
+@pytest.mark.parametrize(
+    ("principal", "resource"),
+    [
+        ("service:denylisted", "dataset:complex-activity"),
+        ("service:m27-06", "dataset:threat-model"),
+    ],
+)
+def test_opaque_subject_labels_do_not_change_action_decision(
+    principal: str, resource: str
+) -> None:
+    """Denial markers belong to action policy, not opaque subject labels."""
+
+    request = build_request(principal=principal, resource=resource, action="read")
+    result = M2706SecurityEngine().emit(request)
+
+    assert result.access_decision is not None
+    assert result.access_decision.state is AccessDecisionState.ALLOW
+    assert result.security_posture is not None
+    assert result.security_posture.status.value == "compliant"
+    assert result.security_posture.findings == ()
+
+
 def test_schema_routes_and_api_replay() -> None:
     request = build_request()
     client = TestClient(create_app())
