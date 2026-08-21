@@ -100,7 +100,7 @@ def test_mzidentml_reference_binding_closes_catalogue_and_structure_types() -> N
     with pytest.raises(TypeError, match="structure"):
         bind_mzidentml_references(
             data,
-            object(),
+            object(),  # type: ignore[arg-type]
             spectrum_ids=("scan=1",),
             protein_accessions=("P1",),
         )
