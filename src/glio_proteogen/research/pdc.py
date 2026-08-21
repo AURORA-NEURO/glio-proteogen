@@ -8,7 +8,7 @@ import re
 from dataclasses import dataclass
 from hashlib import md5, sha256
 from tempfile import SpooledTemporaryFile
-from typing import Any, BinaryIO, Iterable
+from typing import Any, BinaryIO, Iterable, cast
 from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin, urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
@@ -684,7 +684,7 @@ class PdcClient:
                     # short write here would otherwise leave the destination
                     # truncated even though the response hashes below still
                     # describe the complete downloaded payload.
-                    _write_verified_chunk(spool, chunk)
+                    _write_verified_chunk(cast("BinaryIO", spool), chunk)
                 if total != file.file_size:
                     raise PdcError("PDC download length differs from metadata")
                 md5_hex = md5_digest.hexdigest().lower()
