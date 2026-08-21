@@ -25,7 +25,12 @@
         "target_candidates": 1,
         "shared_only_candidates": 0,
         "shared_peptide_candidates": 0,
-        "unique_spectra": 1
+        "unique_spectra": 1,
+        "partially_unique_candidates": 0,
+        "error_candidates": 0,
+        "target_denominator": 1,
+        "evidence_status": "abstained_no_decoy_evidence",
+        "group_partition_digest": "2bd7330416099b4456b3d897255730c699f3bc074f03970ac9acd912c928edab"
       },
       "expected_group_candidates": [
         {
@@ -39,7 +44,7 @@
       ],
       "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
       "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
-      "expected_result_digest": "db97b74d7566c962590c74baba7bb367b0cac32247d3280bfbe745b7caa08560",
+      "expected_result_digest": "313eda678caf8b273cc70a69ca7934355b812e0459da45719bb5e86716194c1a",
       "expected_psm_peptides": [
         "MPEPTIDER"
       ],
@@ -122,7 +127,12 @@
         "target_candidates": 0,
         "shared_only_candidates": 0,
         "shared_peptide_candidates": 0,
-        "unique_spectra": 1
+        "unique_spectra": 1,
+        "partially_unique_candidates": 0,
+        "error_candidates": 1,
+        "target_denominator": 0,
+        "evidence_status": "abstained_no_target_denominator",
+        "group_partition_digest": "9c841566d6e8a32aa8ec79f609ec4d42b56318a151c27d343867c43c772f29e8"
       },
       "expected_group_candidates": [
         {
@@ -136,7 +146,7 @@
       ],
       "fasta_sha256": "87082ab37015eefef4b7bd1017cdf18ab5e3b6df33ed023fc8aa56269d790055",
       "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
-      "expected_result_digest": "e5f93c62021afd9dbb7772f3afb6a43d01dc0a1d8a4d1ec9680650bd43e676c0",
+      "expected_result_digest": "d6703f404d53fbcee4f292bbe655c52fd0c846cee68f1ee61bf0dc6ea82f8636",
       "expected_psm_peptides": [
         "MPEPTIDER"
       ],
@@ -222,7 +232,12 @@
         "target_candidates": 0,
         "shared_only_candidates": 0,
         "shared_peptide_candidates": 1,
-        "unique_spectra": 1
+        "unique_spectra": 1,
+        "partially_unique_candidates": 0,
+        "error_candidates": 1,
+        "target_denominator": 0,
+        "evidence_status": "abstained_no_target_denominator",
+        "group_partition_digest": "24b6866c7c983401ce91b7ed4017d0ca7101f8bad560aa66464d7384c4ca42a8"
       },
       "expected_group_candidates": [
         {
@@ -237,7 +252,7 @@
       ],
       "fasta_sha256": "eeb074a89bd85caa8bbc4a83e213187358b43c1955030bacba43ed2190a16135",
       "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
-      "expected_result_digest": "8cb786cc59f7a486fd299c3958e912455b506f3b14fa99119b2b2a26c5e81076",
+      "expected_result_digest": "c71557ed989dd9d956e186f5bf94ecfe0f97113931f462f181776a62391d8c35",
       "expected_psm_peptides": [
         "MPEPTIDER"
       ],
@@ -321,12 +336,17 @@
         "target_candidates": 0,
         "shared_only_candidates": 0,
         "shared_peptide_candidates": 0,
-        "unique_spectra": 0
+        "unique_spectra": 0,
+        "partially_unique_candidates": 0,
+        "error_candidates": 0,
+        "target_denominator": 0,
+        "evidence_status": "abstained_no_group_candidates",
+        "group_partition_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
       },
       "expected_group_candidates": [],
       "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
       "mzml_sha256": "42532d3f66cb39078e78461e6c4fedb45a3a547c946cf248a1cd8d35d16f46b1",
-      "expected_result_digest": "75837f5bacbc1892fcaaf9d8d7445165aa7a00af324963b4608532dc6cce63db",
+      "expected_result_digest": "e97fa16cd7a297901b912cfd6f15b787ff3b367e7443cf6eba96c21a9c707891",
       "expected_psm_peptides": [],
       "expected_q_values": [],
       "expected_peptide_intensities": [],
@@ -395,12 +415,17 @@
         "target_candidates": 0,
         "shared_only_candidates": 0,
         "shared_peptide_candidates": 0,
-        "unique_spectra": 0
+        "unique_spectra": 0,
+        "partially_unique_candidates": 0,
+        "error_candidates": 0,
+        "target_denominator": 0,
+        "evidence_status": "abstained_no_group_candidates",
+        "group_partition_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
       },
       "expected_group_candidates": [],
       "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
       "mzml_sha256": "bdd5ed59bf621bb595d79a0fea2de8802e1a1d51b06b21f8b9680f0db189fd65",
-      "expected_result_digest": "cc897cd4245e9655a54e0980900af6c9cd1e58149466fdcd618b469c5a993845",
+      "expected_result_digest": "21fac163ae043652b8418f48e3e5411f08f3c5bc786b8da9d5e7042b6b938218",
       "expected_psm_peptides": [],
       "expected_q_values": [],
       "expected_peptide_intensities": [],
@@ -488,7 +513,12 @@
         "target_candidates": 1,
         "shared_only_candidates": 1,
         "shared_peptide_candidates": 1,
-        "unique_spectra": 1
+        "unique_spectra": 1,
+        "partially_unique_candidates": 0,
+        "error_candidates": 0,
+        "target_denominator": 1,
+        "evidence_status": "abstained_no_decoy_evidence",
+        "group_partition_digest": "ffb112e8d6405cd47cf99d0fc4e28d39d86757c7356d5850cbc659ca8a64b6fa"
       },
       "expected_group_candidates": [
         {
@@ -503,7 +533,7 @@
       ],
       "fasta_sha256": "31562dc9bdfb8e40359fb7bcce8b810bf2bd1b1182f05b64959bdd0cf15520d7",
       "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
-      "expected_result_digest": "b587960763102431307166ac3492a9f8dff93ce081217dbaaff85d431cd2554b",
+      "expected_result_digest": "e4794e77bf734e5ba8ccf4db63aba16714c26e46a08ac9b7d1e81d69983e175f",
       "expected_psm_peptides": [
         "MPEPTIDER"
       ],
@@ -587,7 +617,12 @@
         "target_candidates": 1,
         "shared_only_candidates": 0,
         "shared_peptide_candidates": 0,
-        "unique_spectra": 1
+        "unique_spectra": 1,
+        "partially_unique_candidates": 0,
+        "error_candidates": 0,
+        "target_denominator": 1,
+        "evidence_status": "abstained_no_decoy_evidence",
+        "group_partition_digest": "2bd7330416099b4456b3d897255730c699f3bc074f03970ac9acd912c928edab"
       },
       "expected_group_candidates": [
         {
@@ -601,7 +636,7 @@
       ],
       "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
       "mzml_sha256": "ffbdb925a73a3ba9af6379b4363f25c6f5d43c7076729ffc0d9e1ddff5d3a5bf",
-      "expected_result_digest": "5645e8413dc976559cc67d4f34e587adb16aae4e8d20004f36dc778b457ac9cc",
+      "expected_result_digest": "caef0909fe97d952624002bdf93ccdb381af16c8973fcc4d7bb30def634782f9",
       "expected_psm_peptides": [
         "MPEPTIDER"
       ],
@@ -686,7 +721,12 @@
         "target_candidates": 2,
         "shared_only_candidates": 0,
         "shared_peptide_candidates": 0,
-        "unique_spectra": 2
+        "unique_spectra": 2,
+        "partially_unique_candidates": 0,
+        "error_candidates": 0,
+        "target_denominator": 2,
+        "evidence_status": "abstained_no_decoy_evidence",
+        "group_partition_digest": "095d0e5512885227179c0ee767780293f0c84681bbbb7361c5e9baf314adb6b6"
       },
       "expected_group_candidates": [
         {
@@ -708,7 +748,7 @@
       ],
       "fasta_sha256": "634a0bb39698bb16afe95791a32a5872036442c6bfc140e403aca95d8b133b5f",
       "mzml_sha256": "07eb26ed1891fb301ba2221433b73ee55580bd366701245ac9aa745a9b44c4ed",
-      "expected_result_digest": "c985b138d56f4ee7cf510a25fc654bf7d49ab4f6758231b2ede4c1bce4eda0fd",
+      "expected_result_digest": "3cc5225918ae5cfe281a24be5aae28b055992a0538278fb306d9fb25e25ffc46",
       "expected_psm_peptides": [
         "MPEPTIDER",
         "PEPTIDEK"

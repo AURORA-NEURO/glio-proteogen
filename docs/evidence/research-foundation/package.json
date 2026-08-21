@@ -1,8 +1,8 @@
 {
   "lane": "research-scientific-foundation",
   "status": "research_only_not_production_abi",
-  "base_commit": "677fb0ac",
-  "pipeline_commit": "depth/m20-replay-integration",
+    "base_commit": "ed1a18a8",
+    "pipeline_commit": "ed1a18a8",
   "source_fixture": {
     "study": "PDC000204",
     "title": "CPTAC GBM Discovery Study",
@@ -37,7 +37,6 @@
       "fixture_bound_raw_input_hashes",
       "exact_psm_quantification_and_mass_diagnostics_oracle",
       "quantification_receipt_with_raw_and_normalized_signals",
-      "explicit_fragment_charge_state_search",
       "quantification_policy_with_explicit_units_normalization_and_loq",
       "exact_loq_boundary_missingness_and_no_imputation",
       "duplicate_observation_collapse_receipt",
@@ -54,7 +53,6 @@
       "missingness_and_observed_group_abstention",
       "independence_aware_source_manifest",
       "biological_duplicate_source_rejection",
-      "biological_duplicate_declared_aliquot_and_acquisition_rejection",
       "technical_duplicate_retention_without_independent_support",
       "unknown_independence_safe_abstention",
       "source_identity_bound_replay",
@@ -68,33 +66,33 @@
   },
   "verification": {
     "research_pipeline_verifier": "tools/verify_research_pipeline.py",
-    "fixture_sha256": "551af4d49ad995b5e8c2614e5964d509cdc3d2c9492c47d166caae70c680bcbc",
+    "fixture_sha256": "8018dd6ac5edf2f6f16014d8e73bc4ed311da4fc14b0d3c20e2b5b7b587afadf",
     "cohort_fixture_sha256": "b930c2a71286dab22b25fabe2a600d36af7806933da9ec8f3a5aa1ad2c855bfe",
-    "focused_tests": 506,
-    "coverage": {
-      "statements": 3985,
-      "missed_statements": 136,
-      "branches": 1680,
-      "partial_branches": 121,
-      "percent": 95.35745807590467,
+    "focused_tests": 422,
+      "coverage": {
+        "statements": 3642,
+        "missed_statements": 123,
+        "branches": 1444,
+      "partial_branches": 112,
+      "percent": 95.26150216279984,
       "fail_under": 95
     },
-    "wheel": {
-      "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
-      "bytes": 3919200,
-      "members": 1991,
-      "sha256": "3813c3126164dec851def78279667e4ba617945ec95f8cce2ba26ba364f4a578"
-    },
-    "sdist": {
-      "filename": "glio_proteogen-0.1.0.tar.gz",
-      "bytes": 4659644,
-      "members": 4674,
-      "sha256": "541bfa3fc96d5a120523dc1d48d7c1340631db2ee7264cf657b1f061a0b6b3dd"
+      "wheel": {
+        "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
+      "bytes": 3991979,
+      "members": 2023,
+        "sha256": "8eb944fb0c9ba2f2acc05ec6a20f1151893b10cc9babf556e3d0625dfee34a8d"
+      },
+      "sdist": {
+        "filename": "glio_proteogen-0.1.0.tar.gz",
+      "bytes": 4727624,
+        "members": 4744,
+        "sha256": "42f61e9b6c61636de5b5359d56d551e80f973e091f2bfd972cd1b946acf3aca0"
     },
     "reproducible_builds": 2,
     "reproducible_hashes": {
-      "wheel": "3813c3126164dec851def78279667e4ba617945ec95f8cce2ba26ba364f4a578",
-      "sdist": "541bfa3fc96d5a120523dc1d48d7c1340631db2ee7264cf657b1f061a0b6b3dd"
+      "wheel": "8eb944fb0c9ba2f2acc05ec6a20f1151893b10cc9babf556e3d0625dfee34a8d",
+      "sdist": "42f61e9b6c61636de5b5359d56d551e80f973e091f2bfd972cd1b946acf3aca0"
     },
     "isolated_import": true,
     "source_date_epoch": 315532800

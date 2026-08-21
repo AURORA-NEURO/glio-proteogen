@@ -340,7 +340,7 @@ def _build_group_fdr_summary(
         else "empirical_target_decoy_evidence"
     )
     return ProteinGroupFdrSummary(
-        method="max-psm-score-monotone-group-target-decoy-collision-abstain-ties-6",
+        method="max-psm-score-monotone-group-target-decoy-collision-abstain-ties-5",
         candidates=len(candidates),
         target_candidates=target_candidates,
         decoy_candidates=decoy_candidates,
