@@ -413,7 +413,30 @@ def run_pilot(request: PilotRequest) -> PilotResult:
             metadata_digest=metadata_digest,
             evidence_digest=evidence_digest,
         )
-    group_input = {psm.peptide: psm.protein_accessions for psm in scored if psm.protein_accessions}
+    # Preserve every winner in ``matched_psms`` for target/decoy auditability,
+    # but never let a decoy or mixed target/decoy collision enter downstream
+    # protein grouping or signal normalization.  Treating those winners as
+    # biological evidence would turn FDR-control observations into identity or
+    # abundance-like outputs.
+    accepted = tuple(
+        psm
+        for psm in scored
+        if not psm.decoy and not psm.target_decoy_collision
+    )
+    if not accepted:
+        return _abstained(
+            request,
+            reason="NO_ACCEPTED_TARGET_PSM",
+            spectra_seen=len(spectra),
+            ms2_spectra=len(ms2),
+            searched_spectra=searched_spectra,
+            manifest_digest=manifest_digest,
+            metadata_digest=metadata_digest,
+            evidence_digest=evidence_digest,
+        )
+    group_input = {
+        psm.peptide: psm.protein_accessions for psm in accepted if psm.protein_accessions
+    }
     groups = infer_protein_groups(group_input)
     quant = median_normalize(
         tuple(
@@ -422,7 +445,7 @@ def run_pilot(request: PilotRequest) -> PilotResult:
                 psm.peptide,
                 signal_by_spectrum[psm.spectrum_id],
             )
-            for psm in scored
+            for psm in accepted
         )
     )
     signals = tuple(
@@ -433,8 +456,8 @@ def run_pilot(request: PilotRequest) -> PilotResult:
             item.intensity,
             item.intensity,
         )
-        for index, item in enumerate(quant)
-    )
+            for index, item in enumerate(quant)
+        )
     return _finish(
         PilotResult(
             status="COMPLETED",

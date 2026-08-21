@@ -101,6 +101,19 @@ def test_strict_precursor_policy_abstains_without_precursor_metadata() -> None:
     assert result.searched_spectra == 1
 
 
+def test_decoy_only_winner_abstains_before_grouping_or_signal_projection() -> None:
+    request = replace(
+        _request(_mzml_with_ms2()),
+        fasta_bytes=b">DECOY_P1 decoy fixture\nMPEPTIDER\n",
+    )
+    result = run_pilot(request)
+    assert result.status == "ABSTAINED"
+    assert result.abstention_reason == "NO_ACCEPTED_TARGET_PSM"
+    assert result.matched_psms == ()
+    assert result.protein_groups == ()
+    assert result.signal_proxies == ()
+
+
 def test_policy_is_closed_against_network_or_claim_expansion() -> None:
     with pytest.raises(PilotError, match="network_access"):
         PilotPolicy(network_access=True)  # type: ignore[arg-type]
