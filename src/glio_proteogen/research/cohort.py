@@ -66,6 +66,18 @@ class ResearchCohortSample:
 
 
 @dataclass(frozen=True, slots=True)
+class _CohortLabelSample:
+    """Minimal label metadata used to replay cohort projections without raw requests."""
+
+    sample_id: str
+    cohort_label: str
+
+    def __post_init__(self) -> None:
+        _label(self.sample_id, "sample_id")
+        _label(self.cohort_label, "cohort_label")
+
+
+@dataclass(frozen=True, slots=True)
 class CohortQcPolicy:
     """Caller-declared descriptive QC gate; it never infers a biological label."""
 
@@ -289,9 +301,11 @@ class CohortLabelContrast:
     This is an evidence projection over normalized group medians, not a
     differential-expression test.  Labels are supplied by the caller and are
     never inferred from values, disease metadata, or protein names.  A ratio
-    and log2 ratio are emitted only when both label medians are positive;
-    missing/non-positive cells remain an explicit abstention rather than an
-    imputed zero.
+    and log2 ratio are emitted only when both label medians are positive,
+    both upstream label-by-group QC statuses are descriptive, and each label has
+    at least one independent observed replicate for the group; missing,
+    non-positive, non-finite-derived, or unverified-QC cells remain explicit
+    abstentions rather than imputed effects.
     """
 
     cohort_label_a: str
@@ -337,8 +351,9 @@ class CohortLabelContrast:
                 raise ValueError(f"{field_name} must be a finite fraction")
         if self.status not in {
             "descriptive",
-            "abstained_missing_or_nonpositive",
             "abstained_label_qc",
+            "abstained_missing_or_nonpositive",
+            "abstained_nonfinite_derived",
         }:
             raise ValueError("contrast status is not supported")
         nonnegative = (
@@ -366,10 +381,22 @@ class CohortLabelContrast:
                 or self.label_b_median is None
                 or self.label_a_median <= 0
                 or self.label_b_median <= 0
+                or self.label_a_observed_replicates < 1
+                or self.label_b_observed_replicates < 1
                 or self.median_ratio is None
                 or self.log2_median_ratio is None
             ):
-                raise ValueError("descriptive contrast requires two positive medians")
+                raise ValueError(
+                    "descriptive contrast requires two positive medians and observed replicates"
+                )
+            if self.label_a_status != "descriptive" or self.label_b_status != "descriptive":
+                raise ValueError("descriptive contrast requires descriptive label QC")
+            expected_ratio = self.label_a_median / self.label_b_median
+            expected_log_ratio = log2(expected_ratio)
+            if self.median_ratio != expected_ratio:
+                raise ValueError("contrast ratio is not derived from label medians")
+            if self.log2_median_ratio != expected_log_ratio:
+                raise ValueError("contrast log2 ratio is not derived from label medians")
         elif any(
             value is not None
             for value in (self.median_difference, self.median_ratio, self.log2_median_ratio)
@@ -572,6 +599,42 @@ def aggregate_cohort_evidence(result: ResearchCohortResult) -> EvidenceBundle:
         raise TypeError("result must be a ResearchCohortResult")
     if result.source_manifest is None:
         raise ValueError("cohort result has no source manifest")
+    _validate_matrix_qc_projection(result)
+    configuration = dict(result.configuration)
+    raw_qc_policy = configuration.get("cohort_qc_policy")
+    if not isinstance(raw_qc_policy, dict):
+        raise TypeError("cohort QC policy is not reproducible")
+    try:
+        qc_policy = CohortQcPolicy(**raw_qc_policy)
+    except (TypeError, ValueError) as error:
+        raise ValueError("cohort QC policy is not reproducible") from error
+    normalization_policy = configuration.get("cohort_normalization_policy")
+    if normalization_policy not in _NORMALIZATION_POLICIES:
+        raise ValueError("cohort normalization policy is not reproducible")
+    label_metadata = tuple(
+        _CohortLabelSample(item.sample_id, item.cohort_label) for item in result.sample_qc
+    )
+    (
+        expected_normalized_matrix,
+        expected_sample_scales,
+        expected_label_qc,
+        expected_label_group_evidence,
+        _,
+    ) = _build_label_evidence(
+        label_metadata,
+        result.group_accessions,
+        result.raw_matrix,
+        normalization_policy,
+        qc_policy,
+        result.source_manifest,
+    )
+    if (
+        expected_normalized_matrix != result.normalized_matrix
+        or expected_sample_scales != result.sample_scales
+        or expected_label_qc != result.label_qc
+        or expected_label_group_evidence != result.label_group_evidence
+    ):
+        raise ValueError("cohort label evidence is not reproducible")
     observed = _build_evidence_bundle(
         sample_ids=result.sample_ids,
         group_accessions=result.group_accessions,
@@ -589,8 +652,19 @@ def aggregate_cohort_evidence(result: ResearchCohortResult) -> EvidenceBundle:
     )
     if result.evidence_bundle is None:
         raise ValueError("cohort result has no evidence bundle")
+    expected_contrasts = _build_label_contrasts(result.label_group_evidence)
+    if expected_contrasts != result.label_contrasts:
+        raise ValueError("cohort label contrasts are not reproducible")
     if observed.as_dict() != result.evidence_bundle.as_dict():
         raise ValueError("cohort evidence bundle is not reproducible")
+    # The inner bundle can be coherent even when a caller swaps in a complete
+    # bundle from another result.  Keep this non-executing verifier bound to the
+    # complete outer projection as well, so a stale result digest cannot pass as
+    # an auditable cohort receipt.
+    expected_payload = result.as_dict()
+    expected_digest = expected_payload.pop("result_digest")
+    if expected_digest != result.result_digest or _digest(expected_payload) != expected_digest:
+        raise ValueError("cohort result digest is invalid")
     return observed
 
 
@@ -682,29 +756,45 @@ def _build_label_contrasts(
                 right = by_key[(label_b, group)]
                 left_median = left.median_normalized_intensity
                 right_median = right.median_normalized_intensity
-                positive = (
-                    left_median is not None
-                    and right_median is not None
-                    and isfinite(left_median)
-                    and isfinite(right_median)
-                    and left_median > 0
-                    and right_median > 0
-                )
-                if positive and left.status == "descriptive" and right.status == "descriptive":
-                    difference = left_median - right_median
-                    ratio = left_median / right_median
-                    log_ratio = log2(ratio)
-                    status = "descriptive"
-                elif positive:
+                if (
+                    left_median is None
+                    or right_median is None
+                    or not isfinite(left_median)
+                    or not isfinite(right_median)
+                    or left_median <= 0
+                    or right_median <= 0
+                ):
+                    difference = None
+                    ratio = None
+                    log_ratio = None
+                    status = "abstained_missing_or_nonpositive"
+                elif (
+                    left.status != "descriptive"
+                    or right.status != "descriptive"
+                    or left.independent_observed_replicates < 1
+                    or right.independent_observed_replicates < 1
+                ):
                     difference = None
                     ratio = None
                     log_ratio = None
                     status = "abstained_label_qc"
                 else:
-                    difference = None
-                    ratio = None
-                    log_ratio = None
-                    status = "abstained_missing_or_nonpositive"
+                    difference = left_median - right_median
+                    ratio = left_median / right_median
+                    if not isfinite(difference) or not isfinite(ratio) or ratio <= 0.0:
+                        difference = None
+                        ratio = None
+                        log_ratio = None
+                        status = "abstained_nonfinite_derived"
+                    else:
+                        log_ratio = log2(ratio)
+                        if not isfinite(log_ratio):
+                            difference = None
+                            ratio = None
+                            log_ratio = None
+                            status = "abstained_nonfinite_derived"
+                        else:
+                            status = "descriptive"
                 contrasts.append(
                     CohortLabelContrast(
                         cohort_label_a=label_a,
@@ -727,8 +817,90 @@ def _build_label_contrasts(
     return tuple(contrasts)
 
 
-def _build_label_evidence(  # noqa: PLR0915, PLR0917
-    ordered_samples: tuple[ResearchCohortSample, ...],
+def _build_group_qc(
+    matrix: tuple[tuple[tuple[str, ...], tuple[float | None, ...]], ...],
+) -> tuple[CohortGroupQc, ...]:
+    """Derive group QC directly from the canonical raw matrix projection."""
+
+    output: list[CohortGroupQc] = []
+    for group, row in matrix:
+        observed = tuple(value for value in row if value is not None)
+        center = float(median(observed)) if observed else None
+        deviations = tuple(abs(value - center) for value in observed) if center is not None else ()
+        output.append(
+            CohortGroupQc(
+                group_accessions=group,
+                observed_samples=len(observed),
+                missing_samples=len(row) - len(observed),
+                missingness_rate=(len(row) - len(observed)) / len(row) if row else 1.0,
+                median_intensity=center,
+                mad_intensity=float(median(deviations)) if deviations else None,
+            )
+        )
+    return tuple(output)
+
+
+def _validate_matrix_qc_projection(result: ResearchCohortResult) -> None:
+    """Reject a receipt whose QC fields are not derived from its matrix."""
+
+    if result.sample_ids != tuple(sorted(result.sample_ids)):
+        raise ValueError("cohort sample IDs are not canonically ordered")
+    groups = tuple(group for group, _ in result.matrix)
+    if groups != result.group_accessions:
+        raise ValueError("cohort matrix groups are not reproducible")
+    if result.raw_matrix != result.matrix:
+        raise ValueError("cohort raw matrix is not reproducible")
+    if tuple(group for group, _ in result.normalized_matrix) != groups:
+        raise ValueError("cohort normalized matrix groups are not reproducible")
+    for matrix_name, matrix in (
+        ("matrix", result.matrix),
+        ("normalized matrix", result.normalized_matrix),
+    ):
+        for _, values in matrix:
+            if len(values) != len(result.sample_ids):
+                raise ValueError(f"cohort {matrix_name} row length is not reproducible")
+            if any(
+                value is not None
+                and (type(value) not in (int, float) or not isfinite(value) or value < 0)
+                for value in values
+            ):
+                raise ValueError(f"cohort {matrix_name} contains invalid intensity")
+    if tuple(item.sample_id for item in result.sample_qc) != result.sample_ids:
+        raise ValueError("cohort sample QC is not canonically ordered")
+    expected_group_qc = _build_group_qc(result.matrix)
+    if expected_group_qc != result.group_qc:
+        raise ValueError("cohort group QC is not derived from the matrix")
+    scale_by_sample = {item.sample_id: item for item in result.sample_scales}
+    if (
+        tuple(item.sample_id for item in result.sample_scales) != result.sample_ids
+        or set(scale_by_sample) != set(result.sample_ids)
+        or len(scale_by_sample) != len(result.sample_scales)
+    ):
+        raise ValueError("cohort sample scales are not reproducible")
+    for index, item in enumerate(result.sample_qc):
+        observed = sum(
+            value is not None for _, values in result.matrix for value in (values[index],)
+        )
+        missing = len(result.group_accessions) - observed
+        expected_missingness = (
+            missing / len(result.group_accessions) if result.group_accessions else 1.0
+        )
+        if (
+            item.quantified_groups != observed
+            or item.missing_groups != missing
+            or item.missingness_rate != expected_missingness
+        ):
+            raise ValueError("cohort sample QC is not derived from the matrix")
+        scale = scale_by_sample[item.sample_id]
+        if (
+            item.normalization_scale != scale.scale_factor
+            or item.normalization_status != scale.status
+        ):
+            raise ValueError("cohort sample QC is not linked to sample scales")
+
+
+def _build_label_evidence(  # noqa: PLR0915
+    ordered_samples: tuple[ResearchCohortSample | _CohortLabelSample, ...],
     groups: tuple[tuple[str, ...], ...],
     raw_matrix: tuple[tuple[tuple[str, ...], tuple[float | None, ...]], ...],
     policy: str,
@@ -767,6 +939,12 @@ def _build_label_evidence(  # noqa: PLR0915, PLR0917
             for index in indices
             if source_manifest.for_sample(ordered_samples[index].sample_id).replicate_kind
             == "biological"
+        )
+        technical_indices = tuple(
+            index
+            for index in indices
+            if source_manifest.for_sample(ordered_samples[index].sample_id).replicate_kind
+            == "technical"
         )
         biological_sources = {
             source_manifest.for_sample(ordered_samples[index].sample_id).source_identity
@@ -812,12 +990,19 @@ def _build_label_evidence(  # noqa: PLR0915, PLR0917
             }
             target = float(median(tuple(sample_centers.values())))
             factors = {
-                index: target / sample_centers[index]
-                if isfinite(sample_centers[index]) and sample_centers[index] > 0
+                index: (
+                    target / sample_centers[index]
+                    if isfinite(sample_centers[index]) and sample_centers[index] > 0
+                    else None
+                )
+                if index in sample_centers
                 else None
                 for index in indices
             }
-            if any(factor is None or not isfinite(factor) for factor in factors.values()):
+            if any(
+                factor is None or not isfinite(factor)
+                for factor in (factors[index] for index in support_indices)
+            ):
                 status = "abstained_invalid_scale"
                 factors = dict.fromkeys(indices)
             else:
@@ -861,9 +1046,18 @@ def _build_label_evidence(  # noqa: PLR0915, PLR0917
                 scale_factor=factor,
                 overlap_groups=len(shared),
                 positive_groups=positive_counts[index],
-                status=status,
+                status=(
+                    "abstained_technical_replicate"
+                    if index in technical_indices and factor is None and status == "normalized"
+                    else status
+                ),
             )
-        if qc_status.startswith("abstained"):
+        # A no-normalization request is an identity projection, not a claim that
+        # QC passed.  Preserve that caller-requested projection (and its scale
+        # receipts) while retaining the abstained QC status that gates derived
+        # label evidence.  Support-dependent normalization policies continue to
+        # null their projection when a QC gate fails.
+        if qc_status.startswith("abstained") and policy != "none":
             for index in indices:
                 normalized_rows[index] = dict.fromkeys(groups)
         label_values = tuple(
@@ -899,9 +1093,13 @@ def _build_label_evidence(  # noqa: PLR0915, PLR0917
                 float(value) for value in values if value is not None and _positive(value)
             )
             center, mad = _median_mad(observed)
-            evidence_status = qc_status
             independent_observed = sum(
                 _positive(sample_rows[index].get(group)) for index in biological_indices
+            )
+            evidence_status = (
+                "abstained_insufficient_replicates"
+                if qc_status == "descriptive" and independent_observed < 1
+                else qc_status
             )
             label_evidence.append(
                 CohortLabelGroupEvidence(
@@ -1003,10 +1201,14 @@ def run_research_cohort(request: ResearchCohortRequest) -> ResearchCohortResult:
     """Run compatible samples and emit a deterministic matrix without imputation."""
 
     ordered_samples = tuple(sorted(request.samples, key=lambda item: item.sample_id))
-    child = tuple(run_research_protein_inference(item.request) for item in ordered_samples)
     _validate_provenance_policy(request, ordered_samples)
-    _compatible_configuration(child)
+    # Provenance policy and source-manifest validation are admission boundaries.
+    # Reject mixed, unattested, snapshot-incompatible, or byte-mismatched cohorts
+    # before parsing or traversing raw mzML; otherwise a rejected source could
+    # still trigger scientific computation before the safe failure.
     source_manifest = _source_manifest(request, ordered_samples)
+    child = tuple(run_research_protein_inference(item.request) for item in ordered_samples)
+    _compatible_configuration(child)
     sample_ids = tuple(item.sample_id for item in ordered_samples)
     groups = tuple(
         sorted({group.accessions for result in child for group in result.protein_groups})
@@ -1064,21 +1266,7 @@ def run_research_cohort(request: ResearchCohortRequest) -> ResearchCohortResult:
         )
         for item in qc
     ]
-    group_qc: list[CohortGroupQc] = []
-    for group, row in matrix:
-        observed = tuple(value for value in row if value is not None)
-        center = float(median(observed)) if observed else None
-        deviations = tuple(abs(value - center) for value in observed) if center is not None else ()
-        group_qc.append(
-            CohortGroupQc(
-                group_accessions=group,
-                observed_samples=len(observed),
-                missing_samples=len(row) - len(observed),
-                missingness_rate=(len(row) - len(observed)) / len(row),
-                median_intensity=center,
-                mad_intensity=float(median(deviations)) if deviations else None,
-            )
-        )
+    group_qc = _build_group_qc(matrix)
     configuration = tuple(
         sorted(
             {
@@ -1114,7 +1302,7 @@ def run_research_cohort(request: ResearchCohortRequest) -> ResearchCohortResult:
         raw_matrix=matrix,
         normalized_matrix=normalized_matrix,
         sample_qc=tuple(qc),
-        group_qc=tuple(group_qc),
+        group_qc=group_qc,
         sample_scales=sample_scales,
         label_qc=label_qc,
         label_group_evidence=label_group_evidence,
