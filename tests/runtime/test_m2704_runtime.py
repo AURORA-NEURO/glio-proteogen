@@ -269,3 +269,14 @@ def test_plugin_requires_sealed_token_and_matches_service() -> None:
     assert plugin.run(token) == M2704Service().publish(request.model_dump_json())
     with pytest.raises(TypeError, match="validated request token"):
         plugin.run(object())  # type: ignore[arg-type]
+
+
+def test_service_plugin_and_sdk_replay_reject_supplied_request_mismatch() -> None:
+    request = _request()
+    service = M2704Service()
+    result = service.publish(request)
+    altered = request.model_copy(update={"request_id": "m2704.request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.replay(result, altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        M2704Plugin(service).replay(result, altered)

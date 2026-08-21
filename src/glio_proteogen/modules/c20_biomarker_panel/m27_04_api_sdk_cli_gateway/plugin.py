@@ -101,8 +101,12 @@ class M2704Plugin:
             raise M2704TokenError
         return self._service.publish(token.request)
 
-    def replay(self, result: object) -> ComplexActivityAccessSurfaceResult:
-        return self._service.replay(result)
+    def replay(
+        self,
+        result: object,
+        request: PublishComplexActivityAccessSurfaceRequest | None = None,
+    ) -> ComplexActivityAccessSurfaceResult:
+        return self._service.replay(result, request)
 
 
 __all__ = [
