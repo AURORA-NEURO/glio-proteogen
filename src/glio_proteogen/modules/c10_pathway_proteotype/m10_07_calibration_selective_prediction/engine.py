@@ -385,7 +385,11 @@ class M1007CalibrationEngine:
         return BuiltM1007Result(result=result, canonical_bytes=canonical)
 
     @staticmethod
-    def verify(result: object, canonical: bytes | bytearray | str) -> M1007ReplayVerification:
+    def verify(
+        result: object,
+        canonical: bytes | bytearray | str,
+        request: object | None = None,
+    ) -> M1007ReplayVerification:
         try:
             raw = canonical if isinstance(canonical, (bytes, bytearray)) else canonical.encode()
             strict_json_loads(raw, max_bytes=M1007_MAX_CANONICAL_RESULT_BYTES)
@@ -393,6 +397,13 @@ class M1007CalibrationEngine:
             reason = _replay_reason(result, typed, bytes(raw))
             if reason is not None:
                 return M1007ReplayVerification(verified=False, reason=reason)
+            if request is not None:
+                expected = M1007CalibrationEngine().execute(request).result
+                if expected.model_dump(mode="json") != typed.model_dump(mode="json"):
+                    return M1007ReplayVerification(
+                        verified=False,
+                        reason="bound request replay does not match result",
+                    )
         except (TypeError, ValueError, ValidationError, StrictJsonError):
             return M1007ReplayVerification(verified=False, reason="result replay input is invalid")
         return M1007ReplayVerification(

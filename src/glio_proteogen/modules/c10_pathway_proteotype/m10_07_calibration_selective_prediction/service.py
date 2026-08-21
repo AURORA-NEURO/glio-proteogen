@@ -26,8 +26,13 @@ class M1007Service:
     def execute(self, request: object) -> BuiltM1007Result:
         return self._engine.execute(request)
 
-    def verify(self, result: object, canonical: bytes | bytearray | str) -> M1007ReplayVerification:
-        return self._engine.verify(result, canonical)
+    def verify(
+        self,
+        result: object,
+        canonical: bytes | bytearray | str,
+        request: object | None = None,
+    ) -> M1007ReplayVerification:
+        return self._engine.verify(result, canonical, request)
 
 
 __all__ = ["M1007Service"]
