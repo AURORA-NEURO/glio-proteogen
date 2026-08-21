@@ -356,8 +356,8 @@ class M1903Engine:
                 evidence=evidence,
             )
             support = SupportDecision(
-                status=SupportStatus.SUPPORTED,
-                reason_code="component_specific_fusion_complete",
+                status=SupportStatus.REVIEW_REQUIRED,
+                reason_code="component_specific_fusion_review_required",
                 rationale=(
                     "Attributable source contributions satisfy the declared reliability policy."
                 ),
@@ -381,7 +381,7 @@ class M1903Engine:
             "provenance": _provenance(request),
             "evidence": evidence,
             "limitations": _limitations(),
-            "human_review_required": bool(findings),
+            "human_review_required": True,
         }
         payload["result_digest"] = result_payload_digest(
             ProteotypeIntegratedEvidenceResult.model_construct(**payload)
