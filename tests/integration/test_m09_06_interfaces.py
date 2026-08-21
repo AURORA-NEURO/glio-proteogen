@@ -20,6 +20,8 @@ HTTP_OK = 200
 HTTP_NOT_FOUND = 404
 HTTP_UNPROCESSABLE = 422
 HTTP_FORBIDDEN = 403
+HTTP_UNSUPPORTED_MEDIA = 415
+HTTP_TOO_LARGE = 413
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -42,6 +44,23 @@ def test_api_validate_execute_verify_and_schema() -> None:
     assert executed.status_code == HTTP_OK
     assert verified.status_code == HTTP_OK
     assert verified.json()["verified"] is True
+
+
+def test_api_enforces_json_content_type_and_preparse_request_limit() -> None:
+    client = TestClient(m0906_api.create_app())
+    payload = _request().model_dump(mode="json")
+    wrong_media = client.post(
+        "/v1/modules/M09-06/execute",
+        json=payload,
+        headers={"content-type": "text/plain"},
+    )
+    oversized = client.post(
+        "/v1/modules/M09-06/execute",
+        content=b"{" + b"x" * (4 * 1024 * 1024 + 1) + b"}",
+        headers={"content-type": "application/json"},
+    )
+    assert wrong_media.status_code == HTTP_UNSUPPORTED_MEDIA
+    assert oversized.status_code == HTTP_TOO_LARGE
 
 
 def test_api_sanitizes_invalid_and_duplicate_json() -> None:
