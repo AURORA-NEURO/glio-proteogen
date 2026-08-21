@@ -114,6 +114,20 @@ def test_replay_rejects_forged_payload_and_plugin_metadata_is_closed() -> None:
     forged = result.model_copy(update={"request_digest": "sha256:" + "0" * 64})
     with pytest.raises(M2704ReplayError):
         M2704GatewayEngine().replay(forged)
+
+
+def test_replay_rejects_non_result_payload() -> None:
+    with pytest.raises(M2704ReplayError):
+        M2704GatewayEngine().replay({})
+
+
+def test_replay_rejects_bound_request_digest_mutation() -> None:
+    result = M2704GatewayEngine().publish(_request())
+    payload = result.model_dump(mode="python")
+    payload["request_digest"] = "sha256:" + "f" * 64
+    forged = ComplexActivityAccessSurfaceResult.model_construct(**payload)
+    with pytest.raises(M2704ReplayError):
+        M2704GatewayEngine().replay(forged)
     descriptor = M2704Plugin.descriptor
     assert descriptor.provisional_abi is True
     assert descriptor.unsupported_to_negative is False
@@ -181,6 +195,18 @@ def test_contract_rejects_duplicate_protocols_and_source_identity() -> None:
             {
                 **request.model_dump(mode="python"),
                 "source_artifacts": (request.source_artifacts[0], duplicate_digest),
+            },
+            strict=True,
+        )
+
+
+def test_contract_rejects_missing_declared_gateway_input() -> None:
+    request = _request()
+    with pytest.raises(ValueError, match="include all declared gateway inputs"):
+        PublishComplexActivityAccessSurfaceRequest.model_validate(
+            {
+                **request.model_dump(mode="python"),
+                "source_artifacts": request.source_artifacts[:2],
             },
             strict=True,
         )

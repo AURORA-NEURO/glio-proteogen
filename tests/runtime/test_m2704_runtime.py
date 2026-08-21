@@ -48,6 +48,7 @@ from glio_proteogen.modules.c20_biomarker_panel.m27_04_api_sdk_cli_gateway impor
     M2704Plugin,
     M2704ReplayError,
     M2704Service,
+    publish_complex_activity_access_surface,
 )
 
 
@@ -218,6 +219,12 @@ def test_published_surface_is_deterministic_and_replayable() -> None:
             "transport",
         )
     )
+
+
+def test_public_entrypoint_preserves_gateway_publication() -> None:
+    result = publish_complex_activity_access_surface(_request())
+    assert result.status is GatewayStatus.PUBLISHED
+    assert result.access_surface is not None
 
 
 def test_denied_operation_abstains_without_surface() -> None:
