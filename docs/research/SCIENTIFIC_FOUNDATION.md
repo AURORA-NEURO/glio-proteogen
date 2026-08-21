@@ -93,6 +93,11 @@ C03/C04 computation contract:
   missing projection with no imputation. Non-default policy fields, below-LOQ counts, and
   per-peptide status vectors are part of the single-run configuration/receipt digest, so a
   replay cannot silently change units, normalization, LOQ semantics, or the input observations.
+  The receipt constructor independently closes its evidence object: supported vocabularies,
+  strict finite numbers, count equations, canonical peptide ordering, raw/normalized signal
+  derivation, LOQ/status vectors, diagnostic medians and dispersion, and normalization scale are
+  checked before the receipt can enter a result or cohort evidence bundle. Forging a direct
+  receipt and recomputing only an outer digest is therefore rejected at construction.
   The composed pipeline copies the receipt's algorithm version and measurement unit into both
   run configuration and computed protein-group evidence; a `none_v1` run therefore reports
   arbitrary matched-ion intensity rather than the median-scaled unit. Its receipt also leaves

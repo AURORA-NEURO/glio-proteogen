@@ -401,6 +401,15 @@ All search and matched-ion numeric boundaries reject booleans explicitly. Althou
 `bool` is an `int` subclass and `math.isfinite(True)` is true, a metadata flag is not a valid
 m/z, precursor, intensity, or PSM score. Such values are rejected before arithmetic; missing or
 unsupported measurements abstain rather than being coerced into one-unit signal.
+
+The receipt constructor is also a fail-closed evidence boundary, not just a dataclass container.
+It validates supported algorithm and unit vocabulary, strict finite numeric types, count equations,
+canonical peptide ordering, raw-versus-normalized signal derivation, missingness and status closure,
+LOQ policy, positive-signal diagnostics, and replay digest shape. A direct receipt with a forged
+total, median, status, scale, diagnostic, or peptide projection is rejected before it can enter a
+cohort or protein-group evidence bundle. This closes object-level evidence independently of the
+outer pipeline replay check; the computation remains arbitrary matched-ion research signal rather
+than calibrated abundance.
 ## Group-level evidence receipt (research-only)
 
 The protein-group stage now emits a replayable, descriptive receipt in addition
