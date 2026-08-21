@@ -103,10 +103,17 @@ def create_app(service: M0706Service | None = None) -> FastAPI:  # noqa: C901
     async def verify(request: Request) -> JSONResponse:
         body = await _strict_body(request)
         try:
-            strict_json_loads(body, max_bytes=M0706_MAX_CANONICAL_REQUEST_BYTES)
-            result = _RESULT_ADAPTER.validate_json(body, strict=True)
+            envelope = strict_json_loads(body, max_bytes=M0706_MAX_CANONICAL_RESULT_BYTES)
+            if not isinstance(envelope, dict):
+                return JSONResponse(
+                    status_code=422, content={"detail": "verification envelope invalid"}
+                )
+            result_document = envelope.get("result", envelope)
+            result = _RESULT_ADAPTER.validate_json(
+                canonical_json_bytes(result_document), strict=True
+            )
             verified = uncertainty_service.verify(result, replay=True)
-        except (ValidationError, M0706ReplayVerificationError) as error:
+        except (ValidationError, TypeError, ValueError, M0706ReplayVerificationError) as error:
             if isinstance(error, ValidationError):
                 raise _validation_error(error) from error
             raise HTTPException(
