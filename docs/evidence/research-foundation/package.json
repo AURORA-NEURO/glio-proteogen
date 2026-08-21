@@ -68,7 +68,7 @@
     "research_pipeline_verifier": "tools/verify_research_pipeline.py",
     "fixture_sha256": "39c9457016173b315214b425e894e8fc2b420acaac85693298a5f88cd372ff9c",
     "cohort_fixture_sha256": "b930c2a71286dab22b25fabe2a600d36af7806933da9ec8f3a5aa1ad2c855bfe",
-    "focused_tests": 529,
+    "focused_tests": 530,
       "coverage": {
         "statements": 4284,
         "missed_statements": 142,
