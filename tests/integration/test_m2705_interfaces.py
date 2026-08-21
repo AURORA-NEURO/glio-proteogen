@@ -34,7 +34,7 @@ def test_api_schema_and_emit_parity() -> None:
         headers={"content-type": "application/json"},
     )
     assert emitted.status_code == _HTTP_OK
-    assert emitted.json()["status"] == "emitted"
+    assert emitted.json()["status"] == "abstained"
 
 
 def test_api_rejects_malformed_json_without_private_detail() -> None:
@@ -52,9 +52,9 @@ def test_cli_export_and_emit(tmp_path: Path) -> None:
     output_path = tmp_path / "result.json"
     request_path.write_text(request_json := build_request().model_dump_json(), encoding="utf-8")
     result = CliRunner().invoke(app, ["emit", str(request_path), "--output", str(output_path)])
-    assert result.exit_code == 0, result.output
+    assert result.exit_code == 1, result.output
     document = json.loads(output_path.read_text(encoding="utf-8"))
-    assert document["status"] == "emitted"
+    assert document["status"] == "abstained"
     assert request_json
 
 

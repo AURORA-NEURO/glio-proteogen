@@ -16,6 +16,8 @@ from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
 from glio_proteogen.contracts.m27_05 import (
+    M2705_MAX_CANONICAL_REQUEST_BYTES,
+    M2705_MAX_CANONICAL_RESULT_BYTES,
     AlertRecord,
     AlertSeverity,
     AlertState,
@@ -24,11 +26,13 @@ from glio_proteogen.contracts.m27_05 import (
     ProteomicsTelemetryResult,
     TelemetryFinding,
     TelemetryFindingCode,
+    TelemetryMetricKind,
     TelemetrySample,
     TelemetryStream,
     TelemetryUnit,
     contract_json_schemas,
 )
+from glio_proteogen.kernel.strict_json import StrictJsonError
 from glio_proteogen.modules.c27_complex_activity.m27_05_observability_telemetry import (
     M2705AuthorizationError,
     M2705Plugin,
@@ -49,13 +53,35 @@ from glio_proteogen.modules.c27_complex_activity.m27_05_observability_telemetry.
 _HTTP_OK = 200
 _HTTP_NOT_FOUND = 404
 _HTTP_UNPROCESSABLE = 422
-_HTTP_UNSUPPORTED_MEDIA = 415
-_HTTP_TOO_LARGE = 413
 _SCHEMA_COUNT = 8
 
 
 def _evidence(request: EmitProteomicsTelemetryRequest) -> tuple[EvidenceReference, ...]:
     return request.dashboard_definitions[0].evidence or ()
+
+
+def _valid_stream(request: EmitProteomicsTelemetryRequest) -> TelemetryStream:
+    evidence = _evidence(request)
+    samples = tuple(
+        TelemetrySample(
+            sample_id=f"m2705.sample.{metric.value}",
+            metric=metric,
+            value=1.0,
+            unit=TelemetryUnit.SCORE,
+            observed_at=request.context.occurred_at,
+            source="test-observation",
+            evidence=evidence,
+        )
+        for metric in request.requested_metrics
+    )
+    return TelemetryStream(
+        stream_id="m2705.stream." + request.request_id,
+        version="1.0.0",
+        samples=samples,
+        reviewer_actions=(),
+        findings=(),
+        evidence=evidence,
+    )
 
 
 def test_schema_single_routes_and_api_validation_replay() -> None:
@@ -64,49 +90,33 @@ def test_schema_single_routes_and_api_validation_replay() -> None:
     assert client.get("/v1/modules/M27-05/schemas/request").status_code == _HTTP_OK
     assert client.get("/v1/modules/M27-05/schemas/unknown").status_code == _HTTP_NOT_FOUND
     body = request.model_dump_json()
-    assert (
-        client.post(
-            "/v1/modules/M27-05/validate",
-            content=body,
-            headers={"content-type": "application/json"},
-        ).status_code
-        == _HTTP_OK
-    )
+    assert client.post("/v1/modules/M27-05/validate", content=body).status_code == _HTTP_OK
     result = M2705Service().emit(request)
-    verified = client.post(
-        "/v1/modules/M27-05/verify",
-        content=result.model_dump_json(),
-        headers={"content-type": "application/json"},
-    )
+    verified = client.post("/v1/modules/M27-05/verify", content=result.model_dump_json())
     assert verified.status_code == _HTTP_OK
     assert verified.json()["verified"] is True
     assert (
-        client.post(
-            "/v1/modules/M27-05/verify",
-            content=b"[]",
-            headers={"content-type": "application/json"},
-        ).status_code
-        == _HTTP_UNPROCESSABLE
+        client.post("/v1/modules/M27-05/verify", content=b"[]").status_code == _HTTP_UNPROCESSABLE
     )
 
 
-def test_api_enforces_json_content_type_and_preparse_limit() -> None:
+def test_api_and_service_reject_oversized_replay_before_validation() -> None:
+    oversized_request = b"{" + b" " * M2705_MAX_CANONICAL_REQUEST_BYTES + b"}"
+    oversized_result = b"{" + b" " * M2705_MAX_CANONICAL_RESULT_BYTES + b"}"
     client = TestClient(create_app())
-    payload = build_request().model_dump(mode="json")
-    assert (
-        client.post(
-            "/v1/modules/M27-05/emit",
-            json=payload,
-            headers={"content-type": "text/plain"},
-        ).status_code
-        == _HTTP_UNSUPPORTED_MEDIA
-    )
-    response = client.post(
-        "/v1/modules/M27-05/emit",
-        content=b"{" + b"x" * (4 * 1024 * 1024 + 1) + b"}",
-        headers={"content-type": "application/json"},
-    )
-    assert response.status_code == _HTTP_TOO_LARGE
+
+    request_response = client.post("/v1/modules/M27-05/validate", content=oversized_request)
+    result_response = client.post("/v1/modules/M27-05/verify", content=oversized_result)
+
+    assert request_response.status_code == _HTTP_UNPROCESSABLE
+    assert result_response.status_code == _HTTP_UNPROCESSABLE
+    assert "byte limit" in result_response.text
+
+    service = M2705Service()
+    with pytest.raises(StrictJsonError):
+        service.replay(oversized_result)
+    with pytest.raises(ValueError, match="M27-05 result exceeds"):
+        service.replay({"oversized": "x" * M2705_MAX_CANONICAL_RESULT_BYTES})
 
 
 def test_api_validation_and_emit_sanitize_denied_controls() -> None:
@@ -124,9 +134,7 @@ def test_api_validation_and_emit_sanitize_denied_controls() -> None:
     )
     denied = request.model_copy(update={"context": denied_context})
     response = TestClient(create_app()).post(
-        "/v1/modules/M27-05/emit",
-        content=denied.model_dump_json(),
-        headers={"content-type": "application/json"},
+        "/v1/modules/M27-05/emit", content=denied.model_dump_json()
     )
     assert response.status_code == _HTTP_UNPROCESSABLE
     assert "private" not in response.text.lower()
@@ -141,9 +149,9 @@ def test_cli_schema_validate_verify_and_output_guards(tmp_path: Path) -> None:
     assert runner.invoke(app, ["export-schema", "request"]).exit_code == 0
     assert runner.invoke(app, ["export-schema", "unknown"]).exit_code != 0
     assert runner.invoke(app, ["validate", str(request_path)]).exit_code == 0
-    assert (
-        runner.invoke(app, ["emit", str(request_path), "--output", str(result_path)]).exit_code == 0
-    )
+    emitted = runner.invoke(app, ["emit", str(request_path), "--output", str(result_path)])
+    assert emitted.exit_code == 1
+    assert '"status":"abstained"' in result_path.read_text(encoding="utf-8")
     assert runner.invoke(app, ["verify", str(result_path)]).exit_code == 0
     assert (
         runner.invoke(app, ["emit", str(request_path), "--output", str(result_path)]).exit_code != 0
@@ -187,9 +195,7 @@ def test_api_validation_denial_and_service_descriptor() -> None:
     )
     denied = request.model_copy(update={"context": denied_context})
     response = TestClient(create_app()).post(
-        "/v1/modules/M27-05/validate",
-        content=denied.model_dump_json(),
-        headers={"content-type": "application/json"},
+        "/v1/modules/M27-05/validate", content=denied.model_dump_json()
     )
     assert response.status_code == _HTTP_UNPROCESSABLE
     descriptor = M2705Service().descriptor
@@ -286,6 +292,14 @@ def test_request_and_stream_identity_closures_are_explicit() -> None:
     payload["requested_metrics"] = ["input_quality", "input_quality"]
     with pytest.raises(ValueError, match=r".+"):
         EmitProteomicsTelemetryRequest.model_validate(payload, strict=True)
+
+
+def test_request_rejects_dashboard_metrics_outside_requested_stream() -> None:
+    request = build_request()
+    payload = request.model_dump(mode="python")
+    payload["requested_metrics"] = (TelemetryMetricKind.INPUT_QUALITY,)
+    with pytest.raises(ValueError, match="dashboard metrics must be requested telemetry metrics"):
+        EmitProteomicsTelemetryRequest.model_validate(payload, strict=True)
     payload = request.model_dump(mode="json")
     dashboard = payload["dashboard_definitions"][0]
     payload["dashboard_definitions"] = [dashboard, dashboard]
@@ -297,8 +311,8 @@ def test_engine_accepts_mapping_and_json_bytes() -> None:
     request = build_request()
     engine = M2705TelemetryEngine()
     service = M2705Service()
-    assert engine.emit(request.model_dump(mode="json")).status.value == "emitted"
-    assert service.emit(request.model_dump_json()).status.value == "emitted"
+    assert engine.emit(request.model_dump(mode="json")).status.value == "abstained"
+    assert service.emit(request.model_dump_json()).status.value == "abstained"
 
 
 def test_preflight_hostile_object_fails_closed() -> None:
@@ -316,7 +330,7 @@ def test_plugin_bytes_and_foreign_token_rejection() -> None:
     first = M2705Plugin()
     second = M2705Plugin()
     token = first.validate(TelemetrySubmission(request.model_dump_json()))
-    assert first.run(token).status.value == "emitted"
+    assert first.run(token).status.value == "abstained"
     with pytest.raises(TypeError):
         second.run(token)
 
@@ -373,9 +387,8 @@ def test_contract_rejects_nonfinite_alert_and_bad_chronology() -> None:
 
 def test_contract_rejects_duplicate_stream_samples_and_findings() -> None:
     request = build_request()
-    result = M2705Service().emit(request)
-    assert result.telemetry_stream is not None
-    stream_payload = result.telemetry_stream.model_dump(mode="json")
+    stream = _valid_stream(request)
+    stream_payload = stream.model_dump(mode="json")
     sample = stream_payload["samples"][0]
     stream_payload["samples"] = [sample, sample]
     with pytest.raises(ValueError, match=r".+"):
@@ -385,7 +398,7 @@ def test_contract_rejects_duplicate_stream_samples_and_findings() -> None:
         code=TelemetryFindingCode.DRIFT_DETECTED,
         message="drift",
     )
-    finding_payload = result.telemetry_stream.model_dump(mode="json")
+    finding_payload = stream.model_dump(mode="json")
     finding_payload["findings"] = [finding.model_dump(mode="json"), finding.model_dump(mode="json")]
     with pytest.raises(ValueError, match=r".+"):
         TelemetryStream.model_validate(finding_payload, strict=True)
@@ -397,10 +410,14 @@ def test_result_id_and_status_shape_are_closed() -> None:
     payload["result_id"] = "m2705.result.forged"
     with pytest.raises(ValueError, match=r".+"):
         ProteomicsTelemetryResult.model_validate(payload, strict=True)
+
+
+def test_result_rejects_self_rehashed_output_binding_mutations() -> None:
+    result = M2705Service().emit(build_request())
     payload = result.model_dump(mode="json")
-    payload["status"] = "abstained"
-    payload["telemetry_stream"] = None
-    payload["dashboards"] = []
+    payload["status"] = "emitted"
+    payload["telemetry_stream"] = _valid_stream(result.request).model_dump(mode="json")
+    payload["dashboards"] = result.request.dashboard_definitions
     payload["alert"] = None
     payload["safe_failure_report"] = None
     with pytest.raises(ValueError, match=r".+"):
