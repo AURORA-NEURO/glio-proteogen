@@ -111,7 +111,7 @@ def create_app(service: M2102Service | None = None) -> FastAPI:
         try:
             result = _RESULT_ADAPTER.validate_json(canonical_json_bytes(candidate), strict=True)
             typed_request = (
-                _REQUEST_ADAPTER.validate_python(supplied_request, strict=True)
+                _REQUEST_ADAPTER.validate_json(canonical_json_bytes(supplied_request), strict=True)
                 if supplied_request is not None
                 else None
             )
