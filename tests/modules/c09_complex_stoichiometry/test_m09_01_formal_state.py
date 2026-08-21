@@ -18,7 +18,11 @@ from glio_proteogen.contracts.m09_01 import (
     FormalComplexActivityStateSchema,
     ValidateComplexActivityStateRequest,
 )
-from glio_proteogen.contracts.m09_01.canonical import canonical_request_digest
+from glio_proteogen.contracts.m09_01.canonical import (
+    canonical_request_digest,
+    result_payload_digest,
+)
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     ConsentReference,
@@ -141,6 +145,15 @@ def test_valid_state_has_explicit_provenance_and_replays() -> None:
     assert built.result.request_digest == canonical_request_digest(built.result.request)
     assert built.result.provenance.module_id == "GLIO-PROTEOGEN-M09-01"
     assert M0901FormalStateEngine.verify(built.result, built.canonical_bytes).verified
+
+
+def test_request_bound_replay_rejects_resigned_state_mutation() -> None:
+    request = _request()
+    built = M0901Service().execute(request)
+    forged = built.result.model_copy(update={"status": "invalid"})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    canonical = canonical_json_bytes(forged.model_dump(mode="json"))
+    assert not M0901FormalStateEngine.verify(forged, canonical, request).verified
 
 
 def test_violated_state_is_invalid_but_not_unsupported() -> None:

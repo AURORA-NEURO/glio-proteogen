@@ -330,7 +330,8 @@ class M0901FormalStateEngine:
     def verify(
         result: ValidateComplexActivityStateResult | Mapping[str, object],
         canonical: bytes | bytearray | str,
-    ) -> M0901ReplayVerification:
+        request: object | None = None,
+    ) -> M0901ReplayVerification:  # noqa: PLR0911
         try:
             raw = (
                 canonical
@@ -351,6 +352,13 @@ class M0901FormalStateEngine:
                     verified=False,
                     reason="canonical result differs from supplied result",
                 )
+            if request is not None:
+                regenerated = M0901FormalStateEngine().validate(request).result
+                if typed != regenerated:
+                    return M0901ReplayVerification(
+                        verified=False,
+                        reason="result does not replay from supplied request",
+                    )
             request_digest_verified = typed.request_digest == canonical_request_digest(
                 typed.request
             )
