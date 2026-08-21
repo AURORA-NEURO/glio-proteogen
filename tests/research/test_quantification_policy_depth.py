@@ -306,34 +306,55 @@ def test_quantification_receipt_rejects_nonzero_loq_policy_mismatch() -> None:
         replace(receipt, normalized_total_signal=999.0)
 
 
-def test_quantification_receipt_closes_every_direct_projection_boundary() -> None:
+def test_quantification_receipt_closes_every_direct_projection_boundary() -> None:  # noqa: PLR0915
     receipt = quantify_matched_ions_with_receipt(
         "receipt-projection-boundary",
         (("P1", 2.0), ("P2", 4.0)),
     ).receipt
     with pytest.raises(ValueError, match="finite numeric"):
-        replace(receipt, raw_total_signal="2")
+        replace(receipt, raw_total_signal="2")  # type: ignore[arg-type]
     with pytest.raises(ValueError, match="finite numeric"):
         replace(receipt, raw_positive_mad=float("nan"))
     with pytest.raises(TypeError, match="raw_peptide_signals"):
-        replace(receipt, raw_peptide_signals=[])
+        replace(receipt, raw_peptide_signals=[])  # type: ignore[arg-type]
     with pytest.raises(ValueError, match="entries"):
-        replace(receipt, raw_peptide_signals=(("P1", 2.0), ("P2", 4.0)))
+        replace(
+            receipt,
+            raw_peptide_signals=(  # type: ignore[arg-type]
+                ("P1", 2.0),
+                ("P2", 4.0),
+            ),
+        )
     with pytest.raises(ValueError, match="intensity"):
         replace(receipt, raw_peptide_signals=(("P1", True, False), ("P2", 4.0, False)))
     with pytest.raises(ValueError, match="missingness"):
-        replace(receipt, raw_peptide_signals=(("P1", 2.0, 1), ("P2", 4.0, False)))
+        replace(
+            receipt,
+            raw_peptide_signals=(  # type: ignore[arg-type]
+                ("P1", 2.0, 1),
+                ("P2", 4.0, False),
+            ),
+        )
     with pytest.raises(TypeError, match="raw_peptide_statuses"):
-        replace(receipt, raw_peptide_statuses=[])
+        replace(receipt, raw_peptide_statuses=[])  # type: ignore[arg-type]
     with pytest.raises(ValueError, match="cover"):
         replace(receipt, raw_peptide_statuses=(("P1", "quantified"),))
     with pytest.raises(ValueError, match="entries"):
         replace(
             receipt,
-            raw_peptide_statuses=(("P1", "quantified", "extra"), ("P2", "quantified")),
+            raw_peptide_statuses=(  # type: ignore[arg-type]
+                ("P1", "quantified", "extra"),
+                ("P2", "quantified"),
+            ),
         )
     with pytest.raises(ValueError, match="status"):
-        replace(receipt, raw_peptide_statuses=(("P1", True), ("P2", "quantified")))
+        replace(
+            receipt,
+            raw_peptide_statuses=(  # type: ignore[arg-type]
+                ("P1", True),
+                ("P2", "quantified"),
+            ),
+        )
     with pytest.raises(ValueError, match="input_observations"):
         replace(receipt, input_observations=1)
     with pytest.raises(ValueError, match="duplicate_observations"):
