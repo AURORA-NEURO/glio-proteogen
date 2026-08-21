@@ -170,6 +170,48 @@ def test_mzidentml_reference_binding_rejects_unresolved_protein_accession() -> N
         )
 
 
+def test_mzidentml_reference_binding_resolves_protein_detection_hypotheses() -> None:
+    data = (
+        b'<MzIdentML><SequenceCollection><Peptide id="pep1"/>'
+        b'<DBSequence id="db1" accession="P1"/>'
+        b'<DBSequence id="db2" accession="P2"/>'
+        b'<PeptideEvidence id="pe1" peptide_ref="pep1" dBSequence_ref="db1"/>'
+        b"</SequenceCollection><AnalysisData>"
+        b'<SpectrumIdentificationResult spectrumID="scan=1"/>'
+        b'<ProteinDetectionHypothesis dBSequence_ref="db2"/>'
+        b"</AnalysisData></MzIdentML>"
+    )
+    summary = extract_mzidentml_structure(data)
+    bound = bind_mzidentml_references(
+        data,
+        summary,
+        spectrum_ids=("scan=1",),
+        protein_accessions=("P1", "P2"),
+    )
+    assert bound.protein_reference_count == 2
+    assert bound.protein_reference_match_count == 2
+
+
+def test_mzidentml_reference_binding_rejects_unknown_protein_detection_hypothesis() -> None:
+    data = (
+        b'<MzIdentML><SequenceCollection><Peptide id="pep1"/>'
+        b'<DBSequence id="db1" accession="P1"/>'
+        b'<PeptideEvidence id="pe1" peptide_ref="pep1" dBSequence_ref="db1"/>'
+        b"</SequenceCollection><AnalysisData>"
+        b'<SpectrumIdentificationResult spectrumID="scan=1"/>'
+        b'<ProteinDetectionHypothesis dBSequence_ref="missing"/>'
+        b"</AnalysisData></MzIdentML>"
+    )
+    summary = extract_mzidentml_structure(data)
+    with pytest.raises(FormatError, match="ProteinDetectionHypothesis"):
+        bind_mzidentml_references(
+            data,
+            summary,
+            spectrum_ids=("scan=1",),
+            protein_accessions=("P1",),
+        )
+
+
 @pytest.mark.parametrize(
     ("data", "message"),
     [

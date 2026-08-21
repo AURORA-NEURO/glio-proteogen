@@ -7,6 +7,8 @@ Evidence includes:
 - a captured public PDC GraphQL response shape for PDC000204 (CPTAC GBM Discovery Study);
 - bounded mzML binary-array decoding, including declared little-/big-endian
   32-bit and 64-bit arrays with conflicting-endianness rejection;
+- mzIdentML reference binding that closes explicit peptide-evidence and
+  protein-detection-hypothesis links against the searched FASTA catalogue;
 - tryptic digestion and explicit FASTA search-space construction;
 - fragment matching, target/decoy q-value calculation, and shared-peptide protein grouping;
 - deterministic group-level target/decoy FDR with duplicate-spectrum contender reduction,

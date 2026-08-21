@@ -20,11 +20,12 @@ one deterministic, auditable path:
    An optional caller-supplied mzIdentML file is structurally parsed separately;
    its bytes, identifiers, identification-result/item counts, peptide-evidence count,
    protein-detection-hypothesis count, and pass-threshold item count become a receipt.
-   When explicit `SpectrumIdentificationResult.spectrumID` or
-   `PeptideEvidence.dBSequence_ref` references are present, they must resolve to the
-   searched mzML spectrum IDs and FASTA accessions; the matched-reference counts are
-   also replay-visible. The pipeline never imports mzIdentML PSMs or protein hypotheses
-   into its own search or grouping computation.
+   When explicit `SpectrumIdentificationResult.spectrumID`,
+   `PeptideEvidence.dBSequence_ref`, or `ProteinDetectionHypothesis.dBSequence_ref`
+   references are present, they must resolve to the searched mzML spectrum IDs and
+   FASTA accessions; the matched-reference counts are also replay-visible. The pipeline
+   never imports mzIdentML PSMs or protein hypotheses into its own search or grouping
+   computation.
 2. Drain caller-supplied FASTA byte streams to EOF within the bounded byte limit, then
    digest entries with trypsin and the declared missed-cleavage and peptide-length controls;
    short reads cannot silently truncate the searched protein space.
@@ -286,8 +287,10 @@ spectrum/protein/peptide reference counts in the run configuration, evidence bun
 result projection, and replay digest. A bound artifact must also contain a local
 `Peptide` catalogue: every `SpectrumIdentificationItem.peptide_ref` and
 `PeptideEvidence.peptide_ref` must resolve to a unique `Peptide`, and every
-`PeptideEvidence.dBSequence_ref` must resolve to a unique DBSequence whose accession
-is present in the searched FASTA. Missing or unresolved links abstain before search;
+`PeptideEvidence.dBSequence_ref` and explicit
+`ProteinDetectionHypothesis.dBSequence_ref` references must resolve to unique
+DBSequences whose accessions are present in the searched FASTA. Missing or
+unresolved links abstain before search;
 structural extraction remains permissive when no binding is requested. Explicit
 references that resolve outside the searched mzML/FASTA inputs are rejected before
 search. Providing or changing this file therefore changes the content-addressed run
