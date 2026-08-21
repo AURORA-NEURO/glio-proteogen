@@ -1,10 +1,11 @@
 {
   "module_id": "GLIO-PROTEOGEN-M27-07",
   "passed": true,
-  "coverage_percent": 96.0,
+  "coverage_percent": 95.56,
   "fail_under": 95.0,
-  "statements": 485,
+  "statements": 364,
   "branches": 64,
-  "tests": 35,
+  "tests": 43,
+  "scope": "contracts/m27_07 plus change-control engine and plugin",
   "exclusions": []
 }

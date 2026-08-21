@@ -2,13 +2,13 @@
   "module_id": "GLIO-PROTEOGEN-M27-07",
   "iterations": 10,
   "warmup": true,
-  "mean_ns": 5182260,
-  "p95_ns": 5906500,
-  "max_ns": 8547300,
+  "mean_ns": 1632000,
+  "p95_ns": 1631500,
+  "max_ns": 2763600,
   "mean_budget_ns": 500000000,
   "p95_budget_ns": 750000000,
-  "request_digest": "sha256:2df92b0206bf3ccf84b5c53a335de7a5c27e48db478ab9d5b702efee1161c8a4",
-  "result_digest": "sha256:6a2f365a90a3e7b9c61988e1ad9ccacd810940ae569341ad266c3d08e2c5e0d7",
+  "request_digest": "sha256:f4f46c6bf5e536b5c5a4dda4986e973b012adf777fc050f0cfceb7f757c81b8f",
+  "result_digest": "sha256:a1a965e8e66cf5db86bae3082749ceee38f8a8e198348fb69a16c28ade82763d",
   "deterministic": true,
   "passed": true
 }
