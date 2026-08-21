@@ -36,9 +36,18 @@ def test_fastapi_schema_validate_evaluate_and_verify_parity() -> None:
     evaluated = client.post("/v1/modules/M24-07/evaluate", content=body)
     assert evaluated.status_code == HTTP_200_OK
     result = evaluated.json()
-    verified = client.post("/v1/modules/M24-07/verify", json={"result": result})
+    supplied = request_payload()
+    verified = client.post(
+        "/v1/modules/M24-07/verify", json={"request": supplied, "result": result}
+    )
+    forged = dict(supplied)
+    forged["request_id"] = "request.m2407.forged"
+    mismatch = client.post(
+        "/v1/modules/M24-07/verify", json={"request": forged, "result": result}
+    )
     assert verified.status_code == HTTP_200_OK
     assert verified.json()["verified"] is True
+    assert mismatch.status_code == HTTP_422_UNPROCESSABLE_ENTITY
 
 
 def test_fastapi_sanitizes_unknown_and_invalid_replay_requests() -> None:

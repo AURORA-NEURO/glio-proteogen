@@ -48,7 +48,13 @@ class M2407Service:
     def verify_replay(
         self,
         result: BiomarkerPanelHumanFactorsResult,
+        request: EvaluateBiomarkerPanelHumanFactorsRequest | None = None,
     ) -> BiomarkerPanelHumanFactorsResult:
+        if request is not None:
+            result_request = result.request.model_dump(mode="json")
+            supplied_request = request.model_dump(mode="json")
+            if result_request != supplied_request:
+                raise ValueError
         return self._engine.verify_replay(result)
 
     @staticmethod
