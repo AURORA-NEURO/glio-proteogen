@@ -224,10 +224,10 @@ def _classify(
             RollbackDecision.CONTINUE,
             (MonitorFindingCode.PROVISIONAL_ABI_PENDING_REVIEW,),
         )
-    critical = any(
-        signal.kind is HealthSignalKind.DISCREPANCY or "critical" in signal.metric.casefold()
-        for signal in drifting
-    )
+    # Severity is a typed control, not a substring convention in a
+    # caller-declared metric label.  A label such as ``not-critical`` must
+    # never escalate a support/usage signal into rollback.
+    critical = any(signal.kind is HealthSignalKind.DISCREPANCY for signal in drifting)
     if critical:
         return (
             TranslationHealthStatus.CRITICAL,
@@ -257,8 +257,7 @@ def _report(
                 else "Signal drift is retained for suspension or rollback review."
             ),
             status=signal.status,
-            critical=signal.kind is HealthSignalKind.DISCREPANCY
-            or "critical" in signal.metric.casefold(),
+            critical=signal.kind is HealthSignalKind.DISCREPANCY,
             evidence=evidence[:1],
         )
         for signal in request.signals
