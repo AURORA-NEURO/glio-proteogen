@@ -7,6 +7,7 @@ from typing import Any, cast
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware
 from glio_proteogen.contracts.m10_07 import (
     M1007_MAX_CANONICAL_REQUEST_BYTES,
     M1007_MAX_CANONICAL_RESULT_BYTES,
@@ -53,6 +54,11 @@ def create_app(service: M1007Service | None = None) -> FastAPI:
 
     boundary = service or M1007Service()
     app = FastAPI(title="GLIO-PROTEOGEN M10-07", version="0.1.0-provisional")
+    app.add_middleware(
+        RequestSizeLimitMiddleware,
+        max_bytes=M1007_MAX_CANONICAL_REQUEST_BYTES,
+        result_max_bytes=M1007_MAX_CANONICAL_RESULT_BYTES,
+    )
 
     @app.get("/v1/modules/M10-07/schemas")
     async def schemas() -> dict[str, dict[str, object]]:
