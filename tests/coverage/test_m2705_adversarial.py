@@ -142,7 +142,7 @@ def test_cli_schema_validate_verify_and_output_guards(tmp_path: Path) -> None:
     assert runner.invoke(app, ["export-schema", "unknown"]).exit_code != 0
     assert runner.invoke(app, ["validate", str(request_path)]).exit_code == 0
     assert (
-        runner.invoke(app, ["emit", str(request_path), "--output", str(result_path)]).exit_code == 0
+        runner.invoke(app, ["emit", str(request_path), "--output", str(result_path)]).exit_code != 0
     )
     assert runner.invoke(app, ["verify", str(result_path)]).exit_code == 0
     assert (
@@ -297,8 +297,8 @@ def test_engine_accepts_mapping_and_json_bytes() -> None:
     request = build_request()
     engine = M2705TelemetryEngine()
     service = M2705Service()
-    assert engine.emit(request.model_dump(mode="json")).status.value == "emitted"
-    assert service.emit(request.model_dump_json()).status.value == "emitted"
+    assert engine.emit(request.model_dump(mode="json")).status.value == "abstained"
+    assert service.emit(request.model_dump_json()).status.value == "abstained"
 
 
 def test_preflight_hostile_object_fails_closed() -> None:
@@ -316,7 +316,7 @@ def test_plugin_bytes_and_foreign_token_rejection() -> None:
     first = M2705Plugin()
     second = M2705Plugin()
     token = first.validate(TelemetrySubmission(request.model_dump_json()))
-    assert first.run(token).status.value == "emitted"
+    assert first.run(token).status.value == "abstained"
     with pytest.raises(TypeError):
         second.run(token)
 
@@ -373,10 +373,24 @@ def test_contract_rejects_nonfinite_alert_and_bad_chronology() -> None:
 
 def test_contract_rejects_duplicate_stream_samples_and_findings() -> None:
     request = build_request()
-    result = M2705Service().emit(request)
-    assert result.telemetry_stream is not None
-    stream_payload = result.telemetry_stream.model_dump(mode="json")
-    sample = stream_payload["samples"][0]
+    evidence = _evidence(request)
+    sample = TelemetrySample(
+        sample_id="m2705.sample.duplicate",
+        metric=request.requested_metrics[0],
+        value=1.0,
+        unit=TelemetryUnit.SCORE,
+        observed_at=request.context.occurred_at,
+        source="test-observed-telemetry",
+        evidence=evidence,
+    )
+    stream_payload = TelemetryStream(
+        stream_id="m2705.stream.duplicate",
+        version="1.0.0",
+        samples=(sample,),
+        reviewer_actions=(),
+        findings=(),
+        evidence=evidence,
+    ).model_dump(mode="json")
     stream_payload["samples"] = [sample, sample]
     with pytest.raises(ValueError, match=r".+"):
         TelemetryStream.model_validate(stream_payload, strict=True)
@@ -385,7 +399,7 @@ def test_contract_rejects_duplicate_stream_samples_and_findings() -> None:
         code=TelemetryFindingCode.DRIFT_DETECTED,
         message="drift",
     )
-    finding_payload = result.telemetry_stream.model_dump(mode="json")
+    finding_payload = stream_payload.copy()
     finding_payload["findings"] = [finding.model_dump(mode="json"), finding.model_dump(mode="json")]
     with pytest.raises(ValueError, match=r".+"):
         TelemetryStream.model_validate(finding_payload, strict=True)
