@@ -25,6 +25,7 @@ from glio_proteogen.kernel.models import (
     ExecutionContext,
     IdentityLineageReference,
     IdentityLineageState,
+    SupportStatus,
     UpstreamDecisionReference,
     UpstreamDecisionState,
 )
@@ -145,6 +146,7 @@ def test_constructs_ordered_metadata_trajectory_and_replays() -> None:
     assert result.temporal_order_verified is True
     assert result.future_leakage_checked is True
     assert result.human_review_required is True
+    assert result.support_decision.status is SupportStatus.REVIEW_REQUIRED
     assert service.verify(result) == result
 
 
