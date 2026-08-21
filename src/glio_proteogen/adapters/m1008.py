@@ -12,7 +12,11 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
-from glio_proteogen.adapters.limits import RequestBodyTooLargeError, read_bounded
+from glio_proteogen.adapters.limits import (
+    RequestBodyTooLargeError,
+    RequestSizeLimitMiddleware,
+    read_bounded,
+)
 from glio_proteogen.contracts.m10_08 import (
     M1008_MAX_CANONICAL_REQUEST_BYTES,
     M1008_MAX_CANONICAL_RESULT_BYTES,
@@ -52,6 +56,11 @@ def create_m1008_app(
 
     active_service = service or m1008_runtime.M1008EvidencePublisherService()
     app = FastAPI(title="GLIO-PROTEOGEN M10-08", version="0.1.0-provisional")
+    app.add_middleware(
+        RequestSizeLimitMiddleware,
+        max_bytes=M1008_MAX_CANONICAL_REQUEST_BYTES,
+        result_max_bytes=M1008_MAX_CANONICAL_RESULT_BYTES,
+    )
 
     @app.get("/v1/m10-08/schema/{contract}")
     async def export_schema(contract: ContractName) -> dict[str, object]:
