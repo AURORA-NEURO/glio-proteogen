@@ -16,6 +16,7 @@ from glio_proteogen.contracts.m19_06 import (
     ProteotypeAdjudicationResult,
     contract_json_schema,
 )
+from glio_proteogen.contracts.m19_06.canonical import result_payload_digest
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_06_reviewer_adjudication import (
     M1906Engine,
@@ -42,6 +43,7 @@ SCHEMA_NAMES: Final = (
 )
 HTTP_OK: Final = 200
 HTTP_UNSUPPORTED_MEDIA_TYPE: Final = 415
+HTTP_UNPROCESSABLE: Final = 422
 
 
 @pytest.mark.parametrize("name", SCHEMA_NAMES)
@@ -111,3 +113,19 @@ def test_api_replay_and_strict_content_type_are_closed(tmp_path: Path) -> None:
     assert response.status_code == HTTP_OK
     assert ProteotypeAdjudicationResult.model_validate_json(response.content, strict=True) == result
     assert wrong_media.status_code == HTTP_UNSUPPORTED_MEDIA_TYPE
+
+
+def test_central_api_sanitizes_self_rehashed_replay_mutation(tmp_path: Path) -> None:
+    result = M1906Engine().adapt(_request())
+    forged = result.model_copy(update={"human_review_required": False})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    with TestClient(create_app(tmp_path / "replay.sqlite3")) as client:
+        response = client.post(
+            "/v1/modules/M19-06/adjudication/verify",
+            content=canonical_json_bytes(forged.model_dump(mode="json")),
+            headers={"content-type": "application/json"},
+        )
+
+    assert response.status_code == HTTP_UNPROCESSABLE
+    assert response.json() == {"detail": "M19-06 result verification failed"}

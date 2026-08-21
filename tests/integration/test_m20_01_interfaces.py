@@ -15,7 +15,11 @@ from glio_proteogen.contracts.m20_01 import (
     ProteinSubtypeUpstreamResolutionResult,
     contract_json_schema,
 )
+from glio_proteogen.contracts.m20_01.canonical import result_payload_digest
 from glio_proteogen.kernel.canonical import canonical_json_bytes
+from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
+    m20_01_upstream_contract_resolver as m2001_runtime,
+)
 from tests.contract.test_m20_01_adversarial import _request
 
 if TYPE_CHECKING:
@@ -206,3 +210,26 @@ def test_central_api_and_cli_register_m2001_surface(tmp_path: Path) -> None:
     assert ProteinSubtypeUpstreamResolutionResult.model_validate_json(
         result_path.read_bytes(), strict=True
     ) == ProteinSubtypeUpstreamResolutionResult.model_validate_json(resolved.content, strict=True)
+
+
+def test_central_api_sanitizes_self_rehashed_replay_mutation(tmp_path: Path) -> None:
+    result = m2001_runtime.M2001Service().resolve(_request())
+    forged = result.model_copy(
+        update={
+            "limitations": (
+                result.limitations[0].model_copy(update={"statement": "forged semantic state"}),
+                *result.limitations[1:],
+            )
+        }
+    )
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    with TestClient(create_central_app(tmp_path / "replay.sqlite")) as client:
+        response = client.post(
+            "/v1/modules/M20-01/verify",
+            content=canonical_json_bytes(forged.model_dump(mode="json")),
+            headers={"content-type": "application/json"},
+        )
+
+    assert response.status_code == HTTP_UNPROCESSABLE
+    assert response.json() == {"detail": "M20-01 result verification failed"}

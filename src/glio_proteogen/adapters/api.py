@@ -992,6 +992,7 @@ from glio_proteogen.modules.c19_immunopeptidomic_evidence import (
 )
 from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_03_fusion_aggregation import (
     M1903AuthorizationError,
+    M1903ReplayError,
     M1903Service,
     preflight_m1903_authorization,
 )
@@ -3209,7 +3210,13 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
             Depends(_m2001_result_body),
         ],
     ) -> ProteinSubtypeUpstreamResolutionResult:
-        return m2001_service.replay(result)
+        try:
+            return m2001_service.replay(result)
+        except m2001_resolver.M2001ReplayError as error:
+            raise HTTPException(
+                status_code=422,
+                detail="M20-01 result verification failed",
+            ) from error
 
     @app.get("/v1/contracts/M17-04/{name}/schema", tags=["contracts"])
     def m1704_contract_schema(name: M1704ContractName) -> dict[str, object]:
@@ -4043,7 +4050,13 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
             None,
             M1906_MAX_CANONICAL_REQUEST_BYTES * 2,
         )
-        return m1906_service.replay(result)
+        try:
+            return m1906_service.replay(result)
+        except m1906_adjudication.M1906ReplayError as error:
+            raise HTTPException(
+                status_code=422,
+                detail="M19-06 result verification failed",
+            ) from error
 
     @app.get("/v1/contracts/M19-04/{name}/schema", tags=["contracts"])
     def m1904_contract_schema(name: M1904ContractName) -> dict[str, object]:
@@ -4099,7 +4112,13 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     def verify_m1903_evidence(
         result: Annotated[ProteotypeIntegratedEvidenceResult, Depends(_m1903_result_body)],
     ) -> ProteotypeIntegratedEvidenceResult:
-        return m1903_service.replay(result)
+        try:
+            return m1903_service.replay(result)
+        except M1903ReplayError as error:
+            raise HTTPException(
+                status_code=422,
+                detail="M19-03 result verification failed",
+            ) from error
 
     @app.get("/v1/contracts/M27-02/{name}/schema", tags=["contracts"])
     def m2702_contract_schema(name: M2702ContractName) -> dict[str, object]:

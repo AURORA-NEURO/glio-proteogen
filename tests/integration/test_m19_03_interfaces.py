@@ -16,6 +16,7 @@ from glio_proteogen.contracts.m19_03 import (
     ProteotypeIntegratedEvidenceResult,
     contract_json_schema,
 )
+from glio_proteogen.contracts.m19_03.canonical import result_payload_digest
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_03_fusion_aggregation import (
     M1903Plugin,
@@ -32,6 +33,7 @@ pytestmark = pytest.mark.integration
 
 HTTP_OK: Final = 200
 HTTP_UNSUPPORTED_MEDIA: Final = 415
+HTTP_UNPROCESSABLE: Final = 422
 SCHEMA_NAMES: tuple[M1903ContractName, ...] = (
     "request",
     "output",
@@ -97,6 +99,22 @@ def test_api_rejects_non_json_and_missing_controls(tmp_path: Path) -> None:
     assert media.status_code == HTTP_UNSUPPORTED_MEDIA
     assert missing.status_code in {400, 403, 422}
     assert "traceback" not in missing.text.lower()
+
+
+def test_central_api_sanitizes_self_rehashed_replay_mutation(tmp_path: Path) -> None:
+    result = M1903Service().fuse(_request())
+    forged = result.model_copy(update={"human_review_required": True})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    with TestClient(create_app(tmp_path / "replay.sqlite3")) as client:
+        response = client.post(
+            "/v1/modules/M19-03/verify",
+            content=canonical_json_bytes(forged.model_dump(mode="json")),
+            headers={"content-type": "application/json"},
+        )
+
+    assert response.status_code == HTTP_UNPROCESSABLE
+    assert response.json() == {"detail": "M19-03 result verification failed"}
 
 
 def test_api_and_cli_abstain_on_prohibited_caller_claim(tmp_path: Path) -> None:
