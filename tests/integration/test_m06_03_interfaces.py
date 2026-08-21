@@ -31,6 +31,7 @@ HTTP_OK: Final = 200
 HTTP_UNSUPPORTED_MEDIA: Final = 415
 HTTP_UNPROCESSABLE: Final = 422
 HTTP_FORBIDDEN: Final = 403
+HTTP_TOO_LARGE: Final = 413
 CLI_USAGE_ERROR: Final = 2
 
 SCHEMA_NAMES: Final = (
@@ -111,6 +112,16 @@ def test_api_rejects_wrong_media_type_and_cli_leaves_no_partial_output(tmp_path:
     )
     assert cli.exit_code == CLI_USAGE_ERROR
     assert not output_path.exists()
+
+
+def test_central_api_rejects_oversized_m0603_request_before_parsing(tmp_path: Path) -> None:
+    with TestClient(create_app(tmp_path / "oversized.sqlite3")) as client:
+        response = client.post(
+            "/v1/modules/M06-03/estimate",
+            content=b"{" + b"x" * (4 * 1024 * 1024 + 1) + b"}",
+            headers={"content-type": "application/json"},
+        )
+    assert response.status_code == HTTP_TOO_LARGE
 
 
 def test_api_rejects_duplicate_json_keys_without_reflection(tmp_path: Path) -> None:

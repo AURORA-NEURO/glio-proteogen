@@ -419,6 +419,7 @@ from glio_proteogen.contracts.m06_03.schema import (
 )
 from glio_proteogen.contracts.m06_03.v1 import (
     M0603_MAX_CANONICAL_REQUEST_BYTES,
+    M0603_MAX_CANONICAL_RESULT_BYTES,
     EstimateProteinAbundanceBaselineRequest,
     EstimateProteinAbundanceBaselineResult,
 )
