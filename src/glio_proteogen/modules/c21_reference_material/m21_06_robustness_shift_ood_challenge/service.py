@@ -43,7 +43,13 @@ class M2106Service:
     def replay(
         self,
         result: ComplexActivityRobustnessChallengeResult,
+        request: ChallengeComplexActivityRobustnessRequest | None = None,
     ) -> ComplexActivityRobustnessChallengeResult:
+        if request is not None:
+            result_request = result.request.model_dump(mode="json")
+            supplied_request = request.model_dump(mode="json")
+            if result_request != supplied_request:
+                raise ValueError
         return self._engine.replay(result)
 
 
