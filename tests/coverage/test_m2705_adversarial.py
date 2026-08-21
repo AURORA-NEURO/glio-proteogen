@@ -26,6 +26,7 @@ from glio_proteogen.contracts.m27_05 import (
     ProteomicsTelemetryResult,
     TelemetryFinding,
     TelemetryFindingCode,
+    TelemetryMetricKind,
     TelemetrySample,
     TelemetryStream,
     TelemetryUnit,
@@ -267,6 +268,14 @@ def test_request_and_stream_identity_closures_are_explicit() -> None:
     payload = request.model_dump(mode="json")
     payload["requested_metrics"] = ["input_quality", "input_quality"]
     with pytest.raises(ValueError, match=r".+"):
+        EmitProteomicsTelemetryRequest.model_validate(payload, strict=True)
+
+
+def test_request_rejects_dashboard_metrics_outside_requested_stream() -> None:
+    request = build_request()
+    payload = request.model_dump(mode="python")
+    payload["requested_metrics"] = (TelemetryMetricKind.INPUT_QUALITY,)
+    with pytest.raises(ValueError, match="dashboard metrics must be requested telemetry metrics"):
         EmitProteomicsTelemetryRequest.model_validate(payload, strict=True)
     payload = request.model_dump(mode="json")
     dashboard = payload["dashboard_definitions"][0]

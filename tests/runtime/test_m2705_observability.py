@@ -136,6 +136,14 @@ def test_provenance_binds_upstream_and_telemetry_configuration() -> None:
     )
     assert result.provenance.configuration_digest == expected_configuration_digest
 
-    changed = request.model_copy(update={"requested_metrics": request.requested_metrics[:1]})
+    changed_dashboard = request.dashboard_definitions[0].model_copy(
+        update={"metrics": request.requested_metrics[:1]}
+    )
+    changed = request.model_copy(
+        update={
+            "requested_metrics": request.requested_metrics[:1],
+            "dashboard_definitions": (changed_dashboard,),
+        }
+    )
     changed_result = M2705Service().emit(changed)
     assert changed_result.provenance.configuration_digest != result.provenance.configuration_digest
