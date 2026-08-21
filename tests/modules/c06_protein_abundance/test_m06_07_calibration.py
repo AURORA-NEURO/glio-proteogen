@@ -74,6 +74,7 @@ from glio_proteogen.kernel.models import (
     ControlDecisionRecord,
     ControlRole,
     EstimateState,
+    EvidenceReference,
     ExecutionContext,
     IdentityLineageReference,
     IdentityLineageState,
@@ -416,6 +417,32 @@ def test_calibration_is_deterministic_and_selects_supported_estimates() -> None:
     assert first.result.estimates[0].selection_status.value == "selected"
     assert first.result.prediction_sets[0].labels == ("in_domain",)
     assert first.canonical_bytes == second.canonical_bytes
+
+
+def test_provenance_binds_policy_evidence() -> None:
+    base = _request()
+    policy_evidence = EvidenceReference(
+        reference=_artifact("policy-evidence", "9"),
+        role="evidence",
+        claim="calibration policy evidence",
+    )
+    request = base.model_copy(
+        update={"policy": base.policy.model_copy(update={"evidence": (policy_evidence,)})}
+    )
+    engine = M0607CalibrationEngine()
+    result = engine.calibrate(request).result
+    assert policy_evidence.reference.digest in result.provenance.input_digests
+
+    mutated_evidence = policy_evidence.model_copy(
+        update={"reference": _artifact("policy-evidence-mutated", "8")}
+    )
+    mutated = request.model_copy(
+        update={
+            "policy": request.policy.model_copy(update={"evidence": (mutated_evidence,)})
+        }
+    )
+    mutated_result = engine.calibrate(mutated).result
+    assert mutated_result.provenance.input_digests != result.provenance.input_digests
 
 
 def test_calibration_replay_accepts_canonical_and_rejects_tamper() -> None:

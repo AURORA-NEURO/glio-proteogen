@@ -137,6 +137,7 @@ def _provenance(request: CalibrateSelectiveProteinAbundanceRequest) -> Provenanc
             {item.digest for item in request.source_artifacts}
             | {request.uncertainty_result.result_digest}
             | {request.policy.calibration_reference.digest}
+            | {item.reference.digest for item in request.policy.evidence}
         )
     )
     return ProvenanceRecord(
