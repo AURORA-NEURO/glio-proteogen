@@ -10,6 +10,7 @@ from typer.testing import CliRunner
 
 from glio_proteogen.adapters import m1302
 from glio_proteogen.adapters.m1302 import app, m1302_app
+from glio_proteogen.contracts.m13_02 import result_payload_digest
 from tests.contract.test_m13_02_runtime import _request
 
 _HTTP_OK = 200
@@ -38,6 +39,24 @@ def test_api_schema_and_stratification_parity() -> None:
     verified = client.post("/v1/modules/M13-02/verify", json=body)
     assert verified.status_code == _HTTP_OK
     assert verified.json() == {"verified": True}
+
+
+def test_api_and_cli_reject_self_rehashed_semantic_mutation(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    request = _request()
+    client = TestClient(app)
+    response = client.post("/v1/modules/M13-02/context", json=request.model_dump(mode="json"))
+    assert response.status_code == _HTTP_OK
+    payload = response.json()
+    payload["findings"][0]["message"] = "forged finding message"
+    payload["result_digest"] = result_payload_digest(payload)
+
+    forged = client.post("/v1/modules/M13-02/verify", json=payload)
+    assert forged.status_code == _HTTP_UNPROCESSABLE
+
+    result_path = tmp_path / "forged-result.json"
+    result_path.write_text(json.dumps(payload), encoding="utf-8")
+    cli = CliRunner().invoke(m1302_app, ["verify", str(result_path)])
+    assert cli.exit_code == 1
 
 
 def test_api_rejects_unknown_schema_nonobject_invalid_contract_and_tamper() -> None:

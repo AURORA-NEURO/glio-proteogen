@@ -164,7 +164,13 @@ def validate_json_request(serialized: bytes | bytearray | str) -> StratifyProteo
 
 
 def verify_context_result(result: object) -> bool:
-    """Replay and verify an M13-02 result envelope without accepting tampering."""
+    """Replay and verify an M13-02 result envelope without accepting tampering.
+
+    The result digest protects the envelope's serialized contents, but it does
+    not prove that those contents were produced from the embedded request.
+    Reconstruct the complete result so a caller cannot resign altered findings
+    or mechanism projections with a fresh digest.
+    """
 
     try:
         if type(result) is ProteotypeContextStratificationResult:
@@ -175,9 +181,15 @@ def verify_context_result(result: object) -> bool:
             )
     except ValidationError:
         return False
-    return typed.request_digest == canonical_request_digest(
-        typed.request
-    ) and typed.result_digest == result_payload_digest(typed)
+    if typed.request_digest != canonical_request_digest(typed.request):
+        return False
+    if typed.result_digest != result_payload_digest(typed):
+        return False
+    try:
+        expected = compute_proteotype_context(typed.request)
+    except (TypeError, ValueError, ValidationError):
+        return False
+    return expected.model_dump(mode="json") == typed.model_dump(mode="json")
 
 
 def _compute(request: StratifyProteotypeContextRequest) -> ProteotypeContextStratificationResult:
