@@ -14,6 +14,7 @@ from glio_proteogen.research import (
     PsmCompetition,
     infer_protein_group_candidates,
     target_decoy_qvalues,
+    verify_protein_group_fdr_summary,
 )
 
 
@@ -124,4 +125,60 @@ def test_group_abstains_when_only_some_accessions_have_unique_peptide_support() 
     assert target.q_value == 0.0
     assert target.identifiability == "partially_unique_ambiguous"
     assert target.acceptance == "abstained"
+    assert target.unique_supported_accessions == ("P1",)
+    assert target.ambiguous_accessions == ("P2",)
+    assert len(target.evidence_digest) == 64
     assert summary.accepted_targets == 0
+
+
+def test_group_summary_binds_partition_and_rejects_tampering() -> None:
+    candidates, summary = infer_protein_group_candidates(
+        (
+            Psm("target", "PEPTIDE", ("P1",), 10.0, 3, decoy=False),
+            Psm("decoy", "DECOY_PEPTIDE", ("DECOY_P2",), 1.0, 3, decoy=True),
+        ),
+        q_value_threshold=0.01,
+    )
+
+    verify_protein_group_fdr_summary(candidates, summary)
+    assert summary.evidence_status == "empirical_target_decoy_evidence"
+    assert summary.target_denominator == 1
+    assert summary.error_candidates == summary.decoy_candidates == 1
+    with pytest.raises(ValueError, match="partition digest"):
+        verify_protein_group_fdr_summary(
+            candidates,
+            replace(summary, group_partition_digest="0" * 64),
+        )
+
+
+def test_decoy_only_group_receipt_abstains_undefined_ratio() -> None:
+    candidates, summary = infer_protein_group_candidates(
+        (Psm("decoy", "DECOY_PEPTIDE", ("DECOY_P2",), 3.0, 3, decoy=True),),
+        q_value_threshold=0.01,
+    )
+
+    assert candidates[0].status == "decoy"
+    assert summary.decoy_to_target_ratio is None
+    assert summary.target_denominator == 0
+    assert summary.evidence_status == "abstained_no_target_denominator"
+
+
+def test_collision_only_group_receipt_abstains_undefined_ratio() -> None:
+    _candidates, summary = infer_protein_group_candidates(
+        (
+            Psm(
+                "collision",
+                "SHARED",
+                ("P1", "DECOY_P1"),
+                3.0,
+                3,
+                decoy=False,
+                target_decoy_collision=True,
+            ),
+        ),
+        q_value_threshold=0.01,
+    )
+
+    assert summary.collision_candidates == 1
+    assert summary.decoy_to_target_ratio is None
+    assert summary.evidence_status == "abstained_no_target_denominator"

@@ -395,3 +395,27 @@ All search and matched-ion numeric boundaries reject booleans explicitly. Althou
 `bool` is an `int` subclass and `math.isfinite(True)` is true, a metadata flag is not a valid
 m/z, precursor, intensity, or PSM score. Such values are rejected before arithmetic; missing or
 unsupported measurements abstain rather than being coerced into one-unit signal.
+## Group-level evidence receipt (research-only)
+
+The protein-group stage now emits a replayable, descriptive receipt in addition
+to the group candidates. Every candidate carries an evidence digest over its
+canonical candidate projection and the complete supporting PSM projection;
+therefore changing a supporting spectrum, score, target/decoy class, or
+identifiability partition cannot be hidden by recomputing only an outer digest.
+The summary independently records the target denominator, decoy/collision
+error count, group partition digest, and an explicit evidence status.
+
+Group identifiability is conservative: `unique_peptide_supported` is reportable
+only when every accession in a connected component has unique peptide support;
+`partially_unique_ambiguous` retains the uniquely supported and ambiguous
+accession sets but abstains; and `shared_only_ambiguous` remains abstained.
+Mixed target/decoy components are `target_decoy_collision` and never receive a
+q-value or accepted status. These are empirical target/decoy and structural
+ambiguity controls, not calibrated protein probabilities or glioma-specific
+biology claims.
+
+When there are no target groups, `decoy_to_target_ratio` is `null`, not `0.0`:
+the denominator is undefined. `evidence_status` is then
+`abstained_no_target_denominator`. A zero ratio is reserved for a non-empty
+target denominator with no decoy/collision evidence. Consumers must preserve
+this distinction when aggregating external cohorts or presenting results.

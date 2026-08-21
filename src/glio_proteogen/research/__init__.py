@@ -90,6 +90,7 @@ from .protein import (
     ProteinGroupFdrSummary,
     infer_protein_group_candidates,
     infer_protein_groups,
+    verify_protein_group_fdr_summary,
 )
 from .public_proteomics.formats import (
     MzIdentMlStructure,
@@ -218,5 +219,6 @@ __all__ = [
     "verify_evidence_bundle",
     "verify_pdc_source_content",
     "verify_pilot_replay",
+    "verify_protein_group_fdr_summary",
     "verify_search_space_receipt",
 ]
