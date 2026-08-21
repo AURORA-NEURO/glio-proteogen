@@ -113,6 +113,26 @@ def test_duplicate_spectrum_contenders_are_permutation_stable() -> None:
     assert forward_summary.competition_digest == reverse_summary.competition_digest
 
 
+def test_group_duplicate_ties_prefer_stricter_existing_q_value() -> None:
+    lower_q = Psm(
+        "scan=q-tie",
+        "PEPTIDER",
+        ("P1",),
+        5.0,
+        3,
+        decoy=False,
+        q_value=0.01,
+    )
+    higher_q = replace(lower_q, q_value=0.99)
+
+    selected, _ = infer_protein_group_candidates(
+        (higher_q, lower_q), q_value_threshold=0.5
+    )
+    expected, _ = infer_protein_group_candidates((lower_q,), q_value_threshold=0.5)
+
+    assert selected == expected
+
+
 def test_group_abstains_when_only_some_accessions_have_unique_peptide_support() -> None:
     candidates, summary = infer_protein_group_candidates(
         (
