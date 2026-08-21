@@ -24,6 +24,8 @@ HTTP_FORBIDDEN = 403
 HTTP_UNPROCESSABLE = 422
 HTTP_OK = 200
 EXIT_FAILURE = 2
+HTTP_UNSUPPORTED_MEDIA = 415
+HTTP_TOO_LARGE = 413
 
 
 def _document() -> tuple[dict[str, object], object]:
@@ -60,13 +62,34 @@ def test_plugin_rejects_invalid_json_and_forged_capability() -> None:
 def test_api_rejects_duplicate_json_keys_and_returns_schema() -> None:
     document, _ = _document()
     client = TestClient(m0907.create_app(m0907.M0907Service()))
-    response = client.post("/m09-07/calibrate", content=b'{"request_id":1,"request_id":2}')
+    response = client.post(
+        "/m09-07/calibrate",
+        content=b'{"request_id":1,"request_id":2}',
+        headers={"content-type": "application/json"},
+    )
     assert response.status_code == HTTP_BAD_REQUEST
     assert response.json()["error"]["type"] == "json_duplicate_key"
     schemas = client.get("/m09-07/schema")
     assert schemas.status_code == HTTP_OK
     assert schemas.json()["schemas"]["request"]["x-glio-contract"]["provisionalAbi"] is True
     assert client.post("/m09-07/calibrate", json=document).status_code == HTTP_OK
+
+
+def test_api_enforces_json_content_type_and_preparse_request_limit() -> None:
+    document, _ = _document()
+    client = TestClient(m0907.create_app(m0907.M0907Service()))
+    wrong_media = client.post(
+        "/m09-07/calibrate",
+        json=document,
+        headers={"content-type": "text/plain"},
+    )
+    oversized = client.post(
+        "/m09-07/calibrate",
+        content=b"{" + b"x" * (4 * 1024 * 1024 + 1) + b"}",
+        headers={"content-type": "application/json"},
+    )
+    assert wrong_media.status_code == HTTP_UNSUPPORTED_MEDIA
+    assert oversized.status_code == HTTP_TOO_LARGE
 
 
 def test_api_sanitizes_auth_validation_and_verify_errors() -> None:
@@ -87,7 +110,11 @@ def test_api_sanitizes_auth_validation_and_verify_errors() -> None:
     assert verified.status_code == HTTP_OK
     assert verified.json() == {"valid": True}
     assert client.post("/m09-07/verify", json=[]).json()["error"]["type"] == "invalid_document"
-    malformed = client.post("/m09-07/verify", content=b"not-json")
+    malformed = client.post(
+        "/m09-07/verify",
+        content=b"not-json",
+        headers={"content-type": "application/json"},
+    )
     assert malformed.json()["error"]["type"] == "json_invalid_syntax"
 
 
