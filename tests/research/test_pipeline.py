@@ -155,10 +155,12 @@ def test_pipeline_replay_rejects_tampered_quantification_receipt() -> None:
     )
     result = run_research_protein_inference(request)
     assert result.quantification_receipt is not None
-    tampered = replace(
-        result,
-        quantification_receipt=replace(result.quantification_receipt, raw_total_signal=999.0),
+    forged_receipt = replace(
+        result.quantification_receipt,
+        raw_positive_median=result.quantification_receipt.raw_positive_median,
+        observation_digest="0" * 64,
     )
+    tampered = replace(result, quantification_receipt=forged_receipt)
     with pytest.raises(ValueError, match="digest"):
         replay_research_protein_inference(request, tampered)
 

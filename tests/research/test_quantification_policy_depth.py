@@ -142,12 +142,5 @@ def test_pipeline_default_policy_is_explicit_in_configuration() -> None:
     request = ResearchRunRequest("default-policy", _mzml(), b">P1\nMPEPTIDER\n")
     result = run_research_protein_inference(request)
     assert dict(result.configuration)["quantification_policy"] == QuantificationPolicy().as_dict()
-    forged = replace(
-        result,
-        quantification_receipt=replace(
-            result.quantification_receipt,
-            limit_of_quantification=26.0,
-        ),
-    )
-    with pytest.raises(ValueError, match="digest"):
-        replay_research_protein_inference(request, forged)
+    with pytest.raises(ValueError, match="missingness_policy"):
+        replace(result.quantification_receipt, limit_of_quantification=26.0)
