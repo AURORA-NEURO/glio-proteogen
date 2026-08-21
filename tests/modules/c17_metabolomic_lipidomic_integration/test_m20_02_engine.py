@@ -161,6 +161,8 @@ def test_aligned_resolution_is_deterministic_and_replayable() -> None:
 
     assert first.status is AlignmentStatus.ALIGNED
     assert first.aligned_bundle is not None
+    assert first.support_decision.status is SupportStatus.REVIEW_REQUIRED
+    assert first.human_review_required is True
     assert first.result_digest == second.result_digest
     assert engine.replay(first) == first
 

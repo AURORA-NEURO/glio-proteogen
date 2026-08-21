@@ -261,10 +261,10 @@ class ProteinSubtypeAlignmentResult(FrozenModel):
             if (
                 self.aligned_bundle is None
                 or self.abstention_reason is not None
-                or self.support_decision.status is not SupportStatus.SUPPORTED
-                or self.human_review_required
+                or self.support_decision.status is not SupportStatus.REVIEW_REQUIRED
+                or not self.human_review_required
             ):
-                raise ValueError("aligned result requires a supported evidence bundle")
+                raise ValueError("aligned result requires a review-only evidence bundle")
             if any(
                 item.status is not AlignmentObservationStatus.ALIGNED
                 for item in self.aligned_bundle.observations

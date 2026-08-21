@@ -287,10 +287,11 @@ class M2002Engine:
         )
         status = AlignmentStatus.ALIGNED if complete else AlignmentStatus.ABSTAINED
         support = SupportDecision(
-            status=SupportStatus.SUPPORTED if complete else SupportStatus.REVIEW_REQUIRED,
-            reason_code="aligned_sources" if complete else "alignment_review_required",
+            status=SupportStatus.REVIEW_REQUIRED,
+            reason_code="aligned_sources_review" if complete else "alignment_review_required",
             rationale=(
-                "All seven dimensions are aligned under the locked configuration."
+                "Caller-declared dimensions align under the locked configuration; "
+                "raw-source support remains unverified and requires human review."
                 if complete
                 else "Missing, conflicting, or unresolved dimensions require safe review."
             ),
@@ -315,7 +316,7 @@ class M2002Engine:
             "provenance": _provenance(request),
             "evidence": _evidence(request),
             "limitations": _limitations(),
-            "human_review_required": not complete,
+            "human_review_required": True,
         }
         payload["result_digest"] = result_payload_digest(
             ProteinSubtypeAlignmentResult.model_construct(**payload)
