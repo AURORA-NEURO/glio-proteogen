@@ -344,7 +344,7 @@ class M2003Engine:
             "provenance": _provenance(request),
             "evidence": evidence,
             "limitations": _limitations(),
-            "human_review_required": bool(findings),
+            "human_review_required": True,
         }
         payload["result_digest"] = result_payload_digest(
             ProteinSubtypeIntegratedEvidenceResult.model_construct(**payload)

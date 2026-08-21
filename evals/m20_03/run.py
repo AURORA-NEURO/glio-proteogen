@@ -189,7 +189,7 @@ def evaluate() -> EvaluationReport:
             "unresolved disagreement abstains",
         )
     )
-    tampered = integrated.model_copy(update={"human_review_required": True})
+    tampered = integrated.model_copy(update={"result_id": "result.forged.semantic"})
     tampered = type(tampered).model_construct(
         **{**tampered.__dict__, "result_digest": result_payload_digest(tampered)}
     )

@@ -175,6 +175,8 @@ def test_supported_fusion_integrates_and_replays() -> None:
     result = M2003Engine().fuse(_request())
     assert result.status is FusionStatus.INTEGRATED
     assert result.integrated_evidence is not None
+    assert result.support_decision.status is SupportStatus.REVIEW_REQUIRED
+    assert result.human_review_required is True
     assert result.parent_target == "protein subtype"
     assert result.emits_parent is False
     assert M2003Engine().replay(result) == result
@@ -230,19 +232,20 @@ def test_tampering_is_rejected_and_canonical_helpers_are_stable() -> None:
     assert verify_result_digest(result, result.result_digest)
     assert canonical_result_payload_bytes(result) == canonical_result_payload_bytes(result)
     with pytest.raises(M2003ReplayError, match="payload digest"):
-        M2003Engine().replay(result.model_copy(update={"human_review_required": True}))
+        M2003Engine().replay(result.model_copy(update={"result_id": "result.forged.semantic"}))
     assert not verify_request_digest(
         request.model_copy(update={"aggregate_values": ("changed",)}), digest
     )
     assert not verify_result_digest(
-        {**result.model_dump(mode="json"), "human_review_required": True}, result.result_digest
+        {**result.model_dump(mode="json"), "result_id": "result.forged.semantic"},
+        result.result_digest,
     )
 
 
 @pytest.mark.parametrize(
     "updates",
     [
-        pytest.param({"human_review_required": True}, id="review-flag"),
+        pytest.param({"result_id": "result.forged.semantic"}, id="result-identity"),
         pytest.param(
             {
                 "support_decision": lambda result: result.support_decision.model_copy(

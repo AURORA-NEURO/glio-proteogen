@@ -42,7 +42,7 @@ def test_fastapi_rejects_self_rehashed_semantic_result() -> None:
     )
     assert response.status_code == 200  # noqa: PLR2004 - HTTP success status.
     forged = response.json()
-    forged["human_review_required"] = True
+    forged["result_id"] = "result.forged.semantic"
     forged["result_digest"] = result_payload_digest(forged)
     verification = TestClient(app).post("/v1/modules/M20-03/verify", json=forged)
     assert verification.status_code == 422  # noqa: PLR2004 - HTTP validation status.

@@ -284,6 +284,7 @@ class ProteinSubtypeIntegratedEvidenceResult(FrozenModel):
                 or self.abstention_reason is not None
                 or self.support_decision.status is not SupportStatus.REVIEW_REQUIRED
                 or has_unsafe_source
+                or not self.human_review_required
             ):
                 raise ValueError("integrated result requires review-only attributable sources")
             integrated_evidence = self.integrated_evidence
