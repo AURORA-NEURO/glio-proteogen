@@ -12,6 +12,15 @@ if TYPE_CHECKING:
 
 from .search import _is_finite_real, _validate_target_decoy_psm
 
+_GROUP_IDENTIFIABILITY = frozenset(
+    {
+        "target_decoy_collision",
+        "shared_only_ambiguous",
+        "partially_unique_ambiguous",
+        "unique_peptide_supported",
+    }
+)
+
 
 @dataclass(frozen=True, slots=True)
 class ProteinGroup:
@@ -386,6 +395,13 @@ def verify_protein_group_fdr_summary(  # noqa: PLR0915
     for candidate in candidates:
         if not candidate.accessions or tuple(sorted(candidate.accessions)) != candidate.accessions:
             raise ValueError("protein-group accessions must be non-empty and sorted")
+        if candidate.identifiability not in _GROUP_IDENTIFIABILITY:
+            raise ValueError("protein-group identifiability is invalid")
+        if (
+            tuple(sorted(candidate.unique_peptides)) != candidate.unique_peptides
+            or tuple(sorted(candidate.shared_peptides)) != candidate.shared_peptides
+        ):
+            raise ValueError("protein-group peptide memberships must be sorted")
         if set(candidate.unique_peptides).intersection(candidate.shared_peptides):
             raise ValueError("unique and shared peptide memberships must be disjoint")
         if candidate.status not in {"target", "decoy", "collision"}:
@@ -398,6 +414,25 @@ def verify_protein_group_fdr_summary(  # noqa: PLR0915
             raise ValueError("protein-group q-values must be finite and between zero and one")
         if len(candidate.evidence_digest) != 64 or not _is_hex_digest(candidate.evidence_digest):
             raise ValueError("protein-group evidence digest is invalid")
+        support_accessions = set(candidate.unique_supported_accessions).union(
+            candidate.ambiguous_accessions
+        )
+        if support_accessions != set(candidate.accessions):
+            raise ValueError("protein-group support accessions do not cover the group")
+        if candidate.status == "collision":
+            if candidate.identifiability != "target_decoy_collision":
+                raise ValueError("collision groups must declare collision identifiability")
+        elif candidate.identifiability == "target_decoy_collision":
+            raise ValueError("non-collision groups cannot declare collision identifiability")
+        if candidate.status != "target":
+            if candidate.q_value is not None:
+                raise ValueError("decoy and collision groups must have null q-values")
+            if candidate.acceptance == "accepted":
+                raise ValueError("decoy and collision groups cannot be accepted")
+        elif candidate.acceptance == "accepted" and (
+            candidate.q_value is None or candidate.identifiability != "unique_peptide_supported"
+        ):
+            raise ValueError("accepted target groups require unique support and a q-value")
         if candidate.status == "collision" and (
             candidate.q_value is not None or candidate.acceptance != "abstained"
         ):
