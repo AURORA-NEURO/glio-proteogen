@@ -75,10 +75,11 @@ class M2206Plugin:
         self,
         result: object,
         *,
+        request: ChallengeProteinRnaDiscordanceRobustnessRequest | None = None,
         replay: bool = True,
     ) -> ProteinRnaDiscordanceRobustnessChallengeResult:
         _RESULT_ADAPTER.validate_python(result, strict=True)
-        return self._service.verify(result, replay=replay)
+        return self._service.verify(result, request=request, replay=replay)
 
 
 __all__ = ["M2206Plugin", "ValidatedM2206Request"]

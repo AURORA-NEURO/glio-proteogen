@@ -88,6 +88,17 @@ def test_service_plugin_replay_and_public_entrypoint_parity() -> None:
     assert public == result
 
 
+def test_service_and_plugin_verify_reject_supplied_request_mismatch() -> None:
+    request = _request()
+    service = M2206Service()
+    result = service.execute(request)
+    altered = request.model_copy(update={"request_id": "request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.verify(result, request=altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        M2206Plugin(service).verify(result, request=altered)
+
+
 def test_replay_rejects_tampered_payload() -> None:
     engine = M2206Engine()
     result = engine.evaluate(_request())
