@@ -16,7 +16,11 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import TypeAdapter, ValidationError
 
-from glio_proteogen.adapters.limits import RequestBodyTooLargeError, read_bounded
+from glio_proteogen.adapters.limits import (
+    RequestBodyTooLargeError,
+    RequestSizeLimitMiddleware,
+    read_bounded,
+)
 from glio_proteogen.contracts.m14_06 import (
     M1406_MAX_CANONICAL_REQUEST_BYTES,
     M1406_MAX_CANONICAL_RESULT_BYTES,
@@ -46,6 +50,11 @@ _OUTPUT_EXISTS: Final = "output already exists"
 app = FastAPI(
     title="GLIO-PROTEOGEN M14-06 perturbation and sensitivity simulation",
     version="0.1.0-provisional",
+)
+app.add_middleware(
+    RequestSizeLimitMiddleware,
+    max_bytes=M1406_MAX_CANONICAL_REQUEST_BYTES,
+    result_max_bytes=M1406_MAX_CANONICAL_RESULT_BYTES,
 )
 m1406_app = typer.Typer(no_args_is_help=True, pretty_exceptions_enable=False)
 
