@@ -279,6 +279,17 @@ def test_plugin_requires_token_and_preserves_json_parity() -> None:
         plugin.validate(request)  # type: ignore[arg-type]
 
 
+def test_service_plugin_replay_rejects_supplied_request_mismatch() -> None:
+    request = _request()
+    service = M2608RetirementService()
+    result = service.retire(request)
+    altered = request.model_copy(update={"request_id": "m2608.request.mismatch"})
+    with pytest.raises(M2608ReplayError):
+        service.verify(result, altered)
+    with pytest.raises(M2608ReplayError):
+        M2608Plugin(service).replay(result, altered)
+
+
 def test_hostile_preflight_mapping_fails_closed() -> None:
     with pytest.raises(M2608AuthorizationError):
         preflight_m2608_authorization({"context": {"references": object()}})

@@ -92,8 +92,12 @@ class M2608Plugin:
             raise M2608TokenError
         return self._service.retire(token.request)
 
-    def replay(self, result: object) -> ProteinSubtypeRetirementResult:
-        return self._service.verify(result)
+    def replay(
+        self,
+        result: object,
+        request: RetireProteinSubtypeServiceRequest | None = None,
+    ) -> ProteinSubtypeRetirementResult:
+        return self._service.verify(result, request)
 
 
 __all__ = [

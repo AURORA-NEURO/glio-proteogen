@@ -27,8 +27,12 @@ class M2608Client:
     def retire(self, request: object) -> ProteinSubtypeRetirementResult:
         return self._service.retire(request)
 
-    def verify(self, result: object) -> ProteinSubtypeRetirementResult:
-        return self._service.verify(result)
+    def verify(
+        self,
+        result: object,
+        request: RetireProteinSubtypeServiceRequest | None = None,
+    ) -> ProteinSubtypeRetirementResult:
+        return self._service.verify(result, request)
 
     def retire_json(self, request: RetireProteinSubtypeServiceRequest) -> dict[str, Any]:
         return self.retire(request).model_dump(mode="json")
