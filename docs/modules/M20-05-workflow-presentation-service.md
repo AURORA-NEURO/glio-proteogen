@@ -24,6 +24,12 @@ Safety boundaries:
 - Conflicted and unresolved items remain visible with explicit discrepancy and
   reviewer action. An abstained item produces an abstained workspace result;
   unsupported evidence is never converted into a negative claim.
+- The selected ordering policy is executable: safe-default/review-priority put
+  abstained, unresolved, conflicted and limited items before supported items,
+  then use deterministic view and source-position tie-breakers; uncertainty-first
+  puts views in discrepancy, uncertainty, evidence, provenance, next-action and
+  task-summary order with the same status tie-breaker. Output positions are
+  re-materialized after ordering and replay-bound.
 - Seven uncertainty dimensions, source digests, control decisions, evidence,
   limitations, and human-review requirements are retained in every result.
 - The module does not infer identity or consent, recommend treatment, traverse
