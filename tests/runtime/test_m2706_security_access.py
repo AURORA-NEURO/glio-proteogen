@@ -72,6 +72,13 @@ def test_denied_control_fails_before_request_traversal() -> None:
         M2706SecurityEngine().emit(request.model_copy(update={"context": denied_context}))
 
 
+def test_context_request_identity_must_match_security_request() -> None:
+    request = build_request()
+    mismatched_context = request.context.model_copy(update={"request_id": "m2706.request.other"})
+    with pytest.raises(M2706AuthorizationError):
+        M2706SecurityEngine().emit(request.model_copy(update={"context": mismatched_context}))
+
+
 def test_plugin_token_parity_and_replay_tamper_rejection() -> None:
     plugin = M2706Plugin()
     request = build_request()

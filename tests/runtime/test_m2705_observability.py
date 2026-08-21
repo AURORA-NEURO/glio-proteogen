@@ -75,6 +75,13 @@ def test_denied_control_fails_before_telemetry_traversal() -> None:
         M2705TelemetryEngine().emit(denied)
 
 
+def test_context_request_identity_must_match_telemetry_request() -> None:
+    request = build_request()
+    mismatched_context = request.context.model_copy(update={"request_id": "m2705.request.other"})
+    with pytest.raises(M2705AuthorizationError):
+        M2705TelemetryEngine().emit(request.model_copy(update={"context": mismatched_context}))
+
+
 def test_plugin_requires_issued_token_and_preserves_parity() -> None:
     plugin = M2705Plugin()
     request = build_request()
