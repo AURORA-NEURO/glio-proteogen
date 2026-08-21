@@ -77,6 +77,16 @@ def test_api_enforces_json_content_type_and_preparse_request_limit() -> None:
     assert oversized.status_code == HTTP_TOO_LARGE
 
 
+def test_api_enforces_preparse_result_limit_on_verify() -> None:
+    client = TestClient(create_app(M0904Service()))
+    oversized = client.post(
+        "/v1/modules/M09-04/verify",
+        content=b"{" + b"x" * (8 * 1024 * 1024 + 1) + b"}",
+        headers={"content-type": "application/json"},
+    )
+    assert oversized.status_code == HTTP_TOO_LARGE
+
+
 def test_api_sanitizes_runtime_rejection() -> None:
     class RejectingService(M0904Service):
         def build(self, _request: object):
