@@ -53,14 +53,18 @@ class M2008Service:
         if request is not None and (
             verified.request.model_dump(mode="json") != request.model_dump(mode="json")
         ):
-            raise ValueError
+            raise ValueError("replay request mismatch")  # noqa: TRY003
         return verified
 
     def monitor(self, request: object) -> ProteinSubtypeTranslationHealthResult:
         return self.execute(request)
 
-    def replay(self, result: object) -> ProteinSubtypeTranslationHealthResult:
-        return self.verify(result)
+    def replay(
+        self,
+        result: object,
+        request: MonitorProteinSubtypeTranslationHealthRequest | None = None,
+    ) -> ProteinSubtypeTranslationHealthResult:
+        return self.verify(result, request)
 
     @property
     def descriptor(self) -> dict[str, object]:

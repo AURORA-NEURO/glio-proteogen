@@ -119,6 +119,17 @@ def test_plugin_token_is_opaque_and_service_is_deterministic() -> None:
         other_plugin.run(token)
 
 
+def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
+    request = _request()
+    service = M2008Service()
+    result = service.execute(request)
+    altered = request.model_copy(update={"request_id": "request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.replay(result, altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        M2008Plugin(service).replay(result, altered)
+
+
 def test_tampered_result_digest_is_rejected() -> None:
     engine = M2008TranslationMonitoringEngine()
     result = engine.infer(_request())
