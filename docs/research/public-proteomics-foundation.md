@@ -60,6 +60,12 @@ Raw-file receipts also require the captured catalog snapshot to remain bound to
 the canonical PDC study locator and to contain typed, non-negative count rows;
 file declarations must carry the bounded `PDC` accession form, so forged
 catalog projections cannot be promoted to source evidence.
+The receipt boundary also cross-checks the listed inventory against those count
+rows: duplicate file identities, repeated category/type count rows, files from
+an undeclared category/type, and more listed files than the declared count are
+rejected. A bounded snapshot may still list fewer files than the catalog total,
+because callers can intentionally request a prefix; only the listed files are
+attested and the omitted inventory is never implied to have been downloaded.
 
 Verified PDC bytes are copied with a progress-checked destination contract;
 zero-progress or invalid short writes fail the retrieval instead of returning a
