@@ -11,6 +11,7 @@ from glio_proteogen.contracts.m18_04 import (
     IntendedUseRegistration,
     PolicyDecisionStatus,
 )
+from glio_proteogen.contracts.m18_04.canonical import result_payload_digest
 from glio_proteogen.kernel.models import SupportStatus
 from glio_proteogen.modules.c18_spatial_proteomics_projection import (
     m18_04_intended_use_adapter as m1804,
@@ -28,7 +29,7 @@ def test_supported_research_request_emits_bounded_object() -> None:
     assert result.adapted_object.parent_target == "biomarker panel"
     assert result.adapted_object.registration.registration_id == "registration.m1804"
     assert result.policy_decision.status is PolicyDecisionStatus.ALLOWED
-    assert result.support_decision.status is SupportStatus.SUPPORTED
+    assert result.support_decision.status is SupportStatus.REVIEW_REQUIRED
     assert result.emits_parent is False
     assert len(result.provenance.control_decisions) == _CONTROL_COUNT
     assert result.uncertainty.measurement.state.value == "not_estimable"
@@ -121,7 +122,11 @@ def test_service_replay_rejects_request_and_payload_tamper() -> None:
     with pytest.raises(m1804.M1804ReplayError, match="identifier"):
         service.replay(result.model_copy(update={"result_id": "result.tampered"}))
     with pytest.raises(m1804.M1804ReplayError, match="payload digest"):
-        service.replay(result.model_copy(update={"human_review_required": True}))
+        service.replay(result.model_copy(update={"human_review_required": False}))
+    tampered = result.model_copy(update={"human_review_required": True})
+    tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+    with pytest.raises(m1804.M1804ReplayError, match="deterministic replay"):
+        service.replay(tampered)
 
 
 def test_plugin_descriptor_and_strict_validation_parity() -> None:
