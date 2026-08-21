@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from glio_proteogen.contracts.m20_05 import WorkspaceStatus
+from glio_proteogen.contracts.m20_05 import ViewKind, WorkspaceStatus
 from glio_proteogen.modules.c20_biomarker_panel.m20_05_workflow_presentation_service import (
     M2005AuthorizationError,
     M2005Service,
@@ -31,9 +31,16 @@ def run_evaluator() -> dict[str, Any]:
         "presented_workspace": (
             first.status is WorkspaceStatus.PRESENTED and first.workspace is not None
         ),
-        "preserves_item_order": first.workspace is not None
-        and tuple(item.item_id for item in first.workspace.items)
-        == tuple(item.item_id for item in request.review_items),
+        "honors_safe_default_order": first.workspace is not None
+        and tuple(item.view_kind for item in first.workspace.items)
+        == (
+            ViewKind.DISCREPANCY,
+            ViewKind.UNCERTAINTY,
+            ViewKind.EVIDENCE_REVIEW,
+            ViewKind.PROVENANCE,
+            ViewKind.NEXT_ACTION,
+            ViewKind.TASK_SUMMARY,
+        ),
         "conflict_visible": conflicted.status is WorkspaceStatus.PRESENTED
         and any(item.code.value == "discrepancy_requires_review" for item in conflicted.findings),
         "item_abstained": (
