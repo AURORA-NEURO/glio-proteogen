@@ -41,7 +41,11 @@ class M2604Service:
     def publish(self, request: object) -> ProteinSubtypeAccessSurfaceResult:
         return self._engine.publish(self.validate_request(request))
 
-    def replay(self, result: object) -> ProteinSubtypeAccessSurfaceResult:
+    def replay(
+        self,
+        result: object,
+        request: PublishProteinSubtypeAccessSurfaceRequest | None = None,
+    ) -> ProteinSubtypeAccessSurfaceResult:
         if isinstance(result, (bytes, bytearray, str)):
             decoded = strict_json_loads(result, max_bytes=M2604_MAX_CANONICAL_RESULT_BYTES)
             typed = ProteinSubtypeAccessSurfaceResult.model_validate_json(
@@ -53,6 +57,11 @@ class M2604Service:
             )
         else:
             typed = ProteinSubtypeAccessSurfaceResult.model_validate(result, strict=True)
+        if request is not None:
+            result_request = typed.request.model_dump(mode="json")
+            supplied_request = request.model_dump(mode="json")
+            if result_request != supplied_request:
+                raise ValueError
         return self._engine.replay(typed)
 
     @property
