@@ -473,6 +473,7 @@ class M0904ProbabilisticEstimator:
         self,
         result: object,
         canonical_bytes: bytes | None = None,
+        request: object | None = None,
     ) -> EstimateComplexActivityProbabilisticVerification:
         try:
             typed = _RESULT_ADAPTER.validate_python(result, strict=True)
@@ -501,6 +502,13 @@ class M0904ProbabilisticEstimator:
         content_verified = canonical_bytes is None or canonical_bytes == expected_bytes
         deterministic_verified = typed.result_digest == result_payload_digest(typed)
         verified = content_verified and deterministic_verified
+        if verified and request is not None:
+            try:
+                expected = self.build(request).result
+            except (M0904AuthorizationError, M0904InputError, TypeError, ValueError):
+                verified = False
+            else:
+                verified = expected.model_dump(mode="json") == typed.model_dump(mode="json")
         return EstimateComplexActivityProbabilisticVerification(
             content_verified=content_verified,
             deterministic_verified=deterministic_verified,
@@ -511,7 +519,7 @@ class M0904ProbabilisticEstimator:
                 if verified
                 else (
                     ProbabilisticReplayReason.NON_CANONICAL
-                    if not content_verified
+                    if not content_verified or not verified
                     else ProbabilisticReplayReason.DIGEST_MISMATCH
                 )
             ),

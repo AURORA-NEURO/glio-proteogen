@@ -44,10 +44,11 @@ class M0904Service:
         self,
         result: object,
         canonical_bytes: bytes | None = None,
+        request: object | None = None,
     ) -> EstimateComplexActivityProbabilisticVerification:
         """Verify both canonical content and the result replay digest."""
 
-        return self._engine.verify(result, canonical_bytes)
+        return self._engine.verify(result, canonical_bytes, request)
 
 
 __all__ = ["M0904Service"]
