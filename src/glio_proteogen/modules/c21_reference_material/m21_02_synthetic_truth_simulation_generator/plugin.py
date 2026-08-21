@@ -94,8 +94,9 @@ class M2102Plugin(ModulePlugin[object, ValidatedM2102Request, ComplexActivitySyn
     def replay(
         self,
         result: ComplexActivitySyntheticTruthResult,
+        request: GenerateComplexActivitySyntheticTruthRequest | None = None,
     ) -> ComplexActivitySyntheticTruthResult:
-        return self._service.replay(result)
+        return self._service.replay(result, request)
 
 
 __all__ = ["M2102Plugin", "SyntheticTruthSubmission", "ValidatedM2102Request"]
