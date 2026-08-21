@@ -48,7 +48,12 @@ class M2502Service:
     def verify_replay(
         self,
         result: ProteotypeSyntheticTruthResult,
+        request: GenerateProteotypeSyntheticTruthRequest | None = None,
     ) -> ProteotypeSyntheticTruthResult:
+        if request is not None and result.request.model_dump(mode="json") != request.model_dump(
+            mode="json"
+        ):
+            raise ValueError from None
         return self._engine.verify_replay(result)
 
     @staticmethod
