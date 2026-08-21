@@ -65,7 +65,9 @@ def create_m1907_app(service: M1907Service | None = None) -> FastAPI:
 
     m1907_service = service or M1907Service()
     app = FastAPI(title="GLIO-PROTEOGEN M19-07", version="0.1.0-provisional")
-    app.add_middleware(RequestSizeLimitMiddleware, max_bytes=M1907_MAX_CANONICAL_RESULT_BYTES)
+    # Enforce the request ceiling before body materialization; verification
+    # applies the larger result ceiling in its bounded reader.
+    app.add_middleware(RequestSizeLimitMiddleware, max_bytes=M1907_MAX_CANONICAL_REQUEST_BYTES)
 
     @app.exception_handler(M1907AuthorizationError)
     async def authorization_handler(
