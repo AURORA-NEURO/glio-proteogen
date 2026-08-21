@@ -67,9 +67,9 @@ def evaluate() -> dict[str, object]:
     checks.append(
         EvalCheck(
             "presented_workspace",
-            presented.status is WorkspacePresentationStatus.PRESENTED
+            presented.status is WorkspacePresentationStatus.REVIEW_REQUIRED
             and presented.workspace is not None
-            and presented.support_decision.status.value == "supported",
+            and presented.support_decision.status.value == "review_required",
             presented.status.value,
         )
     )
@@ -144,7 +144,7 @@ def evaluate() -> dict[str, object]:
     checks.append(
         EvalCheck(
             "uncertainty_provenance_complete",
-            first.uncertainty.measurement.probability == 0.9
+            first.uncertainty.measurement.probability is None
             and len(first.provenance.control_decisions) == 7
             and first.result_digest == result_payload_digest(first),
             "seven uncertainty dimensions, controls, and digest are explicit",

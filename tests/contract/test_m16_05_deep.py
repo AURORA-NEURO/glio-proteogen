@@ -73,11 +73,11 @@ def test_result_closure_rejects_wrong_identity_evidence_and_duplicate_findings()
         )
 
 
-def test_result_status_closure_rejects_presented_review_and_abstained_mutations() -> None:
+def test_result_status_closure_rejects_review_and_abstained_mutations() -> None:
     result = M1605PresentationEngine().present(_request())
-    with pytest.raises(ValidationError, match="presented workspace requires"):
+    with pytest.raises(ValidationError, match="result digest does not match"):
         ProteinRnaDiscordanceReviewWorkspaceResult.model_validate(
-            result.model_dump(mode="python") | {"human_review_required": True}
+            result.model_dump(mode="python") | {"result_digest": sha256_digest("tampered")}
         )
 
 

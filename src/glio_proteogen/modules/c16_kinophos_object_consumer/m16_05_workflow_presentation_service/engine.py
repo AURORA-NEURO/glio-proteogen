@@ -328,13 +328,15 @@ class M1605PresentationEngine:
         prohibited = any(token in declared for token in _PROHIBITED_TOKENS)
         not_evaluable = any(token in declared for token in _ABSTENTION_TOKENS)
         discrepancy = any(token in declared for token in _DISCREPANCY_TOKENS)
-        supported = not prohibited and not not_evaluable and not discrepancy
-        review_required = not supported and not prohibited and not not_evaluable
+        # Workspace content is opaque/caller-declared; presentation cannot
+        # establish scientific support or calibrated confidence. Keep safe
+        # views available, but require human review for every non-abstained
+        # result until the provisional ABI has an authenticated evidence tier.
+        supported = False
+        review_required = not prohibited and not not_evaluable
         status = (
             WorkspacePresentationStatus.ABSTAINED
             if prohibited or not_evaluable
-            else WorkspacePresentationStatus.PRESENTED
-            if supported
             else WorkspacePresentationStatus.REVIEW_REQUIRED
         )
         workspace = (
@@ -380,7 +382,7 @@ class M1605PresentationEngine:
                     else "Workspace presentation is blocked pending support or reviewer action."
                 ),
             ),
-            "uncertainty": expected_uncertainty(supported=supported),
+            "uncertainty": expected_uncertainty(supported=False),
             "provenance": expected_provenance(typed, request_digest),
             "evidence": evidence,
             "limitations": _limitations(supported=supported),
