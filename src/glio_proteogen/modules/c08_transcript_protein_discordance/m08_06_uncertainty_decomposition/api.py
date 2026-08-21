@@ -8,8 +8,10 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware
 from glio_proteogen.contracts.m08_06 import (
     M0806_MAX_CANONICAL_REQUEST_BYTES,
+    M0806_MAX_CANONICAL_RESULT_BYTES,
     DecomposeTranscriptProteinUncertaintyRequest,
     TranscriptProteinUncertaintyDecompositionResult,
     contract_json_schema,
@@ -50,6 +52,11 @@ def create_app(service: M0806Service | None = None) -> FastAPI:  # noqa: C901
 
     uncertainty_service = service or M0806Service()
     app = FastAPI(title="GLIO Proteogen M08-06", version="0.1.0-provisional")
+    app.add_middleware(
+        RequestSizeLimitMiddleware,
+        max_bytes=M0806_MAX_CANONICAL_REQUEST_BYTES,
+        result_max_bytes=M0806_MAX_CANONICAL_RESULT_BYTES,
+    )
 
     @app.get("/v1/modules/M08-06/schemas/{contract}")
     def export_schema(contract: str) -> dict[str, object]:
@@ -59,6 +66,11 @@ def create_app(service: M0806Service | None = None) -> FastAPI:  # noqa: C901
 
     @app.post("/v1/modules/M08-06/validate")
     async def validate_request(request: Request) -> JSONResponse:
+        if (
+            request.headers.get("content-type", "").partition(";")[0].strip().lower()
+            != "application/json"
+        ):
+            return JSONResponse(status_code=415, content={"detail": "unsupported media type"})
         body = await _strict_body(request)
         try:
             typed = uncertainty_service.validate_request(
@@ -72,6 +84,11 @@ def create_app(service: M0806Service | None = None) -> FastAPI:  # noqa: C901
 
     @app.post("/v1/modules/M08-06/decompose")
     async def decompose(request: Request) -> JSONResponse:
+        if (
+            request.headers.get("content-type", "").partition(";")[0].strip().lower()
+            != "application/json"
+        ):
+            return JSONResponse(status_code=415, content={"detail": "unsupported media type"})
         body = await _strict_body(request)
         try:
             typed = uncertainty_service.validate_request(
@@ -91,6 +108,11 @@ def create_app(service: M0806Service | None = None) -> FastAPI:  # noqa: C901
 
     @app.post("/v1/modules/M08-06/verify")
     async def verify(request: Request) -> JSONResponse:
+        if (
+            request.headers.get("content-type", "").partition(";")[0].strip().lower()
+            != "application/json"
+        ):
+            return JSONResponse(status_code=415, content={"detail": "unsupported media type"})
         body = await _strict_body(request)
         try:
             result = _RESULT_ADAPTER.validate_json(body, strict=True)

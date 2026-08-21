@@ -22,19 +22,22 @@ _NOT_FOUND = 404
 _UNPROCESSABLE = 422
 _FORBIDDEN = 403
 _CONFLICT = 409
+_UNSUPPORTED_MEDIA = 415
+_TOO_LARGE = 413
 
 
 def test_api_schema_validate_decompose_verify_parity() -> None:
     request = _request().model_dump(mode="json")
     with TestClient(create_app()) as client:
+        headers = {"content-type": "application/json"}
         schema = client.get("/v1/modules/M08-06/schemas/output")
         assert schema.status_code == _OK
-        validated = client.post("/v1/modules/M08-06/validate", json=request)
+        validated = client.post("/v1/modules/M08-06/validate", json=request, headers=headers)
         assert validated.status_code == _OK
-        response = client.post("/v1/modules/M08-06/decompose", json=request)
+        response = client.post("/v1/modules/M08-06/decompose", json=request, headers=headers)
         assert response.status_code == _OK
         result = response.json()["result"]
-        verified = client.post("/v1/modules/M08-06/verify", json=result)
+        verified = client.post("/v1/modules/M08-06/verify", json=result, headers=headers)
         assert verified.status_code == _OK
         assert verified.json()["verified"] is True
 
@@ -105,6 +108,29 @@ def test_api_maps_validation_authorization_and_replay_errors() -> None:
             headers={"content-type": "application/json"},
         )
         assert strict.status_code == _UNPROCESSABLE
+
+
+def test_api_enforces_media_type_and_preparse_request_result_limits() -> None:
+    request = _request().model_dump(mode="json")
+    with TestClient(create_app()) as client:
+        wrong_media = client.post(
+            "/v1/modules/M08-06/decompose",
+            json=request,
+            headers={"content-type": "text/plain"},
+        )
+        oversized_request = client.post(
+            "/v1/modules/M08-06/decompose",
+            content=b"{" + b"x" * (4 * 1024 * 1024 + 1) + b"}",
+            headers={"content-type": "application/json"},
+        )
+        oversized_result = client.post(
+            "/v1/modules/M08-06/verify",
+            content=b"{" + b"x" * (8 * 1024 * 1024 + 1) + b"}",
+            headers={"content-type": "application/json"},
+        )
+    assert wrong_media.status_code == _UNSUPPORTED_MEDIA
+    assert oversized_request.status_code == _TOO_LARGE
+    assert oversized_result.status_code == _TOO_LARGE
 
 
 def test_cli_exports_schema_and_validate_canonical_request(tmp_path) -> None:
