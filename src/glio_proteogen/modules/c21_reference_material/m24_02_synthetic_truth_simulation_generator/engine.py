@@ -137,9 +137,16 @@ class M2402SyntheticTruthGenerator:
             raise M2402ReplayError("M24-02 result identifier mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M2402ReplayError("M24-02 result payload digest mismatch")  # noqa: TRY003
-        return BiomarkerPanelSyntheticTruthResult.model_validate_json(
-            canonical_json_bytes(result), strict=True
-        )
+        try:
+            validated = BiomarkerPanelSyntheticTruthResult.model_validate_json(
+                canonical_json_bytes(result), strict=True
+            )
+        except Exception as error:
+            raise M2402ReplayError from error
+        expected = self.generate(validated.request)
+        if expected.model_dump(mode="json") != validated.model_dump(mode="json"):
+            raise M2402ReplayError("M24-02 result semantic replay mismatch")  # noqa: TRY003
+        return validated
 
 
 def generate_biomarker_panel_synthetic_truth(
