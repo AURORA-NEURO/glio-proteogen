@@ -30,7 +30,12 @@ class M2005Service:
     def replay(
         self,
         result: ProteinSubtypeHumanReviewWorkspaceResult,
+        request: PresentProteinSubtypeHumanReviewWorkspaceRequest | None = None,
     ) -> ProteinSubtypeHumanReviewWorkspaceResult:
+        if request is not None and result.request.model_dump(mode="json") != request.model_dump(
+            mode="json"
+        ):
+            raise ValueError from None
         return self._engine.replay(result)
 
 
