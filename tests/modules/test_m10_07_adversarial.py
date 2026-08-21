@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from http import HTTPStatus
 from pathlib import Path  # noqa: TC003 - pytest resolves the runtime annotation.
 from typing import Any
 
@@ -46,6 +47,7 @@ from tests.modules.test_m10_07_runtime import _request
 _HTTP_OK = 200
 _HTTP_NOT_FOUND = 404
 _HTTP_UNPROCESSABLE = 422
+_HTTP_REQUEST_TOO_LARGE = HTTPStatus.REQUEST_ENTITY_TOO_LARGE
 
 
 class _HostileDict(dict[str, object]):
@@ -278,7 +280,7 @@ def test_api_and_cli_reject_transport_edges_and_abstention(tmp_path: Path) -> No
                 "/v1/modules/M10-07/verify",
                 content=b"{" + b"a" * (M1007_MAX_CANONICAL_RESULT_BYTES + 1),
             ).status_code
-            == _HTTP_UNPROCESSABLE
+            == _HTTP_REQUEST_TOO_LARGE
         )
         denied = _request().model_copy(
             update={
