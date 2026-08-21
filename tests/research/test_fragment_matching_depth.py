@@ -23,3 +23,30 @@ def test_fragment_matching_maximizes_cardinality_under_ambiguous_peaks(
 
     assert len(assignments) == 2
     assert assignments == ((0, 1), (1, 0))
+
+
+def test_equal_mz_peak_ties_are_intensity_canonicalized() -> None:
+    """Paired peak-array permutations must not change the matched signal."""
+
+    peptide = "MPEPTIDER"
+    fragment = search_module._fragments(peptide)[0][0]
+    parameters = search_module.SearchParameters(fragment_tolerance_da=0.001, min_matched_ions=1)
+    forward = search_module.search_spectrum_candidates(
+        "duplicate-mz",
+        1.0,
+        {peptide: ("P1",)},
+        (fragment, fragment),
+        (1.0, 10.0),
+        parameters=parameters,
+    )
+    reverse = search_module.search_spectrum_candidates(
+        "duplicate-mz",
+        1.0,
+        {peptide: ("P1",)},
+        (fragment, fragment),
+        (10.0, 1.0),
+        parameters=parameters,
+    )
+
+    assert forward == reverse
+    assert forward[0].matched_intensity == 10.0
