@@ -37,7 +37,11 @@ class M2304Service:
             )
         return self._engine.evaluate(request)
 
-    def verify_replay(self, result: object) -> VariantPeptideExternalTransportResult:
+    def verify_replay(
+        self,
+        result: object,
+        request: EvaluateVariantPeptideExternalTransportRequest | None = None,
+    ) -> VariantPeptideExternalTransportResult:
         if isinstance(result, (bytes, bytearray, str)):
             parsed = strict_json_loads(result, max_bytes=M2304_MAX_CANONICAL_RESULT_BYTES)
             result = VariantPeptideExternalTransportResult.model_validate_json(
@@ -49,6 +53,11 @@ class M2304Service:
             )
         else:
             result = VariantPeptideExternalTransportResult.model_validate(result, strict=True)
+        if request is not None:
+            result_request = result.request.model_dump(mode="json")
+            supplied_request = request.model_dump(mode="json")
+            if result_request != supplied_request:
+                raise ValueError
         return self._engine.replay(result)
 
     @property
