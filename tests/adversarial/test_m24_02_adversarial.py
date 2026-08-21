@@ -124,6 +124,22 @@ def test_result_replay_rejects_request_mutation() -> None:
         service.verify_replay(result.model_copy(update={"request": changed_request}))
 
 
+def test_result_replay_rejects_self_rehashed_semantic_mutation() -> None:
+    service = m2402.M2402Service()
+    result = service.generate(_request())
+    assert result.corpus is not None
+    changed_case = result.corpus.cases[0].model_copy(
+        update={"truth_values": ("protein=forged", "rna=forged", "copy_number=forged")}
+    )
+    changed_corpus = result.corpus.model_copy(
+        update={"cases": (changed_case, *result.corpus.cases[1:])}
+    )
+    forged = result.model_copy(update={"corpus": changed_corpus})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(m2402.M2402ReplayError, match="semantic replay"):
+        service.verify_replay(forged)
+
+
 def test_contract_rejects_corpus_and_manifest_case_drift() -> None:
     result = m2402.M2402Service().generate(_request())
     assert result.corpus is not None
