@@ -260,6 +260,9 @@ class EmitProteomicsTelemetryRequest(FrozenModel):
         dashboard_ids = tuple(item.dashboard_id for item in self.dashboard_definitions)
         if len(dashboard_ids) != len(set(dashboard_ids)):
             raise ValueError("dashboard ids must be unique")
+        requested = set(self.requested_metrics)
+        if any(not set(item.metrics).issubset(requested) for item in self.dashboard_definitions):
+            raise ValueError("dashboard metrics must be requested telemetry metrics")
         return self
 
 
