@@ -378,7 +378,7 @@ def _input_digests(request: AssembleVariantPeptideMechanismDossierRequest) -> tu
     )
 
 
-def verify_mechanism_dossier_result(result: object) -> bool:
+def verify_mechanism_dossier_result(result: object, request: object | None = None) -> bool:
     """Verify strict model closure and the canonical replay digest."""
 
     try:
@@ -387,7 +387,12 @@ def verify_mechanism_dossier_result(result: object) -> bool:
             if type(result) is VariantPeptideMechanismDossierResult
             else VariantPeptideMechanismDossierResult.model_validate(result, strict=True)
         )
-        return typed.result_digest == result_payload_digest(typed)
+        if typed.result_digest != result_payload_digest(typed):
+            return False
+        if request is None:
+            return True
+        regenerated = M1108MechanismEvidenceDossierEngine().assemble(request)
+        return typed.model_dump(mode="json") == regenerated.model_dump(mode="json")
     except (TypeError, ValueError, ValidationError):
         return False
 

@@ -28,8 +28,8 @@ class M1108MechanismEvidenceDossierService:
         return self._engine.assemble(request)
 
     @staticmethod
-    def verify(result: object) -> bool:
-        return verify_mechanism_dossier_result(result)
+    def verify(result: object, request: object | None = None) -> bool:
+        return verify_mechanism_dossier_result(result, request)
 
 
 __all__ = ["M1108MechanismEvidenceDossierService"]
