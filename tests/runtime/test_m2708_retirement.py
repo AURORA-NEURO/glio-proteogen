@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 
 from glio_proteogen.contracts.m27_08 import (
     M2708_MAX_CANONICAL_REQUEST_BYTES,
+    MigrationStatus,
     RetirementRunStatus,
 )
 from glio_proteogen.kernel.models import ConsentState
@@ -41,6 +42,31 @@ def test_incomplete_migration_abstains_with_findings() -> None:
 
 def test_active_dependency_is_never_retired() -> None:
     result = M2708Service().execute(build_request(active_dependency=True))
+    assert result.status is RetirementRunStatus.ABSTAINED
+    assert any(finding.code.value == "active_dependency" for finding in result.findings)
+
+
+def test_opaque_dependency_identifier_does_not_create_active_finding() -> None:
+    request = build_request()
+    migration = request.migrations[0].model_copy(
+        update={"dependency_id": "active-looking-service"}
+    )
+    complete = request.model_copy(update={"migrations": (migration,)})
+    result = M2708Service().execute(complete)
+    assert result.status is RetirementRunStatus.EXECUTED
+    assert not any(finding.code.value == "active_dependency" for finding in result.findings)
+
+
+def test_in_progress_migration_is_active_even_without_marker_identifier() -> None:
+    request = build_request()
+    migration = request.migrations[0].model_copy(
+        update={
+            "dependency_id": "retired-service",
+            "status": MigrationStatus.IN_PROGRESS,
+        }
+    )
+    active = request.model_copy(update={"migrations": (migration,)})
+    result = M2708Service().execute(active)
     assert result.status is RetirementRunStatus.ABSTAINED
     assert any(finding.code.value == "active_dependency" for finding in result.findings)
 

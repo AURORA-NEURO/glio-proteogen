@@ -116,7 +116,11 @@ def build_request(
                 source_reference="m27-07",
                 target_reference="archive://m27-08",
                 owner="caller",
-                status=MigrationStatus.IN_PROGRESS if incomplete else MigrationStatus.COMPLETED,
+                status=(
+                    MigrationStatus.IN_PROGRESS
+                    if incomplete or active_dependency
+                    else MigrationStatus.COMPLETED
+                ),
                 evidence=evidence,
             ),
         ),
