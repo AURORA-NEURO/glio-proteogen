@@ -174,6 +174,18 @@ def test_registered_research_use_adapts_and_replays() -> None:
     assert m1704.M1704Engine().replay(result) == result
 
 
+def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
+    request = _request()
+    service_result = m1704.M1704Service().adapt(request)
+    plugin_result = m1704.M1704Plugin().run(request)
+    altered = request.model_copy(update={"request_id": "request.m1704.altered"})
+
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        m1704.M1704Service().replay(service_result, altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        m1704.M1704Plugin().replay(plugin_result, altered)
+
+
 def test_treatment_claim_abstains_without_object() -> None:
     result = m1704.M1704Engine().adapt(
         _request(maximum_claim="direct treatment recommendation")
