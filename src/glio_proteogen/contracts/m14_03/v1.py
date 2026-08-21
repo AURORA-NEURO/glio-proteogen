@@ -301,10 +301,11 @@ class ProteinSubtypeMechanisticFeatureResult(FrozenModel):
             if (
                 self.feature_object is None
                 or self.abstention_reason is not None
-                or self.support_decision.status is not SupportStatus.SUPPORTED
+                or self.support_decision.status is not SupportStatus.REVIEW_REQUIRED
+                or not self.human_review_required
                 or any(item.status in failed for item in self.diagnostics)
             ):
-                raise ValueError("constructed result requires supported, invariant-safe output")
+                raise ValueError("constructed result requires review-only, invariant-safe output")
         elif (
             self.feature_object is not None
             or self.abstention_reason is None
