@@ -42,9 +42,7 @@ def test_fastapi_schema_validate_evaluate_and_verify_parity() -> None:
     )
     forged = dict(supplied)
     forged["request_id"] = "request.m2407.forged"
-    mismatch = client.post(
-        "/v1/modules/M24-07/verify", json={"request": forged, "result": result}
-    )
+    mismatch = client.post("/v1/modules/M24-07/verify", json={"request": forged, "result": result})
     assert verified.status_code == HTTP_200_OK
     assert verified.json()["verified"] is True
     assert mismatch.status_code == HTTP_422_UNPROCESSABLE_ENTITY
