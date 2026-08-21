@@ -127,7 +127,7 @@ def _request_for(name: str) -> AdaptProteotypeIntendedUseRequest:  # noqa: PLR09
     raise ValueError(f"unknown M19-04 evaluator scenario: {name}")  # noqa: TRY003
 
 
-def evaluate() -> EvaluationReport:  # noqa: C901
+def evaluate() -> EvaluationReport:
     metadata = json.loads(SCENARIO_PATH.read_text(encoding="utf-8"))
     names = tuple(metadata["scenario_names"])
     checks: list[EvalCheck] = [
@@ -216,7 +216,9 @@ def evaluate() -> EvaluationReport:  # noqa: C901
             "blocked claims never become an apparently negative object",
         )
     )
-    tampered = supported.model_copy(update={"human_review_required": True})
+    tampered = supported.model_construct(
+        **{**supported.model_dump(), "parent_target": "protein abundance"}
+    )
     replay_denied = False
     try:
         engine.replay(tampered)
@@ -225,6 +227,9 @@ def evaluate() -> EvaluationReport:  # noqa: C901
     checks.append(EvalCheck("replay.tamper_denied", replay_denied, "payload digest is bound"))
 
     adversarial_passed = 0
+    adversarial_passed += int(
+        engine.adapt(_request_for("supported_research")).status is AdapterStatus.ADAPTED
+    )
     for scenario in (
         "unsupported_audience",
         "evidence_tier_too_low",
@@ -244,10 +249,6 @@ def evaluate() -> EvaluationReport:  # noqa: C901
     try:
         engine.adapt(_request_for("upstream_media_rejected"))
     except ValidationError:
-        adversarial_passed += 1
-    try:
-        engine.replay(tampered)
-    except M1904ReplayError:
         adversarial_passed += 1
     try:
         request = make_request()

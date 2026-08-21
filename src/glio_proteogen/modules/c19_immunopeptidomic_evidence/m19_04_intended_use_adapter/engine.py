@@ -414,6 +414,12 @@ class M1904Engine:
             raise M1904ReplayError("M19-04 result identifier mismatch")  # noqa: TRY003
         if validated.result_digest != result_payload_digest(validated):
             raise M1904ReplayError("M19-04 result payload digest mismatch")  # noqa: TRY003
+        try:
+            expected = self.adapt(validated.request)
+        except Exception as exc:
+            raise M1904ReplayError from exc
+        if expected.model_dump(mode="json") != validated.model_dump(mode="json"):
+            raise M1904ReplayError("M19-04 deterministic replay result mismatch")  # noqa: TRY003
         return validated
 
 

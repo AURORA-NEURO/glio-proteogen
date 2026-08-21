@@ -212,8 +212,9 @@ def evaluate() -> EvaluationReport:
             "unresolved source disagreement abstains without erasure",
         )
     )
-    tampered = engine.adapt(_scenario("replay_tamper")).model_copy(
-        update={"human_review_required": True}
+    original = engine.adapt(_scenario("replay_tamper"))
+    tampered = original.model_construct(
+        **{**original.model_dump(), "parent_target": "protein abundance"}
     )
     replay_denied = False
     try:
@@ -223,6 +224,9 @@ def evaluate() -> EvaluationReport:
     checks.append(EvalCheck("replay.tamper_denied", replay_denied, "payload digest is bound"))
 
     adversarial_passed = 0
+    adversarial_passed += int(
+        engine.adapt(_scenario("integrated")).status is FusionStatus.INTEGRATED
+    )
     for request in (
         _low_reliability_request(),
         _not_evaluable_request(),
@@ -240,10 +244,6 @@ def evaluate() -> EvaluationReport:
     try:
         engine.adapt(_scenario("upstream_media_rejected"))
     except ValidationError:
-        adversarial_passed += 1
-    try:
-        engine.replay(tampered)
-    except M1903ReplayError:
         adversarial_passed += 1
     try:
         request = _request()
