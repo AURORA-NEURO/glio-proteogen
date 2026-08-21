@@ -32,8 +32,9 @@ from glio_proteogen.contracts.m27_05.canonical import (
     canonical_request_digest,
     result_payload_digest,
 )
-from glio_proteogen.kernel.canonical import canonical_json_bytes
+from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
 from glio_proteogen.kernel.models import (
+    ArtifactReference,
     ConsentState,
     ControlDecisionRecord,
     ControlRole,
@@ -117,13 +118,17 @@ def _validate_request(candidate: object) -> EmitProteomicsTelemetryRequest:
 
 
 def _evidence(request: EmitProteomicsTelemetryRequest) -> tuple[EvidenceReference, ...]:
+    artifacts = (request.upstream_result, *request.source_artifacts)
+    unique: dict[str, ArtifactReference] = {}
+    for artifact in artifacts:
+        unique.setdefault(artifact.digest, artifact)
     return tuple(
         EvidenceReference(
             reference=artifact,
             role="evidence",
             claim="Caller-declared M27-05 observability source artifact.",
         )
-        for artifact in request.source_artifacts
+        for artifact in unique.values()
     )
 
 
@@ -179,8 +184,22 @@ def _provenance(request: EmitProteomicsTelemetryRequest, request_digest: str) ->
         module_id=M2705_MODULE_ID,
         module_version=M2705_CONTRACT_VERSION,
         generated_at=request.context.occurred_at,
-        input_digests=tuple(artifact.digest for artifact in request.source_artifacts),
-        configuration_digest=request.upstream_result.digest,
+        input_digests=tuple(
+            dict.fromkeys(
+                (
+                    request.upstream_result.digest,
+                    *(artifact.digest for artifact in request.source_artifacts),
+                )
+            )
+        ),
+        configuration_digest=sha256_digest(
+            {
+                "module": M2705_MODULE_ID,
+                "contract": M2705_CONTRACT_VERSION,
+                "requested_metrics": request.requested_metrics,
+                "dashboard_definitions": request.dashboard_definitions,
+            }
+        ),
         consent_decision_id=references.consent.decision_id,
         consent_state=references.consent.state,
         consent_policy_version=references.consent.policy_version,
