@@ -398,6 +398,12 @@ class M1901Engine:
             raise M1901ReplayError("M19-01 result identifier mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M1901ReplayError("M19-01 result payload digest mismatch")  # noqa: TRY003
+        try:
+            expected = self.resolve(result.request)
+        except Exception as exc:
+            raise M1901ReplayError from exc
+        if expected.model_dump(mode="json") != result.model_dump(mode="json"):
+            raise M1901ReplayError("M19-01 deterministic replay result mismatch")  # noqa: TRY003
         return result
 
 
