@@ -156,12 +156,8 @@ def test_pipeline_replay_rejects_tampered_quantification_receipt() -> None:
     )
     result = run_research_protein_inference(request)
     assert result.quantification_receipt is not None
-    tampered = replace(
-        result,
-        quantification_receipt=replace(result.quantification_receipt, raw_total_signal=999.0),
-    )
-    with pytest.raises(ValueError, match="digest"):
-        replay_research_protein_inference(request, tampered)
+    with pytest.raises(ValueError, match="raw_total_signal"):
+        replace(result.quantification_receipt, raw_total_signal=999.0)
 
 
 def test_pipeline_replay_rejects_tampered_observation_receipt() -> None:
@@ -198,15 +194,8 @@ def test_pipeline_replay_rejects_default_status_vector_tampering() -> None:
     result = run_research_protein_inference(request)
     receipt = result.quantification_receipt
     assert receipt is not None
-    tampered = replace(
-        result,
-        quantification_receipt=replace(
-            receipt,
-            raw_peptide_statuses=(("forged", "forged"),),
-        ),
-    )
-    with pytest.raises(ValueError, match="digest"):
-        replay_research_protein_inference(request, tampered)
+    with pytest.raises(ValueError, match=r"status|aligned"):
+        replace(receipt, raw_peptide_statuses=(("forged", "forged"),))
 
 
 def test_pipeline_replay_rejects_tampered_competition_receipt() -> None:

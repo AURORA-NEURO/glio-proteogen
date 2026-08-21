@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 import pytest
 
@@ -154,7 +158,7 @@ def test_observation_limit_is_enforced_before_materialization() -> None:
 def test_observation_limit_stops_lazy_producer_at_first_excess_item() -> None:
     touched = 0
 
-    def observations():
+    def observations() -> Iterator[tuple[str, float]]:
         nonlocal touched
         for index in range(10):
             touched += 1
@@ -224,3 +228,194 @@ def test_quantification_receipt_rejects_invalid_default_omitted_fields() -> None
         replace(quantified.receipt, below_loq_peptides=-1)
     with pytest.raises(ValueError, match="quantifiable_peptides"):
         replace(quantified.receipt, quantifiable_peptides=-1)
+
+
+def test_quantification_receipt_accepts_only_a_canonical_projection() -> None:
+    receipt = quantify_matched_ions_with_receipt(
+        "receipt-canonical",
+        (("P2", 4.0), ("P1", 2.0)),
+    ).receipt
+    assert replace(receipt) == receipt
+    assert receipt.raw_total_signal == 6.0
+    assert receipt.raw_positive_median == 3.0
+    assert receipt.normalized_total_signal == 6.0
+    assert receipt.raw_peptide_statuses == (
+        ("P1", "quantified"),
+        ("P2", "quantified"),
+    )
+
+
+def test_quantification_receipt_rejects_malformed_metadata_and_derived_counts() -> None:
+    receipt = quantify_matched_ions_with_receipt(
+        "receipt-boundary",
+        (("P1", 2.0), ("P2", 4.0)),
+    ).receipt
+    with pytest.raises(ValueError, match="sample_id"):
+        replace(receipt, sample_id=" ")
+    with pytest.raises(ValueError, match="version"):
+        replace(receipt, version="unversioned")
+    with pytest.raises(ValueError, match="measurement_unit"):
+        replace(receipt, measurement_unit="matched_ion_intensity_arbitrary")
+    with pytest.raises(ValueError, match="input_observations"):
+        replace(receipt, input_observations=True)
+    with pytest.raises(ValueError, match="positive_signal_fraction"):
+        replace(receipt, positive_signal_fraction=1.1)
+    with pytest.raises(ValueError, match="max_input_observations"):
+        replace(receipt, max_input_observations=0)
+    with pytest.raises(ValueError, match="observation_digest"):
+        replace(receipt, observation_digest="A" * 64)
+
+
+def test_quantification_receipt_rejects_malformed_signal_and_status_projections() -> None:
+    receipt = quantify_matched_ions_with_receipt(
+        "receipt-signals",
+        (("P1", 2.0), ("P2", 4.0)),
+    ).receipt
+    with pytest.raises(ValueError, match=r"ordered|unique"):
+        replace(
+            receipt,
+            raw_peptide_signals=(("P2", 4.0, False), ("P1", 2.0, False)),
+        )
+    with pytest.raises(ValueError, match="aligned"):
+        replace(
+            receipt,
+            raw_peptide_statuses=(("P1", "forged"), ("P2", "quantified")),
+        )
+    with pytest.raises(ValueError, match="normalized signal"):
+        replace(
+            receipt,
+            normalized_peptide_signals=(("P1", 9.0, False), ("P2", 4.0, False)),
+        )
+    with pytest.raises(ValueError, match="raw_positive_median"):
+        replace(receipt, raw_positive_median=2.0)
+
+
+def test_quantification_receipt_rejects_nonzero_loq_policy_mismatch() -> None:
+    receipt = quantify_matched_ions_with_receipt(
+        "receipt-loq-boundary",
+        (("P1", 2.0), ("P2", 4.0)),
+        policy=QuantificationPolicy(
+            normalization_method="none_v1",
+            limit_of_quantification=3.0,
+        ),
+    ).receipt
+    assert receipt.missingness_policy == "zero_or_below_loq_is_missing_no_imputation_v1"
+    with pytest.raises(ValueError, match="missingness_policy"):
+        replace(receipt, missingness_policy="zero_signal_is_missing_no_imputation")
+    with pytest.raises(ValueError, match="normalized_total_signal"):
+        replace(receipt, normalized_total_signal=999.0)
+
+
+def test_quantification_receipt_closes_every_direct_projection_boundary() -> None:
+    receipt = quantify_matched_ions_with_receipt(
+        "receipt-projection-boundary",
+        (("P1", 2.0), ("P2", 4.0)),
+    ).receipt
+    with pytest.raises(ValueError, match="finite numeric"):
+        replace(receipt, raw_total_signal="2")
+    with pytest.raises(ValueError, match="finite numeric"):
+        replace(receipt, raw_positive_mad=float("nan"))
+    with pytest.raises(TypeError, match="raw_peptide_signals"):
+        replace(receipt, raw_peptide_signals=[])
+    with pytest.raises(ValueError, match="entries"):
+        replace(receipt, raw_peptide_signals=(("P1", 2.0), ("P2", 4.0)))
+    with pytest.raises(ValueError, match="intensity"):
+        replace(receipt, raw_peptide_signals=(("P1", True, False), ("P2", 4.0, False)))
+    with pytest.raises(ValueError, match="missingness"):
+        replace(receipt, raw_peptide_signals=(("P1", 2.0, 1), ("P2", 4.0, False)))
+    with pytest.raises(TypeError, match="raw_peptide_statuses"):
+        replace(receipt, raw_peptide_statuses=[])
+    with pytest.raises(ValueError, match="cover"):
+        replace(receipt, raw_peptide_statuses=(("P1", "quantified"),))
+    with pytest.raises(ValueError, match="entries"):
+        replace(
+            receipt,
+            raw_peptide_statuses=(("P1", "quantified", "extra"), ("P2", "quantified")),
+        )
+    with pytest.raises(ValueError, match="status"):
+        replace(receipt, raw_peptide_statuses=(("P1", True), ("P2", "quantified")))
+    with pytest.raises(ValueError, match="input_observations"):
+        replace(receipt, input_observations=1)
+    with pytest.raises(ValueError, match="duplicate_observations"):
+        replace(receipt, duplicate_observations=1)
+    with pytest.raises(ValueError, match="observed/missing"):
+        replace(receipt, observed_peptides=0, missing_peptides=0)
+    with pytest.raises(ValueError, match="below-LOQ"):
+        replace(receipt, below_loq_peptides=1)
+    with pytest.raises(ValueError, match="quantifiable count"):
+        replace(receipt, quantifiable_peptides=1)
+    with pytest.raises(ValueError, match="signal projections"):
+        replace(
+            receipt,
+            input_observations=2,
+            unique_peptides=1,
+            duplicate_observations=1,
+            observed_peptides=1,
+            missing_peptides=0,
+            quantifiable_peptides=1,
+        )
+    with pytest.raises(ValueError, match="normalized signal projection"):
+        replace(
+            receipt,
+            normalized_peptide_signals=(("P1", 2.0, False), ("Q2", 4.0, False)),
+        )
+    with pytest.raises(ValueError, match="raw peptide statuses"):
+        replace(receipt, raw_peptide_statuses=())
+    with pytest.raises(ValueError, match="normalized peptide statuses"):
+        replace(receipt, normalized_peptide_statuses=())
+    with pytest.raises(ValueError, match="not derived"):
+        replace(
+            receipt,
+            normalized_peptide_statuses=(("P1", "zero_signal"), ("P2", "quantified")),
+        )
+    with pytest.raises(ValueError, match="normalized missingness"):
+        replace(
+            receipt,
+            normalized_peptide_signals=(("P1", 2.0, True), ("P2", 4.0, False)),
+        )
+    with pytest.raises(ValueError, match="missingness counts"):
+        replace(receipt, observed_peptides=1, missing_peptides=1, quantifiable_peptides=1)
+    with pytest.raises(ValueError, match="quantifiable count"):
+        replace(
+            receipt,
+            raw_peptide_signals=(("P1", 0.0, True), ("P2", 0.0, False)),
+            normalized_peptide_signals=(("P1", 0.0, True), ("P2", 0.0, False)),
+            observed_peptides=1,
+            missing_peptides=1,
+            quantifiable_peptides=1,
+            positive_signal_fraction=0.0,
+        )
+    with pytest.raises(ValueError, match="positive_signal_fraction"):
+        replace(receipt, positive_signal_fraction=0.5)
+    with pytest.raises(ValueError, match="signal_quality"):
+        replace(receipt, signal_quality="single_positive_signal")
+    loq_receipt = quantify_matched_ions_with_receipt(
+        "receipt-projection-loq",
+        (("P1", 2.0), ("P2", 4.0)),
+        policy=QuantificationPolicy(normalization_method="none_v1", limit_of_quantification=3.0),
+    ).receipt
+    with pytest.raises(ValueError, match="below-LOQ count"):
+        replace(loq_receipt, below_loq_peptides=0)
+    with pytest.raises(ValueError, match="raw_total_signal"):
+        replace(receipt, raw_total_signal=999.0)
+    with pytest.raises(ValueError, match="normalized_total_signal"):
+        replace(receipt, normalized_total_signal=999.0)
+    with pytest.raises(ValueError, match="raw_positive_mad"):
+        replace(receipt, raw_positive_mad=0.0)
+    with pytest.raises(ValueError, match="raw_positive_iqr"):
+        replace(receipt, raw_positive_iqr=0.0)
+    with pytest.raises(ValueError, match="raw_robust_cv"):
+        replace(receipt, raw_robust_cv=0.0)
+    with pytest.raises(ValueError, match="raw peptide status"):
+        replace(
+            receipt,
+            raw_peptide_statuses=(("P1", "zero_signal"), ("P2", "quantified")),
+            normalized_peptide_statuses=(("P1", "zero_signal"), ("P2", "quantified")),
+        )
+    with pytest.raises(ValueError, match="no-normalization"):
+        replace(loq_receipt, normalization_target=1.0)
+    empty_receipt = quantify_matched_ions_with_receipt("receipt-empty", ()).receipt
+    with pytest.raises(ValueError, match="empty normalization"):
+        replace(empty_receipt, normalization_target=1.0)
+    with pytest.raises(ValueError, match="normalization scale"):
+        replace(receipt, normalization_target=2.0)
