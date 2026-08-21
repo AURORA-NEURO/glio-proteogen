@@ -33,7 +33,13 @@ class M2301Service:
     def verify_replay(
         self,
         result: VariantPeptideReferenceTruthResult,
+        request: CurateVariantPeptideReferenceTruthRequest | None = None,
     ) -> VariantPeptideReferenceTruthResult:
+        if request is not None:
+            result_request = result.request.model_dump(mode="json")
+            supplied_request = request.model_dump(mode="json")
+            if result_request != supplied_request:
+                raise ValueError
         return self._engine.verify_replay(result)
 
 

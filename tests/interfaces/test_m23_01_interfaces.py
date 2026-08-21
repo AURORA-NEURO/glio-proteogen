@@ -45,11 +45,19 @@ def test_fastapi_validate_curate_and_schema_routes_are_strict() -> None:
     assert curated.json()["request_digest"] == canonical_request_digest(request)
     verified = client.post(
         "/v1/modules/M23-01/verify",
-        content=json.dumps(curated.json()).encode(),
+        content=json.dumps(
+            {"request": request.model_dump(mode="json"), "result": curated.json()}
+        ).encode(),
         headers={"content-type": "application/json"},
+    )
+    forged = request.model_copy(update={"request_id": "request.m2301.forged"})
+    mismatch = client.post(
+        "/v1/modules/M23-01/verify",
+        json={"request": forged.model_dump(mode="json"), "result": curated.json()},
     )
     assert verified.status_code == _HTTP_OK
     assert verified.json()["verified"] is True
+    assert mismatch.status_code == _HTTP_UNPROCESSABLE
     assert client.get("/v1/modules/M23-01/schemas/unknown").status_code == _HTTP_NOT_FOUND
 
 
