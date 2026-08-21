@@ -349,9 +349,12 @@ class M1704Engine:
                 evidence=_evidence(request),
             )
             support = SupportDecision(
-                status=SupportStatus.SUPPORTED,
-                reason_code="intended_use_registered",
-                rationale="A registered intended-use policy permits the bounded object.",
+                status=SupportStatus.REVIEW_REQUIRED,
+                reason_code="caller_declared_policy",
+                rationale=(
+                    "The bounded object is retained for human review; caller-declared "
+                    "intended-use policy is not scientific support or calibration."
+                ),
             )
             abstention_reason = None
         payload: dict[str, Any] = {

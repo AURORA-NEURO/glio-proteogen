@@ -165,6 +165,8 @@ def test_registered_research_use_adapts_and_replays() -> None:
     assert result.status.value == "adapted"
     assert result.adapted_object is not None
     assert result.policy_decision.status is PolicyDecisionStatus.ALLOWED
+    assert result.support_decision.status is SupportStatus.REVIEW_REQUIRED
+    assert result.support_decision.reason_code == "caller_declared_policy"
     assert result.parent_target == "variant peptide"
     assert result.emits_parent is False
     assert result.human_review_required is False
