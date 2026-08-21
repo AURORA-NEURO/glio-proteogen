@@ -22,13 +22,19 @@ HTTP_OK = 200
 HTTP_UNPROCESSABLE_ENTITY = 422
 HTTP_FORBIDDEN = 403
 HTTP_NOT_FOUND = 404
+HTTP_UNSUPPORTED_MEDIA = 415
+HTTP_TOO_LARGE = 413
 
 
 def test_api_construct_and_schema_export_match_canonical_plugin() -> None:
     request = _request()
     body = json.dumps(request.model_dump(mode="json"), separators=(",", ":")).encode()
     api = TestClient(m0802.create_app())
-    response = api.post("/v1/modules/M08-02/construct", content=body)
+    response = api.post(
+        "/v1/modules/M08-02/construct",
+        content=body,
+        headers={"content-type": "application/json"},
+    )
     assert response.status_code == HTTP_OK
     payload = response.json()
     plugin_result = m0802.M0802Plugin().construct(request)
@@ -40,7 +46,11 @@ def test_api_construct_and_schema_export_match_canonical_plugin() -> None:
 
 def test_api_rejects_non_strict_json_and_bad_authorization() -> None:
     api = TestClient(m0802.create_app())
-    invalid = api.post("/v1/modules/M08-02/validate", content=b'{"bad": NaN}')
+    invalid = api.post(
+        "/v1/modules/M08-02/validate",
+        content=b'{"bad": NaN}',
+        headers={"content-type": "application/json"},
+    )
     assert invalid.status_code == HTTP_UNPROCESSABLE_ENTITY
     assert "detail" in invalid.json()
     denied_request = _request().model_copy(
@@ -65,15 +75,39 @@ def test_api_rejects_non_strict_json_and_bad_authorization() -> None:
     assert denied.status_code == HTTP_FORBIDDEN
 
 
+def test_api_enforces_json_content_type_and_preparse_request_limit() -> None:
+    api = TestClient(m0802.create_app())
+    payload = _request().model_dump(mode="json")
+    assert (
+        api.post(
+            "/v1/modules/M08-02/construct",
+            json=payload,
+            headers={"content-type": "text/plain"},
+        ).status_code
+        == HTTP_UNSUPPORTED_MEDIA
+    )
+    oversized = api.post(
+        "/v1/modules/M08-02/construct",
+        content=b"{" + b"x" * (4 * 1024 * 1024 + 1) + b"}",
+        headers={"content-type": "application/json"},
+    )
+    assert oversized.status_code == HTTP_TOO_LARGE
+
+
 def test_api_validate_and_unknown_schema_failures_are_sanitized() -> None:
     api = TestClient(m0802.create_app())
     request = _request()
     valid = api.post(
         "/v1/modules/M08-02/validate",
         json=request.model_dump(mode="json"),
+        headers={"content-type": "application/json"},
     )
     assert valid.status_code == HTTP_OK
-    malformed = api.post("/v1/modules/M08-02/construct", json={"unknown": 1})
+    malformed = api.post(
+        "/v1/modules/M08-02/construct",
+        json={"unknown": 1},
+        headers={"content-type": "application/json"},
+    )
     assert malformed.status_code == HTTP_UNPROCESSABLE_ENTITY
     unknown = api.get("/v1/modules/M08-02/schemas/not-a-contract")
     assert unknown.status_code == HTTP_NOT_FOUND
