@@ -616,6 +616,9 @@ def test_pipeline_rejects_receipt_field_replacement_and_malformed_response_hash(
         ("max_peptide_length", 101),
         ("max_spectra", 1.5),
         ("q_value_threshold", True),
+        ("fragment_tolerance_da", True),
+        ("precursor_tolerance_ppm", True),
+        ("max_variable_modifications", True),
     ],
 )
 def test_pipeline_rejects_non_strict_controls(field: str, value: object) -> None:
