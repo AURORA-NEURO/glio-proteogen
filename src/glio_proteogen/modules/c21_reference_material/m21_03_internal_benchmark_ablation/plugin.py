@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Final
 
 from pydantic import TypeAdapter
@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from .service import M2103Service
 
 _REQUEST_ADAPTER: Final = TypeAdapter(RunComplexActivityInternalBenchmarkRequest)
+_TOKEN_SEAL: Final = object()
 _DESCRIPTOR: Final = ModuleDescriptor(
     module_id="GLIO-PROTEOGEN-M21-03",
     title="Internal benchmark and ablation (provisional)",
@@ -50,6 +51,7 @@ class ValidatedM2103Request:
     """Opaque capability proving strict M21-03 request validation."""
 
     request: RunComplexActivityInternalBenchmarkRequest
+    _seal: object | None = field(default=None, repr=False, compare=False)
 
 
 class _InvalidExecutionTokenError(TypeError):
@@ -83,10 +85,13 @@ class M2103Plugin(
             decoded = strict_json_loads(candidate, max_bytes=M2103_MAX_CANONICAL_REQUEST_BYTES)
             preflight_m2103_authorization(decoded)
             candidate = _REQUEST_ADAPTER.validate_json(candidate, strict=True)
-        return ValidatedM2103Request(request=self._service.validate_request(candidate))
+        return ValidatedM2103Request(
+            request=self._service.validate_request(candidate),
+            _seal=_TOKEN_SEAL,
+        )
 
     def run(self, request: ValidatedM2103Request) -> ComplexActivityInternalBenchmarkResult:
-        if not isinstance(request, ValidatedM2103Request):
+        if not isinstance(request, ValidatedM2103Request) or request._seal is not _TOKEN_SEAL:
             raise _InvalidExecutionTokenError
         return self._service.generate(request.request)
 

@@ -158,3 +158,8 @@ def test_plugin_rejects_malformed_json_and_denied_mapping() -> None:
     denied = denied_request()
     with pytest.raises(M2103AuthorizationError):
         plugin.validate(BenchmarkSubmission(request=denied.model_dump_json()))
+
+    token = plugin.validate(BenchmarkSubmission(request=_request()))
+    forged = type(token)(request=token.request)
+    with pytest.raises(TypeError, match="validated request token"):
+        plugin.run(forged)
