@@ -2,7 +2,7 @@ requirement_id,requirement,contract_or_algorithm,executable_evidence,gate
 M01-03-R01,"Recognize exactly the six supported ingestion profiles by content","closed RawInputFormat enum and parser registry","six accepted locked fixtures and scenario eval",G0
 M01-03-R02,"Verify the exact supplied-byte SHA-256 before decompression or parsing","pre-parse checksum gate","matching lower/upper-case checksum and mismatch scenarios",G0
 M01-03-R03,"Detect gzip by magic and fail safely on corrupt compression","magic-based bounded decompression","compressed FASTA, misleading filename, and truncated-gzip scenarios",G0
-M01-03-R04,"Bound raw and decoded resource use independently","IngestionLimits raw and decoded byte ceilings","exact-boundary and first-excess policy tests",G0
+M01-03-R04,"Bound raw and decoded resource use independently","IngestionLimits raw and decoded byte ceilings plus route-specific central transport cap","exact-boundary and first-excess policy tests; central API admits a valid source above the shared JSON ceiling",G0
 M01-03-R05,"Validate structural version and required content without silent repair","strict profile parsers","valid profile facts, malformed XML, and unsupported-version scenarios",G0
 M01-03-R06,"Quarantine unknown or ambiguous content rather than guess from a filename","exactly-one content detector rule","unknown-content and filename-independence checks",G0
 M01-03-R07,"Produce deterministic results for bytes and binary streams","immutable value result and ordered diagnostics","byte/stream replay and executable eval",G0
