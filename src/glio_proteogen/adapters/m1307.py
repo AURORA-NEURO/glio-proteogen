@@ -134,9 +134,10 @@ async def verify(request: Request) -> JSONResponse:
     return JSONResponse(content={"verified": True, "result_digest": result.result_digest})
 
 
-def _read_json(path: Path, max_bytes: int) -> bytes:
+def _read_json(path: Path, max_bytes: int | None = None) -> bytes:
+    effective_limit = M1307_MAX_CANONICAL_REQUEST_BYTES if max_bytes is None else max_bytes
     try:
-        return read_bounded(path, max_bytes)
+        return read_bounded(path, effective_limit)
     except OSError as error:
         raise _CliParameterError("read") from error
     except ValueError as error:
