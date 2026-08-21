@@ -659,6 +659,12 @@ from glio_proteogen.contracts.m20_01.v1 import (
     ProteinSubtypeUpstreamResolutionResult,
     ResolveProteinSubtypeUpstreamContractsRequest,
 )
+from glio_proteogen.contracts.m24_02.schema import (
+    ContractName as M2402ContractName,
+)
+from glio_proteogen.contracts.m24_02.schema import (
+    contract_json_schema as m2402_contract_json_schema,
+)
 from glio_proteogen.contracts.m27_02.schema import (
     ContractName as M2702ContractName,
 )
@@ -999,6 +1005,9 @@ from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_04_intended_use_ad
     M1904ReplayError,
     M1904Service,
     preflight_m1904_authorization,
+)
+from glio_proteogen.modules.c21_reference_material import (
+    m24_02_synthetic_truth_simulation_generator as m2402_module,
 )
 from glio_proteogen.modules.c27_complex_activity.m27_02_lineage_service import (
     M2702AuthorizationError,
@@ -2677,6 +2686,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         m2004_adapter,
     ):
         app.include_router(adapter.app.router)
+    app.include_router(m2402_module.create_app().router)
 
     @app.exception_handler(ProtocolNotFoundError)
     def not_found_handler(_request: Request, error: ProtocolNotFoundError) -> JSONResponse:
@@ -2825,6 +2835,10 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.get("/v1/contracts/M01-01/{name}/schema", tags=["contracts"])
     def contract_schema(name: M0101ContractName) -> dict[str, object]:
         return _contract_schema(name)
+
+    @app.get("/v1/contracts/M24-02/{name}/schema", tags=["contracts"])
+    def m2402_contract_schema(name: M2402ContractName) -> dict[str, object]:
+        return m2402_contract_json_schema(name)
 
     @app.get("/v1/contracts/M01-02/{name}/schema", tags=["contracts"])
     def identity_contract_schema(name: M0102ContractName) -> dict[str, object]:
