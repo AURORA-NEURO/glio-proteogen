@@ -383,8 +383,8 @@ class M1905Engine:
             )
             if workspace is None
             else SupportDecision(
-                status=SupportStatus.SUPPORTED,
-                reason_code="m1905_workspace_presented",
+                status=SupportStatus.REVIEW_REQUIRED,
+                reason_code="m1905_workspace_presented_review_required",
                 rationale="All declared workspace items satisfy the presentation envelope.",
             )
         )

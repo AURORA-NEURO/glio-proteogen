@@ -315,9 +315,9 @@ class ProteotypeHumanReviewWorkspaceResult(FrozenModel):
             if (
                 self.workspace is None
                 or self.abstention_reason is not None
-                or self.support_decision.status is not SupportStatus.SUPPORTED
+                or self.support_decision.status is not SupportStatus.REVIEW_REQUIRED
             ):
-                raise ValueError("presented result requires a supported workspace")
+                raise ValueError("presented result requires a review-only workspace")
             if self.workspace.items != self.request.review_items:
                 raise ValueError("presented workspace must bind exact request review items")
             if self.workspace.source_bundle != self.request.aligned_evidence_bundle:
