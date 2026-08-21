@@ -126,7 +126,7 @@ def test_service_verify_rejects_different_supplied_request() -> None:
     request = build_request()
     result = service.execute(request)
     forged = request.model_copy(update={"request_id": "request.m2508.forged"})
-    with pytest.raises(ValueError, match="^$"):
+    with pytest.raises(ValueError, match=r"^$"):
         service.verify(result, request=forged)
 
 
