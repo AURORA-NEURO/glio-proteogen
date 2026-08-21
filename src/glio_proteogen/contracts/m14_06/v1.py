@@ -269,13 +269,14 @@ class ProteinSubtypeSensitivitySimulationResult(FrozenModel):
             if (
                 self.surface is None
                 or self.abstention_reason is not None
-                or self.support_decision.status is not SupportStatus.SUPPORTED
+                or self.support_decision.status is not SupportStatus.REVIEW_REQUIRED
+                or not self.human_review_required
                 or any(
                     item.status in unsafe_statuses or not item.counter_evidence
                     for item in self.surface.responses
                 )
             ):
-                raise ValueError("simulated result requires supported bounded responses")
+                raise ValueError("simulated result requires review-only bounded responses")
         elif (
             self.surface is not None
             or self.abstention_reason is None

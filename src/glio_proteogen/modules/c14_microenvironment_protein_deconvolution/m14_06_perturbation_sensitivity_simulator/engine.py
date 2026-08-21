@@ -348,8 +348,8 @@ class M1406SensitivityEngine:
             "parent_target": M1406_PARENT,
             "emits_parent": False,
             "support_decision": SupportDecision(
-                status=SupportStatus.SUPPORTED if supported else SupportStatus.REVIEW_REQUIRED,
-                reason_code="m1406_sensitivity_simulated"
+                status=SupportStatus.REVIEW_REQUIRED,
+                reason_code="m1406_sensitivity_simulation_review_required"
                 if supported
                 else "m1406_sensitivity_abstained",
                 rationale=(
@@ -358,11 +358,11 @@ class M1406SensitivityEngine:
                     else "The request is outside the safely evaluable perturbation support domain."
                 ),
             ),
-            "uncertainty": expected_uncertainty(supported=supported),
+            "uncertainty": expected_uncertainty(supported=False if supported else supported),
             "provenance": expected_provenance(request, request_hash),
             "evidence": evidence,
             "limitations": _limitations(supported=supported),
-            "human_review_required": not supported,
+            "human_review_required": True,
         }
         constructed = ProteinSubtypeSensitivitySimulationResult.model_construct(**payload)  # type: ignore[arg-type]
         payload["result_digest"] = result_payload_digest(constructed)

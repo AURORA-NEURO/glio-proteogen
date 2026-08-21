@@ -38,6 +38,7 @@ from glio_proteogen.contracts.m14_06 import (
 )
 from glio_proteogen.contracts.m14_06.canonical import normalized_request
 from glio_proteogen.kernel.canonical import canonical_json_bytes
+from glio_proteogen.kernel.models import SupportStatus
 from glio_proteogen.modules.c14_microenvironment_protein_deconvolution.m14_06_perturbation_sensitivity_simulator import (
     M1406Plugin,
     M1406ReplayVerificationError,
@@ -107,6 +108,9 @@ def test_response_bounds_require_counter_evidence_and_are_closed() -> None:
             assumptions=("assumption",),
         )
     result = M1406SensitivityEngine().infer(build_scenario_request())
+    assert result.support_decision.status is SupportStatus.REVIEW_REQUIRED
+    assert result.human_review_required is True
+    assert result.uncertainty.measurement.probability is None
     response = result.surface.responses[0] if result.surface is not None else None
     assert response is not None
     assert response.lower_bound is not None
