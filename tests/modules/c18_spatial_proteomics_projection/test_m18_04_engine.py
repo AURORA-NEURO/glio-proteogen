@@ -128,6 +128,10 @@ def test_service_replay_rejects_request_and_payload_tamper() -> None:
     with pytest.raises(m1804.M1804ReplayError, match="deterministic replay"):
         service.replay(tampered)
 
+    altered = request.model_copy(update={"request_id": "request.m1804.altered"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.replay(result, altered)
+
 
 def test_plugin_descriptor_and_strict_validation_parity() -> None:
     plugin = m1804.M1804Plugin()
@@ -141,3 +145,7 @@ def test_plugin_descriptor_and_strict_validation_parity() -> None:
     assert result.status is AdapterStatus.ADAPTED
     with pytest.raises((ValidationError, m1804.M1804AuthorizationError)):
         plugin.validate_request({"request_id": "bad"})
+
+    altered = request.model_copy(update={"request_id": "request.m1804.plugin-altered"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        plugin.replay(result, altered)
