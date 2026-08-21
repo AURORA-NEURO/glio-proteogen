@@ -448,16 +448,17 @@ def run_pilot(request: PilotRequest) -> PilotResult:
             for psm in accepted
         )
     )
+    accepted_by_peptide = {psm.peptide: psm for psm in accepted}
     signals = tuple(
         SignalProxy(
             item.sample_id,
             item.peptide,
-            scored[index].spectrum_id,
+            accepted_by_peptide[item.peptide].spectrum_id,
             item.intensity,
             item.intensity,
         )
-            for index, item in enumerate(quant)
-        )
+        for item in quant
+    )
     return _finish(
         PilotResult(
             status="COMPLETED",
