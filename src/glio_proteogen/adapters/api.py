@@ -407,6 +407,7 @@ from glio_proteogen.contracts.m06_01.schema import (
 )
 from glio_proteogen.contracts.m06_01.v1 import (
     M0601_MAX_CANONICAL_REQUEST_BYTES,
+    M0601_MAX_CANONICAL_RESULT_BYTES,
     ValidateFormalProteinStateRequest,
     ValidateFormalProteinStateResult,
 )
@@ -2658,7 +2659,10 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     app.add_middleware(
         RequestSizeLimitMiddleware,
         max_bytes=MAX_REQUEST_BYTES,
-        result_max_bytes=M0305_MAX_CANONICAL_RESULT_BYTES,
+        result_max_bytes=max(
+            M0305_MAX_CANONICAL_RESULT_BYTES,
+            M0601_MAX_CANONICAL_RESULT_BYTES,
+        ),
     )
     # These provisional lanes ship strict standalone adapters as well as the
     # central API.  Include their routers here so a caller using the canonical
