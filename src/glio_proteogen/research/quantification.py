@@ -8,6 +8,7 @@ units, normalization, or below-LOQ handling without changing the result digest.
 from __future__ import annotations
 
 import json
+import re
 from collections import defaultdict
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
@@ -16,6 +17,94 @@ from math import isfinite
 from statistics import median
 
 from .protein import ProteinGroup
+
+_HEX64 = re.compile(r"^[0-9a-f]{64}$")
+_RECEIPT_VERSIONS = frozenset({"matched-ion-median-4", "matched-ion-median-5"})
+_RECEIPT_UNITS = frozenset(
+    {"matched_ion_intensity_arbitrary", "median_scaled_matched_ion_intensity"}
+)
+_RECEIPT_NORMALIZATION = frozenset({"none", "sample_median_scaled"})
+_RECEIPT_MISSINGNESS = frozenset(
+    {
+        "zero_signal_is_missing_no_imputation",
+        "zero_or_below_loq_is_missing_no_imputation_v1",
+    }
+)
+_PEPTIDE_STATUSES = frozenset({"zero_signal", "below_loq", "quantified"})
+_SIGNAL_QUALITY = frozenset(
+    {"no_positive_signal", "single_positive_signal", "descriptive_positive_signal"}
+)
+
+
+def _receipt_label(value: object, field: str, *, maximum: int = 256) -> str:
+    if (
+        type(value) is not str
+        or not value
+        or len(value) > maximum
+        or value != value.strip()
+        or any(character.isspace() or ord(character) < 32 for character in value)
+    ):
+        raise ValueError(f"receipt {field} must be a bounded non-empty string")
+    return value
+
+
+def _receipt_number(value: object, field: str, *, nonnegative: bool = True) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(  # noqa: TRY004 - malformed receipts use one public failure class
+            f"receipt {field} must be finite numeric"
+        )
+    number = float(value)
+    if not isfinite(number):
+        raise ValueError(f"receipt {field} must be finite numeric")
+    if nonnegative and number < 0:
+        raise ValueError(f"receipt {field} must be non-negative")
+    return number
+
+
+def _receipt_count(value: object, field: str) -> int:
+    if type(value) is not int or value < 0:
+        raise ValueError(f"receipt {field} must be a non-negative integer")
+    return value
+
+
+def _validate_signal_projection(values: object, field: str) -> tuple[tuple[str, float, bool], ...]:
+    if type(values) is not tuple:
+        raise TypeError(f"receipt {field} must be a tuple")
+    normalized: list[tuple[str, float, bool]] = []
+    previous: str | None = None
+    for item in values:
+        if type(item) is not tuple or len(item) != 3:
+            raise ValueError(f"receipt {field} entries must be (peptide, intensity, missing)")
+        peptide = _receipt_label(item[0], f"{field} peptide")
+        intensity = _receipt_number(item[1], f"{field} intensity")
+        if type(item[2]) is not bool:
+            raise ValueError(f"receipt {field} missingness must be boolean")
+        if previous is not None and peptide <= previous:
+            raise ValueError(f"receipt {field} must be canonically ordered and unique")
+        normalized.append((peptide, intensity, item[2]))
+        previous = peptide
+    return tuple(normalized)
+
+
+def _validate_status_projection(
+    values: object,
+    field: str,
+    peptides: tuple[str, ...],
+) -> tuple[tuple[str, str], ...]:
+    if type(values) is not tuple:
+        raise TypeError(f"receipt {field} must be a tuple")
+    if values and len(values) != len(peptides):
+        raise ValueError(f"receipt {field} must cover every peptide")
+    normalized: list[tuple[str, str]] = []
+    for index, item in enumerate(values):
+        if type(item) is not tuple or len(item) != 2:
+            raise ValueError(f"receipt {field} entries must be (peptide, status)")
+        peptide = _receipt_label(item[0], f"{field} peptide")
+        status = _receipt_label(item[1], f"{field} status")
+        if peptide != peptides[index] or status not in _PEPTIDE_STATUSES:
+            raise ValueError(f"receipt {field} is not aligned to the peptide projection")
+        normalized.append((peptide, status))
+    return tuple(normalized)
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,23 +196,176 @@ class QuantificationReceipt:
     raw_peptide_statuses: tuple[tuple[str, str], ...] = ()
     normalized_peptide_statuses: tuple[tuple[str, str], ...] = ()
 
-    def __post_init__(self) -> None:
-        # These fields are omitted from the compact default projection for
-        # historical receipt compatibility, so validate them at construction
-        # rather than allowing an invalid value to replay as the same digest.
-        if (
-            type(self.limit_of_quantification) not in (int, float)
-            or isinstance(self.limit_of_quantification, bool)
-            or not isfinite(self.limit_of_quantification)
-            or self.limit_of_quantification < 0
+    def __post_init__(self) -> None:  # noqa: PLR0915 - receipt closure binds every projection
+        _receipt_label(self.sample_id, "sample_id")
+        _receipt_number(self.limit_of_quantification, "limit_of_quantification")
+        for value, field, allowed in (
+            (self.version, "version", _RECEIPT_VERSIONS),
+            (self.measurement_unit, "measurement_unit", _RECEIPT_UNITS),
+            (self.normalization_method, "normalization_method", _RECEIPT_NORMALIZATION),
+            (self.missingness_policy, "missingness_policy", _RECEIPT_MISSINGNESS),
+            (self.signal_quality, "signal_quality", _SIGNAL_QUALITY),
         ):
-            raise ValueError("receipt limit_of_quantification must be finite and non-negative")
-        for value, field in (
+            _receipt_label(value, field)
+            if value not in allowed:
+                raise ValueError(f"receipt {field} is not supported")
+        expected_unit = (
+            "median_scaled_matched_ion_intensity"
+            if self.normalization_method == "sample_median_scaled"
+            else "matched_ion_intensity_arbitrary"
+        )
+        if self.measurement_unit != expected_unit:
+            raise ValueError("receipt measurement_unit is inconsistent with normalization")
+        expected_missingness = (
+            "zero_signal_is_missing_no_imputation"
+            if self.limit_of_quantification == 0
+            else "zero_or_below_loq_is_missing_no_imputation_v1"
+        )
+        if self.missingness_policy != expected_missingness:
+            raise ValueError("receipt missingness_policy is inconsistent with LOQ")
+        for count_value, field in (
+            (self.input_observations, "input_observations"),
+            (self.unique_peptides, "unique_peptides"),
+            (self.observed_peptides, "observed_peptides"),
+            (self.missing_peptides, "missing_peptides"),
+            (self.duplicate_observations, "duplicate_observations"),
             (self.below_loq_peptides, "below_loq_peptides"),
             (self.quantifiable_peptides, "quantifiable_peptides"),
         ):
-            if type(value) is not int or value < 0:
-                raise ValueError(f"receipt {field} must be a non-negative integer")
+            _receipt_count(count_value, field)
+        if self.input_observations < self.unique_peptides:
+            raise ValueError("receipt input_observations cannot be below unique_peptides")
+        if self.duplicate_observations != self.input_observations - self.unique_peptides:
+            raise ValueError("receipt duplicate_observations is not derived from counts")
+        if self.observed_peptides + self.missing_peptides != self.unique_peptides:
+            raise ValueError("receipt observed/missing peptide counts do not close")
+        if self.below_loq_peptides > self.missing_peptides:
+            raise ValueError("receipt below-LOQ count exceeds missing peptide count")
+        if self.quantifiable_peptides != self.observed_peptides:
+            raise ValueError("receipt quantifiable count is not derived from missingness")
+        _receipt_number(self.raw_total_signal, "raw_total_signal")
+        _receipt_number(self.normalized_total_signal, "normalized_total_signal")
+        for numeric_value, field in (
+            (self.raw_positive_median, "raw_positive_median"),
+            (self.normalization_target, "normalization_target"),
+            (self.scale_factor, "scale_factor"),
+            (self.raw_positive_mad, "raw_positive_mad"),
+            (self.raw_positive_iqr, "raw_positive_iqr"),
+            (self.raw_robust_cv, "raw_robust_cv"),
+        ):
+            if numeric_value is not None:
+                _receipt_number(numeric_value, field)
+        fraction = _receipt_number(self.positive_signal_fraction, "positive_signal_fraction")
+        if fraction > 1.0:
+            raise ValueError("receipt positive_signal_fraction must not exceed one")
+        if (
+            type(self.max_input_observations) is not int
+            or not 1 <= self.max_input_observations <= 1_000_000
+        ):
+            raise ValueError("receipt max_input_observations must be between one and one million")
+        if not isinstance(self.observation_digest, str) or not _HEX64.fullmatch(
+            self.observation_digest
+        ):
+            raise ValueError("receipt observation_digest must be a lowercase SHA-256")
+        raw = _validate_signal_projection(self.raw_peptide_signals, "raw_peptide_signals")
+        normalized = _validate_signal_projection(
+            self.normalized_peptide_signals, "normalized_peptide_signals"
+        )
+        if len(raw) != self.unique_peptides or len(normalized) != self.unique_peptides:
+            raise ValueError("receipt signal projections do not match unique_peptides")
+        raw_peptides = tuple(item[0] for item in raw)
+        if tuple(item[0] for item in normalized) != raw_peptides:
+            raise ValueError("receipt normalized signal projection is not aligned")
+        raw_statuses = _validate_status_projection(
+            self.raw_peptide_statuses, "raw_peptide_statuses", raw_peptides
+        )
+        normalized_statuses = _validate_status_projection(
+            self.normalized_peptide_statuses, "normalized_peptide_statuses", raw_peptides
+        )
+        if raw and not raw_statuses:
+            raise ValueError("receipt raw peptide statuses are required")
+        if normalized and not normalized_statuses:
+            raise ValueError("receipt normalized peptide statuses are required")
+        if raw_statuses and normalized_statuses != raw_statuses:
+            raise ValueError("receipt normalized peptide statuses are not derived")
+        for raw_item, normalized_item in zip(raw, normalized, strict=True):
+            if normalized_item[2] != raw_item[2]:
+                raise ValueError("receipt normalized missingness is not derived")
+            expected_intensity = 0.0 if raw_item[2] else raw_item[1]
+            if normalized_item[1] != expected_intensity:
+                raise ValueError("receipt normalized signal is not derived")
+        expected_missing = sum(item[2] for item in raw)
+        expected_observed = len(raw) - expected_missing
+        expected_positive = sum(not missing and intensity > 0 for _, intensity, missing in raw)
+        if expected_missing != self.missing_peptides or expected_observed != self.observed_peptides:
+            raise ValueError("receipt missingness counts are not derived from raw signals")
+        if expected_positive != self.quantifiable_peptides:
+            raise ValueError("receipt quantifiable count is not derived from raw signals")
+        if fraction != (expected_positive / len(raw) if raw else 0.0):
+            raise ValueError("receipt positive_signal_fraction is not derived from raw signals")
+        if self.signal_quality != _signal_quality(expected_positive):
+            raise ValueError("receipt signal_quality is not derived from raw signals")
+        expected_below_loq = sum(
+            missing and 0 < intensity <= self.limit_of_quantification
+            for _, intensity, missing in raw
+        )
+        if self.below_loq_peptides != expected_below_loq:
+            raise ValueError("receipt below-LOQ count is not derived from raw signals")
+        expected_raw_total = _finite_sum((item[1] for item in raw), "raw total signal")
+        expected_normalized_total = _finite_sum(
+            (item[1] for item in normalized), "normalized total signal"
+        )
+        if self.raw_total_signal != expected_raw_total:
+            raise ValueError("receipt raw_total_signal is not derived from raw signals")
+        if self.normalized_total_signal != expected_normalized_total:
+            raise ValueError("receipt normalized_total_signal is not derived")
+        expected_raw_median = (
+            _finite_median(
+                tuple(item[1] for item in raw if not item[2] and item[1] > 0),
+                "raw positive median",
+            )
+            if expected_positive
+            else None
+        )
+        if self.raw_positive_median != expected_raw_median:
+            raise ValueError("receipt raw_positive_median is not derived")
+        expected_mad = _median_absolute_deviation(
+            tuple(item[1] for item in raw if not item[2] and item[1] > 0)
+        )
+        expected_iqr = _interquartile_range(
+            tuple(item[1] for item in raw if not item[2] and item[1] > 0)
+        )
+        expected_cv = (
+            expected_mad / expected_raw_median
+            if expected_mad is not None
+            and expected_raw_median is not None
+            and expected_raw_median > 0
+            else None
+        )
+        if self.raw_positive_mad != expected_mad:
+            raise ValueError("receipt raw_positive_mad is not derived")
+        if self.raw_positive_iqr != expected_iqr:
+            raise ValueError("receipt raw_positive_iqr is not derived")
+        if self.raw_robust_cv != expected_cv:
+            raise ValueError("receipt raw_robust_cv is not derived")
+        for (_, intensity, missing), (_, status) in zip(raw, raw_statuses, strict=True):
+            expected_status = (
+                "zero_signal"
+                if intensity <= 0
+                else "below_loq"
+                if intensity <= self.limit_of_quantification
+                else "quantified"
+            )
+            if missing != (intensity <= self.limit_of_quantification) or status != expected_status:
+                raise ValueError("receipt raw peptide status is not derived from signal")
+        if self.normalization_method == "none":
+            if self.normalization_target is not None or self.scale_factor is not None:
+                raise ValueError("receipt no-normalization projection cannot carry a scale")
+        elif self.quantifiable_peptides == 0:
+            if self.normalization_target is not None or self.scale_factor is not None:
+                raise ValueError("receipt empty normalization projection cannot carry a scale")
+        elif self.normalization_target != self.raw_positive_median or self.scale_factor != 1.0:
+            raise ValueError("receipt normalization scale is not derived from policy")
 
     def as_dict(self) -> dict[str, object]:
         payload: dict[str, object] = {
