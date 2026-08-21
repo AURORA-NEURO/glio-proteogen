@@ -245,9 +245,9 @@ class ProteinSubtypeIntendedUseAdapterResult(FrozenModel):
                 or self.abstention_reason is not None
                 or self.policy_decision.status
                 not in {PolicyDecisionStatus.ALLOWED, PolicyDecisionStatus.REVIEW_REQUIRED}
-                or self.support_decision.status is not SupportStatus.SUPPORTED
+                or self.support_decision.status is not SupportStatus.REVIEW_REQUIRED
             ):
-                raise ValueError("adapted result requires supported bounded policy output")
+                raise ValueError("adapted result requires review-only bounded policy output")
         elif (
             self.adapted_object is not None
             or self.abstention_reason is None

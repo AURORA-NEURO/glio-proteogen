@@ -342,10 +342,11 @@ class M2004Engine:
             status = AdapterStatus.ADAPTED
             policy_status = PolicyDecisionStatus.ALLOWED
             support = SupportDecision(
-                status=SupportStatus.SUPPORTED,
-                reason_code="intended_use_policy_allowed",
+                status=SupportStatus.REVIEW_REQUIRED,
+                reason_code="intended_use_policy_review_only",
                 rationale=(
-                    "The locked registration satisfies the bounded M20-04 display and claim policy."
+                    "The caller-declared registration satisfies bounded display and claim "
+                    "policy for review; it does not establish calibrated scientific support."
                 ),
             )
             abstention_reason = None

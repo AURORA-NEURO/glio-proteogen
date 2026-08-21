@@ -28,7 +28,7 @@ def test_supported_registration_adapts_and_replays_deterministically() -> None:
     assert first.status is AdapterStatus.ADAPTED
     assert first.adapted_object is not None
     assert first.policy_decision.status is PolicyDecisionStatus.ALLOWED
-    assert first.support_decision.status is SupportStatus.SUPPORTED
+    assert first.support_decision.status is SupportStatus.REVIEW_REQUIRED
     assert first.result_digest == second.result_digest
     assert engine.replay(first) == first
 
