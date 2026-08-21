@@ -401,6 +401,12 @@ class M2001Engine:
             raise M2001ReplayError("M20-01 result identifier mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M2001ReplayError("M20-01 result payload digest mismatch")  # noqa: TRY003
+        try:
+            expected = self.resolve(result.request)
+        except Exception as exc:
+            raise M2001ReplayError from exc
+        if expected.model_dump(mode="python") != result.model_dump(mode="python"):
+            raise M2001ReplayError("M20-01 result semantic replay mismatch")  # noqa: TRY003
         return result
 
 
