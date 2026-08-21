@@ -104,6 +104,9 @@ def test_replay_accepts_exact_result_and_rejects_tampering() -> None:
     tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
     with pytest.raises(m1902.M1902ReplayError, match="deterministic replay"):
         service.replay(tampered)
+    altered = _request().model_copy(update={"request_id": "request.m1902.altered"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.replay(result, altered)
 
 
 def test_plugin_descriptor_and_strict_json_boundary() -> None:
@@ -124,3 +127,6 @@ def test_plugin_descriptor_and_strict_json_boundary() -> None:
     with pytest.raises(ValueError, match="size limit"):
         plugin.validate_json(b"{" + b" " * (4 * 1024 * 1024) + b"}")
     assert m1902.align_proteotype_sources(request) == result
+    altered = request.model_copy(update={"request_id": "request.m1902.plugin-altered"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        plugin.replay(result, altered)

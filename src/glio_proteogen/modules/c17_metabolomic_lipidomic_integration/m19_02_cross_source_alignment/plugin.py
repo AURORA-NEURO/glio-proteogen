@@ -67,7 +67,15 @@ class M1902Plugin:
     def run(self, request: object) -> ProteotypeAlignmentResult:
         return self._engine.align(request)
 
-    def replay(self, result: ProteotypeAlignmentResult) -> ProteotypeAlignmentResult:
+    def replay(
+        self,
+        result: ProteotypeAlignmentResult,
+        request: AlignProteotypeSourcesRequest | None = None,
+    ) -> ProteotypeAlignmentResult:
+        if request is not None and result.request.model_dump(mode="json") != request.model_dump(
+            mode="json"
+        ):
+            raise ValueError("replay request mismatch")  # noqa: TRY003
         return self._engine.replay(result)
 
 
