@@ -42,7 +42,6 @@ def _parse_bytes(payload: bytes, *, max_bytes: int) -> object:
 
 _CENTRAL_SERVICE = M1905Service()
 
-
 def _handlers(service: M1905Service) -> tuple:
     async def present_with_service(request: Request) -> JSONResponse:
         try:
