@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from typing import Any
 
 import pytest
 from evals.research_proteomics.fdr_quant_group_invariants import (
@@ -10,6 +11,7 @@ from evals.research_proteomics.fdr_quant_group_invariants import (
 )
 
 from glio_proteogen.research import (
+    ProteinGroupCandidate,
     Psm,
     PsmCompetition,
     infer_protein_group_candidates,
@@ -182,3 +184,54 @@ def test_collision_only_group_receipt_abstains_undefined_ratio() -> None:
     assert summary.collision_candidates == 1
     assert summary.decoy_to_target_ratio is None
     assert summary.evidence_status == "abstained_no_target_denominator"
+
+
+def test_group_receipt_verifier_rejects_structural_and_summary_mutations() -> None:
+    candidates, summary = infer_protein_group_candidates(
+        (
+            Psm("target", "PEPTIDE", ("P1",), 10.0, 3, decoy=False),
+            Psm("decoy", "DECOY_PEPTIDE", ("DECOY_P2",), 1.0, 3, decoy=True),
+        ),
+        q_value_threshold=0.01,
+    )
+    target = next(item for item in candidates if item.status == "target")
+    decoy = next(item for item in candidates if item.status == "decoy")
+
+    ordered = tuple(sorted(candidates, key=lambda item: item.accessions))
+
+    def rejects(candidate_set: tuple[ProteinGroupCandidate, ...], **updates: Any) -> None:
+        with pytest.raises(ValueError):
+            verify_protein_group_fdr_summary(candidate_set, replace(summary, **updates))
+
+    def with_target(mutated: ProteinGroupCandidate) -> tuple[ProteinGroupCandidate, ...]:
+        return (decoy, mutated)
+
+    rejects((target, decoy))
+    rejects((target, target))
+    rejects(with_target(replace(target, accessions=())))
+    rejects(
+        with_target(replace(target, unique_peptides=("PEPTIDE",), shared_peptides=("PEPTIDE",)))
+    )
+    rejects(with_target(replace(target, status="unknown")))
+    rejects(with_target(replace(target, acceptance="unknown")))
+    rejects(with_target(replace(target, q_value=float("nan"))))
+    rejects(with_target(replace(target, evidence_digest="0" * 63)))
+    rejects(with_target(replace(target, unique_supported_accessions=("P2", "P1"))))
+    rejects(with_target(replace(target, ambiguous_accessions=("P2", "P1"))))
+    rejects(
+        with_target(
+            replace(target, unique_supported_accessions=("P1",), ambiguous_accessions=("P1",))
+        )
+    )
+    rejects(ordered, candidates=99)
+    rejects(ordered, target_candidates=99)
+    rejects(ordered, decoy_candidates=99)
+    rejects(ordered, collision_candidates=99)
+    rejects(ordered, accepted_targets=99)
+    rejects(ordered, error_candidates=99)
+    rejects(ordered, target_denominator=99)
+    rejects(ordered, evidence_status="abstained_no_decoy_evidence")
+    rejects(ordered, decoy_to_target_ratio=0.0)
+
+    with pytest.raises(TypeError, match="summary"):
+        verify_protein_group_fdr_summary(candidates, object())  # type: ignore[arg-type]
