@@ -44,7 +44,7 @@ class M2207Service:
         if request is not None and (
             replayed.request.model_dump(mode="json") != request.model_dump(mode="json")
         ):
-            raise ValueError
+            raise ValueError("replay request mismatch")  # noqa: TRY003
         return replayed
 
 

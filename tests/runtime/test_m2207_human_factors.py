@@ -58,6 +58,17 @@ def test_runtime_abstains_when_operational_dimension_is_not_evaluable() -> None:
     assert engine.replay(result).status is EvaluationStatus.ABSTAINED
 
 
+def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
+    request = _request()
+    service = m2207.M2207Service()
+    result = service.evaluate(request)
+    altered = request.model_copy(update={"request_id": "request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.replay(result, altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        m2207.M2207Plugin(service).replay(result, altered)
+
+
 def test_runtime_exposes_metric_failure_without_turning_it_into_abstention() -> None:
     request = _request().model_dump(mode="python")
     request["metrics"][3]["observed_value"] = 2.0
