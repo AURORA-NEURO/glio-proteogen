@@ -467,7 +467,14 @@ class M1908TranslationMonitoringEngine:
             "parent_target": "proteotype",
             "emits_parent": False,
             "support_decision": (
-                validated.support_decision
+                SupportDecision(
+                    status=SupportStatus.REVIEW_REQUIRED,
+                    reason_code="m1908_monitoring_review_only",
+                    rationale=(
+                        "Caller-declared monitoring produced a bounded health report for "
+                        "review; it does not establish calibrated scientific support."
+                    ),
+                )
                 if not abstained
                 else SupportDecision(
                     status=SupportStatus.REVIEW_REQUIRED,
@@ -479,7 +486,7 @@ class M1908TranslationMonitoringEngine:
             "provenance": _provenance(validated, request_digest),
             "evidence": evidence,
             "limitations": _limitations(abstained=abstained),
-            "human_review_required": abstained or health is not TranslationHealthState.HEALTHY,
+            "human_review_required": True,
         }
         constructed = ProteotypeTranslationMonitoringResult.model_construct(**payload)
         payload["result_digest"] = result_payload_digest(constructed)

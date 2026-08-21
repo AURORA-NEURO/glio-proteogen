@@ -340,9 +340,9 @@ class ProteotypeTranslationMonitoringResult(FrozenModel):
             if (
                 self.health_report is None
                 or self.abstention_reason is not None
-                or self.support_decision.status is not SupportStatus.SUPPORTED
+                or self.support_decision.status is not SupportStatus.REVIEW_REQUIRED
             ):
-                raise ValueError("monitored result requires a supported health report")
+                raise ValueError("monitored result requires a review-only health report")
         elif (
             self.health_report is not None
             or self.abstention_reason is None

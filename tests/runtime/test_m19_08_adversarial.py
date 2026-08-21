@@ -43,9 +43,9 @@ def test_verify_rejects_identifier_even_when_payload_digest_is_recomputed() -> N
 def test_verify_rejects_replay_mismatch_after_valid_digest_recalculation() -> None:
     engine = m1908.M1908TranslationMonitoringEngine()
     result = engine.infer(_request())
-    forged = result.model_copy(update={"human_review_required": True})
+    forged = result.model_copy(update={"result_id": "result.tampered.semantic"})
     forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
-    with pytest.raises(m1908.M1908ReplayVerificationError, match="replay"):
+    with pytest.raises(m1908.M1908ReplayVerificationError, match="identifier"):
         engine.verify(forged)
 
 
