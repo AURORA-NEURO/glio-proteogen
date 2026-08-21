@@ -55,18 +55,26 @@ def test_qc_policy_rejects_unbounded_or_boolean_thresholds() -> None:
         )
 
 
-def test_missingness_gate_abstains_and_keeps_raw_matrix() -> None:
-    result = run_research_cohort(
-        ResearchCohortRequest(
-            (_sample("target_supported", "present", "r1"), _sample("no_match", "absent", "r2")),
-            qc_policy=CohortQcPolicy(max_missingness_rate=0.0),
-        )
+def test_missingness_gate_preserves_none_identity_projection() -> None:
+    request = ResearchCohortRequest(
+        (_sample("target_supported", "present", "r1"), _sample("no_match", "absent", "r2")),
+        normalization_policy="none",
+        qc_policy=CohortQcPolicy(max_missingness_rate=0.0),
     )
+    result = run_research_cohort(request)
     assert result.raw_matrix == ((("P1",), (None, 20.0)),)
-    assert result.normalized_matrix == ((("P1",), (None, None)),)
+    assert result.normalized_matrix == result.raw_matrix
     assert result.label_qc[0].status == "abstained_missingness"
     assert result.label_qc[0].normalization_status == "not_applied"
     assert result.label_group_evidence[0].status == "abstained_missingness"
+    assert {item.status for item in result.sample_scales} == {"not_applied"}
+    assert {item.scale_factor for item in result.sample_scales} == {1.0}
+    assert replay_research_cohort(request, result) == result
+    with pytest.raises(ValueError, match="digest"):
+        replay_research_cohort(
+            request,
+            replace(result, normalized_matrix=((("P1",), (None, None)),)),
+        )
 
 
 def test_observed_group_gate_and_policy_replay_are_explicit() -> None:
