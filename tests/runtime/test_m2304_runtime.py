@@ -98,6 +98,17 @@ def test_hostile_mapping_fails_closed() -> None:
         M2304Engine().evaluate({"context": {"references": None}})
 
 
+def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
+    request = _request()
+    service = M2304Service()
+    result = service.evaluate(request)
+    altered = request.model_copy(update={"request_id": "request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.verify_replay(result, altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        M2304Plugin(service).replay(result, altered)
+
+
 def test_replay_accepts_exact_result_and_rejects_tamper() -> None:
     result = M2304Engine().evaluate(_request())
     assert M2304Engine().replay(result) == result
