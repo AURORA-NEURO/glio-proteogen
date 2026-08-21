@@ -24,6 +24,9 @@ Contract and safety boundaries:
   abstention with human review required; it cannot become a negative finding.
 - Replay verifies request digest, deterministic result identity, provenance,
   upstream digest binding, and canonical result digest.
+- Plugin execution requires an instance-sealed capability with the exact
+  validated request identity and canonical request snapshot; copied, forged,
+  or post-validation-mutated tokens are rejected before evaluation.
 - The strict parse-once plugin, FastAPI adapter, Typer adapter, service,
   evaluator, and benchmark share one canonical request/result path.
 - KINOPHOS kinase-state ownership, generic all-omics fusion, treatment
