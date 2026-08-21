@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from math import inf
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -28,10 +28,13 @@ from glio_proteogen.contracts.m27_05 import (
     TelemetryFindingCode,
     TelemetryMetricKind,
     TelemetrySample,
+    TelemetryStatus,
     TelemetryStream,
     TelemetryUnit,
     contract_json_schemas,
 )
+from glio_proteogen.contracts.m27_05.canonical import result_payload_digest
+from glio_proteogen.kernel.models import SupportDecision, SupportStatus
 from glio_proteogen.kernel.strict_json import StrictJsonError
 from glio_proteogen.modules.c27_complex_activity.m27_05_observability_telemetry import (
     M2705AuthorizationError,
@@ -385,6 +388,34 @@ def test_contract_rejects_nonfinite_alert_and_bad_chronology() -> None:
         )
 
 
+def test_direct_contract_guards_cover_nonfinite_and_duplicate_paths() -> None:
+    sample = cast("Any", TelemetrySample).model_construct(value=inf)
+    with pytest.raises(ValueError, match="finite"):
+        cast("Any", sample).value_is_finite()
+
+    request = build_request()
+    stream = _valid_stream(request)
+    duplicate_sample = stream.samples[0].model_copy(
+        update={"sample_id": stream.samples[0].sample_id}
+    )
+    duplicate_samples = cast("Any", TelemetryStream).model_construct(
+        samples=(stream.samples[0], duplicate_sample, *stream.samples[2:]),
+        findings=(),
+    )
+    with pytest.raises(ValueError, match="sample ids"):
+        cast("Any", duplicate_samples).samples_are_unique()
+    duplicate_finding = TelemetryFinding(
+        finding_id="m2705.finding.duplicate",
+        code=TelemetryFindingCode.DRIFT_DETECTED,
+        message="duplicate",
+    )
+    duplicate_findings = cast("Any", TelemetryStream).model_construct(
+        samples=(), findings=(duplicate_finding, duplicate_finding)
+    )
+    with pytest.raises(ValueError, match="finding ids"):
+        cast("Any", duplicate_findings).samples_are_unique()
+
+
 def test_contract_rejects_duplicate_stream_samples_and_findings() -> None:
     request = build_request()
     stream = _valid_stream(request)
@@ -414,8 +445,65 @@ def test_result_id_and_status_shape_are_closed() -> None:
 
 def test_result_rejects_self_rehashed_output_binding_mutations() -> None:
     result = M2705Service().emit(build_request())
+    emitted = result.model_copy(
+        update={
+            "status": TelemetryStatus.EMITTED,
+            "telemetry_stream": _valid_stream(result.request),
+            "dashboards": result.request.dashboard_definitions,
+            "alert": AlertRecord(
+                alert_id="m2705.alert.test",
+                state=AlertState.CLEAR,
+                severity=AlertSeverity.INFO,
+                metric=result.request.requested_metrics[0],
+                message="no alert",
+                resolved_at=result.request.context.occurred_at,
+                evidence=_evidence(result.request),
+            ),
+            "safe_failure_report": None,
+            "abstention_reason": None,
+            "support_decision": SupportDecision(
+                status=SupportStatus.SUPPORTED,
+                reason_code="test_supported",
+                rationale="direct contract closure test",
+            ),
+            "human_review_required": False,
+        }
+    )
+    emitted = emitted.model_copy(update={"result_digest": result_payload_digest(emitted)})
+    assert ProteomicsTelemetryResult.model_validate(emitted.model_dump(mode="python"), strict=True)
+
+    forged_dashboard = emitted.dashboards[0].model_copy(update={"title": "forged dashboard"})
+    forged = emitted.model_copy(update={"dashboards": (forged_dashboard,)})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValueError, match="exact request definitions"):
+        ProteomicsTelemetryResult.model_validate(forged.model_dump(mode="python"), strict=True)
+
+    assert emitted.telemetry_stream is not None
+    forged_stream = emitted.telemetry_stream.model_copy(
+        update={"samples": emitted.telemetry_stream.samples[:-1]}
+    )
+    forged = emitted.model_copy(update={"telemetry_stream": forged_stream})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValueError, match="cover every requested metric"):
+        ProteomicsTelemetryResult.model_validate(forged.model_dump(mode="python"), strict=True)
+    duplicate = emitted.telemetry_stream.samples[0].model_copy(
+        update={"sample_id": "m2705.sample.duplicate"}
+    )
+    forged_stream = emitted.telemetry_stream.model_copy(
+        update={"samples": (*emitted.telemetry_stream.samples, duplicate)}
+    )
+    forged = emitted.model_copy(update={"telemetry_stream": forged_stream})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValueError, match="exact request telemetry metrics"):
+        ProteomicsTelemetryResult.model_validate(forged.model_dump(mode="python"), strict=True)
+    forged_stream = emitted.telemetry_stream.model_copy(update={"stream_id": "m2705.stream.forged"})
+    forged = emitted.model_copy(update={"telemetry_stream": forged_stream})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValueError, match="exact request telemetry metrics"):
+        ProteomicsTelemetryResult.model_validate(forged.model_dump(mode="python"), strict=True)
+
     payload = result.model_dump(mode="json")
-    payload["status"] = "emitted"
+    payload["status"] = TelemetryStatus.EMITTED.value
     payload["telemetry_stream"] = _valid_stream(result.request).model_dump(mode="json")
     payload["dashboards"] = result.request.dashboard_definitions
     payload["alert"] = None
