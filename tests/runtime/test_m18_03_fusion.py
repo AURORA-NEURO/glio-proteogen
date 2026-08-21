@@ -266,3 +266,12 @@ def test_replay_rejects_resigned_semantic_mutation() -> None:
 
     with pytest.raises(m1803.M1803ReplayError, match="deterministic replay"):
         m1803.M1803Engine().replay(tampered)
+
+
+def test_service_replay_rejects_supplied_request_mismatch() -> None:
+    request = _request()
+    result = m1803.M1803Service().fuse(request)
+    altered = request.model_copy(update={"request_id": "request.m1803.altered"})
+
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        m1803.M1803Service().replay(result, altered)
