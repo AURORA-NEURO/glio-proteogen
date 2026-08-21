@@ -28,8 +28,14 @@ class M2003Service:
     def replay(
         self,
         result: ProteinSubtypeIntegratedEvidenceResult,
+        request: FuseProteinSubtypeEvidenceRequest | None = None,
     ) -> ProteinSubtypeIntegratedEvidenceResult:
-        return self._engine.replay(result)
+        replayed = self._engine.replay(result)
+        if request is not None and replayed.request.model_dump(mode="json") != request.model_dump(
+            mode="json"
+        ):
+            raise ValueError("replay request mismatch")  # noqa: TRY003
+        return replayed
 
 
 __all__ = ["M2003Service"]

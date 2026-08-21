@@ -310,3 +310,13 @@ def test_service_plugin_parity_and_descriptor_boundaries() -> None:
     assert plugin.descriptor.module_id == "GLIO-PROTEOGEN-M20-03"
     assert plugin.descriptor.parent_target == "protein subtype"
     assert plugin.run(request) == service.fuse(request)
+
+
+def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
+    request = _request()
+    result = M2003Service().fuse(request)
+    altered = request.model_copy(update={"request_id": "request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        M2003Service().replay(result, altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        M2003Plugin().replay(result, altered)
