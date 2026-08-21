@@ -13,6 +13,7 @@ from glio_proteogen.contracts.m22_05.canonical import result_payload_digest
 from glio_proteogen.kernel.models import UpstreamDecisionState
 from glio_proteogen.modules.c21_reference_material.m22_05_subgroup_equity_evaluator import (
     M2205AuthorizationError,
+    M2205Plugin,
     M2205ReplayError,
     M2205Service,
     create_app,
@@ -62,6 +63,17 @@ def test_replay_rejects_identifier_digest_and_request_tampering() -> None:
         service.replay(result.model_copy(update={"result_digest": "sha256:" + "f" * 64}))
     with pytest.raises(M2205ReplayError, match="request digest"):
         service.replay(result.model_copy(update={"request_digest": "sha256:" + "a" * 64}))
+
+
+def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
+    request = _request()
+    service = M2205Service()
+    result = service.evaluate(request)
+    altered = request.model_copy(update={"request_id": "request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.replay(result, altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        M2205Plugin(service).replay(result, altered)
 
 
 def test_api_verify_binds_supplied_request_before_replay() -> None:
