@@ -124,6 +124,8 @@ class MzIdentMlStructure:
     spectrum_reference_match_count: int = 0
     protein_reference_count: int = 0
     protein_reference_match_count: int = 0
+    peptide_reference_count: int = 0
+    peptide_reference_match_count: int = 0
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -131,6 +133,8 @@ class MzIdentMlStructure:
             "format": "mzidentml",
             "id_digest": self.id_digest,
             "pass_threshold_item_count": self.pass_threshold_item_count,
+            "peptide_reference_count": self.peptide_reference_count,
+            "peptide_reference_match_count": self.peptide_reference_match_count,
             "peptide_evidence_count": self.peptide_evidence_count,
             "protein_detection_hypothesis_count": self.protein_detection_hypothesis_count,
             "protein_reference_count": self.protein_reference_count,
@@ -273,7 +277,7 @@ def extract_mzidentml_structure(data: bytes) -> MzIdentMlStructure:
     )
 
 
-def bind_mzidentml_references(
+def bind_mzidentml_references(  # noqa: PLR0915
     data: bytes,
     structure: MzIdentMlStructure,
     *,
@@ -285,10 +289,12 @@ def bind_mzidentml_references(
     Structural counting alone cannot establish that an identification artifact
     belongs to the spectra and sequence catalogue being searched. This gate
     follows ``SpectrumIdentificationResult.spectrumID`` and
-    ``PeptideEvidence.dBSequence_ref`` through the local mzIdentML object graph,
-    rejecting unresolved references before the artifact can be reported as run
-    provenance. It still does not import mzIdentML scores or protein hypotheses
-    into the local search or inference computation.
+    ``SpectrumIdentificationItem.peptide_ref``,
+    ``PeptideEvidence.peptide_ref``, and ``PeptideEvidence.dBSequence_ref``
+    through the local mzIdentML object graph, rejecting missing or unresolved
+    references before the artifact can be reported as run provenance. It still
+    does not import mzIdentML scores or protein hypotheses into the local search
+    or inference computation.
     """
 
     if not isinstance(structure, MzIdentMlStructure):
@@ -302,16 +308,24 @@ def bind_mzidentml_references(
     root = _xml_root(data, "MzIdentML")
 
     db_sequences: dict[str, str] = {}
+    peptides: set[str] = set()
     for element in root.iter():
-        if _local_name(element.tag) != "DBSequence":
-            continue
-        identifier = element.attrib.get("id")
-        accession = element.attrib.get("accession")
-        if not identifier or not accession:
-            raise FormatError("mzIdentML DBSequence requires id and accession")
-        if identifier in db_sequences:
-            raise FormatError("mzIdentML DBSequence IDs must be unique")
-        db_sequences[identifier] = accession
+        local = _local_name(element.tag)
+        if local == "DBSequence":
+            identifier = element.attrib.get("id")
+            accession = element.attrib.get("accession")
+            if not identifier or not accession:
+                raise FormatError("mzIdentML DBSequence requires id and accession")
+            if identifier in db_sequences:
+                raise FormatError("mzIdentML DBSequence IDs must be unique")
+            db_sequences[identifier] = accession
+        elif local == "Peptide":
+            identifier = element.attrib.get("id")
+            if not identifier:
+                raise FormatError("mzIdentML Peptide requires id")
+            if identifier in peptides:
+                raise FormatError("mzIdentML Peptide IDs must be unique")
+            peptides.add(identifier)
 
     spectrum_references = tuple(
         element.attrib["spectrumID"]
@@ -328,16 +342,32 @@ def bind_mzidentml_references(
         raise FormatError("mzIdentML spectrumID references must be unique")
 
     protein_references: list[str] = []
+    peptide_references: list[str] = []
     for element in root.iter():
-        if _local_name(element.tag) != "PeptideEvidence":
-            continue
-        db_sequence_ref = element.attrib.get("dBSequence_ref")
-        if db_sequence_ref is None:
-            continue
-        accession = db_sequences.get(db_sequence_ref)
-        if accession is None:
-            raise FormatError("mzIdentML PeptideEvidence has an unresolved DBSequence_ref")
-        protein_references.append(accession)
+        local = _local_name(element.tag)
+        if local == "SpectrumIdentificationItem":
+            peptide_ref = element.attrib.get("peptide_ref")
+            if peptide_ref is None:
+                raise FormatError("mzIdentML SpectrumIdentificationItem requires peptide_ref")
+            if peptide_ref not in peptides:
+                raise FormatError(
+                    "mzIdentML SpectrumIdentificationItem has an unresolved peptide_ref"
+                )
+            peptide_references.append(peptide_ref)
+        elif local == "PeptideEvidence":
+            peptide_ref = element.attrib.get("peptide_ref")
+            if peptide_ref is None:
+                raise FormatError("mzIdentML PeptideEvidence requires peptide_ref")
+            if peptide_ref not in peptides:
+                raise FormatError("mzIdentML PeptideEvidence has an unresolved peptide_ref")
+            peptide_references.append(peptide_ref)
+            db_sequence_ref = element.attrib.get("dBSequence_ref")
+            if db_sequence_ref is None:
+                raise FormatError("mzIdentML PeptideEvidence requires dBSequence_ref")
+            accession = db_sequences.get(db_sequence_ref)
+            if accession is None:
+                raise FormatError("mzIdentML PeptideEvidence has an unresolved DBSequence_ref")
+            protein_references.append(accession)
     unknown_proteins = tuple(
         value for value in protein_references if value not in protein_catalogue
     )
@@ -350,4 +380,6 @@ def bind_mzidentml_references(
         spectrum_reference_match_count=len(spectrum_references),
         protein_reference_count=len(protein_references),
         protein_reference_match_count=len(protein_references),
+        peptide_reference_count=len(peptide_references),
+        peptide_reference_match_count=len(peptide_references),
     )
