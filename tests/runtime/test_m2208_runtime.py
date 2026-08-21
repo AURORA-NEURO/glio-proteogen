@@ -121,6 +121,17 @@ def test_replay_rejects_tampered_digest_and_identifier() -> None:
         M2208EvidenceGateEngine().replay(tampered_id)
 
 
+def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
+    request = _request()
+    service = M2208Service()
+    result = service.adjudicate(request)
+    altered = request.model_copy(update={"request_id": "request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.replay(result, altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        M2208Plugin(service).replay(result, altered)
+
+
 @pytest.mark.parametrize("mutation", ["release_record", "evidence"])
 def test_replay_rejects_self_rehashed_semantic_mutations(mutation: str) -> None:
     engine = M2208EvidenceGateEngine()
