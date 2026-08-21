@@ -337,6 +337,7 @@ class M0607CalibrationEngine:
         self,
         result: object,
         canonical_bytes: bytes | None = None,
+        request: object | None = None,
     ) -> CalibrateSelectiveProteinAbundanceVerification:
         try:
             typed = _RESULT_ADAPTER.validate_python(result, strict=True)
@@ -356,6 +357,13 @@ class M0607CalibrationEngine:
         ):
             content_verified = False
         verified = content_verified and deterministic_verified
+        if verified and request is not None:
+            try:
+                expected = self.calibrate(request).result
+            except (CalibrationAuthorizationError, CalibrationInputError, TypeError, ValueError):
+                verified = False
+            else:
+                verified = expected.model_dump(mode="json") == typed.model_dump(mode="json")
         return CalibrateSelectiveProteinAbundanceVerification(
             content_verified=content_verified,
             deterministic_verified=deterministic_verified,
