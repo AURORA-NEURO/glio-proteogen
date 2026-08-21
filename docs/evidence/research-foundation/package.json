@@ -1,5 +1,5 @@
 {
-  "base_commit": "ce4ac8bc",
+  "base_commit": "d1b2e248",
   "computation": {
     "caller_download_required": true,
     "clinical_or_mechanistic_claims": false,
@@ -53,7 +53,7 @@
     "production_module_wiring": false
   },
   "lane": "research-scientific-foundation",
-  "pipeline_commit": "94af6f7b",
+  "pipeline_commit": "d1b2e248",
   "source_fixture": {
     "api_url": "https://pdc.cancer.gov/graphql",
     "fixture": "tests/fixtures/research/pdc000204_snapshot.json",
@@ -79,22 +79,22 @@
     "isolated_import": true,
     "reproducible_builds": 2,
     "reproducible_hashes": {
-      "sdist": "b039a1aa261ee744698202d1a077131c412223354ffca53f82c1eaaa5a29a7b9",
-      "wheel": "1a185808890486da2f47d211d1a8ee14dcc28a14235a2a18394ff6f67f8aea63"
+      "sdist": "81ce5aada2148a1115d22a0a12f3f6ffe5bb4b8fdcfee58a61f541030607f212",
+      "wheel": "05ab2c3cb73e705ec768f12e85e80f237968ddd74f668230aa71f7d7c2dc9432"
     },
     "research_pipeline_verifier": "tools/verify_research_pipeline.py",
     "sdist": {
-      "bytes": 4558999,
+      "bytes": 4614061,
       "filename": "glio_proteogen-0.1.0.tar.gz",
       "members": 4658,
-      "sha256": "b039a1aa261ee744698202d1a077131c412223354ffca53f82c1eaaa5a29a7b9"
+      "sha256": "81ce5aada2148a1115d22a0a12f3f6ffe5bb4b8fdcfee58a61f541030607f212"
     },
     "source_date_epoch": 315532800,
     "wheel": {
-      "bytes": 3879552,
+      "bytes": 3918875,
       "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
       "members": 1991,
-      "sha256": "1a185808890486da2f47d211d1a8ee14dcc28a14235a2a18394ff6f67f8aea63"
+      "sha256": "05ab2c3cb73e705ec768f12e85e80f237968ddd74f668230aa71f7d7c2dc9432"
     }
   }
 }
