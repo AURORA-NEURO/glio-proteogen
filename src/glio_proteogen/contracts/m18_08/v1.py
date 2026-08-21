@@ -60,6 +60,17 @@ M1808_EVIDENCE_CLAIM: Final = (
 )
 
 
+def _artifact_identity(artifact: ArtifactReference) -> tuple[str, str, str, str]:
+    """Return the content identity that must be preserved across request bindings."""
+
+    return (
+        artifact.artifact_id,
+        artifact.version,
+        artifact.digest,
+        artifact.media_type,
+    )
+
+
 class ObservationStatus(StrEnum):
     PASS = "pass"  # noqa: S105
     WARNING = "warning"
@@ -242,34 +253,36 @@ class MonitorBiomarkerPanelTranslationHealthRequest(FrozenModel):
         artifact_ids = tuple(artifact.artifact_id for artifact in self.source_artifacts)
         if len(artifact_ids) != len(set(artifact_ids)):
             raise ValueError("request source artifacts must be unique")
-        source_ids = set(artifact_ids)
-        if self.upstream_result.artifact_id not in source_ids:
-            raise ValueError("upstream result must be listed in source artifacts")
-        if self.rollback_policy.rollback_artifact.artifact_id not in source_ids:
-            raise ValueError("rollback artifact must be listed in source artifacts")
-        evidence_ids = {
-            evidence.reference.artifact_id for item in self.telemetry for evidence in item.evidence
+        source_by_id = {
+            artifact.artifact_id: _artifact_identity(artifact) for artifact in self.source_artifacts
         }
-        evidence_ids.update(
-            evidence.reference.artifact_id
-            for item in self.support_drift
-            for evidence in item.evidence
+        upstream_identity = source_by_id.get(self.upstream_result.artifact_id)
+        if upstream_identity is None:
+            raise ValueError("upstream result must be listed in source artifacts")
+        if _artifact_identity(self.upstream_result) != upstream_identity:
+            raise ValueError("upstream result must preserve exact source artifact identity")
+        rollback_identity = source_by_id.get(self.rollback_policy.rollback_artifact.artifact_id)
+        if rollback_identity is None:
+            raise ValueError("rollback artifact must be listed in source artifacts")
+        if _artifact_identity(self.rollback_policy.rollback_artifact) != rollback_identity:
+            raise ValueError("rollback artifact must preserve exact source artifact identity")
+
+        evidence_groups = (
+            *(item.evidence for item in self.telemetry),
+            *(item.evidence for item in self.support_drift),
+            *(item.evidence for item in self.workflow_effects),
+            *(item.evidence for item in self.discrepancies),
+            self.rollback_policy.evidence,
         )
-        evidence_ids.update(
-            evidence.reference.artifact_id
-            for item in self.workflow_effects
-            for evidence in item.evidence
-        )
-        evidence_ids.update(
-            evidence.reference.artifact_id
-            for item in self.discrepancies
-            for evidence in item.evidence
-        )
-        evidence_ids.update(
-            evidence.reference.artifact_id for evidence in self.rollback_policy.evidence
-        )
-        if not evidence_ids <= source_ids:
-            raise ValueError("monitor evidence references an unknown source artifact")
+        for evidence_group in evidence_groups:
+            for evidence in evidence_group:
+                source_identity = source_by_id.get(evidence.reference.artifact_id)
+                if source_identity is None:
+                    raise ValueError("monitor evidence references an unknown source artifact")
+                if _artifact_identity(evidence.reference) != source_identity:
+                    raise ValueError(
+                        "monitor evidence must preserve exact source artifact identity"
+                    )
         return self
 
 

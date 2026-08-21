@@ -139,6 +139,36 @@ def test_contract_rejects_source_binding_closure_violations() -> None:
         type(request).model_validate_json(canonical_json_bytes(payload), strict=True)
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("version", "9.9.9"),
+        ("digest", "sha256:" + "f" * 64),
+        ("media_type", "application/forged-artifact"),
+    ],
+)
+def test_contract_rejects_lookalike_nested_evidence_identity(field: str, value: str) -> None:
+    request = _request()
+    payload = request.model_dump(mode="json")
+    payload["telemetry"][0]["evidence"][0]["reference"][field] = value
+
+    with pytest.raises(ValidationError, match="exact source artifact identity"):
+        type(request).model_validate_json(canonical_json_bytes(payload), strict=True)
+
+
+@pytest.mark.parametrize("path", ["upstream_result", "rollback_policy"])
+def test_contract_rejects_lookalike_bound_artifact_identity(path: str) -> None:
+    request = _request()
+    payload = request.model_dump(mode="json")
+    target = payload[path]
+    if path == "rollback_policy":
+        target = target["rollback_artifact"]
+    target["digest"] = "sha256:" + "e" * 64
+
+    with pytest.raises(ValidationError, match="exact source artifact identity"):
+        type(request).model_validate_json(canonical_json_bytes(payload), strict=True)
+
+
 def test_contract_rejects_health_and_result_identity_collisions() -> None:
     request = _request()
     result = m1808.M1808TranslationMonitoringEngine().infer(request)
