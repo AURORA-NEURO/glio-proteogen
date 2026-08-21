@@ -353,6 +353,12 @@ class M1803Engine:
             raise M1803ReplayError("M18-03 result request digest mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M1803ReplayError("M18-03 result payload digest mismatch")  # noqa: TRY003
+        try:
+            expected = self.adapt(result.request)
+        except Exception as exc:
+            raise M1803ReplayError from exc
+        if expected.model_dump(mode="json") != result.model_dump(mode="json"):
+            raise M1803ReplayError("M18-03 deterministic replay result mismatch")  # noqa: TRY003
         return result
 
 

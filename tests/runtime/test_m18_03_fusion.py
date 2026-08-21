@@ -17,6 +17,7 @@ from glio_proteogen.contracts.m18_03 import (
     SourceContribution,
     SourceKind,
 )
+from glio_proteogen.contracts.m18_03.canonical import result_payload_digest
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
@@ -180,7 +181,7 @@ def test_attributable_fusion_integrates_and_replays() -> None:
     assert result.integrated_evidence.contributions[0].source_id == "source.proteome"
     assert result.parent_target == "biomarker panel"
     assert result.emits_parent is False
-    assert result.human_review_required is False
+    assert result.human_review_required is True
     assert m1803.M1803Engine().replay(result) == result
 
 
@@ -245,7 +246,23 @@ def test_upstream_media_type_is_strict() -> None:
 
 def test_tampered_result_digest_is_rejected() -> None:
     result = m1803.M1803Engine().adapt(_request())
-    tampered = result.model_copy(update={"human_review_required": True})
+    tampered = result.model_copy(update={"human_review_required": False})
 
     with pytest.raises(m1803.M1803ReplayError, match="payload digest"):
+        m1803.M1803Engine().replay(tampered)
+
+
+def test_replay_rejects_resigned_semantic_mutation() -> None:
+    result = m1803.M1803Engine().adapt(_request())
+    assert result.integrated_evidence is not None
+    tampered = result.model_copy(
+        update={
+            "integrated_evidence": result.integrated_evidence.model_copy(
+                update={"aggregate_claim": "tampered"}
+            )
+        }
+    )
+    tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+
+    with pytest.raises(m1803.M1803ReplayError, match="deterministic replay"):
         m1803.M1803Engine().replay(tampered)
