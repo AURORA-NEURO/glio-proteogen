@@ -25,5 +25,10 @@ class M1306Service:
     def execute(self, request: object) -> ProteotypePerturbationSensitivityResult:
         return self._engine.compute(request)
 
+    def verify(
+        self, result: ProteotypePerturbationSensitivityResult
+    ) -> ProteotypePerturbationSensitivityResult:
+        return self._engine.verify(result)
+
 
 __all__ = ["M1306Service"]
