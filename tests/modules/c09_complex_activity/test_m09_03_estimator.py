@@ -13,6 +13,7 @@ from glio_proteogen.contracts.m09_03 import (
     ComplexActivityBaselineEstimate,
     EstimateComplexActivityBaselineRequest,
 )
+from glio_proteogen.contracts.m09_03.canonical import result_payload_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     ConsentReference,
@@ -139,6 +140,17 @@ def test_tamper_is_rejected_without_mutating_result() -> None:
     assert not engine.verify(tampered, built.canonical_bytes)
     assert built.result.estimate is not None
     assert built.result.estimate.score != 0.0
+
+
+def test_replay_rejects_self_rehashed_estimate_mutation() -> None:
+    engine = m0903.M0903BaselineEstimator()
+    built = engine.construct(_request())
+    assert built.result.estimate is not None
+    forged_estimate = built.result.estimate.model_copy(update={"score": 0.0})
+    forged = built.result.model_copy(update={"estimate": forged_estimate})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    assert not engine.verify(forged)
 
 
 def test_preflight_rejects_withheld_consent_and_rejected_quality() -> None:

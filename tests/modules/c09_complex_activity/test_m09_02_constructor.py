@@ -18,6 +18,7 @@ from glio_proteogen.contracts.m09_02 import (
     RepresentationTransformationKind,
     RepresentationValueKind,
 )
+from glio_proteogen.contracts.m09_02.canonical import result_payload_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     ConsentReference,
@@ -156,6 +157,17 @@ def test_tamper_is_rejected_without_mutating_result() -> None:
     tampered["features"][0]["values"] = (0.0, 0.0)
     assert not m0902.M0902RepresentationConstructor().verify(tampered, built.canonical_bytes)
     assert built.result.features[0].values != (0.0, 0.0)
+
+
+def test_replay_rejects_self_rehashed_feature_mutation() -> None:
+    engine = m0902.M0902RepresentationConstructor()
+    built = engine.construct(_request())
+    feature = built.result.features[0]
+    forged_feature = feature.model_copy(update={"values": (0.0, 0.0)})
+    forged = built.result.model_copy(update={"features": (forged_feature,)})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    assert not engine.verify(forged)
 
 
 def test_preflight_rejects_withheld_consent() -> None:
