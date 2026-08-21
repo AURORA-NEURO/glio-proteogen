@@ -238,6 +238,22 @@ def test_target_decoy_summary_is_explicit_and_threshold_bound() -> None:
         summarize_target_decoy((target,), q_value_threshold=1.1)
 
 
+def test_fdr_summary_rejects_forged_counts_ratio_and_q_receipt() -> None:
+    target = Psm("scan=1", "MPEPTIDER", ("P1",), 4.0, 3, decoy=False)
+    decoy = Psm("scan=2", "MPEPTIDER", ("DECOY_P1",), 3.0, 3, decoy=True)
+    summary = summarize_target_decoy((target, decoy), q_value_threshold=0.01)
+    for updates in (
+        {"spectrum_winners": 1},
+        {"accepted_targets": 2},
+        {"decoy_to_target_ratio": 0.0},
+        {"max_accepted_q_value": 0.02},
+        {"q_value_threshold": -0.1},
+        {"method": "bad method"},
+    ):
+        with pytest.raises(ValueError):
+            replace(summary, **updates)
+
+
 def test_target_only_fdr_abstains_without_decoy_error_evidence() -> None:
     target = Psm("target-only", "PEPTIDER", ("P1",), 4.0, 3, decoy=False)
     scored = target_decoy_qvalues((target,))

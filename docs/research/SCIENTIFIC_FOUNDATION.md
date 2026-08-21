@@ -66,6 +66,10 @@ C03/C04 computation contract:
   target q-values are then null and the pipeline/group projection abstains from reporting
   targets while retaining the candidate and its descriptive receipt. It never treats an
   unobserved decoy count as a zero FDR estimate.
+- `FdrSummary` closes its winner counts, accepted-target count, descriptive
+  decoy/target ratio, threshold, and maximum accepted q-value at construction,
+  so serialized spectrum-level FDR evidence cannot carry an internally
+  inconsistent or above-threshold receipt.
 - The composed pipeline requires a selected-ion precursor m/z and charge for MS2
   matching and applies a caller-declared integer precursor tolerance bounded to
   0–500 ppm. The tolerance is applied before candidate competition and is bound into

@@ -184,6 +184,51 @@ class FdrSummary:
     max_accepted_q_value: float | None
     decoy_to_target_ratio: float | None
 
+    def __post_init__(self) -> None:
+        if (
+            type(self.method) is not str
+            or not self.method
+            or len(self.method) > 128
+            or self.method != self.method.strip()
+            or any(character.isspace() or ord(character) < 32 for character in self.method)
+        ):
+            raise ValueError("FDR summary method must be a bounded non-whitespace string")
+        for value, field in (
+            (self.spectrum_winners, "spectrum_winners"),
+            (self.target_winners, "target_winners"),
+            (self.decoy_winners, "decoy_winners"),
+            (self.collision_winners, "collision_winners"),
+            (self.accepted_targets, "accepted_targets"),
+        ):
+            if type(value) is not int or value < 0:
+                raise ValueError(f"FDR summary {field} must be a non-negative integer")
+        if (
+            self.target_winners + self.decoy_winners + self.collision_winners
+            != self.spectrum_winners
+        ):
+            raise ValueError("FDR summary winner counts do not close")
+        if self.accepted_targets > self.target_winners:
+            raise ValueError("FDR summary accepted targets exceed target winners")
+        if not _is_finite_real(self.q_value_threshold) or not 0 <= self.q_value_threshold <= 1:
+            raise ValueError(
+                "FDR summary q-value threshold must be finite and between zero and one"
+            )
+        if self.accepted_targets == 0:
+            if self.max_accepted_q_value is not None:
+                raise ValueError("FDR summary max accepted q-value requires accepted targets")
+        elif (
+            not _is_finite_real(self.max_accepted_q_value)
+            or not 0 <= self.max_accepted_q_value <= self.q_value_threshold
+        ):
+            raise ValueError("FDR summary max accepted q-value is outside the declared threshold")
+        expected_ratio = (
+            (self.decoy_winners + self.collision_winners) / self.target_winners
+            if self.target_winners
+            else None
+        )
+        if self.decoy_to_target_ratio != expected_ratio:
+            raise ValueError("FDR summary decoy-to-target ratio is not derived")
+
     def as_dict(self) -> dict[str, object]:
         return {
             "accepted_targets": self.accepted_targets,
