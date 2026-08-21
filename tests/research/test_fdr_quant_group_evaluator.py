@@ -210,6 +210,38 @@ def test_group_verifier_rejects_rehashed_decoy_acceptance() -> None:
         verify_protein_group_fdr_summary(forged, forged_summary)
 
 
+def test_group_verifier_rejects_rehashed_acceptance_above_threshold() -> None:
+    candidates, summary = infer_protein_group_candidates(
+        (
+            Psm("target", "PEPTIDE", ("P1",), 10.0, 3, decoy=False),
+            Psm("decoy", "DECOY_PEPTIDE", ("DECOY_P2",), 1.0, 3, decoy=True),
+        ),
+        q_value_threshold=0.01,
+    )
+    forged = tuple(
+        replace(candidate, acceptance="accepted", q_value=0.5)
+        if candidate.status == "target"
+        else candidate
+        for candidate in candidates
+    )
+    partition_digest = sha256(
+        json.dumps(
+            [candidate.as_dict() for candidate in forged],
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode()
+    ).hexdigest()
+    forged_summary = replace(
+        summary,
+        accepted_targets=1,
+        max_accepted_q_value=0.5,
+        group_partition_digest=partition_digest,
+    )
+
+    with pytest.raises(ValueError, match="exceeds the group-FDR threshold"):
+        verify_protein_group_fdr_summary(forged, forged_summary)
+
+
 def test_decoy_only_group_receipt_abstains_undefined_ratio() -> None:
     candidates, summary = infer_protein_group_candidates(
         (Psm("decoy", "DECOY_PEPTIDE", ("DECOY_P2",), 3.0, 3, decoy=True),),
@@ -285,6 +317,8 @@ def test_group_receipt_verifier_rejects_structural_and_summary_mutations() -> No
     rejects(ordered, decoy_candidates=99)
     rejects(ordered, collision_candidates=99)
     rejects(ordered, accepted_targets=99)
+    rejects(ordered, q_value_threshold=-1.0)
+    rejects(ordered, max_accepted_q_value=0.5)
     rejects(ordered, error_candidates=99)
     rejects(ordered, target_denominator=99)
     rejects(ordered, evidence_status="abstained_no_decoy_evidence")

@@ -392,6 +392,8 @@ def verify_protein_group_fdr_summary(  # noqa: PLR0915
         raise ValueError("protein-group candidates must be sorted by accession")
     if len({item.accessions for item in candidates}) != len(candidates):
         raise ValueError("protein-group accessions must be unique")
+    if not _is_finite_real(summary.q_value_threshold) or not 0 <= summary.q_value_threshold <= 1:
+        raise ValueError("group-FDR q-value threshold must be finite and between zero and one")
     for candidate in candidates:
         if not candidate.accessions or tuple(sorted(candidate.accessions)) != candidate.accessions:
             raise ValueError("protein-group accessions must be non-empty and sorted")
@@ -433,6 +435,8 @@ def verify_protein_group_fdr_summary(  # noqa: PLR0915
             candidate.q_value is None or candidate.identifiability != "unique_peptide_supported"
         ):
             raise ValueError("accepted target groups require unique support and a q-value")
+        elif candidate.acceptance == "accepted" and candidate.q_value > summary.q_value_threshold:
+            raise ValueError("accepted target q-value exceeds the group-FDR threshold")
         if candidate.status == "collision" and (
             candidate.q_value is not None or candidate.acceptance != "abstained"
         ):
@@ -461,6 +465,14 @@ def verify_protein_group_fdr_summary(  # noqa: PLR0915
         raise ValueError("group-FDR collision count does not match candidates")
     if summary.accepted_targets != sum(item.acceptance == "accepted" for item in candidates):
         raise ValueError("group-FDR accepted count does not match candidates")
+    accepted_q_values = tuple(
+        item.q_value
+        for item in candidates
+        if item.acceptance == "accepted" and item.q_value is not None
+    )
+    expected_max_accepted_q = max(accepted_q_values) if accepted_q_values else None
+    if summary.max_accepted_q_value != expected_max_accepted_q:
+        raise ValueError("group-FDR maximum accepted q-value does not match candidates")
     expected_errors = summary.decoy_candidates + summary.collision_candidates
     if summary.error_candidates != expected_errors:
         raise ValueError("group-FDR error count does not match candidates")
