@@ -11,6 +11,7 @@ from glio_proteogen.contracts.m23_05 import CoverageStatus, EquityStatus, Evalua
 from glio_proteogen.kernel.models import UpstreamDecisionState
 from glio_proteogen.modules.c21_reference_material.m23_05_subgroup_equity_evaluator import (
     M2305AuthorizationError,
+    M2305Plugin,
     M2305ReplayError,
     M2305Service,
     evaluate_variant_peptide_subgroup_equity,
@@ -88,6 +89,17 @@ def test_replay_rejects_identifier_digest_and_request_tampering() -> None:
         service.replay(result.model_copy(update={"result_digest": "sha256:" + "f" * 64}))
     with pytest.raises(M2305ReplayError, match="request digest"):
         service.replay(result.model_copy(update={"request_digest": "sha256:" + "a" * 64}))
+
+
+def test_replay_rejects_supplied_request_mismatch_at_service_and_plugin() -> None:
+    request = _request()
+    service = M2305Service()
+    result = service.evaluate(request)
+    altered = request.model_copy(update={"request_id": "request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.replay(result, altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        M2305Plugin(service).replay(result, altered)
 
 
 def test_authorization_fails_closed_before_material_traversal() -> None:
