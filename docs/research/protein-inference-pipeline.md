@@ -35,7 +35,10 @@ one deterministic, auditable path:
    m/z slots are ignored and an all-zero spectrum abstains. Overlapping
    tolerance windows use a deterministic maximum-cardinality, minimum-total-error
    one-to-one assignment rather than consuming peaks in theoretical-ion iteration
-   order; this prevents a valid later ion from being erased by a greedy match.
+   order; this prevents a valid later ion from being erased by a greedy match. Equal-m/z
+   observations are canonically ordered by descending intensity before stable index ordering
+   for remaining ties because matched intensity contributes to the PSM score, so permuting a
+   paired peak array cannot change the matched signal or result digest.
    Derived L2 normalization, matched-intensity sums, and candidate scores must remain
    finite; if finite input peaks overflow a derived score, that spectrum/candidate
    abstains instead of emitting a NaN or infinite PSM that would fail at the FDR boundary.

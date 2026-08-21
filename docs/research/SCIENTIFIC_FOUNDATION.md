@@ -33,8 +33,10 @@ C03/C04 computation contract:
   search or protein grouping.
 - `search_spectrum` scores theoretical b/y fragments against observed peaks. Overlapping
   fragment-tolerance windows are resolved by a deterministic maximum-cardinality, minimum-error
-  one-to-one assignment, with stable m/z/index ordering for exact ties; this avoids greedy peak
-  consumption changing matched-ion counts. Direct candidate search rejects non-finite or
+  one-to-one assignment; equal-m/z observations are canonically ordered by descending intensity
+  before stable index ordering for remaining ties, because matched intensity contributes to the
+  PSM score. This avoids greedy peak consumption or paired-array permutation changing the result.
+  Direct candidate search rejects non-finite or
   non-positive observed m/z values, so a broad tolerance cannot turn placeholder zero peaks into
   fragment evidence. The assignment algorithm version is bound into the composed pipeline
   configuration and replay digest. It is an auditable matching score, not a calibrated probability.
