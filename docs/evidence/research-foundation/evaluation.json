@@ -1517,7 +1517,7 @@
       {
         "id": "qc_abstention",
         "passed": true,
-        "result_digest": "30425664f78af5fd375ef57b9bf599354e7ed6115371fbb45f1f742f39ea4b2a",
+        "result_digest": "679e665e8e6043b817bba6eaf57c4cb7545ac53e63add1e381580263e553202b",
         "missing_cells": 1,
         "projection": {
           "child_result_digests": [
@@ -1647,7 +1647,7 @@
               ],
               [
                 null,
-                null
+                20.0
               ]
             ]
           ],
@@ -1662,7 +1662,7 @@
               ]
             ]
           ],
-          "result_digest": "30425664f78af5fd375ef57b9bf599354e7ed6115371fbb45f1f742f39ea4b2a",
+          "result_digest": "679e665e8e6043b817bba6eaf57c4cb7545ac53e63add1e381580263e553202b",
           "sample_ids": [
             "qc-absent",
             "qc-present"
@@ -1722,8 +1722,8 @@
           "label_qc": [
             {
               "cohort_label": "locked-cohort",
-              "mad_intensity": null,
-              "median_intensity": null,
+              "mad_intensity": 0.0,
+              "median_intensity": 20.0,
               "missing_cells": 1,
               "missingness_rate": 0.5,
               "observed_cells": 1,
@@ -1743,11 +1743,11 @@
               "group_accessions": [
                 "P1"
               ],
-              "mad_normalized_intensity": null,
-              "median_normalized_intensity": null,
-              "missing_replicates": 2,
-              "missingness_rate": 1.0,
-              "observed_replicates": 0,
+              "mad_normalized_intensity": 0.0,
+              "median_normalized_intensity": 20.0,
+              "missing_replicates": 1,
+              "missingness_rate": 0.5,
+              "observed_replicates": 1,
               "status": "abstained_missingness",
               "independent_observed_replicates": 0
             }
@@ -1790,7 +1790,7 @@
             ]
           },
           "evidence_bundle": {
-            "digest": "0c7625dbbf856957713452ac54f1cc6d8606e84f36713d35b53b353139cbe20a",
+            "digest": "f8c566b95b755197b02d84163b08d1196ed78fda4b7494857c4fbd9944a13e60",
             "limitations": [
               "External evidence provenance is recorded but issuer truth is not authenticated.",
               "Computed spectra/search/quantification/inference objects require owner-approved production ABI.",
@@ -1825,7 +1825,7 @@
                 "source": "glio_proteogen.research.cohort"
               },
               {
-                "digest": "5587cb4bea8b25ad87b91b0f8dd11cfdc4d9a8751a4b6ddd9c21fe0f37d4a34a",
+                "digest": "9ccc4d92db48ed742878a44de1636cb4c984fde17464db0813ff70b10321bd63",
                 "evidence_id": "cohort.matrix.v1",
                 "kind": "computed_matrix",
                 "payload": {
@@ -1852,7 +1852,7 @@
                       ],
                       [
                         null,
-                        null
+                        20.0
                       ]
                     ]
                   ],
@@ -2016,7 +2016,7 @@
                 "source": "glio_proteogen.research.cohort"
               },
               {
-                "digest": "d811006696c552b22ffdb03ac47086e3e4bf4e09914a187f8e187cc4d2313355",
+                "digest": "b94408b2cd32c0201930a43ab0dd170e4cedccc5e5557603389db08d6853ab5a",
                 "evidence_id": "cohort.qc.v1",
                 "kind": "descriptive_qc",
                 "payload": {
@@ -2038,11 +2038,11 @@
                       "group_accessions": [
                         "P1"
                       ],
-                      "mad_normalized_intensity": null,
-                      "median_normalized_intensity": null,
-                      "missing_replicates": 2,
-                      "missingness_rate": 1.0,
-                      "observed_replicates": 0,
+                      "mad_normalized_intensity": 0.0,
+                      "median_normalized_intensity": 20.0,
+                      "missing_replicates": 1,
+                      "missingness_rate": 0.5,
+                      "observed_replicates": 1,
                       "status": "abstained_missingness",
                       "independent_observed_replicates": 0
                     }
@@ -2050,8 +2050,8 @@
                   "label_qc": [
                     {
                       "cohort_label": "locked-cohort",
-                      "mad_intensity": null,
-                      "median_intensity": null,
+                      "mad_intensity": 0.0,
+                      "median_intensity": 20.0,
                       "missing_cells": 1,
                       "missingness_rate": 0.5,
                       "observed_cells": 1,
@@ -6067,20 +6067,20 @@
     "iterations": 10,
     "percentile_method": "nearest_rank",
     "samples_ns": [
-      1362600,
-      958300,
-      870800,
-      874900,
-      1114900,
-      969700,
-      882300,
-      892500,
-      1003600,
-      920400
+      912800,
+      917700,
+      873000,
+      844600,
+      886100,
+      948000,
+      937700,
+      893900,
+      865800,
+      1079400
     ],
-    "mean_ns": 985000.0,
-    "median_ns": 958300,
-    "p95_ns": 1362600,
+    "mean_ns": 915900.0,
+    "median_ns": 912800,
+    "p95_ns": 1079400,
     "result_digest": "313eda678caf8b273cc70a69ca7934355b812e0459da45719bb5e86716194c1a"
   },
   "coverage": {
