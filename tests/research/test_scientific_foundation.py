@@ -1069,6 +1069,25 @@ def test_protein_group_candidate_exposes_shared_only_identifiability() -> None:
     assert candidates[0].as_dict()["identifiability"] == "shared_only_ambiguous"
 
 
+def test_protein_group_fdr_undefined_ratio_is_explicit_for_decoy_only_and_collision_only() -> None:
+    decoy = Psm("decoy-only", "PEPTIDER", ("DECOY_P1",), 5.0, 3, decoy=True)
+    _, decoy_summary = infer_protein_group_candidates((decoy,), q_value_threshold=0.01)
+    assert decoy_summary.target_candidates == 0
+    assert decoy_summary.decoy_to_target_ratio is None
+    collision = Psm(
+        "collision-only",
+        "PEPTIDER",
+        ("P1", "DECOY_P1"),
+        5.0,
+        3,
+        decoy=False,
+        target_decoy_collision=True,
+    )
+    _, collision_summary = infer_protein_group_candidates((collision,), q_value_threshold=0.01)
+    assert collision_summary.target_candidates == 0
+    assert collision_summary.decoy_to_target_ratio is None
+
+
 class _FakeResponse:
     def __init__(self, payload: bytes, *, content_type: str = "application/mzml") -> None:
         self.payload = payload
