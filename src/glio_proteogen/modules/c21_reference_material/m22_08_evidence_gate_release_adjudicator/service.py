@@ -45,7 +45,13 @@ class M2208Service:
     def replay(
         self,
         result: ProteinRnaDiscordanceEvidenceGateResult,
+        request: AdjudicateProteinRnaDiscordanceEvidenceGateRequest | None = None,
     ) -> ProteinRnaDiscordanceEvidenceGateResult:
+        if request is not None:
+            result_request = result.request.model_dump(mode="json")
+            supplied_request = request.model_dump(mode="json")
+            if result_request != supplied_request:
+                raise ValueError
         return self._engine.replay(result)
 
 

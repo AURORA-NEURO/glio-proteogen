@@ -42,7 +42,7 @@ def test_fastapi_schema_validate_adjudicate_verify_parity() -> None:
     result = adjudicated.json()
     verified = client.post(
         "/v1/modules/M22-08/verify",
-        json=result,
+        json={"request": request.model_dump(mode="json"), "result": result},
     )
     assert verified.status_code == HTTPStatus.OK
     assert verified.json()["verified"] is True
@@ -58,6 +58,20 @@ def test_fastapi_sanitizes_invalid_request() -> None:
     assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
     assert "secret_submission" not in response.text
     assert "M22-08 contract" in response.text
+
+
+def test_fastapi_verify_binds_supplied_request() -> None:
+    request = _request()
+    client = TestClient(m2208_api.create_app())
+    result = client.post(
+        "/v1/modules/M22-08/adjudicate", json=request.model_dump(mode="json")
+    ).json()
+    forged_request = request.model_copy(update={"request_id": "request-m2208-forged"})
+    response = client.post(
+        "/v1/modules/M22-08/verify",
+        json={"request": forged_request.model_dump(mode="json"), "result": result},
+    )
+    assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
 
 def test_typer_export_validate_adjudicate_verify_and_no_overwrite(tmp_path: Path) -> None:
