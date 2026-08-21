@@ -328,9 +328,9 @@ def _validated_result() -> ProteotypeUpstreamResolutionResult:
         bundle=bundle,
         compatibility_report=report,
         support_decision=SupportDecision(
-            status=SupportStatus.SUPPORTED,
-            reason_code="supported_upstream",
-            rationale="All selected upstream candidates satisfy the locked contract.",
+            status=SupportStatus.REVIEW_REQUIRED,
+            reason_code="compatible_upstream_review",
+            rationale="Caller-declared compatibility is retained for human review.",
         ),
         uncertainty=_uncertainty(),
         provenance=_provenance(request),
@@ -341,6 +341,7 @@ def _validated_result() -> ProteotypeUpstreamResolutionResult:
                 statement="The M19-01 ABI remains provisional pending owner confirmation.",
             ),
         ),
+        human_review_required=True,
     )
     digest = result_payload_digest(provisional)
     return ProteotypeUpstreamResolutionResult.model_validate(

@@ -24,6 +24,8 @@ _CONTROL_COUNT = 7
 def test_supported_candidate_is_validated_and_bound_to_proteotype() -> None:
     result = m1901.M1901Engine().resolve(_request())
     assert result.status is ResolverStatus.VALIDATED
+    assert result.support_decision.status is SupportStatus.REVIEW_REQUIRED
+    assert result.human_review_required is True
     assert result.bundle is not None
     assert result.compatibility_report.selected_candidate_ids == ("candidate.proteome",)
     assert result.parent_target == "proteotype"
