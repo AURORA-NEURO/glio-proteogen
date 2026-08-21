@@ -329,6 +329,9 @@ class M2002Engine:
             raise M2002ReplayError("M20-02 result identifier mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M2002ReplayError("M20-02 result payload digest mismatch")  # noqa: TRY003
+        expected = self.resolve(result.request)
+        if expected.model_dump(mode="json") != result.model_dump(mode="json"):
+            raise M2002ReplayError("M20-02 deterministic replay result mismatch")  # noqa: TRY003
         return result
 
 
@@ -345,3 +348,4 @@ __all__ = [
     "preflight_m2002_authorization",
     "reconcile_protein_subtype_sources",
 ]
+

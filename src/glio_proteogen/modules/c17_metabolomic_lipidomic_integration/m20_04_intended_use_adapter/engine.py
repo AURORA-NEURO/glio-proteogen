@@ -406,7 +406,11 @@ class M2004Engine:
             raise M2004ReplayError("M20-04 result request digest mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M2004ReplayError("M20-04 result payload digest mismatch")  # noqa: TRY003
-        return _RESULT_ADAPTER.validate_python(result, strict=True)
+        validated = _RESULT_ADAPTER.validate_python(result, strict=True)
+        expected = self.adapt(validated.request)
+        if expected.model_dump(mode="json") != validated.model_dump(mode="json"):
+            raise M2004ReplayError("M20-04 deterministic replay result mismatch")  # noqa: TRY003
+        return validated
 
 
 def adapt_protein_subtype_intended_use(candidate: object) -> ProteinSubtypeIntendedUseAdapterResult:
@@ -420,3 +424,4 @@ __all__ = [
     "adapt_protein_subtype_intended_use",
     "preflight_m2004_authorization",
 ]
+

@@ -15,6 +15,7 @@ from glio_proteogen.contracts.m20_02 import (
     AlignmentStatus,
     AlignProteinSubtypeSourcesRequest,
 )
+from glio_proteogen.contracts.m20_02.canonical import result_payload_digest
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
@@ -181,6 +182,10 @@ def test_replay_rejects_tampered_result() -> None:
         engine.replay(result.model_copy(update={"result_id": "result.tampered"}))
     with pytest.raises(M2002ReplayError, match="payload digest"):
         engine.replay(result.model_copy(update={"result_digest": "sha256:" + "0" * 64}))
+    semantic = result.model_copy(update={"human_review_required": not result.human_review_required})
+    semantic = semantic.model_copy(update={"result_digest": result_payload_digest(semantic)})
+    with pytest.raises(M2002ReplayError, match="deterministic replay"):
+        engine.replay(semantic)
 
 
 def test_preflight_rejects_missing_or_unsafe_control() -> None:
@@ -213,3 +218,4 @@ def test_service_and_plugin_share_strict_boundary() -> None:
     assert plugin.descriptor.all_omics_fusion is False
     assert plugin.descriptor.kinase_activity is False
     assert plugin.descriptor.treatment_recommendation is False
+
