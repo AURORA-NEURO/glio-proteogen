@@ -30,7 +30,7 @@ from glio_proteogen.contracts.m19_02 import (
     ProteotypeAlignmentResult,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
-from glio_proteogen.kernel.models import IdentityLineageState
+from glio_proteogen.kernel.models import IdentityLineageState, SupportStatus
 from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
     m19_02_cross_source_alignment as m1902,
 )
@@ -228,9 +228,17 @@ def evaluate() -> EvaluationReport:
                 ),
                 "all seven uncertainty dimensions remain explicit",
             ),
+            EvalCheck(
+                "aligned.review_only_support",
+                aligned.support_decision.status is SupportStatus.REVIEW_REQUIRED
+                and aligned.human_review_required,
+                "aligned caller-declared evidence remains review-only",
+            ),
         )
     )
-    tampered = results["replay_tamper"].model_copy(update={"human_review_required": True})
+    tampered = results["replay_tamper"].model_copy(
+        update={"result_id": "result.tampered.semantic"}
+    )
     replay_denied = False
     try:
         engine.replay(tampered)

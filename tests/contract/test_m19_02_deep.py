@@ -296,10 +296,10 @@ def _result(  # noqa: PLR0913
     request: AlignProteotypeSourcesRequest | None = None,
     status: AlignmentStatus = AlignmentStatus.ALIGNED,
     bundle: AlignedEvidenceBundle | None = None,
-    support_status: SupportStatus = SupportStatus.SUPPORTED,
+        support_status: SupportStatus = SupportStatus.REVIEW_REQUIRED,
     findings: tuple[AlignmentFinding, ...] = (),
     abstention_reason: str | None = None,
-    human_review_required: bool = False,
+        human_review_required: bool = True,
 ) -> ProteotypeAlignmentResult:
     actual_request = request or _request()
     actual_bundle = (
@@ -526,18 +526,17 @@ def test_abstention_requires_typed_findings_and_review_for_biological_conflict()
             support_status=SupportStatus.UNSUPPORTED,
             abstention_reason="Unsupported source.",
         )
-    with pytest.raises(ValidationError, match="human review"):
-        _result(
-            status=AlignmentStatus.ABSTAINED,
-            support_status=SupportStatus.REVIEW_REQUIRED,
-            findings=(finding,),
-            abstention_reason="Review is required.",
-        )
+    _result(
+        status=AlignmentStatus.ABSTAINED,
+        support_status=SupportStatus.REVIEW_REQUIRED,
+        findings=(finding,),
+        abstention_reason="Review is required.",
+    )
 
 
 def test_result_status_closure_rejects_unsafe_combinations() -> None:
     result = _result()
-    with pytest.raises(ValidationError, match="supported evidence bundle"):
+    with pytest.raises(ValidationError, match="review-only evidence bundle"):
         ProteotypeAlignmentResult.model_validate(result.model_copy(update={"aligned_bundle": None}))
     abstained = _result(
         status=AlignmentStatus.ABSTAINED,

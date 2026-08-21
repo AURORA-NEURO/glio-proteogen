@@ -50,7 +50,8 @@ def test_supported_alignment_is_deterministic_and_bound_to_proteotype() -> None:
     assert first.aligned_bundle is not None
     assert first.parent_target == "proteotype"
     assert first.emits_parent is False
-    assert first.support_decision.status is SupportStatus.SUPPORTED
+    assert first.support_decision.status is SupportStatus.REVIEW_REQUIRED
+    assert first.human_review_required is True
     assert first.findings == ()
     assert first.result_digest == second.result_digest
 
@@ -101,7 +102,7 @@ def test_replay_accepts_exact_result_and_rejects_tampering() -> None:
     invalid_provenance = result.provenance.model_copy(update={"module_id": "GLIO-PROTEOGEN-M19-01"})
     tampered = result.model_copy(update={"provenance": invalid_provenance})
     tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
-    with pytest.raises(m1902.M1902ReplayError, match="validation"):
+    with pytest.raises(m1902.M1902ReplayError, match="deterministic replay"):
         service.replay(tampered)
 
 
