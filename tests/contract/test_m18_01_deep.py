@@ -40,9 +40,7 @@ from glio_proteogen.kernel.models import (
     UpstreamDecisionReference,
     UpstreamDecisionState,
 )
-from glio_proteogen.modules.c17_metabolomic_lipidomic_integration.m18_01_upstream_contract_resolver import (
-    M1801Service,
-)
+from glio_proteogen.modules.c17_metabolomic_lipidomic_integration.m18_01_upstream_contract_resolver import M1801Service
 
 _WHEN = datetime(2026, 1, 1, tzinfo=UTC)
 _MEDIA_TYPE = "application/vnd.glio-proteogen.source+json"
