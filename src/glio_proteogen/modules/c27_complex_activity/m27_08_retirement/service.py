@@ -49,8 +49,16 @@ class M2708Service:
     ) -> ComplexActivityRetirementResult:
         return self.execute(self.validate_request(payload))
 
-    def verify(self, result: ComplexActivityRetirementResult) -> bool:
+    def verify(
+        self,
+        result: ComplexActivityRetirementResult,
+        request: RetireComplexActivityServiceRequest | None = None,
+    ) -> bool:
         try:
+            if request is not None and result.request.model_dump(mode="json") != request.model_dump(
+                mode="json"
+            ):
+                return False
             self.engine.replay(result)
         except RetirementReplayError:
             return False

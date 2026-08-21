@@ -80,10 +80,16 @@ def create_app() -> FastAPI:
         if media_type != "application/json":
             raise HTTPException(status_code=415, detail="content-type must be application/json")
         try:
-            result = ComplexActivityRetirementResult.model_validate_json(
-                await request.body(), strict=True
+            decoded = json.loads(await request.body())
+            if not isinstance(decoded, dict):
+                raise ValueError
+            candidate = decoded.get("result", decoded)
+            result = ComplexActivityRetirementResult.model_validate(candidate, strict=True)
+            supplied = decoded.get("request")
+            typed_request = (
+                service.validate_request(supplied) if supplied is not None else None
             )
-            return JSONResponse({"verified": service.verify(result)})
+            return JSONResponse({"verified": service.verify(result, typed_request)})
         except (ValueError, TypeError) as error:
             raise HTTPException(status_code=422, detail="result verification failed") from error
 
