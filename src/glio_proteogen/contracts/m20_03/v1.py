@@ -282,10 +282,10 @@ class ProteinSubtypeIntegratedEvidenceResult(FrozenModel):
             if (
                 self.integrated_evidence is None
                 or self.abstention_reason is not None
-                or self.support_decision.status is not SupportStatus.SUPPORTED
+                or self.support_decision.status is not SupportStatus.REVIEW_REQUIRED
                 or has_unsafe_source
             ):
-                raise ValueError("integrated result requires supported attributable sources")
+                raise ValueError("integrated result requires review-only attributable sources")
             integrated_evidence = self.integrated_evidence
             if integrated_evidence.contributions != self.request.contributions:
                 raise ValueError("integrated result must preserve exact source contributions")
