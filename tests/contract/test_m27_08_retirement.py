@@ -21,7 +21,9 @@ from glio_proteogen.contracts.m27_08.canonical import (
 from glio_proteogen.modules.c27_complex_activity.m27_08_retirement import (
     M2708Service,
     RetirementAuthorizationError,
+    retire_complex_activity_service,
 )
+from glio_proteogen.modules.c27_complex_activity.m27_08_retirement import engine as m2708_engine
 
 
 def test_all_ten_schemas_are_strict_and_identified() -> None:
@@ -51,6 +53,25 @@ def test_result_replay_rejects_forged_digest() -> None:
     result = M2708Service().execute(build_request())
     forged = result.model_copy(update={"result_digest": "sha256:" + "0" * 64})
     assert not M2708Service().verify(forged)
+
+
+def test_result_replay_rejects_rehashed_result_identifier() -> None:
+    result = M2708Service().execute(build_request())
+    forged = result.model_copy(update={"result_id": "result.m2708.forged"})
+    rehashed = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    assert not M2708Service().verify(rehashed)
+
+
+def test_result_replay_rejects_internal_request_digest_mismatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    result = M2708Service().execute(build_request())
+    monkeypatch.setattr(m2708_engine, "canonical_request_digest", lambda _: "sha256:" + "f" * 64)
+    assert not M2708Service().verify(result)
+
+
+def test_public_service_function_executes_status_bound_request() -> None:
+    assert retire_complex_activity_service(build_request()).status.value == "executed"
 
 
 def test_result_replay_rejects_self_rehashed_forged_package() -> None:
@@ -158,9 +179,7 @@ def test_result_provenance_binds_declared_scientific_input_digests() -> None:
             "request": changed_request,
             "request_digest": changed_digest,
             "provenance": result.provenance.model_copy(
-                update={
-                    "activity_id": "activity.m2708." + changed_digest.removeprefix("sha256:")
-                }
+                update={"activity_id": "activity.m2708." + changed_digest.removeprefix("sha256:")}
             ),
         }
     )

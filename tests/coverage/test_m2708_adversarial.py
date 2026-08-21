@@ -10,11 +10,15 @@ from glio_proteogen.contracts.m27_08 import (
     ArchiveStatus,
     EvidencePreservation,
     LongTermArchive,
+    MigrationStatus,
     RetirementPackage,
     RetirementStatus,
 )
 from glio_proteogen.contracts.m27_08.canonical import normalized_request
-from glio_proteogen.modules.c27_complex_activity.m27_08_retirement import M2708Service
+from glio_proteogen.modules.c27_complex_activity.m27_08_retirement import (
+    M2708Service,
+    RetirementAuthorizationError,
+)
 
 
 @pytest.mark.parametrize(
@@ -49,6 +53,36 @@ def test_unsupported_upstream_media_abstains_without_scientific_traversal() -> N
         }
     )
     with pytest.raises(ValueError, match="unsupported upstream"):
+        M2708Service().execute(request)
+
+
+def test_all_retirement_control_findings_are_emitted_together() -> None:
+    request = build_request()
+    bad = request.model_copy(
+        update={
+            "criteria": (request.criteria[0].model_copy(update={"satisfied": False}),),
+            "migrations": (
+                request.migrations[0].model_copy(update={"status": MigrationStatus.IN_PROGRESS}),
+            ),
+            "communications": (
+                request.communications[0].model_copy(update={"acknowledged": False}),
+            ),
+            "archive": request.archive.model_copy(update={"status": ArchiveStatus.PRESERVED}),
+        }
+    )
+    result = M2708Service().execute(bad)
+    assert {finding.code.value for finding in result.findings} >= {
+        "criterion_unsatisfied",
+        "dependency_migration_incomplete",
+        "communication_unacknowledged",
+        "archive_unverified",
+        "active_dependency",
+    }
+
+
+def test_empty_source_artifacts_fail_before_evaluation() -> None:
+    request = build_request().model_copy(update={"source_artifacts": ()})
+    with pytest.raises(RetirementAuthorizationError, match="source artifact"):
         M2708Service().execute(request)
 
 
