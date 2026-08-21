@@ -184,18 +184,20 @@ def _is_plain_json(value: object) -> bool:
     return value is None or type(value) in {str, int, float, bool}
 
 
-def _replay_reason(
+def _replay_reason(  # noqa: PLR0911 - each fail-closed reason is explicit.
     result: object,
     typed: ProteinRnaDiscordanceSelectivePredictionResult,
     raw: bytes,
 ) -> str | None:
+    """Require both envelope identity and deterministic request regeneration."""
+
     if isinstance(result, ProteinRnaDiscordanceSelectivePredictionResult):
-        expected = result
+        supplied = result
     elif type(result) is dict and _is_plain_json(result):
-        expected = _RESULT_ADAPTER.validate_json(canonical_json_bytes(result), strict=True)
+        supplied = _RESULT_ADAPTER.validate_json(canonical_json_bytes(result), strict=True)
     else:
         return "result replay input is invalid"
-    if typed != expected:
+    if typed != supplied:
         return "canonical result differs from supplied result"
     if typed.request_digest != canonical_request_digest(typed.request):
         return "request digest does not replay"
@@ -203,6 +205,12 @@ def _replay_reason(
         return "result digest does not replay"
     if canonical_json_bytes(typed.model_dump(mode="json")) != raw:
         return "canonical bytes are not deterministic"
+    try:
+        expected = _build(typed.request)
+    except (TypeError, ValueError):
+        return "embedded request cannot be deterministically replayed"
+    if typed.model_dump(mode="json") != expected.model_dump(mode="json"):
+        return "result differs from deterministic replay of embedded request"
     return None
 
 
@@ -395,9 +403,11 @@ class M1007CalibrationEngine:
                 return M1007ReplayVerification(verified=False, reason=reason)
         except (TypeError, ValueError, ValidationError, StrictJsonError):
             return M1007ReplayVerification(verified=False, reason="result replay input is invalid")
+        success_reason = "canonical result, request digest, result digest, and "
+        success_reason += "deterministic replay verified"
         return M1007ReplayVerification(
             verified=True,
-            reason="canonical result, request digest, and result digest verified",
+            reason=success_reason,
             result_digest=typed.result_digest,
         )
 

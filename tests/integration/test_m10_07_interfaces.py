@@ -7,6 +7,8 @@ import json
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
+from glio_proteogen.contracts.m10_07 import result_payload_digest
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.modules.c10_pathway_proteotype.m10_07_calibration_selective_prediction.api import (  # noqa: E501
     create_app,
 )
@@ -55,6 +57,31 @@ def test_api_sanitizes_invalid_json_and_replay_tampering() -> None:
         replay = client.post("/v1/modules/M10-07/verify", json=envelope)
         assert replay.status_code == _HTTP_OK
         assert replay.json()["verified"] is False
+
+
+def test_api_and_cli_reject_self_rehashed_semantic_mutation(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    request = _request()
+    with TestClient(create_app()) as client:
+        executed = client.post("/v1/modules/M10-07/execute", content=request.model_dump_json())
+        envelope = executed.json()
+        original = client.post("/v1/modules/M10-07/verify", json=envelope)
+        assert original.json()["verified"] is True
+
+        diagnostic = envelope["result"]["diagnostics"][0]
+        diagnostic["message"] = "forged diagnostic message"
+        envelope["result"]["result_digest"] = result_payload_digest(envelope["result"])
+        envelope["canonical"] = canonical_json_bytes(envelope["result"]).decode("utf-8")
+        forged = client.post("/v1/modules/M10-07/verify", json=envelope)
+        assert forged.status_code == _HTTP_OK
+        assert forged.json()["verified"] is False
+
+    result_path = tmp_path / "forged-result.json"
+    canonical_path = tmp_path / "forged-canonical.json"
+    result_path.write_bytes(canonical_json_bytes(envelope["result"]))
+    canonical_path.write_bytes(canonical_json_bytes(envelope["result"]))
+    cli = CliRunner().invoke(cli_app, ["verify", str(result_path), str(canonical_path)])
+    assert cli.exit_code == 1
+    assert json.loads(cli.stdout)["verified"] is False
 
 
 def test_cli_validate_calibrate_no_overwrite_and_verify(tmp_path) -> None:
