@@ -28,6 +28,9 @@ policy, and result receipt. It then:
   and charge and abstains rather than opening the search when either is absent
   or incompatible with the declared charge;
 - performs target/decoy competition and records exploratory q-values;
+- retains decoy and target/decoy-collision winners for auditability but
+  excludes them from protein grouping and signal proxies; a run with no
+  accepted target winner abstains with `NO_ACCEPTED_TARGET_PSM`;
 - preserves shared-peptide ambiguity in deterministic research protein groups;
 - computes a median-normalized total-peak signal proxy, explicitly not an
   abundance estimate; and
