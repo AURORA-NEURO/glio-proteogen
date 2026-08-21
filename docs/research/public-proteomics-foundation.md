@@ -108,6 +108,14 @@ non-PDC source declared there must provide a matching local format summary.
 Omitting a declared FASTA, mzML, or mzIdentML feature is rejected instead of
 silently understating the aggregate's local-source count.
 
+The public `FeatureRecord` and `EvidenceAggregate` constructors apply the same
+closure as the factory. Feature keys, source records, and structural counts must
+be unique and canonically ordered; source formats and SHA-256 identities are
+validated; counts must agree with the recorded byte features; fixed limitations
+cannot be replaced; and `aggregate_id` must hash the complete evidence
+projection. This prevents a caller from turning a hand-built or replayed
+receipt with silently collapsed fields or forged counts into structural evidence.
+
 ## Promotion gate
 
 Before this foundation can feed a governed module, an owner must freeze the

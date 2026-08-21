@@ -156,3 +156,70 @@ def test_structural_receipts_reject_boolean_numeric_fields() -> None:
     forged = replace(summary, record_count=cast("int", True))  # noqa: FBT003
     with pytest.raises(TypeError, match="boolean structural attribute"):
         _feature_record("local:fasta", forged)
+
+
+def test_public_receipt_constructors_close_identity_and_canonicalization() -> None:
+    digest = "sha256:" + "a" * 64
+    with pytest.raises(ValueError, match="unique names"):
+        FeatureRecord(
+            "local:fasta",
+            "fasta",
+            1,
+            digest,
+            (("record_count", 1), ("record_count", 2)),
+        )
+    with pytest.raises(ValueError, match="canonically ordered"):
+        FeatureRecord(
+            "local:fasta",
+            "fasta",
+            1,
+            digest,
+            (("total_residues", 1), ("record_count", 1)),
+        )
+
+    response = _FIXTURE.read_bytes()
+
+    def fixture_transport(
+        _url: str, _payload: bytes, _timeout: float, _user_agent: str, _max_bytes: int
+    ) -> tuple[int, bytes, str]:
+        return 200, response, "application/json"
+
+    snapshot = PDCMetadataClient(transport=fixture_transport).fetch(
+        "PDC000204", retrieved_at="2026-08-17T00:00:00Z"
+    )
+    fasta = b">x\nMPEP\n"
+    manifest = SourceManifest(
+        "research-pdc000204-constructor-closure-v1",
+        "2026-08-17T00:00:00Z",
+        "constructor closure",
+        (
+            snapshot.source_reference,
+            SourceReference(
+                "local:fasta",
+                "memory:fasta",
+                "text/plain",
+                sha256_digest(fasta),
+                len(fasta),
+                "2026-08-17T00:00:00Z",
+                "test fixture",
+            ),
+        ),
+        "PDC metadata plus local FASTA structural extraction",
+    )
+    aggregate = aggregate_evidence(
+        manifest, snapshot, {"local:fasta": extract_fasta_structure(fasta)}
+    )
+    with pytest.raises(ValueError, match="aggregate_id"):
+        replace(aggregate, aggregate_id="sha256:" + "0" * 64)
+    with pytest.raises(ValueError, match="structural_counts"):
+        replace(
+            aggregate,
+            structural_counts=(
+                ("fasta_byte_length", len(fasta) + 1),
+                ("local_source_count", 1),
+                ("pdc_aliquots_count", 111),
+                ("pdc_cases_count", 111),
+            ),
+        )
+    with pytest.raises(ValueError, match="limitations"):
+        replace(aggregate, limitations=("forged",))

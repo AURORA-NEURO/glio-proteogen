@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final
 
@@ -42,6 +43,12 @@ _FORMAT_MEDIA_TYPES: Final[dict[str, frozenset[str]]] = {
         }
     ),
 }
+_DIGEST_RE: Final[re.Pattern[str]] = re.compile(r"^sha256:[0-9a-f]{64}$")
+
+
+def _require_digest(value: object, field: str) -> None:
+    if not isinstance(value, str) or not _DIGEST_RE.fullmatch(value):
+        raise ValueError(f"{field} must be lowercase sha256:<64 hex characters>")
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,10 +62,16 @@ class FeatureRecord:
     attributes: tuple[tuple[str, int | str], ...]
 
     def __post_init__(self) -> None:
+        if type(self.source_id) is not str or not self.source_id.strip():
+            raise ValueError("feature source_id must be non-empty text")
+        if type(self.format) is not str or self.format not in _FORMAT_MEDIA_TYPES:
+            raise ValueError("feature format is not supported")
         if type(self.byte_length) is not int or self.byte_length < 0:
             raise ValueError("feature byte_length must be a non-negative integer")
+        _require_digest(self.sha256, "feature sha256")
         if type(self.attributes) is not tuple:
             raise TypeError("feature attributes must be a tuple")
+        keys: list[str] = []
         for item in self.attributes:
             if (
                 type(item) is not tuple
@@ -67,6 +80,13 @@ class FeatureRecord:
                 or type(item[1]) not in (int, str)
             ):
                 raise TypeError("feature attributes must contain string/integer pairs")
+            if not item[0].strip():
+                raise ValueError("feature attribute names must be non-empty")
+            keys.append(item[0])
+        if len(keys) != len(set(keys)):
+            raise ValueError("feature attributes must have unique names")
+        if keys != sorted(keys):
+            raise ValueError("feature attributes must be canonically ordered")
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -88,6 +108,72 @@ class EvidenceAggregate:
     feature_records: tuple[FeatureRecord, ...]
     structural_counts: tuple[tuple[str, int], ...]
     limitations: tuple[str, ...] = _NO_CLAIMS
+
+    def __post_init__(self) -> None:
+        """Close the direct-construction path used by replay consumers.
+
+        ``aggregate_evidence`` is the normal constructor, but this immutable
+        receipt is also a public research type.  Without these checks a caller
+        could serialize a structurally plausible receipt with a forged identity,
+        silently collapsed feature keys, or counts that do not describe the
+        recorded features.
+        """
+
+        _require_digest(self.aggregate_id, "aggregate_id")
+        _require_digest(self.manifest_digest, "manifest_digest")
+        _require_digest(self.pdc_snapshot_digest, "pdc_snapshot_digest")
+        if type(self.feature_records) is not tuple or any(
+            not isinstance(record, FeatureRecord) for record in self.feature_records
+        ):
+            raise TypeError("feature_records must be a tuple of FeatureRecord values")
+        source_ids = tuple(record.source_id for record in self.feature_records)
+        if source_ids != tuple(sorted(source_ids)):
+            raise ValueError("feature_records must be canonically ordered")
+        if len(source_ids) != len(set(source_ids)):
+            raise ValueError("feature_records must have unique source ids")
+        if type(self.structural_counts) is not tuple:
+            raise TypeError("structural_counts must be a tuple")
+        count_keys: list[str] = []
+        for item in self.structural_counts:
+            if (
+                type(item) is not tuple
+                or len(item) != 2
+                or type(item[0]) is not str
+                or not item[0].strip()
+                or type(item[1]) is not int
+                or item[1] < 0
+            ):
+                raise TypeError("structural_counts must contain string/non-negative integer pairs")
+            count_keys.append(item[0])
+        if count_keys != sorted(count_keys):
+            raise ValueError("structural_counts must be canonically ordered")
+        if len(count_keys) != len(set(count_keys)):
+            raise ValueError("structural_counts must have unique names")
+        counts = dict(self.structural_counts)
+        expected_counts: dict[str, int] = {
+            "local_source_count": len(self.feature_records),
+        }
+        expected_counts.update(
+            {
+                "pdc_aliquots_count": counts.get("pdc_aliquots_count", -1),
+                "pdc_cases_count": counts.get("pdc_cases_count", -1),
+            }
+        )
+        for record in self.feature_records:
+            key = f"{record.format}_byte_length"
+            expected_counts[key] = expected_counts.get(key, 0) + record.byte_length
+        if counts != expected_counts:
+            raise ValueError("structural_counts do not match the feature records")
+        if self.limitations != _NO_CLAIMS:
+            raise ValueError("public-proteomics aggregate limitations are fixed")
+        base = {
+            "feature_records": [record.as_dict() for record in self.feature_records],
+            "manifest_digest": self.manifest_digest,
+            "pdc_snapshot_digest": self.pdc_snapshot_digest,
+            "structural_counts": dict(self.structural_counts),
+        }
+        if self.aggregate_id != sha256_digest(base):
+            raise ValueError("aggregate_id does not match the evidence projection")
 
     def as_dict(self) -> dict[str, object]:
         return {
