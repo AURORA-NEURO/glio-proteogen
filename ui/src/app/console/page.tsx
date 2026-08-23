@@ -68,7 +68,7 @@ export default function ConsolePage() {
           <div className="brand-mark">G</div>
           <div><p className="eyebrow accent">GLIO / PROTEOGEN</p><h1>Agent Console</h1></div>
         </a>
-        <div className="console-actions"><span className="environment-chip">T3 RUNTIME</span>{account ? <span className="console-account">{account.email}</span> : null}<button className="quiet-button" onClick={() => void signOut()}>Sign out</button></div>
+        <div className="console-actions"><span className="environment-chip">GLIO RUNTIME</span>{account ? <span className="console-account">ACCOUNT ACTIVE</span> : null}<button className="quiet-button" onClick={() => void signOut()}>Sign out</button></div>
       </header>
       <section className="console-heading">
         <div><p className="eyebrow accent">MODEL OPERATIONS / AGENT WORKSPACE</p><h2>GLIO Proteogen, in motion.</h2><p>Run coding agents against the live research workspace through the T3 Code runtime.</p></div>

@@ -1,4 +1,3 @@
-import { spawn } from "node:child_process";
 import { homedir } from "node:os";
 import path from "node:path";
 
@@ -28,9 +27,10 @@ function cliCommand() {
   return process.env.T3_CODE_CLI ?? (process.platform === "win32" ? "npx.cmd" : "npx");
 }
 
-function runT3Pairing(label: string) {
+async function runT3Pairing(label: string) {
+  const childProcess = process.getBuiltinModule("node:child_process") as typeof import("node:child_process");
   return new Promise<string>((resolve, reject) => {
-    const child = spawn(
+    const child = childProcess.spawn(
       cliCommand(),
       ["--yes", "t3@latest", "auth", "pairing", "create", "--ttl", "15m", "--label", label, "--json"],
       { cwd: process.cwd(), env: { ...process.env, T3CODE_HOME: t3BaseDir() }, windowsHide: true, shell: process.platform === "win32" },

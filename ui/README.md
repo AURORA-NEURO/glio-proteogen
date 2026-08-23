@@ -11,6 +11,22 @@ npm run dev
 
 Set `GLIO_API_URL` when the API is not running at `http://127.0.0.1:8000`.
 
+For a clean GLIO T3 workspace, create a dedicated runtime and register this repository before starting the server:
+
+```powershell
+$glioT3Home = "$env:LOCALAPPDATA\Temp\glio-proteogen-t3"
+npx --yes t3@latest project add "$pwd" --title "GLIO Proteogen" --base-dir $glioT3Home
+npx --yes t3@latest serve --port 3773 --base-dir $glioT3Home --no-browser
+```
+
+Start the Next.js site with the same runtime path:
+
+```powershell
+$env:T3_CODE_BASE_DIR = $glioT3Home
+$env:T3_CODE_URL = "http://127.0.0.1:3773"
+npm run dev -- --hostname 127.0.0.1 --port 3000
+```
+
 ## Account and agent configuration
 
 The local default is suitable for the bundled development setup:
