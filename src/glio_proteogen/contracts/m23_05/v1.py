@@ -29,7 +29,6 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
-# PROVISIONAL ABI: inferred solely from dossier lines 8132-8172.
 M2305_MODULE_ID: Final = "GLIO-PROTEOGEN-M23-05"
 M2305_DOSSIER_SHA256: Final = (
     "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
@@ -287,6 +286,9 @@ class VariantPeptideSubgroupEvaluationResult(FrozenModel):
         finding_ids = tuple(finding.finding_id for finding in self.findings)
         if len(finding_ids) != len(set(finding_ids)):
             raise ValueError("subgroup finding ids must be unique")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("result evidence must be unique")
         if self.status is EvaluationStatus.EVALUATED:
             if (
                 self.report is None

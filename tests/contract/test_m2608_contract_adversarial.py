@@ -22,7 +22,10 @@ from glio_proteogen.contracts.m26_08 import (
     RetirementStatus,
     RetireProteinSubtypeServiceRequest,
 )
-from glio_proteogen.contracts.m26_08.canonical import canonical_request_digest
+from glio_proteogen.contracts.m26_08.canonical import (
+    canonical_request_digest,
+    result_payload_digest,
+)
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     EvidenceReference,
@@ -317,3 +320,31 @@ def test_result_status_closure_is_enforced() -> None:
                 ),
             }
         )
+
+
+def test_executed_result_rejects_a_package_bound_to_another_request() -> None:
+    service = M2608RetirementService()
+    executed = service.retire(_request())
+    base = _request()
+    other_request = base.model_copy(
+        update={
+            "request_id": "request.m2608.other",
+            "context": base.context.model_copy(update={"request_id": "request.m2608.other"}),
+        }
+    )
+    other = service.retire(other_request)
+    forged = executed.model_copy(update={"package": other.package})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    with pytest.raises(ValidationError, match="exact retirement request"):
+        ProteinSubtypeRetirementResult.model_validate(forged.model_dump(mode="python"))
+
+
+def test_abstained_result_requires_findings() -> None:
+    service = M2608RetirementService()
+    abstained = service.retire(_request(criterion_satisfied=False))
+    forged = abstained.model_copy(update={"findings": ()})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    with pytest.raises(ValidationError, match="abstained result"):
+        ProteinSubtypeRetirementResult.model_validate(forged.model_dump(mode="python"))

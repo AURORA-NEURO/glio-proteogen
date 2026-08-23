@@ -64,6 +64,7 @@ from glio_proteogen.modules.c21_reference_material.m21_07_human_factors_operatio
 from glio_proteogen.modules.c21_reference_material.m21_08_evidence_gate_release_adjudicator import (
     cli as m2108_cli,
 )
+from tests._resource_helpers import write_sparse_oversized_json
 
 _Reader = Callable[[Path], object]
 
@@ -127,6 +128,10 @@ _READERS: tuple[tuple[str, _Reader, _Reader, int, int], ...] = (
 )
 
 
+def _sparse_oversized_json(path: Path, limit: int) -> None:
+    write_sparse_oversized_json(path, limit)
+
+
 @pytest.mark.parametrize(
     ("module", "_request_reader", "_result_reader", "request_limit", "_result_limit"),
     _READERS,
@@ -140,7 +145,7 @@ def test_request_reader_rejects_oversized_file_before_json_parse(
     _result_limit: int,
 ) -> None:
     path = tmp_path / f"{module}-request.json"
-    path.write_bytes(b"{" + b" " * request_limit)
+    _sparse_oversized_json(path, request_limit)
     with pytest.raises(typer.BadParameter, match="request"):
         _request_reader(path)
 
@@ -158,7 +163,7 @@ def test_result_reader_rejects_oversized_file_before_json_parse(
     result_limit: int,
 ) -> None:
     path = tmp_path / f"{module}-result.json"
-    path.write_bytes(b"{" + b" " * result_limit)
+    _sparse_oversized_json(path, result_limit)
     with pytest.raises(typer.BadParameter, match="result"):
         result_reader(path)
 

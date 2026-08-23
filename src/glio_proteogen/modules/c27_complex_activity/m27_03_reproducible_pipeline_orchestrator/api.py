@@ -7,7 +7,7 @@ from typing import Any, cast
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import TypeAdapter, ValidationError
 
-from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware
+from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware, is_json_content_type
 from glio_proteogen.contracts.m27_03 import (
     M2703_MAX_CANONICAL_REQUEST_BYTES,
     M2703_MAX_CANONICAL_RESULT_BYTES,
@@ -49,9 +49,9 @@ def _parse_request(body: bytes) -> OrchestrateComplexActivityPipelineRequest:
         raise _safe_validation(error) from error
 
 
-def _parse_object(body: bytes) -> dict[str, Any]:
+def _parse_object(body: bytes, *, max_bytes: int) -> dict[str, Any]:
     try:
-        value = strict_json_loads(body)
+        value = strict_json_loads(body, max_bytes=max_bytes)
     except (StrictJsonError, ValueError) as error:
         raise HTTPException(status_code=422, detail="request JSON is invalid") from error
     if not isinstance(value, dict):
@@ -71,10 +71,7 @@ def create_app(service: M2703Service | None = None) -> FastAPI:  # noqa: C901
     )
 
     def _require_json(request: Request) -> None:
-        if (
-            request.headers.get("content-type", "").partition(";")[0].strip().lower()
-            != "application/json"
-        ):
+        if not is_json_content_type(request.headers.get("content-type")):
             raise HTTPException(status_code=415, detail="content-type must be application/json")
 
     @app.get("/v1/modules/M27-03/schemas")
@@ -110,7 +107,9 @@ def create_app(service: M2703Service | None = None) -> FastAPI:  # noqa: C901
     @app.post("/v1/modules/M27-03/verify")
     async def verify(request: Request) -> dict[str, object]:
         _require_json(request)
-        envelope = _parse_object(await request.body())
+        envelope = _parse_object(
+            await request.body(), max_bytes=M2703_MAX_CANONICAL_RESULT_BYTES
+        )
         candidate = envelope.get("result", envelope)
         supplied_request = envelope.get("request")
         try:

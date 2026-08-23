@@ -54,11 +54,13 @@ def test_fastapi_schema_validate_execute_verify_parity() -> None:
 
 def test_fastapi_named_schema_and_denied_validation_are_closed() -> None:
     client = TestClient(m2603_api.create_app())
+    missing_content_type = client.post("/v1/modules/M26-03/validate", content=b"{}")
     named = client.get("/v1/modules/M26-03/schemas/workflow")
     denied = client.post(
         "/v1/modules/M26-03/validate", json=denied_request().model_dump(mode="json")
     )
     assert named.status_code == HTTPStatus.OK
+    assert missing_content_type.status_code == HTTPStatus.UNSUPPORTED_MEDIA_TYPE
     assert named.json()["$id"].endswith(":workflow")
     assert denied.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
@@ -77,8 +79,9 @@ def test_fastapi_rejects_denied_and_sanitizes_contract_details() -> None:
 
 def test_fastapi_verify_sanitizes_invalid_json_and_tampering() -> None:
     client = TestClient(m2603_api.create_app())
-    malformed = client.post("/v1/modules/M26-03/verify", content=b"not-json")
-    non_object = client.post("/v1/modules/M26-03/verify", content=b"[]")
+    headers = {"content-type": "application/json"}
+    malformed = client.post("/v1/modules/M26-03/verify", content=b"not-json", headers=headers)
+    non_object = client.post("/v1/modules/M26-03/verify", content=b"[]", headers=headers)
     assert malformed.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
     assert non_object.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
     assert "request JSON is invalid" in malformed.text

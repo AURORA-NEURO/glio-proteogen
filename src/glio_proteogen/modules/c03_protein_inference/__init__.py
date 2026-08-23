@@ -1,0 +1,1 @@
+"""Protein-inference module family."""

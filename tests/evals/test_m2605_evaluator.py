@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import subprocess
+import sys
+from pathlib import Path
+
 from benchmarks.m26_05_telemetry import run_benchmark
 from evals.m26_05.evaluate import evaluate
 
@@ -21,3 +25,15 @@ def test_m2605_benchmark_respects_provisional_budget() -> None:
     assert report["iterations"] == _BENCHMARK_ITERATIONS
     assert report["budgetPassed"] is True
     assert report["meanNs"] <= report["budgetsNs"]["mean"]
+
+
+def test_m2605_benchmark_supports_direct_script_execution() -> None:
+    root = Path(__file__).parents[2]
+    result = subprocess.run(  # noqa: S603 - executes the repository's fixed benchmark script.
+        [sys.executable, str(root / "benchmarks" / "m26_05_telemetry.py"), "--iterations", "1"],
+        cwd=root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr

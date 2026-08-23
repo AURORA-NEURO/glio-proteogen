@@ -1,8 +1,6 @@
 """Deep contract, runtime, replay, and adapter tests for provisional M07-01."""
 
-# The test fixture intentionally exposes a broad matrix and literal HTTP status
-# assertions so that safety behavior remains readable at the call site.
-# ruff: noqa: E501, INP001, PLR0913, PLR2004, TC003
+# ruff: noqa: E501, PLR0913, PLR2004, TC003
 
 from __future__ import annotations
 

@@ -50,6 +50,7 @@ from glio_proteogen.modules.c20_biomarker_panel.m26_08_retirement_archival_knowl
 from glio_proteogen.modules.c26_proteomics.m26_02_data_model_lineage_service import (
     cli as m2602_cli,
 )
+from tests._resource_helpers import write_sparse_oversized_json
 
 Reader = Callable[[Path], object]
 ReaderCase = tuple[object, Reader, Reader, int, int]
@@ -100,11 +101,7 @@ _READERS: tuple[ReaderCase, ...] = (
 
 
 def _make_oversized_file(path: Path, limit: int) -> None:
-    """Create a sparse limit+1 file without allocating the full test payload."""
-
-    with path.open("wb") as stream:
-        stream.seek(limit)
-        stream.write(b" ")
+    write_sparse_oversized_json(path, limit)
 
 
 @pytest.mark.parametrize(

@@ -13,16 +13,13 @@ from glio_proteogen.contracts.m27_04 import (
     M2704_MAX_CANONICAL_RESULT_BYTES,
 )
 from glio_proteogen.modules.c20_biomarker_panel.m27_04_api_sdk_cli_gateway import cli
+from tests._resource_helpers import write_sparse_oversized_json
 
 Reader = Callable[[Path], object]
 
 
 def _make_oversized_file(path: Path, limit: int) -> None:
-    """Create a sparse limit+1 file without allocating the full test payload."""
-
-    with path.open("wb") as stream:
-        stream.seek(limit)
-        stream.write(b" ")
+    write_sparse_oversized_json(path, limit)
 
 
 @pytest.mark.parametrize(

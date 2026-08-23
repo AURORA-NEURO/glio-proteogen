@@ -5,8 +5,7 @@ execution, retry, checkpoint, environment capture, and safe recovery without
 claiming a finalized runtime ABI.
 """
 
-# The two closure validators deliberately enumerate independent invariants.
-# ruff: noqa: PLR0912,S101,PT018
+# ruff: noqa: PLR0912,PLR0915,S101,PT018
 
 from __future__ import annotations
 
@@ -22,6 +21,7 @@ from glio_proteogen.contracts.m27_03.canonical import (
     result_id_for_request_digest,
     result_payload_digest,
 )
+from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     EvidenceReference,
@@ -38,10 +38,6 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
-# PROVISIONAL ABI: inferred solely from dossier SHA
-# 0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,
-# lines 9484-9524. Owner confirmation and implementation details remain
-# pending.
 M2703_MODULE_ID: Final = "GLIO-PROTEOGEN-M27-03"
 M2703_OPERATION: Final = "orchestrate_complex_activity_pipeline"
 M2703_CONTRACT_VERSION: Final = "0.1.0-provisional"
@@ -295,6 +291,12 @@ class ComplexActivityPipelineResult(FrozenModel):
             raise ValueError("result request digest does not bind the exact request")
         if self.result_id != result_id_for_request_digest(self.request_digest):
             raise ValueError("result id must be derived from the request digest")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("pipeline finding ids must be unique")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("pipeline result evidence must be unique")
         if self.status is PipelineStatus.EXECUTED:
             if (
                 self.execution_record is None
@@ -311,18 +313,71 @@ class ComplexActivityPipelineResult(FrozenModel):
                 raise ValueError("execution id must be derived from the request digest")
             if execution.workflow_id != self.request.workflow.workflow_id:
                 raise ValueError("execution record must bind the request workflow")
+            if execution.policy != self.request.policy:
+                raise ValueError("execution record must bind the request policy")
+            if execution.status not in {ExecutionStatus.SUCCEEDED, ExecutionStatus.RECOVERED}:
+                raise ValueError("executed result requires a successful execution status")
+            if execution.attempts > self.request.policy.max_retries + 1:
+                raise ValueError("execution attempts exceed the request retry policy")
             expected_nodes = {node.node_id for node in self.request.workflow.nodes}
             completed = set(execution.completed_node_ids)
-            if completed != expected_nodes:
+            if (
+                completed != expected_nodes
+                or len(execution.completed_node_ids) != len(expected_nodes)
+            ):
                 raise ValueError("executed record must close every workflow node")
+            if execution.checkpoint_digest is None:
+                raise ValueError("executed record requires a checkpoint digest")
             if package.execution_id != execution.execution_id:
                 raise ValueError("result package must bind the execution record")
             if package.package_id != package_id_for_request_digest(self.request_digest):
                 raise ValueError("result package id must be derived from the request digest")
+            if package.version != M2703_CONTRACT_VERSION:
+                raise ValueError("result package version must bind the contract version")
             if package.environment_digest != execution.environment_digest:
                 raise ValueError("result package must bind execution environment")
+            expected_artifact = ArtifactReference(
+                artifact_id="m2703.result." + self.request_digest.removeprefix("sha256:"),
+                version=M2703_CONTRACT_VERSION,
+                digest=execution.output_digest or "sha256:" + ("0" * 64),
+                media_type=M2703_OUTPUT_MEDIA_TYPE,
+            )
+            if package.artifact_references != (
+                expected_artifact,
+                *self.request.source_artifacts,
+            ):
+                raise ValueError("result package artifacts must bind the request and output")
+            expected_manifest = sha256_digest(
+                {
+                    "upstream": self.request.upstream_result,
+                    "sources": self.request.source_artifacts,
+                    "workflow": self.request.workflow,
+                }
+            )
+            if package.manifest_digest != expected_manifest:
+                raise ValueError("result package manifest must bind the request inputs")
+            expected_reproducibility = sha256_digest(
+                {
+                    "manifest": package.manifest_digest,
+                    "environment": execution.environment_digest,
+                    "output": execution.output_digest,
+                }
+            )
+            if package.reproducibility_digest != expected_reproducibility:
+                raise ValueError("result package reproducibility digest is not closed")
             if execution.output_digest is None:
                 raise ValueError("executed record requires output digest")
+            if any(
+                item.code
+                in {
+                    FindingCode.NODE_FAILED,
+                    FindingCode.ENVIRONMENT_MISMATCH,
+                    FindingCode.NONDETERMINISTIC_OUTPUT,
+                    FindingCode.UPSTREAM_UNSUPPORTED,
+                }
+                for item in self.findings
+            ):
+                raise ValueError("executed result cannot contain blocking findings")
             if self.human_review_required:
                 raise ValueError("supported executed result cannot require human review")
         elif (
@@ -336,6 +391,14 @@ class ComplexActivityPipelineResult(FrozenModel):
             raise ValueError("abstained result requires safe failure and safe status")
         if self.status is PipelineStatus.ABSTAINED and not self.human_review_required:
             raise ValueError("abstained result requires human review")
+        if self.status is PipelineStatus.ABSTAINED and not self.findings:
+            raise ValueError("abstained result must retain at least one finding")
+        if self.safe_failure_report is not None:
+            expected_report_id = "m2703.safe-failure." + self.request_digest.removeprefix(
+                "sha256:"
+            )
+            if self.safe_failure_report.report_id != expected_report_id:
+                raise ValueError("safe failure report must bind the request digest")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self

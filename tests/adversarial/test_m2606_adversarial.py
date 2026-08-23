@@ -38,6 +38,7 @@ from tests.contract.test_m26_06_provisional import _request
 
 _HTTP_UNPROCESSABLE = 422
 _HTTP_NOT_FOUND = 404
+_JSON_HEADERS = {"content-type": "application/json"}
 
 
 def _self_rehashed(
@@ -90,8 +91,11 @@ def test_api_rejects_duplicate_keys_nan_and_unknown_schema() -> None:
     duplicate = client.post(
         "/v1/modules/M26-06/evaluate",
         content=b'{"request_id":"a","request_id":"b"}',
+        headers=_JSON_HEADERS,
     )
-    nan = client.post("/v1/modules/M26-06/evaluate", content=b'{"value":NaN}')
+    nan = client.post(
+        "/v1/modules/M26-06/evaluate", content=b'{"value":NaN}', headers=_JSON_HEADERS
+    )
     unknown = client.get("/v1/modules/M26-06/schemas/not-a-contract")
     assert duplicate.status_code == _HTTP_UNPROCESSABLE
     assert nan.status_code == _HTTP_UNPROCESSABLE
@@ -103,8 +107,9 @@ def test_api_rejects_oversized_and_non_object_replay_envelopes() -> None:
     oversized = client.post(
         "/v1/modules/M26-06/evaluate",
         content=b"{" + b'"x":"' + b"a" * (4 * 1024 * 1024) + b'"}',
+        headers=_JSON_HEADERS,
     )
-    scalar = client.post("/v1/modules/M26-06/verify", content=b"[]")
+    scalar = client.post("/v1/modules/M26-06/verify", content=b"[]", headers=_JSON_HEADERS)
     assert oversized.status_code == 413  # noqa: PLR2004
     assert scalar.status_code == _HTTP_UNPROCESSABLE
 

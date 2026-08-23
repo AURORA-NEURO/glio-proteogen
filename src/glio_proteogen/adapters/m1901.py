@@ -181,4 +181,4 @@ def verify_command(
     typer.echo(canonical_json_bytes(verified).decode("utf-8"))
 
 
-__all__ = ["app", "m1901_app"]
+__all__ = ["app", "m1901_app", "resolve", "schema", "verify"]

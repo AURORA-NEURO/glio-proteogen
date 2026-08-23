@@ -327,11 +327,11 @@ class M0901FormalStateEngine:
         return BuiltM0901Result(result=result, canonical_bytes=canonical)
 
     @staticmethod
-    def verify(
+    def verify(  # noqa: PLR0911
         result: ValidateComplexActivityStateResult | Mapping[str, object],
         canonical: bytes | bytearray | str,
         request: object | None = None,
-    ) -> M0901ReplayVerification:  # noqa: PLR0911
+    ) -> M0901ReplayVerification:
         try:
             raw = (
                 canonical

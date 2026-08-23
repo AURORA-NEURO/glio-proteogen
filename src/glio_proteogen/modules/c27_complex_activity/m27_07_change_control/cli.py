@@ -18,6 +18,7 @@ from glio_proteogen.contracts.m27_07 import (
     ContractName,
     contract_json_schema,
 )
+from glio_proteogen.kernel.strict_json import strict_json_loads
 from glio_proteogen.modules.c27_complex_activity.m27_07_change_control.service import M2707Service
 
 cli = typer.Typer(add_completion=False, no_args_is_help=True)
@@ -29,6 +30,12 @@ def _read(path: Path, *, max_bytes: int) -> bytes:
         return read_bounded(path, max_bytes)
     except (OSError, RequestBodyTooLargeError) as error:
         raise typer.BadParameter("unable to read request") from error
+
+
+def _read_json(path: Path, *, max_bytes: int) -> bytes:
+    payload = _read(path, max_bytes=max_bytes)
+    strict_json_loads(payload, max_bytes=max_bytes)
+    return payload
 
 
 def _write(path: Path | None, payload: object) -> None:
@@ -60,7 +67,7 @@ def validate(request: Annotated[Path, typer.Argument()]) -> None:
 
     try:
         parsed = _service.validate_request(
-            _read(request, max_bytes=M2707_MAX_CANONICAL_REQUEST_BYTES)
+            _read_json(request, max_bytes=M2707_MAX_CANONICAL_REQUEST_BYTES)
         )
     except ValueError as error:
         raise typer.BadParameter("request validation failed") from error
@@ -75,7 +82,9 @@ def control(
     """Execute change control and optionally write a result."""
 
     try:
-        result = _service.execute_json(_read(request, max_bytes=M2707_MAX_CANONICAL_REQUEST_BYTES))
+        result = _service.execute_json(
+            _read_json(request, max_bytes=M2707_MAX_CANONICAL_REQUEST_BYTES)
+        )
     except ValueError as error:
         raise typer.BadParameter("change control denied or invalid") from error
     _write(output, result.model_dump(mode="json"))
@@ -87,7 +96,7 @@ def verify(result: Annotated[Path, typer.Argument()]) -> None:
 
     try:
         parsed = ComplexActivityChangeControlResult.model_validate_json(
-            _read(result, max_bytes=M2707_MAX_CANONICAL_RESULT_BYTES), strict=True
+            _read_json(result, max_bytes=M2707_MAX_CANONICAL_RESULT_BYTES), strict=True
         )
     except (ValueError, TypeError, json.JSONDecodeError) as error:
         raise typer.BadParameter("result verification failed") from error

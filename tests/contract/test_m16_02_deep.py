@@ -29,7 +29,6 @@ from glio_proteogen.contracts.m16_02 import (
 )
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
-    SupportStatus,
     ArtifactReference,
     ConsentReference,
     ConsentState,
@@ -37,6 +36,7 @@ from glio_proteogen.kernel.models import (
     ExecutionContext,
     IdentityLineageReference,
     IdentityLineageState,
+    SupportStatus,
     UpstreamDecisionReference,
     UpstreamDecisionState,
 )

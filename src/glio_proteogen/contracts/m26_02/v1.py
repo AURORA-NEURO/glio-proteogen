@@ -32,13 +32,10 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
-# PROVISIONAL ABI: inferred solely from dossier lines 9080-9120.
 M2602_MODULE_ID: Final = "GLIO-PROTEOGEN-M26-02"
 M2602_OPERATION: Final = "build_protein_subtype_lineage_graph"
 M2602_CONTRACT_VERSION: Final = "0.1.0-provisional"
 M2602_OUTPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m26-02+json"
-# M26-01 is not imported at runtime.  This is the caller-declared media
-# boundary from the upstream registry/configuration service.
 M2602_UPSTREAM_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m26-01+json"
 M2602_PARENT: Final = "protein subtype"
 M2602_OWNER: Final = "Bioinformatics"
@@ -277,6 +274,15 @@ class ProteinSubtypeLineageResult(FrozenModel):
     def result_is_closed(self) -> ProteinSubtypeLineageResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind exact request")
+        expected_result_id = "result.m2602." + self.request_digest.removeprefix("sha256:")
+        if self.result_id != expected_result_id:
+            raise ValueError("result id does not bind the exact request digest")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("result finding ids must be unique")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("result evidence must be unique")
         if self.status is LineageStatus.BUILT:
             if (
                 self.lineage_graph is None

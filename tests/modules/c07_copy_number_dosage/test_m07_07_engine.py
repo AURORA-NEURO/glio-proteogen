@@ -1,6 +1,5 @@
 """Adversarial runtime coverage for provisional M07-07."""
 
-# ruff: noqa: INP001
 
 from __future__ import annotations
 

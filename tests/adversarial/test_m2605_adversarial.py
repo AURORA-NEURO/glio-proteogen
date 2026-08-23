@@ -44,6 +44,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 _UNPROCESSABLE = HTTPStatus.UNPROCESSABLE_ENTITY
+_JSON_HEADERS = {"content-type": "application/json"}
 
 
 def test_plugin_rejects_duplicate_and_nonfinite_json() -> None:
@@ -184,8 +185,10 @@ def test_api_sanitizes_service_validation_errors() -> None:
 
     payload = _request().model_dump_json()
     client = TestClient(api.create_m2605_app(FailingService()))  # type: ignore[arg-type]
-    validation = client.post("/v1/modules/M26-05/validate", content=payload)
-    emission = client.post("/v1/modules/M26-05/emit", content=payload)
+    validation = client.post(
+        "/v1/modules/M26-05/validate", content=payload, headers=_JSON_HEADERS
+    )
+    emission = client.post("/v1/modules/M26-05/emit", content=payload, headers=_JSON_HEADERS)
     assert validation.status_code == _UNPROCESSABLE
     assert emission.status_code == _UNPROCESSABLE
     assert "private" not in validation.text + emission.text
@@ -311,6 +314,20 @@ def test_replay_defensive_digest_and_stream_closures(monkeypatch: pytest.MonkeyP
         runtime_engine.verify_telemetry_result(result)
 
 
+def test_replay_rejects_recomputation_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    runtime_engine = import_module(
+        "glio_proteogen.modules.c20_biomarker_panel.m26_05_observability_telemetry.engine"
+    )
+    result = M2605ObservabilityEngine().emit(_request())
+
+    def fail_emit(_self: object, _request: object) -> object:
+        raise RuntimeError("recomputation failed")  # noqa: TRY003
+
+    monkeypatch.setattr(runtime_engine.M2605ObservabilityEngine, "emit", fail_emit)
+    with pytest.raises(M2605ReplayError):
+        runtime_engine.verify_telemetry_result(result)
+
+
 def test_api_schema_contract_names_are_closed() -> None:
     client = TestClient(api.create_m2605_app())
     response = client.get("/v1/modules/M26-05/schemas/not-a-contract")
@@ -321,9 +338,10 @@ def test_mapping_protocol_does_not_leak_submitted_values() -> None:
     request = _request()
     mapping: Mapping[str, object] = request.model_dump(mode="python")
     assert "m2605.runtime.actor" in str(mapping)
-    # The public API rejects malformed mappings without echoing submitted fields.
     response = TestClient(api.create_m2605_app()).post(
-        "/v1/modules/M26-05/emit", content=b'{"actor":"private","unknown":true}'
+        "/v1/modules/M26-05/emit",
+        content=b'{"actor":"private","unknown":true}',
+        headers=_JSON_HEADERS,
     )
     assert response.status_code in {403, 422}
     assert "private" not in response.text

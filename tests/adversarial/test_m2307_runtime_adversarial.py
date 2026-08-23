@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any, cast
 
 import pytest
-from evals.m23_07.fixture import build_request
+from evals.m23_07.fixture import build_request, failed_request
 from pydantic import ValidationError
 
 from glio_proteogen.contracts.m23_07 import (
@@ -90,6 +90,17 @@ def test_request_closure_rejects_missing_dimensions_and_fallbacks() -> None:
         m2307.M2307Service().evaluate(duplicate_metric)
 
 
+def test_passing_metric_must_meet_declared_tolerance() -> None:
+    base = build_request()
+    outside_tolerance = base.metrics[0].model_copy(
+        update={"observed_value": 0.5, "target_value": 1.0, "tolerance": 0.1}
+    )
+    with pytest.raises(ValidationError, match="target tolerance"):
+        m2307.M2307Service().evaluate(
+            base.model_copy(update={"metrics": (outside_tolerance, *base.metrics[1:])})
+        )
+
+
 def test_report_and_result_replay_closures_reject_forgery() -> None:
     service = m2307.M2307Service()
     result = service.evaluate(build_request())
@@ -112,6 +123,19 @@ def test_report_and_result_replay_closures_reject_forgery() -> None:
         HumanFactorsOperationalReport(
             **report.model_dump(mode="python")
             | {"fallbacks": (duplicate_fallback, *report.fallbacks[1:])}
+        )
+
+    finding_result = service.evaluate(failed_request())
+    assert finding_result.findings
+    duplicate_finding = finding_result.model_copy(
+        update={"findings": (finding_result.findings[0], finding_result.findings[0])}
+    )
+    duplicate_finding = duplicate_finding.model_copy(
+        update={"result_digest": result_payload_digest(duplicate_finding)}
+    )
+    with pytest.raises(ValidationError, match="finding ids must be unique"):
+        type(finding_result).model_validate(
+            duplicate_finding.model_dump(mode="python"), strict=True
         )
 
     incomplete_report = report.model_dump(mode="python")

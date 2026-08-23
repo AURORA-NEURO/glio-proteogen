@@ -32,10 +32,6 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
-# PROVISIONAL ABI: inferred solely from dossier SHA
-# 0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,
-# lines 9256-9296. Owner confirmation and implementation details remain
-# pending.
 M2606_MODULE_ID: Final = "GLIO-PROTEOGEN-M26-06"
 M2606_DOSSIER_SHA256: Final = "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
 M2606_DOSSIER_SLICE: Final = "source-manifest.yaml:9256-9296"
@@ -287,6 +283,12 @@ class ProteomicsSecurityAccessResult(FrozenModel):
     def result_is_closed(self) -> ProteomicsSecurityAccessResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        expected_result_id = "result.m2606." + self.request_digest.removeprefix("sha256:")
+        if self.result_id != expected_result_id:
+            raise ValueError("result id does not bind the exact request digest")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("result evidence must be unique")
         if self.status is SecurityAssessmentStatus.EVALUATED:
             if (
                 self.access_decision is None

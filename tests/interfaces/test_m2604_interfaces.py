@@ -84,11 +84,21 @@ def test_api_verify_rejects_nonobject_and_malformed_json() -> None:
     assert malformed.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
 
+def test_api_verify_rejects_unsupported_content_type() -> None:
+    response = TestClient(api.create_app()).post(
+        "/v1/modules/M26-04/verify",
+        content=b"{}",
+        headers={"content-type": "text/plain"},
+    )
+    assert response.status_code == HTTPStatus.UNSUPPORTED_MEDIA_TYPE
+
+
 def test_api_request_ceiling_applies_before_publish_parsing() -> None:
     client = TestClient(api.create_app())
     response = client.post(
         "/v1/modules/M26-04/publish",
         content=b"{" + b"x" * M2604_MAX_CANONICAL_REQUEST_BYTES + b"}",
+        headers={"content-type": "application/json"},
     )
     assert response.status_code == HTTPStatus.REQUEST_ENTITY_TOO_LARGE
 

@@ -1,6 +1,5 @@
 """Evaluator and benchmark tests for M09-06."""
 
-# ruff: noqa: INP001
 
 from __future__ import annotations
 

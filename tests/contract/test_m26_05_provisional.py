@@ -6,6 +6,7 @@ import hashlib
 from datetime import UTC, datetime
 
 import pytest
+from evals.m26_05.fixture import make_request
 from jsonschema import Draft202012Validator
 from pydantic import ValidationError
 
@@ -18,6 +19,10 @@ from glio_proteogen.contracts.m26_05 import (
     AlertState,
     DashboardDefinition,
     EmitProteomicsTelemetryRequest,
+    ReviewerActionKind,
+    ReviewerActionRecord,
+    TelemetryFinding,
+    TelemetryFindingCode,
     TelemetryMetricKind,
     TelemetrySample,
     TelemetryStatus,
@@ -25,6 +30,11 @@ from glio_proteogen.contracts.m26_05 import (
     TelemetryUnit,
     contract_json_schemas,
 )
+from glio_proteogen.contracts.m26_05.canonical import (
+    canonical_request_digest,
+    result_payload_digest,
+)
+from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     ConsentReference,
@@ -36,6 +46,9 @@ from glio_proteogen.kernel.models import (
     IdentityLineageState,
     UpstreamDecisionReference,
     UpstreamDecisionState,
+)
+from glio_proteogen.modules.c20_biomarker_panel.m26_05_observability_telemetry import (
+    M2605ObservabilityEngine,
 )
 
 _SCHEMA_COUNT = 8
@@ -235,3 +248,198 @@ def test_request_binds_upstream_and_dashboard_metric_scope() -> None:
             ),
             source_artifacts=(upstream,),
         )
+
+
+def test_contract_closes_sample_dashboard_alert_and_stream_edges() -> None:
+    sample = _sample()
+    nonfinite = sample.model_construct(**{**sample.__dict__, "value": float("nan")})
+    with pytest.raises(ValueError, match="finite"):
+        nonfinite.value_and_unit_are_closed()
+
+    with pytest.raises(ValidationError, match="dashboard metrics"):
+        DashboardDefinition(
+            dashboard_id="m2605.dashboard.duplicate-metrics",
+            title="Duplicate metrics",
+            metrics=(TelemetryMetricKind.INPUT_QUALITY, TelemetryMetricKind.INPUT_QUALITY),
+            owner="review",
+            refresh_seconds=60,
+        )
+
+    evidence = (_evidence("alert-closure"),)
+    with pytest.raises(ValidationError, match="resolved alerts"):
+        AlertRecord(
+            alert_id="m2605.alert.invalid-resolved",
+            state=AlertState.OPEN,
+            severity=AlertSeverity.WARNING,
+            metric=TelemetryMetricKind.DRIFT,
+            message="Open alert cannot be resolved in this state.",
+            triggered_at=datetime(2026, 1, 1, tzinfo=UTC),
+            resolved_at=datetime(2026, 1, 2, tzinfo=UTC),
+            evidence=evidence,
+        )
+    with pytest.raises(ValidationError, match="critical severity"):
+        AlertRecord(
+            alert_id="m2605.alert.invalid-critical",
+            state=AlertState.NOT_EVALUABLE,
+            severity=AlertSeverity.CRITICAL,
+            metric=TelemetryMetricKind.DRIFT,
+            message="Critical not-evaluable alert.",
+            evidence=evidence,
+        )
+    AlertRecord(
+        alert_id="m2605.alert.valid-not-evaluable-resolution",
+        state=AlertState.NOT_EVALUABLE,
+        severity=AlertSeverity.WARNING,
+        metric=TelemetryMetricKind.DRIFT,
+        message="Not-evaluable alert with a valid resolution path.",
+        triggered_at=datetime(2026, 1, 1, tzinfo=UTC),
+        resolved_at=datetime(2026, 1, 2, tzinfo=UTC),
+        evidence=evidence,
+    )
+
+    action = ReviewerActionRecord(
+        action_id="m2605.action.duplicate",
+        kind=ReviewerActionKind.ACKNOWLEDGED,
+        reviewer="reviewer",
+        target_id="m2605.alert.target",
+        occurred_at=datetime(2026, 1, 1, tzinfo=UTC),
+        rationale="Duplicate action closure test.",
+        evidence=evidence,
+    )
+    finding = TelemetryFinding(
+        finding_id="m2605.finding.duplicate",
+        code=TelemetryFindingCode.DRIFT_DETECTED,
+        message="Duplicate finding closure test.",
+        evidence=evidence,
+    )
+    with pytest.raises(ValidationError, match="reviewer action ids"):
+        TelemetryStream(
+            stream_id="m2605.stream.duplicate-actions",
+            version="1.0.0",
+            samples=(sample,),
+            reviewer_actions=(action, action),
+            evidence=evidence,
+        )
+    with pytest.raises(ValidationError, match="telemetry finding ids"):
+        TelemetryStream(
+            stream_id="m2605.stream.duplicate-findings",
+            version="1.0.0",
+            samples=(sample,),
+            findings=(finding, finding),
+            evidence=evidence,
+        )
+
+
+def test_request_and_result_closures_reject_duplicate_and_forged_bindings() -> None:
+    request = make_request()
+
+    def invalid_request(update: dict[str, object], message: str) -> None:
+        candidate = request.model_copy(update=update)
+        with pytest.raises(ValidationError, match=message):
+            EmitProteomicsTelemetryRequest.model_validate(candidate.model_dump(mode="python"))
+
+    invalid_request(
+        {"requested_metrics": (TelemetryMetricKind.INPUT_QUALITY,) * 2},
+        "requested telemetry metrics",
+    )
+    other_upstream = request.upstream_result.model_copy(
+        update={"artifact_id": "m2605.other", "digest": sha256_digest("other")}
+    )
+    invalid_request({"source_artifacts": (other_upstream,)}, "included in source artifacts")
+    invalid_request(
+        {
+            "dashboard_definitions": (
+                request.dashboard_definitions[0],
+                request.dashboard_definitions[0],
+            )
+        },
+        "dashboard ids",
+    )
+    action = ReviewerActionRecord(
+        action_id="m2605.request.duplicate-action",
+        kind=ReviewerActionKind.ACKNOWLEDGED,
+        reviewer="m2605-reviewer",
+        target_id="m2605.fixture.alert",
+        occurred_at=datetime(2026, 1, 1, tzinfo=UTC),
+        rationale="Duplicate request action closure test.",
+        evidence=(_evidence("request-action"),),
+    )
+    invalid_request(
+        {"reviewer_actions": (action, action)},
+        "reviewer action ids",
+    )
+    invalid_request(
+        {"samples": (request.samples[0], request.samples[0], *request.samples[2:])},
+        "telemetry sample ids",
+    )
+    invalid_request(
+        {"samples": (request.samples[1], request.samples[0], *request.samples[2:])},
+        "telemetry samples",
+    )
+
+    result = M2605ObservabilityEngine().emit(request)
+
+    def invalid_result(update: dict[str, object], message: str) -> None:
+        candidate = result.model_copy(update=update)
+        with pytest.raises(ValidationError, match=message):
+            type(result).model_validate(candidate.model_dump(mode="python"))
+
+    invalid_result({"request_digest": sha256_digest("forged-request")}, "request digest")
+    invalid_result({"result_id": "result.m2605.forged"}, "result id")
+    invalid_result(
+        {"dashboards": (result.dashboards[0], result.dashboards[0])}, "dashboard ids"
+    )
+    invalid_result(
+        {"findings": (result.findings[0], result.findings[0])}, "result finding ids"
+    )
+    invalid_result(
+        {"evidence": (result.evidence[0], result.evidence[0])}, "result evidence"
+    )
+    invalid_result({"telemetry_stream": None}, "emitted result")
+
+    assert result.telemetry_stream is not None
+    stream_missing_metric = result.telemetry_stream.model_copy(
+        update={"samples": (result.telemetry_stream.samples[0],)}
+    )
+    invalid_result(
+        {"telemetry_stream": stream_missing_metric},
+        "cover every requested metric",
+    )
+
+    drifted_request = request.model_copy(
+        update={
+            "samples": tuple(
+                sample.model_copy(update={"value": 0.6})
+                if sample.metric is TelemetryMetricKind.DRIFT
+                else sample
+                for sample in request.samples
+            )
+        }
+    )
+    drifted = M2605ObservabilityEngine().emit(drifted_request)
+    invalid_drift = drifted.model_copy(update={"human_review_required": False})
+    with pytest.raises(ValidationError, match="human review"):
+        type(drifted).model_validate(invalid_drift.model_dump(mode="python"))
+
+    abstained_request = request.model_copy(
+        update={
+            "requested_metrics": (
+                *request.requested_metrics,
+                TelemetryMetricKind.REVIEWER_ACTIONS,
+            )
+        }
+    )
+    abstained = M2605ObservabilityEngine().emit(abstained_request)
+    invalid_abstention = abstained.model_copy(update={"safe_failure_report": None})
+    with pytest.raises(ValidationError, match="abstained result"):
+        type(abstained).model_validate(invalid_abstention.model_dump(mode="python"))
+
+
+def test_canonical_projections_accept_mapping_inputs() -> None:
+    assert canonical_request_digest({"request_id": "m2605.mapping"}).startswith("sha256:")
+    assert result_payload_digest(
+        {
+            "result_id": "m2605.mapping.result",
+            "result_digest": "sha256:" + "0" * 64,
+        }
+    ).startswith("sha256:")

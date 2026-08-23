@@ -3,13 +3,13 @@
   "built": true,
   "wheel": {
     "path": "dist/glio_proteogen-0.1.0-py3-none-any.whl",
-    "bytes": 863286,
-    "sha256": "sha256:8d438031d49c9fbcf653125e11697a34aae43a627ba9827d9545f59487d65fa0"
+    "bytes": 4057324,
+    "sha256": "sha256:4f2f64892b219c24616a5bfddce6dda941268292f29ede97f4adc9773366719d"
   },
   "sdist": {
     "path": "dist/glio_proteogen-0.1.0.tar.gz",
-    "bytes": 1475691,
-    "sha256": "sha256:c2b7f8b1f04b6557572a269499817efe024d09de9d85aae9c9272765ac1eee46"
+    "bytes": 4773851,
+    "sha256": "sha256:6680de38e6621fe316b920c3ed5351e48e7495fbd8f06b311b892ed2ab05bd2c"
   },
   "isolated_import": true,
   "build_backend": "hatchling"

@@ -69,9 +69,22 @@ def test_fastapi_sanitizes_invalid_and_nonobject_replay() -> None:
     assert "secret_submission" not in invalid.text
     assert "M26-01 contract" in invalid.text
 
-    nonobject = client.post("/v1/modules/M26-01/verify", content=b"[]")
+    nonobject = client.post(
+        "/v1/modules/M26-01/verify",
+        content=b"[]",
+        headers={"content-type": "application/json"},
+    )
     assert nonobject.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
     assert "replay envelope JSON must be an object" in nonobject.text
+
+
+def test_fastapi_rejects_unsupported_replay_content_type() -> None:
+    response = TestClient(m2601_api.create_app()).post(
+        "/v1/modules/M26-01/verify",
+        content=b"{}",
+        headers={"content-type": "text/plain"},
+    )
+    assert response.status_code == HTTPStatus.UNSUPPORTED_MEDIA_TYPE
 
 
 def test_typer_round_trip_schema_register_verify_and_no_overwrite(tmp_path: Path) -> None:
@@ -132,7 +145,11 @@ def test_interfaces_reject_oversized_request_and_result_before_parse(tmp_path: P
 
     client = TestClient(m2601_api.create_app())
     oversized = b"{" + b"a" * M2601_MAX_CANONICAL_RESULT_BYTES + b"}"
-    api_response = client.post("/v1/modules/M26-01/verify", content=oversized)
+    api_response = client.post(
+        "/v1/modules/M26-01/verify",
+        content=oversized,
+        headers={"content-type": "application/json"},
+    )
     assert api_response.status_code == HTTPStatus.REQUEST_ENTITY_TOO_LARGE
     assert "request body exceeds the byte limit" in api_response.text
     assert "StrictJsonError" not in api_response.text
@@ -147,6 +164,10 @@ def test_api_verify_parser_uses_result_ceiling(monkeypatch: pytest.MonkeyPatch) 
         return {}
 
     monkeypatch.setattr(m2601_api, "strict_json_loads", capture)
-    response = TestClient(m2601_api.create_app()).post("/v1/modules/M26-01/verify", content=b"{}")
+    response = TestClient(m2601_api.create_app()).post(
+        "/v1/modules/M26-01/verify",
+        content=b"{}",
+        headers={"content-type": "application/json"},
+    )
     assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
     assert observed == [M2601_MAX_CANONICAL_RESULT_BYTES]

@@ -1,0 +1,12 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M26-06",
+  "contractVersion": "0.1.0-provisional",
+  "authoritySha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "authoritySlice": "source-manifest.yaml:9256-9296",
+  "scenarioCount": 6,
+  "passed": 6,
+  "allPassed": true,
+  "semanticReplayRecompute": true,
+  "selfRehashedDigestRejected": true,
+  "command": "python evals/m26_06/run.py"
+}

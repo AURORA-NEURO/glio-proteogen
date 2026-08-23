@@ -7,12 +7,13 @@ from collections.abc import Iterable
 from dataclasses import dataclass, replace
 from hashlib import sha256
 from math import hypot, isfinite
+from typing import cast
 
 from .modifications import normalize_modification_rules, parse_modified_peptide
 
 
 def _finite_number(value: object) -> bool:
-    return type(value) in (int, float) and isfinite(value)
+    return type(value) in (int, float) and isfinite(cast("float", value))
 
 
 @dataclass(frozen=True, slots=True)
@@ -313,8 +314,6 @@ def _assign_fragment_peaks(
             return candidate_count > current_count
         if candidate_error != current_error:
             return candidate_error < current_error
-        # Prefer a match, then skipping an observed peak, then skipping an ion.
-        # This only resolves equivalent optima and keeps replay stable.
         return {"m": 0, "o": 1, "t": 2}[candidate_action] < {
             "m": 0,
             "o": 1,
@@ -504,9 +503,6 @@ def target_decoy_qvalues(psms: Iterable[Psm], *, decoy_prefix: str = "DECOY_") -
         current = winners.get(psm.spectrum_id)
         if current is None or _competition_sort_key(psm) > _competition_sort_key(current):
             winners[psm.spectrum_id] = psm
-    # Equal-score winners from different spectra are still indistinguishable
-    # target/decoy evidence.  Process collision and pure-decoy winners before
-    # targets so a lexical spectrum ID cannot manufacture a zero q-value.
     ordered = sorted(
         winners.values(),
         key=lambda value: (

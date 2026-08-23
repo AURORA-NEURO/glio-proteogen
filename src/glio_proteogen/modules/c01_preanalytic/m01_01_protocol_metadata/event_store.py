@@ -7,11 +7,6 @@ canonical JSON and conformance events intentionally contain no submitted metadat
 
 from __future__ import annotations
 
-# Domain-specific failures carry contextual messages, and the deliberately exhaustive chain
-# scanner benefits from direct fail-fast branches.  The DDL interpolation is restricted to a
-# validated integer ceiling and a compile-time digest, never caller-controlled SQL.
-# Sha256Digest must remain a runtime import because FastAPI/Pydantic resolves the public
-# ChainVerification annotation.  The exhaustive scanner is intentionally branch-heavy.
 # ruff: noqa: C901, PLR0911, PLR0912, PLR0913, S608, TRY003
 import json
 import re
@@ -197,8 +192,6 @@ def _expected_table_sql(max_chars: int) -> dict[str, str]:
 
 
 def _normalized_sql(value: str) -> str:
-    # Preserve quoted-literal case: unlike SQL keywords, CHECK/trigger string values are
-    # case-sensitive and therefore part of the attested constraint semantics.
     return " ".join(value.split())
 
 
@@ -328,9 +321,9 @@ class M0101EventStore:
 
     def __exit__(
         self,
-        exc_type: type[BaseException] | None,
-        exc_value: BaseException | None,
-        traceback: TracebackType | None,
+        _exc_type: type[BaseException] | None,
+        _exc_value: BaseException | None,
+        _traceback: TracebackType | None,
     ) -> None:
         self.close()
 
@@ -1278,9 +1271,6 @@ class M0101EventStore:
         return None
 
     def _recover_protocol_projection_locked(self) -> None:
-        # The event log is authoritative.  Recovery is permitted to rebuild this derived
-        # projection only after the complete chain matches the caller's independent head.
-        # DDL remains inside the surrounding transaction; event tables are never touched.
         self._connection.execute("DROP TRIGGER m0101_protocols_no_update")
         self._connection.execute("DROP TRIGGER m0101_protocols_no_delete")
         self._connection.execute("DELETE FROM m0101_protocols")

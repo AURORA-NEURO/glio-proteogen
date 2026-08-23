@@ -9,6 +9,7 @@ from tools.verify_m13_02_release import (
 )
 
 
+@pytest.mark.historical_artifact
 def test_m13_02_release_evidence_verifies() -> None:
     root = Path(__file__).parents[2]
     report = verify_release(root / "dist-m13-02")

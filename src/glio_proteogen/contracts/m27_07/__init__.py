@@ -1,5 +1,12 @@
 """Provisional M27-07 change-control contract exports."""
 
+from glio_proteogen.contracts.m27_07.canonical import (
+    canonical_request_digest,
+    normalized_request,
+    normalized_result_payload,
+    result_identifier,
+    result_payload_digest,
+)
 from glio_proteogen.contracts.m27_07.schema import (
     CONTRACT_VERSION,
     SCHEMA_ID_PREFIX,
@@ -78,6 +85,11 @@ __all__ = [
     "RevalidationPlan",
     "RollbackPoint",
     "SafeFailureReport",
+    "canonical_request_digest",
     "contract_json_schema",
     "contract_json_schemas",
+    "normalized_request",
+    "normalized_result_payload",
+    "result_identifier",
+    "result_payload_digest",
 ]

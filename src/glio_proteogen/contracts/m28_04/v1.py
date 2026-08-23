@@ -33,7 +33,6 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
-# PROVISIONAL ABI: inferred solely from dossier lines 9888-9928.
 M2804_MODULE_ID: Final = "GLIO-PROTEOGEN-M28-04"
 M2804_OPERATION: Final = "publish_protein_rna_discordance_access_surface"
 M2804_CONTRACT_VERSION: Final = "0.1.0-provisional"
@@ -345,6 +344,12 @@ class PublishProteinRnaDiscordanceAccessSurfaceRequest(FrozenModel):
             audit_events=self.audit_events,
             configuration=self.configuration,
         )
+        artifact_ids = tuple(item.artifact_id for item in self.source_artifacts)
+        artifact_digests = tuple(item.digest for item in self.source_artifacts)
+        if len(artifact_ids) != len(set(artifact_ids)):
+            raise ValueError("source artifact ids must be unique")
+        if len(artifact_digests) != len(set(artifact_digests)):
+            raise ValueError("source artifact digests must be unique")
         return self
 
 
@@ -378,6 +383,12 @@ class ProteinRnaDiscordanceAccessSurfaceResult(FrozenModel):
             raise ValueError("result request digest does not bind the exact request")
         if self.result_id != result_identifier(self.request_digest):
             raise ValueError("result id does not bind the exact request digest")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("gateway finding ids must be unique")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("gateway result evidence must be unique")
         if self.status is GatewayStatus.PUBLISHED:
             if (
                 self.access_surface is None
@@ -398,10 +409,13 @@ class ProteinRnaDiscordanceAccessSurfaceResult(FrozenModel):
         elif (
             self.access_surface is not None
             or self.abstention_reason is None
+            or not self.findings
             or self.support_decision.status
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
-            raise ValueError("abstained result requires no access surface and safe status")
+            raise ValueError(
+                "abstained result requires findings, no access surface, and safe status"
+            )
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self

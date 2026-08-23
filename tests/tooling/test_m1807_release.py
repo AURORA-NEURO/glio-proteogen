@@ -28,6 +28,7 @@ def test_release_evidence_verifier_accepts_frozen_evaluation_benchmark_coverage(
     verify_fixture(_FIXTURE)
 
 
+@pytest.mark.historical_artifact
 def test_release_verifier_accepts_package_hashes_and_isolated_import() -> None:
     verify_package(_EVIDENCE / "package.json", _DIST)
     verify_release(_EVIDENCE, _DIST, _FIXTURE)

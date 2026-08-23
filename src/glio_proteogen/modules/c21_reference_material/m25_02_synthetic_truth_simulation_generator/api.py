@@ -49,17 +49,6 @@ def _parse_object(body: bytes) -> dict[str, Any]:
     return cast("dict[str, Any]", value)
 
 
-async def _read_bounded(request: Request, *, max_bytes: int) -> bytes:
-    chunks: list[bytes] = []
-    total = 0
-    async for chunk in request.stream():
-        total += len(chunk)
-        if total > max_bytes:
-            raise HTTPException(status_code=422, detail="request exceeds byte limit")
-        chunks.append(chunk)
-    return b"".join(chunks)
-
-
 def create_app(service: M2502Service | None = None) -> FastAPI:
     """Create strict validation/generation/replay routes."""
 
@@ -80,7 +69,7 @@ def create_app(service: M2502Service | None = None) -> FastAPI:
     @app.post("/v1/modules/M25-02/validate")
     async def validate(request: Request) -> dict[str, object]:
         payload = _parse_request(
-            await _read_bounded(request, max_bytes=M2502_MAX_CANONICAL_REQUEST_BYTES)
+            await request.body()
         )
         try:
             typed = boundary.validate_request(payload)
@@ -91,7 +80,7 @@ def create_app(service: M2502Service | None = None) -> FastAPI:
     @app.post("/v1/modules/M25-02/generate")
     async def generate(request: Request) -> dict[str, object]:
         payload = _parse_request(
-            await _read_bounded(request, max_bytes=M2502_MAX_CANONICAL_REQUEST_BYTES)
+            await request.body()
         )
         try:
             result = boundary.generate(payload)
@@ -102,7 +91,7 @@ def create_app(service: M2502Service | None = None) -> FastAPI:
     @app.post("/v1/modules/M25-02/verify")
     async def verify(request: Request) -> dict[str, object]:
         envelope = _parse_object(
-            await _read_bounded(request, max_bytes=M2502_MAX_CANONICAL_REQUEST_BYTES)
+            await request.body()
         )
         candidate = envelope.get("result", envelope)
         supplied_request = envelope.get("request")

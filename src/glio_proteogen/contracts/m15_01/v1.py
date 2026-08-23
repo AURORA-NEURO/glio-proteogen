@@ -37,7 +37,6 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
-# PROVISIONAL ABI: inferred solely from the M15-01 dossier slice.
 M1501_MODULE_ID: Final = "GLIO-PROTEOGEN-M15-01"
 M1501_OPERATION: Final = "register_complex_activity_hypotheses"
 M1501_CONTRACT_VERSION: Final = "0.1.0-provisional"
@@ -290,13 +289,19 @@ class ComplexActivityHypothesisRegistryResult(FrozenModel):
             item.outcome in blocking_falsifications for item in self.falsification_evaluations
         )
         if self.status is not HypothesisStatus.ABSTAINED:
+            support_is_closed = (
+                self.support_decision.status is SupportStatus.SUPPORTED
+                and not self.human_review_required
+            ) or (
+                self.support_decision.status is SupportStatus.REVIEW_REQUIRED
+                and self.human_review_required
+            )
             if (
                 self.registry is None
                 or self.abstention_reason is not None
-                or self.support_decision.status is not SupportStatus.SUPPORTED
+                or not support_is_closed
                 or has_blocking
                 or has_failed_rule
-                or self.human_review_required
             ):
                 raise ValueError("registered result requires supported hypotheses and rules")
         elif (

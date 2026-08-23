@@ -157,7 +157,11 @@ def _verify_evaluation(path: Path) -> str:  # noqa: C901, PLR0912, PLR0915
     observed = run_evaluator()
     benchmark = run_benchmark(iterations=10)
     recorded_eval = evidence.get("evaluation") or evidence.get("evaluator")
-    if isinstance(evidence.get("evaluation"), dict) and isinstance(evidence.get("evaluator"), dict) and evidence["evaluation"] != evidence["evaluator"]:
+    if (
+        isinstance(evidence.get("evaluation"), dict)
+        and isinstance(evidence.get("evaluator"), dict)
+        and evidence["evaluation"] != evidence["evaluator"]
+    ):
         raise VerificationError("research evidence scenario inventory is not locked")
     recorded_cohort = evidence.get("cohort_evaluation")
     recorded_precursor_policy = evidence.get("precursor_policy_evaluation")

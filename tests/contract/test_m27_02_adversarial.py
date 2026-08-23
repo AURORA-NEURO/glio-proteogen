@@ -243,3 +243,26 @@ def test_graph_and_result_closure_reject_forged_references() -> None:
     result_payload["lineage_graph"] = None
     with pytest.raises(ValidationError, match="resolved result requires"):
         ComplexActivityLineageResult.model_validate(result_payload, strict=True)
+
+
+def test_result_identity_and_evidence_references_are_unique() -> None:
+    result = M2702LineageResolver().resolve(_request())
+
+    invalid_id = result.model_dump(mode="python")
+    invalid_id["result_id"] = "result.m2702.forged"
+    with pytest.raises(ValidationError, match="result id does not bind"):
+        ComplexActivityLineageResult.model_validate(invalid_id, strict=True)
+
+    duplicate_evidence = result.model_dump(mode="python")
+    duplicate_evidence["evidence"] = (result.evidence[0], result.evidence[0])
+    with pytest.raises(ValidationError, match="result evidence must be unique"):
+        ComplexActivityLineageResult.model_validate(duplicate_evidence, strict=True)
+
+
+def test_abstained_result_requires_a_safe_failure_report() -> None:
+    result = M2702LineageResolver().resolve(_request(duplicate=True))
+    payload = result.model_dump(mode="python")
+    payload["safe_failure_report"] = None
+
+    with pytest.raises(ValidationError, match="abstained result requires"):
+        ComplexActivityLineageResult.model_validate(payload, strict=True)

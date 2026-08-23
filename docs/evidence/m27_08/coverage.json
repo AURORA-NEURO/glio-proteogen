@@ -1,10 +1,10 @@
 {
   "module_id": "GLIO-PROTEOGEN-M27-08",
   "passed": true,
-  "coverage_percent": 95.0,
-  "fail_under": 95.0,
-  "statements": 489,
-  "branches": 96,
-  "tests": 40,
+  "coverage_percent": 98.0,
+  "fail_under": 98.0,
+  "statements": 549,
+  "branches": 112,
+  "tests": 65,
   "exclusions": []
 }

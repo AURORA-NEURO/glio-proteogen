@@ -1,0 +1,14 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M26-05",
+  "contractVersion": "0.1.0-provisional",
+  "buildTool": "hatchling via uv build",
+  "wheelFilename": "glio_proteogen-0.1.0-py3-none-any.whl",
+  "wheelBytes": 4048845,
+  "wheelSha256": "95248948af9edb52eb2e3797cb5701488bbf4fa3dfb4b1dd79d9d1519c3880de",
+  "sdistFilename": "glio_proteogen-0.1.0.tar.gz",
+  "sdistBytes": 4776920,
+  "sdistSha256": "b749a447b83a2d7e73ba7cc0a2864ac5e809e718571d27c42887d9429e05c75e",
+  "isolatedImport": true,
+  "reproducibleBuilds": true,
+  "buildOutputExternalToRepository": true
+}

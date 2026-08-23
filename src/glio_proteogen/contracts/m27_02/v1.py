@@ -33,10 +33,6 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
-# PROVISIONAL ABI: inferred solely from dossier SHA
-# 0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,
-# lines 9440-9480. Owner confirmation and implementation details remain
-# pending.
 M2702_MODULE_ID: Final = "GLIO-PROTEOGEN-M27-02"
 M2702_OPERATION: Final = "resolve_complex_activity_lineage"
 M2702_CONTRACT_VERSION: Final = "0.1.0-provisional"
@@ -260,9 +256,15 @@ class ComplexActivityLineageResult(FrozenModel):
     def result_is_closed(self) -> ComplexActivityLineageResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        expected_result_id = "result.m2702." + self.request_digest.removeprefix("sha256:")
+        if self.result_id != expected_result_id:
+            raise ValueError("result id does not bind the exact request digest")
         finding_ids = tuple(finding.finding_id for finding in self.findings)
         if len(finding_ids) != len(set(finding_ids)):
             raise ValueError("result finding ids must be unique")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("result evidence must be unique")
         if self.status is LineageStatus.RESOLVED:
             if (
                 self.lineage_graph is None

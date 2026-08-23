@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from http import HTTPStatus
 from pathlib import Path  # noqa: TC003 - pytest resolves the temporary path annotation.
 
 import pytest
@@ -25,6 +26,9 @@ from glio_proteogen.modules.c20_biomarker_panel.m26_06_security_privacy_access_c
     M2606SecurityService,
     M2606TokenError,
     SecuritySubmission,
+)
+from glio_proteogen.modules.c20_biomarker_panel.m26_06_security_privacy_access_control import (
+    cli as cli_module,
 )
 from glio_proteogen.modules.c20_biomarker_panel.m26_06_security_privacy_access_control.api import (
     create_m2606_app,
@@ -73,7 +77,11 @@ def test_fastapi_validate_evaluate_and_verify_are_canonical() -> None:
 
 def test_fastapi_sanitizes_invalid_and_unauthorized_requests() -> None:
     client = TestClient(create_m2606_app())
-    invalid = client.post("/v1/modules/M26-06/evaluate", content=b"{not-json")
+    invalid = client.post(
+        "/v1/modules/M26-06/evaluate",
+        content=b"{not-json",
+        headers={"content-type": "application/json"},
+    )
     assert invalid.status_code == _HTTP_UNPROCESSABLE
     assert invalid.json()["detail"] == "request does not satisfy the M26-06 contract"
 
@@ -102,6 +110,7 @@ def test_fastapi_request_ceiling_applies_before_evaluate_parsing() -> None:
     response = client.post(
         "/v1/modules/M26-06/evaluate",
         content=b"{" + b"x" * M2606_MAX_CANONICAL_REQUEST_BYTES + b"}",
+        headers={"content-type": "application/json"},
     )
     assert response.status_code == _HTTP_PAYLOAD_TOO_LARGE
 
@@ -129,6 +138,22 @@ def test_fastapi_validation_error_paths_are_sanitized() -> None:
 
     invalid_replay = client.post("/v1/modules/M26-06/verify", json={"result": {"bad": True}})
     assert invalid_replay.status_code == _HTTP_UNPROCESSABLE
+
+
+def test_fastapi_rejects_unsupported_and_malformed_replay_payloads() -> None:
+    client = TestClient(create_m2606_app())
+    unsupported = client.post(
+        "/v1/modules/M26-06/verify",
+        content=b"{}",
+        headers={"content-type": "text/plain"},
+    )
+    malformed = client.post(
+        "/v1/modules/M26-06/verify",
+        content=b"not-json",
+        headers={"content-type": "application/json"},
+    )
+    assert unsupported.status_code == HTTPStatus.UNSUPPORTED_MEDIA_TYPE
+    assert malformed.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
 
 def test_api_cli_and_plugin_reject_self_rehashed_security_result(tmp_path: Path) -> None:
@@ -239,3 +264,25 @@ def test_cli_schema_evaluate_and_verify_refuse_overwrite(tmp_path: Path) -> None
     malformed.write_text("{not-json", encoding="utf-8")
     assert runner.invoke(cli_app, ["validate", str(malformed)]).exit_code != 0
     assert runner.invoke(cli_app, ["verify", str(malformed)]).exit_code != 0
+
+
+def test_cli_sanitizes_service_validation_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class FailingService:
+        def validate_request(self, _request: object) -> object:
+            raise ValueError("private validation detail")  # noqa: TRY003
+
+        def execute(self, _request: object) -> object:
+            raise ValueError("private execution detail")  # noqa: TRY003
+
+    monkeypatch.setattr(cli_module, "_SERVICE", FailingService())
+    request_path = tmp_path / "request.json"
+    request_path.write_bytes(canonical_json_bytes(_request()))
+    runner = CliRunner()
+    validated = runner.invoke(cli_app, ["validate", str(request_path)])
+    evaluated = runner.invoke(cli_app, ["evaluate", str(request_path)])
+    assert validated.exit_code != 0
+    assert evaluated.exit_code != 0
+    assert "private" not in validated.output
+    assert "private" not in evaluated.output

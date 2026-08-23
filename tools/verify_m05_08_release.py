@@ -1,5 +1,7 @@
 """Verify reproducible M05-08 package and evidence receipts."""
 
+# ruff: noqa: TRY003, PLR0913, PLR0917, PLR2004, T201
+
 from __future__ import annotations
 
 import argparse

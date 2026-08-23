@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 import pytest
 from typer.testing import CliRunner
 
+from glio_proteogen.kernel.models import ConsentState
 from glio_proteogen.modules.c21_reference_material.m23_04_external_transport_evaluator import (
     M2304Service,
     cli_app,
@@ -19,6 +20,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 _HTTP_OK = 200
+_HTTP_NOT_FOUND = 404
 _HTTP_UNPROCESSABLE = 422
 
 try:
@@ -80,8 +82,12 @@ def test_cli_rejects_duplicate_json_keys(tmp_path: Path) -> None:
 def test_api_exposes_schema_and_strict_validation() -> None:
     assert TestClient is not None
     client = TestClient(create_app())
+    schemas = client.get("/v1/modules/M23-04/schemas")
     schema = client.get("/v1/modules/M23-04/schemas/request")
+    unknown = client.get("/v1/modules/M23-04/schemas/unknown")
     assert schema.status_code == _HTTP_OK
+    assert schemas.status_code == _HTTP_OK
+    assert unknown.status_code == _HTTP_NOT_FOUND
     assert schema.json()["x-glio-contract"]["dossierSlice"].endswith("8088-8128")
     response = client.post("/v1/modules/M23-04/validate", json=_request().model_dump(mode="json"))
     assert response.status_code == _HTTP_OK
@@ -116,3 +122,57 @@ def test_api_sanitizes_malformed_request() -> None:
     response = client.post("/v1/modules/M23-04/evaluate", content=b'{"x":1,"x":2}')
     assert response.status_code == _HTTP_UNPROCESSABLE
     assert "Traceback" not in response.text
+    non_object = client.post(
+        "/v1/modules/M23-04/verify",
+        content=b"[]",
+        headers={"content-type": "application/json"},
+    )
+    invalid = client.post(
+        "/v1/modules/M23-04/verify",
+        content=b"not-json",
+        headers={"content-type": "application/json"},
+    )
+    assert non_object.status_code == _HTTP_UNPROCESSABLE
+    assert invalid.status_code == _HTTP_UNPROCESSABLE
+
+
+@pytest.mark.skipif(TestClient is None, reason="FastAPI test client is unavailable")
+def test_api_sanitizes_authorization_failure_on_validate() -> None:
+    assert TestClient is not None
+    request = _request()
+    denied_context = request.context.model_copy(
+        update={
+            "references": request.context.references.model_copy(
+                update={
+                    "consent": request.context.references.consent.model_copy(
+                        update={"state": ConsentState.WITHHELD}
+                    )
+                }
+            )
+        }
+    )
+    denied = request.model_copy(update={"context": denied_context})
+
+    response = TestClient(create_app()).post(
+        "/v1/modules/M23-04/evaluate", json=denied.model_dump(mode="json")
+    )
+
+    assert response.status_code == _HTTP_UNPROCESSABLE
+    assert "M2304AuthorizationError" not in response.text
+
+
+@pytest.mark.skipif(TestClient is None, reason="FastAPI test client is unavailable")
+def test_api_sanitizes_service_validation_failure() -> None:
+    assert TestClient is not None
+
+    class FailingService:
+        def validate_request(self, request: object) -> object:
+            del request
+            raise ValueError
+
+    response = TestClient(create_app(FailingService())).post(
+        "/v1/modules/M23-04/validate", json=_request().model_dump(mode="json")
+    )
+
+    assert response.status_code == _HTTP_UNPROCESSABLE
+    assert response.json()["detail"] == "request does not satisfy the M23-04 contract"

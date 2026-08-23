@@ -11,8 +11,8 @@ from glio_proteogen.contracts.m20_05 import ReviewItemStatus, WorkspaceStatus
 from glio_proteogen.contracts.m20_05.canonical import result_payload_digest
 from glio_proteogen.modules.c20_biomarker_panel.m20_05_workflow_presentation_service import (
     M2005AuthorizationError,
-    M2005ReplayError,
     M2005Plugin,
+    M2005ReplayError,
     M2005Service,
     preflight_m2005_authorization,
 )

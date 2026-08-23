@@ -27,6 +27,7 @@ HTTP_OK = 200
 HTTP_UNPROCESSABLE = 422
 HTTP_NOT_FOUND = 404
 HTTP_PAYLOAD_TOO_LARGE = 413
+HTTP_UNSUPPORTED_MEDIA_TYPE = 415
 SCHEMA_COUNT = 8
 
 
@@ -36,13 +37,15 @@ def test_fastapi_schema_validate_control_and_verify_routes() -> None:
 
     with TestClient(app) as client:
         schemas = client.get("/v1/modules/M26-07/schemas")
-        validated = client.post("/v1/modules/M26-07/validate", content=body)
-        controlled = client.post("/v1/modules/M26-07/control", content=body)
+        headers = {"content-type": "application/json"}
+        validated = client.post("/v1/modules/M26-07/validate", content=body, headers=headers)
+        controlled = client.post("/v1/modules/M26-07/control", content=body, headers=headers)
         verified = client.post(
             "/v1/modules/M26-07/verify",
             content=canonical_json_bytes(
                 {"request": request.model_dump(mode="json"), "result": controlled.json()}
             ),
+            headers=headers,
         )
         forged = request.model_copy(update={"request_id": "request.m2607.forged"})
         mismatch = client.post(
@@ -65,6 +68,7 @@ def test_fastapi_rejects_duplicate_keys_and_unknown_schema() -> None:
         duplicate = client.post(
             "/v1/modules/M26-07/validate",
             content=b'{"request_id":"a","request_id":"b"}',
+            headers={"content-type": "application/json"},
         )
         unknown = client.get("/v1/modules/M26-07/schemas/unknown")
 
@@ -78,8 +82,19 @@ def test_fastapi_request_ceiling_applies_before_control_parsing() -> None:
         response = client.post(
             "/v1/modules/M26-07/control",
             content=b"{" + b"x" * M2607_MAX_CANONICAL_REQUEST_BYTES + b"}",
+            headers={"content-type": "application/json"},
         )
     assert response.status_code == HTTP_PAYLOAD_TOO_LARGE
+
+
+def test_fastapi_rejects_unsupported_replay_content_type() -> None:
+    with TestClient(app) as client:
+        response = client.post(
+            "/v1/modules/M26-07/verify",
+            content=b"{}",
+            headers={"content-type": "text/plain"},
+        )
+    assert response.status_code == HTTP_UNSUPPORTED_MEDIA_TYPE
 
 
 def test_sdk_preserves_service_canonical_result() -> None:

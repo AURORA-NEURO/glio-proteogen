@@ -10,7 +10,6 @@ from pydantic import TypeAdapter
 from glio_proteogen.contracts.m27_06 import (
     M2706_CONTRACT_VERSION,
     M2706_M2705_INPUT_MEDIA_TYPE,
-    M2706_MAX_CANONICAL_REQUEST_BYTES,
     M2706_MODULE_ID,
     M2706_PARENT,
     AccessDecision,
@@ -50,7 +49,6 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
     UpstreamDecisionState,
 )
-from glio_proteogen.kernel.strict_json import strict_json_loads
 
 _REQUEST_ADAPTER: Final = TypeAdapter(EvaluateComplexActivitySecurityAccessRequest)
 _RESULT_ADAPTER: Final = TypeAdapter(ComplexActivitySecurityAccessResult)
@@ -101,9 +99,6 @@ def preflight_m2706_authorization(candidate: object) -> None:
 
 
 def _validate_request(candidate: object) -> EvaluateComplexActivitySecurityAccessRequest:
-    if isinstance(candidate, (bytes, bytearray, str)):
-        decoded = strict_json_loads(candidate, max_bytes=M2706_MAX_CANONICAL_REQUEST_BYTES)
-        return _REQUEST_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
     if isinstance(candidate, Mapping):
         return _REQUEST_ADAPTER.validate_json(canonical_json_bytes(dict(candidate)), strict=True)
     return _REQUEST_ADAPTER.validate_python(candidate, strict=True)

@@ -162,10 +162,25 @@ def _declaration_evidence(
     )
 
 
+def _combined_evidence(
+    request: EvaluateProteomicsSecurityAccessRequest,
+) -> tuple[EvidenceReference, ...]:
+    """Return stable evidence closure without repeating the same artifact digest."""
+
+    seen: set[str] = set()
+    unique: list[EvidenceReference] = []
+    for item in (*_evidence(request), *_declaration_evidence(request)):
+        if item.reference.digest in seen:
+            continue
+        seen.add(item.reference.digest)
+        unique.append(item)
+    return tuple(unique)
+
+
 def _findings(
     request: EvaluateProteomicsSecurityAccessRequest,
 ) -> tuple[SecurityFinding, ...]:
-    evidence = (*_evidence(request), *_declaration_evidence(request))
+    evidence = _combined_evidence(request)
     findings: list[SecurityFinding] = []
     for declaration in request.control_declarations:
         if declaration.status is ControlStatus.FAILED:
@@ -314,15 +329,13 @@ def _posture(
     request: EvaluateProteomicsSecurityAccessRequest,
     findings: tuple[SecurityFinding, ...],
 ) -> SecurityPostureRecord:
-    evidence = (*_evidence(request), *_declaration_evidence(request))
+    evidence = _combined_evidence(request)
     statuses = {item.status for item in request.control_declarations}
     if statuses == {ControlStatus.PASSED}:
         status = SecurityPostureStatus.COMPLIANT
     elif ControlStatus.FAILED in statuses:
         status = SecurityPostureStatus.CRITICAL
     else:
-        # The contract fixes the eight-control vocabulary.  Once the all-pass
-        # and failed cases are excluded, only an unresolved/review state remains.
         status = SecurityPostureStatus.NOT_EVALUABLE
     checks = tuple(
         SecurityControlCheck(
@@ -359,7 +372,7 @@ def _safe_failure(
             "Supply fresh evidence for every failed or unresolved control and rerun under the "
             "same policy version."
         ),
-        evidence=(*_evidence(request), *_declaration_evidence(request)),
+        evidence=_combined_evidence(request),
     )
 
 
@@ -371,7 +384,7 @@ def _build_result(
     all_passed = all(item.status is ControlStatus.PASSED for item in request.control_declarations)
     controls = _controls(request.context)
     provenance = _provenance(request, request_digest, controls)
-    evidence = (*_evidence(request), *_declaration_evidence(request))
+    evidence = _combined_evidence(request)
     posture = _posture(request, findings)
     evaluated = all_passed and request.context.references.consent.state is ConsentState.GRANTED
     status = SecurityAssessmentStatus.EVALUATED if evaluated else SecurityAssessmentStatus.ABSTAINED

@@ -20,6 +20,8 @@ from glio_proteogen.modules.c20_biomarker_panel.m26_06_security_privacy_access_c
 )
 
 _MIN_ITERATIONS = 3
+_MEAN_BUDGET_NS = 500_000_000
+_P95_BUDGET_NS = 750_000_000
 
 
 def benchmark(iterations: int = 10) -> dict[str, Any]:
@@ -35,14 +37,18 @@ def benchmark(iterations: int = 10) -> dict[str, Any]:
         samples.append(time.perf_counter_ns() - start)
     ordered = sorted(samples)
     p95_index = min(len(ordered) - 1, max(0, int(len(ordered) * 0.95) - 1))
+    mean_ns = int(statistics.mean(samples))
+    p95_ns = ordered[p95_index]
     return {
+        "moduleId": "GLIO-PROTEOGEN-M26-06",
         "iterations": iterations,
         "samples_ns": samples,
-        "mean_ns": int(statistics.mean(samples)),
+        "mean_ns": mean_ns,
         "median_ns": int(statistics.median(samples)),
-        "p95_ns": ordered[p95_index],
-        "budget_mean_ns": 500_000_000,
-        "budget_p95_ns": 750_000_000,
+        "p95_ns": p95_ns,
+        "budget_mean_ns": _MEAN_BUDGET_NS,
+        "budget_p95_ns": _P95_BUDGET_NS,
+        "budgetPassed": mean_ns <= _MEAN_BUDGET_NS and p95_ns <= _P95_BUDGET_NS,
     }
 
 

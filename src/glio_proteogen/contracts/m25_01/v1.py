@@ -34,7 +34,6 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
-# PROVISIONAL ABI: inferred solely from dossier lines 8676-8716.
 M2501_MODULE_ID: Final = "GLIO-PROTEOGEN-M25-01"
 M2501_OPERATION: Final = "curate_proteotype_reference_truth"
 M2501_CONTRACT_VERSION: Final = "0.1.0-provisional"
@@ -256,6 +255,12 @@ class ProteotypeReferenceTruthResult(FrozenModel):
     def result_is_closed(self) -> ProteotypeReferenceTruthResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind exact request")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("result finding ids must be unique")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("result evidence must be unique")
         if self.status is CurationStatus.CURATED:
             if (
                 self.package is None

@@ -42,6 +42,7 @@ from tests.runtime.test_m2607_runtime import _request
 
 HTTP_UNPROCESSABLE = 422
 HTTP_OK = 200
+JSON_HEADERS = {"content-type": "application/json"}
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -103,13 +104,20 @@ def test_api_sanitizes_non_object_and_tampered_replay_errors() -> None:
     tampered = result.model_copy(update={"result_digest": "sha256:" + "f" * 64})
 
     with TestClient(app) as client:
-        non_object = client.post("/v1/modules/M26-07/validate", content=b"[]")
+        non_object = client.post(
+            "/v1/modules/M26-07/validate", content=b"[]", headers=JSON_HEADERS
+        )
+        non_object_replay = client.post(
+            "/v1/modules/M26-07/verify", content=b"[]", headers=JSON_HEADERS
+        )
         replay = client.post(
             "/v1/modules/M26-07/verify",
             content=json.dumps({"result": tampered.model_dump(mode="json")}),
+            headers=JSON_HEADERS,
         )
 
     assert non_object.status_code == HTTP_UNPROCESSABLE
+    assert non_object_replay.status_code == HTTP_UNPROCESSABLE
     assert replay.status_code == HTTP_UNPROCESSABLE
     assert "Traceback" not in replay.text
 
@@ -141,12 +149,18 @@ def test_api_covers_schema_lookup_and_sanitized_parse_errors() -> None:
     denied_request = request.model_copy(update={"context": rejected_context})
     with TestClient(app) as client:
         schema = client.get("/v1/modules/M26-07/schemas/request")
-        malformed = client.post("/v1/modules/M26-07/verify", content=b"{")
+        malformed = client.post(
+            "/v1/modules/M26-07/verify", content=b"{", headers=JSON_HEADERS
+        )
         denied_validate = client.post(
-            "/v1/modules/M26-07/validate", content=denied_request.model_dump_json()
+            "/v1/modules/M26-07/validate",
+            content=denied_request.model_dump_json(),
+            headers=JSON_HEADERS,
         )
         denied_control = client.post(
-            "/v1/modules/M26-07/control", content=denied_request.model_dump_json()
+            "/v1/modules/M26-07/control",
+            content=denied_request.model_dump_json(),
+            headers=JSON_HEADERS,
         )
 
     assert schema.status_code == HTTP_OK
@@ -266,6 +280,16 @@ def test_result_closure_and_canonical_mapping_variants_are_rejected() -> None:
     with pytest.raises(ValidationError, match="result digest"):
         ProteinSubtypeChangeControlResult.model_validate(
             payload | {"result_digest": "sha256:" + "f" * 64}
+        )
+    assert result.change_package is not None
+    altered_package = result.change_package.model_copy(update={"approved_by": "actor.other"})
+    forged_package = result.model_copy(update={"change_package": altered_package})
+    forged_package = forged_package.model_copy(
+        update={"result_digest": result_payload_digest(forged_package)}
+    )
+    with pytest.raises(ValidationError, match="exact change request"):
+        ProteinSubtypeChangeControlResult.model_validate(
+            forged_package.model_dump(mode="python")
         )
     assert normalized_request(request) == request.model_dump(mode="json")
     assert canonical_request_digest(request).startswith("sha256:")

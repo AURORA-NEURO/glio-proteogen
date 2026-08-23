@@ -17,6 +17,7 @@ from glio_proteogen.contracts.m26_07.canonical import (
     canonical_request_digest,
     result_payload_digest,
 )
+from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     EvidenceReference,
@@ -33,7 +34,6 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
-# PROVISIONAL ABI: inferred solely from dossier lines 9300-9340.
 M2607_DOSSIER_SHA256: Final = "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
 M2607_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:9300-9340"
 M2607_MODULE_ID: Final = "GLIO-PROTEOGEN-M26-07"
@@ -261,6 +261,15 @@ class ProteinSubtypeChangeControlResult(FrozenModel):
     def result_is_closed(self) -> ProteinSubtypeChangeControlResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind exact request")
+        expected_result_id = "result.m2607." + self.request_digest.removeprefix("sha256:")
+        if self.result_id != expected_result_id:
+            raise ValueError("result id does not bind the exact request digest")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("result finding ids must be unique")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("result evidence must be unique")
         if self.status is ChangeStatus.APPROVED:
             if (
                 self.change_package is None
@@ -269,14 +278,37 @@ class ProteinSubtypeChangeControlResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("approved result requires supported package and rollback point")
+            package = self.change_package
+            package_payload = {
+                "proposal": self.request.proposal,
+                "revalidations": self.request.revalidations,
+                "comparisons": self.request.comparisons,
+                "rollback": self.request.rollback_point,
+                "stage": RolloutStage.STAGED.value,
+                "approved_by": self.request.context.actor_id,
+            }
+            if (
+                self.rollback_point != self.request.rollback_point
+                or package.package_id != f"package.m2607.{self.request.proposal.proposal_id}"
+                or package.version != self.request.proposal.proposed_version
+                or package.proposal != self.request.proposal
+                or package.revalidations != self.request.revalidations
+                or package.comparisons != self.request.comparisons
+                or package.rollout_stage is not RolloutStage.STAGED
+                or package.approved_by != self.request.context.actor_id
+                or package.rollback_point != self.request.rollback_point
+                or package.package_digest != sha256_digest(package_payload)
+            ):
+                raise ValueError("approved package must bind the exact change request")
         elif (
             self.change_package is not None
             or self.rollback_point is not None
             or self.abstention_reason is None
+            or not self.findings
             or self.support_decision.status
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
-            raise ValueError("abstained result requires no package and safe status")
+            raise ValueError("abstained result requires findings, no package, and safe status")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self

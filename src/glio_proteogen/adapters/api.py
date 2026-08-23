@@ -506,6 +506,10 @@ from glio_proteogen.contracts.m15_02.v1 import (
     LongitudinalRecurrenceContextStratificationResult,
     StratifyContextAndSubtypeRequest,
 )
+from glio_proteogen.contracts.m15_05 import (
+    M1505_MAX_CANONICAL_REQUEST_BYTES,
+    M1505_MAX_CANONICAL_RESULT_BYTES,
+)
 from glio_proteogen.contracts.m15_08.schema import (
     ContractName as M1508ContractName,
 )
@@ -659,6 +663,126 @@ from glio_proteogen.contracts.m20_01.v1 import (
     ProteinSubtypeUpstreamResolutionResult,
     ResolveProteinSubtypeUpstreamContractsRequest,
 )
+from glio_proteogen.contracts.m23_01 import (
+    M2301_MAX_CANONICAL_REQUEST_BYTES,
+    M2301_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m23_02 import (
+    M2302_MAX_CANONICAL_REQUEST_BYTES,
+    M2302_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m23_03 import (
+    M2303_MAX_CANONICAL_REQUEST_BYTES,
+    M2303_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m23_04 import (
+    M2304_MAX_CANONICAL_REQUEST_BYTES,
+    M2304_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m23_05 import (
+    M2305_MAX_CANONICAL_REQUEST_BYTES,
+    M2305_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m23_07 import (
+    M2307_MAX_CANONICAL_REQUEST_BYTES,
+    M2307_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m23_08 import (
+    M2308_MAX_CANONICAL_REQUEST_BYTES,
+    M2308_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m24_02 import (
+    M2402_MAX_CANONICAL_REQUEST_BYTES,
+    M2402_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m24_03 import (
+    M2403_MAX_CANONICAL_REQUEST_BYTES,
+    M2403_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m24_04 import (
+    M2404_MAX_CANONICAL_REQUEST_BYTES,
+    M2404_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m24_05 import (
+    M2405_MAX_CANONICAL_REQUEST_BYTES,
+    M2405_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m24_06 import (
+    M2406_MAX_CANONICAL_REQUEST_BYTES,
+    M2406_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m24_07 import (
+    M2407_MAX_CANONICAL_REQUEST_BYTES,
+    M2407_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m24_08 import (
+    M2408_MAX_CANONICAL_REQUEST_BYTES,
+    M2408_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m25_01 import (
+    M2501_MAX_CANONICAL_REQUEST_BYTES,
+    M2501_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m25_02 import (
+    M2502_MAX_CANONICAL_REQUEST_BYTES,
+    M2502_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m25_03 import (
+    M2503_MAX_CANONICAL_REQUEST_BYTES,
+    M2503_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m25_04 import (
+    M2504_MAX_CANONICAL_REQUEST_BYTES,
+    M2504_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m25_05 import (
+    M2505_MAX_CANONICAL_REQUEST_BYTES,
+    M2505_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m25_06 import (
+    M2506_MAX_CANONICAL_REQUEST_BYTES,
+    M2506_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m25_07 import (
+    M2507_MAX_CANONICAL_REQUEST_BYTES,
+    M2507_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m25_08 import (
+    M2508_MAX_CANONICAL_REQUEST_BYTES,
+    M2508_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m26_01 import (
+    M2601_MAX_CANONICAL_REQUEST_BYTES,
+    M2601_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m26_02 import (
+    M2602_MAX_CANONICAL_REQUEST_BYTES,
+    M2602_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m26_03 import (
+    M2603_MAX_CANONICAL_REQUEST_BYTES,
+    M2603_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m26_04 import (
+    M2604_MAX_CANONICAL_REQUEST_BYTES,
+    M2604_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m26_05 import (
+    M2605_MAX_CANONICAL_REQUEST_BYTES,
+    M2605_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m26_06 import (
+    M2606_MAX_CANONICAL_REQUEST_BYTES,
+    M2606_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m26_07 import (
+    M2607_MAX_CANONICAL_REQUEST_BYTES,
+    M2607_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m26_08 import (
+    M2608_MAX_CANONICAL_REQUEST_BYTES,
+    M2608_MAX_CANONICAL_RESULT_BYTES,
+)
 from glio_proteogen.contracts.m27_02.schema import (
     ContractName as M2702ContractName,
 )
@@ -670,6 +794,34 @@ from glio_proteogen.contracts.m27_02.v1 import (
     M2702_MAX_CANONICAL_RESULT_BYTES,
     ComplexActivityLineageResult,
     ResolveComplexActivityLineageRequest,
+)
+from glio_proteogen.contracts.m27_03 import (
+    M2703_MAX_CANONICAL_REQUEST_BYTES,
+    M2703_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m27_04 import (
+    M2704_MAX_CANONICAL_REQUEST_BYTES,
+    M2704_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m27_05 import (
+    M2705_MAX_CANONICAL_REQUEST_BYTES,
+    M2705_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m27_06 import (
+    M2706_MAX_CANONICAL_REQUEST_BYTES,
+    M2706_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m27_07 import (
+    M2707_MAX_CANONICAL_REQUEST_BYTES,
+    M2707_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m27_08 import (
+    M2708_MAX_CANONICAL_REQUEST_BYTES,
+    M2708_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m28_04 import (
+    M2804_MAX_CANONICAL_REQUEST_BYTES,
+    M2804_MAX_CANONICAL_RESULT_BYTES,
 )
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
@@ -952,6 +1104,9 @@ from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
     m15_02_context_subtype_stratifier as m1502_module,
 )
 from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
+    m15_05_longitudinal_evolution as m1505_module,
+)
+from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
     m15_08_mechanism_evidence_dossier as m1508,
 )
 from glio_proteogen.modules.c16_kinophos_object_consumer import (
@@ -1006,6 +1161,269 @@ from glio_proteogen.modules.c27_complex_activity.m27_02_lineage_service import (
     M2702Service,
     preflight_m2702_authorization,
 )
+
+from ..modules.c13_proteotype.m28_04_api_sdk_cli_gateway import api as m2804_api
+from ..modules.c20_biomarker_panel.m26_01_registry_configuration_service import (
+    api as m2601_api,
+)
+from ..modules.c20_biomarker_panel.m26_04_api_sdk_cli_gateway import api as m2604_api
+from ..modules.c20_biomarker_panel.m26_05_observability_telemetry import api as m2605_api
+from ..modules.c20_biomarker_panel.m26_06_security_privacy_access_control import (
+    api as m2606_api,
+)
+from ..modules.c20_biomarker_panel.m26_07_change_control_rollback import api as m2607_api
+from ..modules.c20_biomarker_panel.m26_08_retirement_archival_knowledge_transfer import (
+    api as m2608_api,
+)
+from ..modules.c20_biomarker_panel.m27_04_api_sdk_cli_gateway import api as m2704_api
+from ..modules.c21_reference_material.m23_01_reference_truth_benchmark_curator import (
+    api as m2301_api,
+)
+from ..modules.c21_reference_material.m23_02_synthetic_truth_simulation_generator import (
+    api as m2302_api,
+)
+from ..modules.c21_reference_material.m23_03_internal_benchmark_ablation import (
+    api as m2303_api,
+)
+from ..modules.c21_reference_material.m23_04_external_transport_evaluator import (
+    api as m2304_api,
+)
+from ..modules.c21_reference_material.m23_05_subgroup_equity_evaluator import (
+    api as m2305_api,
+)
+from ..modules.c21_reference_material.m23_07_human_factors_operational_evaluator import (
+    api as m2307_api,
+)
+from ..modules.c21_reference_material.m23_08_evidence_gate_release_adjudicator import (
+    api as m2308_api,
+)
+from ..modules.c21_reference_material.m24_02_synthetic_truth_simulation_generator import (
+    api as m2402_api,
+)
+from ..modules.c21_reference_material.m24_03_internal_benchmark_ablation import api as m2403_api
+from ..modules.c21_reference_material.m24_04_external_transport_evaluator import api as m2404_api
+from ..modules.c21_reference_material.m24_05_subgroup_equity_evaluator import api as m2405_api
+from ..modules.c21_reference_material.m24_06_robustness_shift_ood_challenge import api as m2406_api
+from ..modules.c21_reference_material.m24_07_human_factors_operational_evaluator import (
+    api as m2407_api,
+)
+from ..modules.c21_reference_material.m24_08_evidence_gate_release_adjudicator import (
+    api as m2408_api,
+)
+from ..modules.c21_reference_material.m25_01_reference_truth_benchmark_curator import (
+    api as m2501_api,
+)
+from ..modules.c21_reference_material.m25_02_synthetic_truth_simulation_generator import (
+    api as m2502_api,
+)
+from ..modules.c21_reference_material.m25_03_internal_benchmark_ablation import (
+    api as m2503_api,
+)
+from ..modules.c21_reference_material.m25_04_external_transport_evaluator import api as m2504_api
+from ..modules.c21_reference_material.m25_05_subgroup_equity_evaluator import (
+    api as m2505_api,
+)
+from ..modules.c21_reference_material.m25_06_robustness_shift_ood_challenge import api as m2506_api
+from ..modules.c21_reference_material.m25_07_human_factors_operational_evaluator import (
+    api as m2507_api,
+)
+from ..modules.c21_reference_material.m25_08_evidence_gate_release_adjudicator import (
+    api as m2508_api,
+)
+from ..modules.c21_reference_material.m26_03_reproducible_pipeline_orchestrator import (
+    api as m2603_api,
+)
+from ..modules.c26_proteomics.m26_02_data_model_lineage_service import api as m2602_api
+from ..modules.c27_complex_activity.m27_03_reproducible_pipeline_orchestrator import (
+    api as m2703_api,
+)
+from ..modules.c27_complex_activity.m27_05_observability_telemetry import api as m2705_api
+from ..modules.c27_complex_activity.m27_06_security_access import api as m2706_api
+from ..modules.c27_complex_activity.m27_07_change_control import api as m2707_api
+from ..modules.c27_complex_activity.m27_08_retirement import api as m2708_api
+
+_MODEL_ROUTE_LIMITS: Final[dict[str, tuple[int, int | None]]] = {
+    "/v1/modules/M01-02": (MAX_REQUEST_BYTES, None),
+    "/v1/modules/M03-02": (MAX_REQUEST_BYTES, None),
+    "/v1/modules/M03-05": (
+        M0305_MAX_CANONICAL_REQUEST_BYTES,
+        M0305_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M03-06": (
+        M0306_MAX_CANONICAL_REQUEST_BYTES,
+        M0306_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M03-07": (
+        M0307_MAX_CANONICAL_REQUEST_BYTES,
+        M0307_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M04-01": (M0401_MAX_CANONICAL_REQUEST_BYTES, None),
+    "/v1/modules/M04-02": (M0402_MAX_CANONICAL_REQUEST_BYTES, None),
+    "/v1/modules/M04-04": (M0404_MAX_CANONICAL_REQUEST_BYTES, None),
+    "/v1/modules/M04-07/support-route": (
+        M0407_MAX_CANONICAL_REQUEST_BYTES,
+        None,
+    ),
+    "/v1/modules/M05-01": (M0501_MAX_CANONICAL_REQUEST_BYTES, None),
+    "/v1/modules/M05-02": (M0502_MAX_CANONICAL_REQUEST_BYTES, None),
+    "/v1/modules/M06-01": (M0601_MAX_CANONICAL_REQUEST_BYTES, M0601_MAX_CANONICAL_RESULT_BYTES),
+    "/v1/modules/M06-03": (M0603_MAX_CANONICAL_REQUEST_BYTES, None),
+    "/v1/modules/M06-04": (M0604_MAX_CANONICAL_REQUEST_BYTES, None),
+    "/v1/modules/M06-06": (M0606_MAX_CANONICAL_REQUEST_BYTES, None),
+    "/v1/modules/M15-05": (
+        M1505_MAX_CANONICAL_REQUEST_BYTES,
+        M1505_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M23-01": (
+        M2301_MAX_CANONICAL_REQUEST_BYTES,
+        M2301_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M23-02": (
+        M2302_MAX_CANONICAL_REQUEST_BYTES,
+        M2302_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M23-03": (
+        M2303_MAX_CANONICAL_REQUEST_BYTES,
+        M2303_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M23-04": (
+        M2304_MAX_CANONICAL_REQUEST_BYTES,
+        M2304_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M23-05": (
+        M2305_MAX_CANONICAL_REQUEST_BYTES,
+        M2305_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M23-07": (
+        M2307_MAX_CANONICAL_REQUEST_BYTES,
+        M2307_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M23-08": (
+        M2308_MAX_CANONICAL_REQUEST_BYTES,
+        M2308_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M24-02": (
+        M2402_MAX_CANONICAL_REQUEST_BYTES,
+        M2402_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M24-03": (
+        M2403_MAX_CANONICAL_REQUEST_BYTES,
+        M2403_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M24-04": (
+        M2404_MAX_CANONICAL_REQUEST_BYTES,
+        M2404_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M24-05": (
+        M2405_MAX_CANONICAL_REQUEST_BYTES,
+        M2405_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M24-06": (
+        M2406_MAX_CANONICAL_REQUEST_BYTES,
+        M2406_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M24-07": (
+        M2407_MAX_CANONICAL_REQUEST_BYTES,
+        M2407_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M24-08": (
+        M2408_MAX_CANONICAL_REQUEST_BYTES,
+        M2408_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M25-01": (
+        M2501_MAX_CANONICAL_REQUEST_BYTES,
+        M2501_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M25-02": (
+        M2502_MAX_CANONICAL_REQUEST_BYTES,
+        M2502_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M25-03": (
+        M2503_MAX_CANONICAL_REQUEST_BYTES,
+        M2503_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M25-04": (
+        M2504_MAX_CANONICAL_REQUEST_BYTES,
+        M2504_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M25-05": (
+        M2505_MAX_CANONICAL_REQUEST_BYTES,
+        M2505_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M25-06": (
+        M2506_MAX_CANONICAL_REQUEST_BYTES,
+        M2506_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M25-07": (
+        M2507_MAX_CANONICAL_REQUEST_BYTES,
+        M2507_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M25-08": (
+        M2508_MAX_CANONICAL_REQUEST_BYTES,
+        M2508_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M26-01": (
+        M2601_MAX_CANONICAL_REQUEST_BYTES,
+        M2601_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/m26-02": (M2602_MAX_CANONICAL_REQUEST_BYTES, M2602_MAX_CANONICAL_RESULT_BYTES),
+    "/v1/modules/M26-03": (
+        M2603_MAX_CANONICAL_REQUEST_BYTES,
+        M2603_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M26-04": (
+        M2604_MAX_CANONICAL_REQUEST_BYTES,
+        M2604_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M26-05": (
+        M2605_MAX_CANONICAL_REQUEST_BYTES,
+        M2605_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M26-06": (
+        M2606_MAX_CANONICAL_REQUEST_BYTES,
+        M2606_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M26-07": (
+        M2607_MAX_CANONICAL_REQUEST_BYTES,
+        M2607_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M26-08": (
+        M2608_MAX_CANONICAL_REQUEST_BYTES,
+        M2608_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M27-02": (
+        M2702_MAX_CANONICAL_REQUEST_BYTES,
+        M2702_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M27-03": (
+        M2703_MAX_CANONICAL_REQUEST_BYTES,
+        M2703_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M27-04": (
+        M2704_MAX_CANONICAL_REQUEST_BYTES,
+        M2704_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M27-05": (
+        M2705_MAX_CANONICAL_REQUEST_BYTES,
+        M2705_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M27-06": (
+        M2706_MAX_CANONICAL_REQUEST_BYTES,
+        M2706_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M27-07": (
+        M2707_MAX_CANONICAL_REQUEST_BYTES,
+        M2707_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M27-08": (
+        M2708_MAX_CANONICAL_REQUEST_BYTES,
+        M2708_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M28-04": (
+        M2804_MAX_CANONICAL_REQUEST_BYTES,
+        M2804_MAX_CANONICAL_RESULT_BYTES,
+    ),
+}
 
 _REGISTER_ADAPTER: Final = TypeAdapter(RegisterProtocolRequest)
 _EVALUATE_ADAPTER: Final = TypeAdapter(EvaluateMetadataRequest)
@@ -2173,8 +2591,6 @@ def _validate_m0404_json_request_for_api(
     try:
         return _validate_m0404_json_request(candidate, serialized)
     except ValidationError:
-        # Preserve the shared boundary's sanitized structured validation envelope.
-        # The generic ValueError guard below is reserved for hostile internal failures.
         raise
     except (TypeError, ValueError) as error:
         raise HTTPException(status_code=422, detail="M04-04 request validation failed") from error
@@ -2647,9 +3063,13 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-        yield
-        identity_service.close()
-        service.close()
+        try:
+            yield
+        finally:
+            try:
+                identity_service.close()
+            finally:
+                service.close()
 
     app = FastAPI(
         title="GLIO-PROTEOGEN",
@@ -2659,15 +3079,49 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     )
     app.add_middleware(
         RequestSizeLimitMiddleware,
-        max_bytes=MAX_REQUEST_BYTES,
+        max_bytes=max(
+            MAX_REQUEST_BYTES,
+            M2604_MAX_CANONICAL_REQUEST_BYTES,
+            M2608_MAX_CANONICAL_REQUEST_BYTES,
+            M2704_MAX_CANONICAL_REQUEST_BYTES,
+            M2301_MAX_CANONICAL_REQUEST_BYTES,
+            M2304_MAX_CANONICAL_REQUEST_BYTES,
+            M2308_MAX_CANONICAL_REQUEST_BYTES,
+            M2501_MAX_CANONICAL_REQUEST_BYTES,
+            M2504_MAX_CANONICAL_REQUEST_BYTES,
+            M2508_MAX_CANONICAL_REQUEST_BYTES,
+            M2707_MAX_CANONICAL_REQUEST_BYTES,
+            M2708_MAX_CANONICAL_REQUEST_BYTES,
+            M2804_MAX_CANONICAL_REQUEST_BYTES,
+        ),
         result_max_bytes=max(
             M0305_MAX_CANONICAL_RESULT_BYTES,
             M0601_MAX_CANONICAL_RESULT_BYTES,
+            M2604_MAX_CANONICAL_RESULT_BYTES,
+            M2608_MAX_CANONICAL_RESULT_BYTES,
+            M2704_MAX_CANONICAL_RESULT_BYTES,
+            M2301_MAX_CANONICAL_RESULT_BYTES,
+            M2302_MAX_CANONICAL_RESULT_BYTES,
+            M2303_MAX_CANONICAL_RESULT_BYTES,
+            M2304_MAX_CANONICAL_RESULT_BYTES,
+            M2305_MAX_CANONICAL_RESULT_BYTES,
+            M2307_MAX_CANONICAL_RESULT_BYTES,
+            M2308_MAX_CANONICAL_RESULT_BYTES,
+            M2404_MAX_CANONICAL_RESULT_BYTES,
+            M2407_MAX_CANONICAL_RESULT_BYTES,
+            M2501_MAX_CANONICAL_RESULT_BYTES,
+            M2502_MAX_CANONICAL_RESULT_BYTES,
+            M2503_MAX_CANONICAL_RESULT_BYTES,
+            M2504_MAX_CANONICAL_RESULT_BYTES,
+            M2505_MAX_CANONICAL_RESULT_BYTES,
+            M2507_MAX_CANONICAL_RESULT_BYTES,
+            M2508_MAX_CANONICAL_RESULT_BYTES,
+            M2707_MAX_CANONICAL_RESULT_BYTES,
+            M2708_MAX_CANONICAL_RESULT_BYTES,
+            M2804_MAX_CANONICAL_RESULT_BYTES,
         ),
+        route_limits=_MODEL_ROUTE_LIMITS,
     )
-    # These provisional lanes ship strict standalone adapters as well as the
-    # central API.  Include their routers here so a caller using the canonical
-    # application does not silently lose an implemented module surface.
     for adapter in (
         m1901_adapter,
         m1902_adapter,
@@ -2677,6 +3131,48 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         m2004_adapter,
     ):
         app.include_router(adapter.app.router)
+
+    for model_app in (
+        m1505_module.api.create_app(),
+        m2301_api.create_app(),
+        m2302_api.create_app(),
+        m2303_api.create_app(),
+        m2304_api.create_app(),
+        m2305_api.create_app(),
+        m2307_api.create_app(),
+        m2308_api.create_app(),
+        m2402_api.create_app(),
+        m2403_api.create_app(),
+        m2404_api.create_app(),
+        m2405_api.create_app(),
+        m2406_api.create_app(),
+        m2407_api.create_app(),
+        m2408_api.create_app(),
+        m2501_api.create_app(),
+        m2502_api.create_app(),
+        m2503_api.create_app(),
+        m2504_api.create_app(),
+        m2505_api.create_app(),
+        m2506_api.create_app(),
+        m2507_api.create_app(),
+        m2508_api.create_app(),
+        m2601_api.create_app(),
+        m2602_api.create_m2602_app(),
+        m2603_api.create_app(),
+        m2604_api.create_app(),
+        m2605_api.create_m2605_app(),
+        m2606_api.create_app(),
+        m2607_api.create_app(),
+        m2608_api.create_app(),
+        m2703_api.create_app(),
+        m2704_api.create_app(),
+        m2705_api.create_app(),
+        m2706_api.create_app(),
+        m2707_api.create_app(),
+        m2708_api.create_app(),
+        m2804_api.create_app(),
+    ):
+        app.include_router(model_app.router)
 
     @app.exception_handler(ProtocolNotFoundError)
     def not_found_handler(_request: Request, error: ProtocolNotFoundError) -> JSONResponse:
@@ -2816,6 +3312,12 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.get("/healthz", tags=["operations"])
     def health() -> dict[str, str]:
         return {"status": "alive", "module": "GLIO-PROTEOGEN-M01-01"}
+
+    @app.get("/livez", tags=["operations"])
+    def liveness() -> dict[str, str]:
+        """Kubernetes-compatible liveness probe with no database dependency."""
+
+        return {"status": "alive"}
 
     @app.get("/readyz", response_model=ChainVerification, tags=["operations"])
     def readiness() -> ChainVerification:

@@ -190,6 +190,31 @@ def test_result_duplicate_evidence_is_rejected_on_replay() -> None:
         M2508Engine().verify(tampered, replay=False)
 
 
+def test_adjudicated_release_record_must_bind_request_buckets() -> None:
+    result = M2508Engine().evaluate(build_request())
+    assert result.release_record is not None
+    changed = result.release_record.model_copy(
+        update={
+            "requirements": (
+                result.release_record.requirements[0].model_copy(update={"statement": "forged"}),
+                *result.release_record.requirements[1:],
+            )
+        }
+    )
+    with pytest.raises(ValidationError, match="release requirements must bind the request"):
+        type(result).model_validate(
+            result.model_copy(update={"release_record": changed}).model_dump(mode="python"),
+            strict=True,
+        )
+
+
+def test_abstained_result_requires_a_finding() -> None:
+    result = M2508Engine().evaluate(build_request(requirement_satisfied=False))
+    changed = result.model_copy(update={"findings": ()})
+    with pytest.raises(ValidationError, match="at least one finding"):
+        type(result).model_validate(changed.model_dump(mode="python"), strict=True)
+
+
 def test_finding_codes_remain_typed_and_caller_declared() -> None:
     result = M2508Engine().evaluate(build_request(requirement_satisfied=False))
     finding = next(

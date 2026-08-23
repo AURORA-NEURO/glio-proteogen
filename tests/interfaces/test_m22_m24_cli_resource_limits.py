@@ -10,6 +10,8 @@ from typing import Any, cast
 import pytest
 import typer
 
+from tests._resource_helpers import write_sparse_oversized_json
+
 _Reader = Callable[[Path], object]
 _MODULES = (
     ("M22-01", "m22_01_reference_truth_benchmark_curator"),
@@ -66,6 +68,10 @@ def _readers() -> tuple[tuple[str, _Reader, _Reader, int, int], ...]:
 _READERS = _readers()
 
 
+def _sparse_oversized_json(path: Path, limit: int) -> None:
+    write_sparse_oversized_json(path, limit)
+
+
 @pytest.mark.parametrize(
     ("module", "request_reader", "_result_reader", "request_limit", "_result_limit"),
     _READERS,
@@ -79,7 +85,7 @@ def test_request_reader_rejects_oversized_file_before_json_parse(
     _result_limit: int,
 ) -> None:
     path = tmp_path / f"{module}-request.json"
-    path.write_bytes(b"{" + b" " * request_limit)
+    _sparse_oversized_json(path, request_limit)
     with pytest.raises(typer.BadParameter, match="request"):
         request_reader(path)
 
@@ -97,7 +103,7 @@ def test_result_reader_rejects_oversized_file_before_json_parse(
     result_limit: int,
 ) -> None:
     path = tmp_path / f"{module}-result.json"
-    path.write_bytes(b"{" + b" " * result_limit)
+    _sparse_oversized_json(path, result_limit)
     with pytest.raises(typer.BadParameter, match="result"):
         result_reader(path)
 

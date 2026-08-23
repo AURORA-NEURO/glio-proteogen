@@ -23,7 +23,10 @@ from glio_proteogen.contracts.m26_04 import (
     PublishProteinSubtypeAccessSurfaceRequest,
     contract_json_schema,
 )
-from glio_proteogen.contracts.m26_04.canonical import canonical_request_digest
+from glio_proteogen.contracts.m26_04.canonical import (
+    canonical_request_digest,
+    result_payload_digest,
+)
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import UpstreamDecisionState
 from glio_proteogen.modules.c20_biomarker_panel.m26_04_api_sdk_cli_gateway import (
@@ -46,6 +49,8 @@ from tests.contract.test_m2604_contract import _request
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+_JSON_HEADERS = {"content-type": "application/json"}
 
 
 def test_strict_plugin_rejects_duplicate_json_keys() -> None:
@@ -116,6 +121,38 @@ def test_disabled_operation_abstains_and_preserves_finding() -> None:
     assert result.status.value == "abstained"
     assert result.access_surface is None
     assert any(item.code.value == "operation_unauthorized" for item in result.findings)
+
+
+def test_published_result_rejects_blocking_findings_after_resigning() -> None:
+    request = _request()
+    denied = request.authorizations[0].model_copy(update={"decision": AuthorizationDecision.DENY})
+    abstained = M2604GatewayEngine().publish(
+        request.model_copy(update={"authorizations": (denied,)})
+    )
+    published = M2604GatewayEngine().publish(request)
+    forged = abstained.model_copy(
+        update={
+            "status": GatewayStatus.PUBLISHED,
+            "access_surface": published.access_surface,
+            "abstention_reason": None,
+            "support_decision": published.support_decision,
+        }
+    )
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValidationError, match="blocking gateway findings"):
+        type(forged).model_validate(forged.model_dump(mode="python"), strict=True)
+
+
+def test_abstained_result_requires_findings_after_resigning() -> None:
+    request = _request()
+    denied = request.authorizations[0].model_copy(update={"decision": AuthorizationDecision.DENY})
+    result = M2604GatewayEngine().publish(
+        request.model_copy(update={"authorizations": (denied,)})
+    )
+    forged = result.model_copy(update={"findings": ()})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValidationError, match="abstained result"):
+        type(forged).model_validate(forged.model_dump(mode="python"), strict=True)
 
 
 def test_terminal_async_job_invariants_are_fail_closed() -> None:
@@ -266,6 +303,7 @@ def test_api_valid_schema_and_authorization_error_routes() -> None:
     denied = client.post(
         "/v1/modules/M26-04/publish",
         content=request.model_copy(update={"context": context}).model_dump_json(),
+        headers=_JSON_HEADERS,
     )
     assert denied.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
     assert "rejected" not in denied.text
@@ -283,6 +321,7 @@ def test_api_validate_sanitizes_authorization_failure() -> None:
     response = client.post(
         "/v1/modules/M26-04/validate",
         content=request.model_copy(update={"context": context}).model_dump_json(),
+        headers=_JSON_HEADERS,
     )
     assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
     assert "rejected" not in response.text
@@ -291,7 +330,11 @@ def test_api_validate_sanitizes_authorization_failure() -> None:
 def test_api_wrapped_verify_and_sdk_json_facade() -> None:
     request = _request()
     client = TestClient(api.create_app())
-    published = client.post("/v1/modules/M26-04/publish", content=request.model_dump_json())
+    published = client.post(
+        "/v1/modules/M26-04/publish",
+        content=request.model_dump_json(),
+        headers=_JSON_HEADERS,
+    )
     wrapped = client.post("/v1/modules/M26-04/verify", json={"result": published.json()})
     assert wrapped.status_code == HTTPStatus.OK
     assert wrapped.json()["verified"] is True

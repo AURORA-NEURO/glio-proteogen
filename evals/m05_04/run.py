@@ -14,6 +14,11 @@ from pathlib import Path
 from typing import Any, Final, cast
 from unittest.mock import patch
 
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
+
 from fastapi.testclient import TestClient
 from pydantic import BaseModel, ValidationError
 from typer.testing import CliRunner
@@ -640,7 +645,6 @@ def _semantic_checks() -> dict[str, EvalCheck]:  # noqa: C901, PLR0912, PLR0915
     def add(case_id: str, passed: bool, detail: str) -> None:  # noqa: FBT001
         checks[case_id] = _check(case_id, passed, detail)
 
-    # G1: genuine transitive replay and exact deterministic envelope.
     add(
         "canonical_four_role_quality_qualified",
         result.disposition is PtmLocalizationQualityDisposition.QUALIFIED,
@@ -691,7 +695,6 @@ def _semantic_checks() -> dict[str, EvalCheck]:  # noqa: C901, PLR0912, PLR0915
         "parent context retained; parent output not emitted",
     )
 
-    # G2: closed count partitions, integer math, censoring, and ledger binding.
     add(
         "count_partitions_close",
         _counts().valid_record_count
@@ -792,7 +795,6 @@ def _semantic_checks() -> dict[str, EvalCheck]:  # noqa: C901, PLR0912, PLR0915
         "semantic role reordering produces exact full equality",
     )
 
-    # G3: exact, disjoint reviewed profiles and version/unit closure.
     add(
         "exact_profile_per_role_selected",
         len(matching_quality_profiles(request)) == M0504_ROLE_COUNT,
@@ -875,7 +877,6 @@ def _semantic_checks() -> dict[str, EvalCheck]:  # noqa: C901, PLR0912, PLR0915
         "seven-threshold profile is rejected",
     )
 
-    # G4: exact threshold bands, support, and precedence.
     add(
         "all_required_metrics_pass_qualifies",
         result.disposition is PtmLocalizationQualityDisposition.QUALIFIED
@@ -986,7 +987,6 @@ def _semantic_checks() -> dict[str, EvalCheck]:  # noqa: C901, PLR0912, PLR0915
         f"codes={sorted(item.value for item in _codes(precedence_result))}",
     )
 
-    # G5: strict upstream replay and ledger-free safe failure.
     add(
         "validated_upstream_requires_fact_ledger",
         _rejects(
@@ -1044,7 +1044,6 @@ def _semantic_checks() -> dict[str, EvalCheck]:  # noqa: C901, PLR0912, PLR0915
         "re-signed semantic M05-03 forgery is rejected",
     )
 
-    # G6: evidence retention, privacy, and authority ceiling.
     add(
         "all_input_artifact_references_preserved",
         result.request.raw_input_result.request.artifacts == raw.request.artifacts,
@@ -1171,7 +1170,6 @@ def _semantic_checks() -> dict[str, EvalCheck]:  # noqa: C901, PLR0912, PLR0915
         "all 16 authority flags are false",
     )
 
-    # G7: uncertainty/provenance closure and adversarial result replay.
     uncertainty = result.uncertainty.model_dump(mode="json")
     dimensions = tuple(key for key in uncertainty if key != "sensitivity_notes")
     add(
@@ -1239,7 +1237,6 @@ def _semantic_checks() -> dict[str, EvalCheck]:  # noqa: C901, PLR0912, PLR0915
         "receipt and result digest forgeries are both rejected",
     )
 
-    # G8: seven-control ingress, hostile mapping, strict JSON, caps, and interfaces.
     denied_states = {
         "approved_configuration": "rejected",
         "identity_lineage": "unresolved",

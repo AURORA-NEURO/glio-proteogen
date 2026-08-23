@@ -28,10 +28,16 @@ def test_api_schema_validate_evaluate_verify_parity() -> None:
     assert client.get("/v1/modules/M27-06/schemas/request").status_code == _HTTP_OK
     assert client.get("/v1/modules/M27-06/schemas/unknown").status_code == _HTTP_NOT_FOUND
     body = request.model_dump_json()
-    assert client.post("/v1/modules/M27-06/validate", content=body).status_code == _HTTP_OK
-    response = client.post("/v1/modules/M27-06/evaluate", content=body)
+    json_headers = {"content-type": "application/json"}
+    assert (
+        client.post("/v1/modules/M27-06/validate", content=body, headers=json_headers).status_code
+        == _HTTP_OK
+    )
+    response = client.post("/v1/modules/M27-06/evaluate", content=body, headers=json_headers)
     assert response.status_code == _HTTP_OK
-    verified = client.post("/v1/modules/M27-06/verify", content=response.content)
+    verified = client.post(
+        "/v1/modules/M27-06/verify", content=response.content, headers=json_headers
+    )
     assert verified.status_code == _HTTP_OK
     assert verified.json()["verified"] is True
 
@@ -70,11 +76,16 @@ def test_api_denial_and_service_descriptor() -> None:
     response = TestClient(create_app()).post(
         "/v1/modules/M27-06/evaluate",
         content=request.model_copy(update={"context": denied_context}).model_dump_json(),
+        headers={"content-type": "application/json"},
     )
     assert response.status_code == _HTTP_UNPROCESSABLE
     assert M2706Service().descriptor["module_id"] == "GLIO-PROTEOGEN-M27-06"
 
 
 def test_api_rejects_invalid_replay() -> None:
-    response = TestClient(create_app()).post("/v1/modules/M27-06/verify", content=b"{}")
+    response = TestClient(create_app()).post(
+        "/v1/modules/M27-06/verify",
+        content=b"{}",
+        headers={"content-type": "application/json"},
+    )
     assert response.status_code == _HTTP_UNPROCESSABLE

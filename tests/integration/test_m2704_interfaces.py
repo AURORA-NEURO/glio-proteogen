@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 HTTP_OK = 200
 HTTP_NOT_FOUND = 404
 HTTP_UNPROCESSABLE_CONTENT = 422
+HTTP_UNSUPPORTED_MEDIA_TYPE = 415
 
 
 def test_api_schema_validate_publish_verify_and_sanitized_errors() -> None:
@@ -32,7 +33,11 @@ def test_api_schema_validate_publish_verify_and_sanitized_errors() -> None:
         validated = client.post("/v1/modules/M27-04/validate", json=payload)
         published = client.post("/v1/modules/M27-04/publish", json=payload)
         verified = client.post("/v1/modules/M27-04/verify", json=published.json())
-        malformed = client.post("/v1/modules/M27-04/publish", content=b"{not-json")
+        malformed = client.post(
+            "/v1/modules/M27-04/publish",
+            content=b"{not-json",
+            headers={"content-type": "application/json"},
+        )
         unknown = client.get("/v1/modules/M27-04/schemas/unknown")
 
     assert schemas.status_code == HTTP_OK
@@ -52,7 +57,11 @@ def test_api_rejects_duplicate_json_keys_and_true_async_claims() -> None:
     request = _request().model_dump(mode="json")
     duplicate = b'{"request_id":"first","request_id":"second"}'
     with TestClient(create_app()) as client:
-        duplicate_response = client.post("/v1/modules/M27-04/validate", content=duplicate)
+        duplicate_response = client.post(
+            "/v1/modules/M27-04/validate",
+            content=duplicate,
+            headers={"content-type": "application/json"},
+        )
         claim = dict(request)
         claim["unknown_claim"] = True
         claim_response = client.post("/v1/modules/M27-04/validate", json=claim)
@@ -69,13 +78,33 @@ def test_api_verify_rejects_non_object_and_tampered_envelopes() -> None:
             "/v1/modules/M27-04/publish",
             json=request.model_dump(mode="json"),
         ).json()
-        non_object = client.post("/v1/modules/M27-04/verify", content=b"[]")
+        non_object = client.post(
+            "/v1/modules/M27-04/verify",
+            content=b"[]",
+            headers={"content-type": "application/json"},
+        )
         tampered = dict(published)
         tampered["result_id"] = "gateway.m2704.forged"
         invalid = client.post("/v1/modules/M27-04/verify", json=tampered)
 
     assert non_object.status_code == HTTP_UNPROCESSABLE_CONTENT
     assert invalid.status_code == HTTP_UNPROCESSABLE_CONTENT
+
+
+def test_api_verify_rejects_unsupported_content_type() -> None:
+    with TestClient(create_app()) as client:
+        response = client.post(
+            "/v1/modules/M27-04/verify",
+            content=b"{}",
+            headers={"content-type": "text/plain"},
+        )
+        malformed = client.post(
+            "/v1/modules/M27-04/verify",
+            content=b"not-json",
+            headers={"content-type": "application/json"},
+        )
+    assert response.status_code == HTTP_UNSUPPORTED_MEDIA_TYPE
+    assert malformed.status_code == HTTP_UNPROCESSABLE_CONTENT
 
 
 def test_api_validation_and_publish_sanitize_authorization_failures() -> None:

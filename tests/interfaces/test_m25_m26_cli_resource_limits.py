@@ -57,6 +57,7 @@ from glio_proteogen.modules.c21_reference_material.m25_08_evidence_gate_release_
 from glio_proteogen.modules.c21_reference_material.m26_03_reproducible_pipeline_orchestrator import (  # noqa: E501
     cli as m2603_cli,
 )
+from tests._resource_helpers import write_sparse_oversized_json
 
 Reader = Callable[[Path], object]
 ReaderCase = tuple[object, Reader, Reader, int, int]
@@ -114,11 +115,7 @@ _READERS: tuple[ReaderCase, ...] = (
 
 
 def _make_oversized_file(path: Path, limit: int) -> None:
-    """Create a sparse limit+1 file without allocating the full test payload."""
-
-    with path.open("wb") as stream:
-        stream.seek(limit)
-        stream.write(b" ")
+    write_sparse_oversized_json(path, limit)
 
 
 @pytest.mark.parametrize(

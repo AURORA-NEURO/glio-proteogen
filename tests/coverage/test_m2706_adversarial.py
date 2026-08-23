@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, cast
 
 import pytest
@@ -21,6 +22,7 @@ from glio_proteogen.contracts.m27_06 import (
     SecurityPostureRecord,
     contract_json_schemas,
 )
+from glio_proteogen.contracts.m27_06.canonical import normalized_request
 from glio_proteogen.modules.c27_complex_activity.m27_06_security_access import (
     M2706AuthorizationError,
     M2706Plugin,
@@ -31,6 +33,9 @@ from glio_proteogen.modules.c27_complex_activity.m27_06_security_access import (
     create_app,
 )
 from glio_proteogen.modules.c27_complex_activity.m27_06_security_access import cli as cli_module
+from glio_proteogen.modules.c27_complex_activity.m27_06_security_access import (
+    engine as engine_module,
+)
 from glio_proteogen.modules.c27_complex_activity.m27_06_security_access.cli import (
     M2706CliError,
     app,
@@ -54,6 +59,7 @@ _SCHEMA_COUNT = 8
 def test_schema_routes_and_api_replay() -> None:
     client = TestClient(create_app())
     assert client.get("/v1/modules/M27-06/schemas/request").status_code == _HTTP_OK
+    assert client.get("/v1/modules/M27-06/schemas").status_code == _HTTP_OK
     assert client.get("/v1/modules/M27-06/schemas/unknown").status_code == _HTTP_NOT_FOUND
 
 
@@ -435,3 +441,106 @@ def test_direct_contract_relational_guards() -> None:
             findings=posture.findings,
             evidence=posture.evidence,
         )
+
+
+def test_contract_relational_guards_cover_failure_closures() -> None:
+    request = build_request()
+    assert normalized_request({"request_id": "mapping-input"}) == {
+        "request_id": "mapping-input"
+    }
+    posture = M2706Service().emit(request).security_posture
+    assert posture is not None
+    finding = SecurityFinding.model_construct(finding_id="m2706.finding.same")
+    with pytest.raises(ValueError, match="finding ids"):
+        SecurityPostureRecord.model_construct(
+            controls=posture.controls,
+            findings=(finding, finding),
+        ).controls_are_unique_and_complete()
+    with pytest.raises(ValueError, match="cover every"):
+        SecurityPostureRecord.model_construct(
+            controls=(*posture.controls[:-1], SimpleNamespace(control="m2706.control.fake")),
+            findings=posture.findings,
+        ).controls_are_unique_and_complete()
+
+    with pytest.raises(ValueError, match="request id"):
+        type(request).model_construct(
+            context=SimpleNamespace(request_id="m2706.request.other"),
+            request_id=request.request_id,
+        ).request_is_bound()
+    with pytest.raises(ValueError, match="media type"):
+        type(request).model_construct(
+            context=SimpleNamespace(request_id=request.request_id),
+            request_id=request.request_id,
+            upstream_result=SimpleNamespace(media_type=""),
+        ).request_is_bound()
+    with pytest.raises(ValueError, match="controls"):
+        type(request).model_construct(
+            context=SimpleNamespace(request_id=request.request_id),
+            request_id=request.request_id,
+            upstream_result=SimpleNamespace(media_type="application/json"),
+            requested_controls=(SecurityControlKind.LEAST_PRIVILEGE,) * 2,
+        ).request_is_bound()
+    with pytest.raises(ValueError, match="every required"):
+        type(request).model_construct(
+            context=SimpleNamespace(request_id=request.request_id),
+            request_id=request.request_id,
+            upstream_result=SimpleNamespace(media_type="application/json"),
+            requested_controls=(SecurityControlKind.LEAST_PRIVILEGE,),
+        ).request_is_bound()
+    with pytest.raises(ValueError, match="artifact ids"):
+        type(request).model_construct(
+            context=SimpleNamespace(request_id=request.request_id),
+            request_id=request.request_id,
+            upstream_result=SimpleNamespace(media_type="application/json"),
+            requested_controls=tuple(SecurityControlKind),
+            source_artifacts=(
+                SimpleNamespace(artifact_id="m2706.artifact.same"),
+                SimpleNamespace(artifact_id="m2706.artifact.same"),
+            ),
+        ).request_is_bound()
+
+    result = M2706Service().emit(request)
+    payload = result.model_dump(mode="python")
+    payload["request_digest"] = "sha256:" + "f" * 64
+    with pytest.raises(ValueError, match="request digest"):
+        ComplexActivitySecurityAccessResult.model_validate(payload, strict=True)
+    payload = result.model_dump(mode="python")
+    payload["evidence"] = (payload["evidence"][0], payload["evidence"][0])
+    with pytest.raises(ValueError, match="evidence"):
+        ComplexActivitySecurityAccessResult.model_validate(payload, strict=True)
+    abstained = M2706Service().emit(build_request(with_consent=False))
+    payload = abstained.model_dump(mode="python")
+    payload["safe_failure_report"] = None
+    with pytest.raises(ValueError, match="abstained result"):
+        ComplexActivitySecurityAccessResult.model_validate(payload, strict=True)
+    payload = result.model_dump(mode="python")
+    payload["result_digest"] = "sha256:" + "f" * 64
+    with pytest.raises(ValueError, match="result digest"):
+        ComplexActivitySecurityAccessResult.model_validate(payload, strict=True)
+
+
+def test_engine_replay_guards_run_after_strict_validation(monkeypatch: pytest.MonkeyPatch) -> None:
+    class PassthroughAdapter:
+        def validate_python(self, candidate: object, **_: object) -> object:
+            return candidate
+
+    engine = M2706SecurityEngine()
+    result = engine.emit(build_request())
+    monkeypatch.setattr(engine_module, "_RESULT_ADAPTER", PassthroughAdapter())
+    for field, value in (
+        ("request_digest", "sha256:" + "f" * 64),
+        ("result_id", "m2706.result.forged"),
+        ("result_digest", "sha256:" + "f" * 64),
+    ):
+        with pytest.raises(M2706ReplayError):
+            engine.replay(result.model_copy(update={field: value}))
+
+    def divergent_emit(
+        self: M2706SecurityEngine, request: object
+    ) -> ComplexActivitySecurityAccessResult:
+        del self, request
+        return result.model_copy(update={"human_review_required": not result.human_review_required})
+
+    monkeypatch.setattr(M2706SecurityEngine, "emit", divergent_emit)
+    with pytest.raises(M2706ReplayError):
+        engine.replay(result)

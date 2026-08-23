@@ -14,8 +14,10 @@ from pydantic import Field, model_validator
 
 from glio_proteogen.contracts.m27_07.canonical import (
     canonical_request_digest,
+    result_identifier,
     result_payload_digest,
 )
+from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     EvidenceReference,
@@ -32,10 +34,6 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
-# PROVISIONAL ABI: inferred solely from dossier SHA
-# 0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,
-# lines 9660-9700. Owner confirmation and implementation details remain
-# pending.
 M2707_MODULE_ID: Final = "GLIO-PROTEOGEN-M27-07"
 M2707_OPERATION: Final = "control_complex_activity_change"
 M2707_CONTRACT_VERSION: Final = "0.1.0-provisional"
@@ -255,22 +253,56 @@ class ComplexActivityChangeControlResult(FrozenModel):
     def result_is_closed(self) -> ComplexActivityChangeControlResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        if self.result_id != result_identifier(self.request_digest):
+            raise ValueError("result id must be derived from the request digest")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("change finding ids must be unique")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("change result evidence must be unique")
         if self.status is ChangeControlStatus.APPROVED:
             if (
                 self.approved_change_package is None
                 or self.safe_failure_report is not None
                 or self.abstention_reason is not None
+                or self.findings
+                or self.human_review_required
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("approved result requires a supported change package")
+            package = self.approved_change_package
+            if (
+                package.classification != self.request.classification
+                or package.revalidation != self.request.revalidation
+                or package.rollback_point != self.request.rollback_point
+                or package.comparison.champion_digest != self.request.champion_digest
+                or package.comparison.challenger_digest != self.request.challenger_digest
+                or package.package_id
+                != f"package.m2707.{self.request_digest.removeprefix('sha256:')[:16]}"
+                or package.comparison.comparison_id
+                != f"comparison.m2707.{self.request_digest.removeprefix('sha256:')[:16]}"
+                or package.package_digest
+                != sha256_digest(
+                    {
+                        "request_digest": self.request_digest,
+                        "rollback": package.rollback_point.target_digest,
+                    }
+                )
+            ):
+                raise ValueError("approved package must bind the exact change request")
         elif (
             self.approved_change_package is not None
             or self.safe_failure_report is None
             or self.abstention_reason is None
+            or not self.findings
+            or not self.human_review_required
             or self.support_decision.status
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
-            raise ValueError("abstained result requires safe failure and safe status")
+            raise ValueError(
+                "abstained result requires findings, safe failure, and safe status"
+            )
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self

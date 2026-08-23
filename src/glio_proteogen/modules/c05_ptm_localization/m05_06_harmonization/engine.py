@@ -1,6 +1,5 @@
 """Deterministic provisional M05-06 PTM-localization harmonization engine."""
 
-# Provisional boundary has deliberately verbose fail-closed diagnostics.
 # ruff: noqa: E501, PLR2004, TRY003
 
 from __future__ import annotations
@@ -202,9 +201,7 @@ def artifact_harmonization_receipt(
         "artifact_support_status": _member(_member(result, "support"), "status"),
         "artifact_human_review_required": _member(result, "human_review_required"),
         "artifact_completed_at": _member(result, "completed_at"),
-        "quality_result_digest": _member(_member(request, "quality_result_digest"), "__str__")
-        if False
-        else _member(request, "quality_result_digest"),
+        "quality_result_digest": _member(request, "quality_result_digest"),
         "identity_resolution_digest": _member(request, "identity_resolution_digest"),
         "raw_input_receipt_digest": _member(request, "raw_input_receipt_digest"),
         "evaluation_state": (
@@ -217,8 +214,6 @@ def artifact_harmonization_receipt(
         "target_binding_digest": target_binding_digest(projections),
         "receipt_digest": M0506_ZERO_DIGEST,
     }
-    # Keep the complete M05-05 receipt fields as a consistency check; no raw
-    # payload is copied into M05-06.
     if upstream_receipt is None or raw_input is None:
         raise ValueError("M05-05 result is missing its complete receipt")
     constructed = PtmLocalizationArtifactHarmonizationReceipt.model_construct(

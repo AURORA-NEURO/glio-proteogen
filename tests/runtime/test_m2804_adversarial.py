@@ -13,6 +13,9 @@ from glio_proteogen.contracts.m28_04 import (
     PublishProteinRnaDiscordanceAccessSurfaceRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
+from glio_proteogen.modules.c13_proteotype.m28_04_api_sdk_cli_gateway.engine import (
+    M2804GatewayEngine,
+)
 from tests.runtime.test_m2804_runtime import _evidence, _request
 
 
@@ -60,6 +63,30 @@ def test_request_rejects_duplicate_operation_and_protocol_mismatch() -> None:
     payload["configuration"] = disabled_config.model_dump(mode="json")
     with pytest.raises(ValidationError):
         PublishProteinRnaDiscordanceAccessSurfaceRequest.model_validate(payload)
+
+
+def test_request_rejects_duplicate_source_identity() -> None:
+    request = _request()
+    duplicate = request.source_artifacts[0]
+    payload = request.model_dump(mode="python")
+    payload["source_artifacts"] = (*request.source_artifacts, duplicate)
+    with pytest.raises(ValidationError, match="source artifact ids must be unique"):
+        PublishProteinRnaDiscordanceAccessSurfaceRequest.model_validate(payload, strict=True)
+
+
+def test_result_rejects_duplicate_findings_and_evidence() -> None:
+    result = M2804GatewayEngine().publish(_request())
+    duplicate_finding = result.model_copy(
+        update={"findings": (*result.findings, result.findings[0])}
+    )
+    with pytest.raises(ValidationError, match="finding ids must be unique"):
+        type(result).model_validate(duplicate_finding.model_dump(mode="python"), strict=True)
+
+    duplicate_evidence = result.model_copy(
+        update={"evidence": (*result.evidence, result.evidence[0])}
+    )
+    with pytest.raises(ValidationError, match="result evidence must be unique"):
+        type(result).model_validate(duplicate_evidence.model_dump(mode="python"), strict=True)
 
 
 def test_queued_job_cannot_carry_an_error_or_result() -> None:

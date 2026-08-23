@@ -35,7 +35,6 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
-# PROVISIONAL ABI: inferred solely from the permitted dossier slice.
 M2301_MODULE_ID: Final = "GLIO-PROTEOGEN-M23-01"
 M2301_DOSSIER_SHA256: Final = (
     "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
@@ -308,6 +307,12 @@ class VariantPeptideReferenceTruthResult(FrozenModel):
             raise ValueError("result request digest does not bind exact request")
         if self.result_id != result_identifier(self.request_digest):
             raise ValueError("result identifier must bind the request digest")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("result finding ids must be unique")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("result evidence must be unique")
         if self.status is CurationStatus.CURATED:
             if (
                 self.package is None

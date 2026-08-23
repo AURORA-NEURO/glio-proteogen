@@ -7,8 +7,8 @@ import pytest
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.modules.c21_reference_material.m21_03_internal_benchmark_ablation import (
     M2103AuthorizationError,
-    M2103ReplayError,
     M2103Plugin,
+    M2103ReplayError,
     M2103Service,
     preflight_m2103_authorization,
     run_complex_activity_internal_benchmark,

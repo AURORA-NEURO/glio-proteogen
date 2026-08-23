@@ -29,6 +29,7 @@ HTTP_OK = 200
 HTTP_UNPROCESSABLE = 422
 HTTP_NOT_FOUND = 404
 HTTP_PAYLOAD_TOO_LARGE = 413
+HTTP_UNSUPPORTED_MEDIA_TYPE = 415
 SCHEMA_COUNT = 10
 
 
@@ -39,13 +40,15 @@ def test_fastapi_schema_validate_retire_and_verify_routes() -> None:
     with TestClient(app) as client:
         schemas = client.get("/v1/modules/M26-08/schemas")
         request_schema = client.get("/v1/modules/M26-08/schemas/request")
-        validated = client.post("/v1/modules/M26-08/validate", content=body)
-        retired = client.post("/v1/modules/M26-08/retire", content=body)
+        headers = {"content-type": "application/json"}
+        validated = client.post("/v1/modules/M26-08/validate", content=body, headers=headers)
+        retired = client.post("/v1/modules/M26-08/retire", content=body, headers=headers)
         verified = client.post(
             "/v1/modules/M26-08/verify",
             content=canonical_json_bytes(
                 {"request": request.model_dump(mode="json"), "result": retired.json()}
             ),
+            headers=headers,
         )
         forged = request.model_copy(update={"request_id": "request.m2608.forged"})
         mismatch = client.post(
@@ -69,6 +72,7 @@ def test_fastapi_rejects_duplicate_keys_and_unknown_schema() -> None:
         duplicate = client.post(
             "/v1/modules/M26-08/validate",
             content=b'{"request_id":"a","request_id":"b"}',
+            headers={"content-type": "application/json"},
         )
         unknown = client.get("/v1/modules/M26-08/schemas/unknown")
 
@@ -82,6 +86,7 @@ def test_fastapi_request_ceiling_applies_before_retire_parsing() -> None:
         response = client.post(
             "/v1/modules/M26-08/retire",
             content=b"{" + b"x" * M2608_MAX_CANONICAL_REQUEST_BYTES + b"}",
+            headers={"content-type": "application/json"},
         )
     assert response.status_code == HTTP_PAYLOAD_TOO_LARGE
 
@@ -99,23 +104,51 @@ def test_fastapi_rejects_non_object_and_tampered_replay() -> None:
     result = M2608RetirementService().retire(_request())
     tampered = result.model_copy(update={"result_digest": "sha256:" + "f" * 64})
     with TestClient(app) as client:
-        non_object = client.post("/v1/modules/M26-08/verify", content=b"[]")
+        non_object = client.post(
+            "/v1/modules/M26-08/verify",
+            content=b"[]",
+            headers={"content-type": "application/json"},
+        )
         invalid = client.post(
             "/v1/modules/M26-08/verify",
             content=canonical_json_bytes({"result": tampered}),
+            headers={"content-type": "application/json"},
         )
-        malformed = client.post("/v1/modules/M26-08/verify", content=b"not-json")
+        malformed = client.post(
+            "/v1/modules/M26-08/verify",
+            content=b"not-json",
+            headers={"content-type": "application/json"},
+        )
 
     assert non_object.status_code == HTTP_UNPROCESSABLE
     assert invalid.status_code == HTTP_UNPROCESSABLE
     assert malformed.status_code == HTTP_UNPROCESSABLE
 
 
+def test_fastapi_rejects_unsupported_replay_content_type() -> None:
+    with TestClient(app) as client:
+        response = client.post(
+            "/v1/modules/M26-08/verify",
+            content=b"{}",
+            headers={"content-type": "text/plain"},
+        )
+    assert response.status_code == HTTP_UNSUPPORTED_MEDIA_TYPE
+
+
 def test_fastapi_sanitizes_failed_preflight() -> None:
     request = _request(context=_context_with_quality_rejected())
     with TestClient(app) as client:
-        validated = client.post("/v1/modules/M26-08/validate", content=request.model_dump_json())
-        retired = client.post("/v1/modules/M26-08/retire", content=request.model_dump_json())
+        headers = {"content-type": "application/json"}
+        validated = client.post(
+            "/v1/modules/M26-08/validate",
+            content=request.model_dump_json(),
+            headers=headers,
+        )
+        retired = client.post(
+            "/v1/modules/M26-08/retire",
+            content=request.model_dump_json(),
+            headers=headers,
+        )
 
     assert validated.status_code == HTTP_UNPROCESSABLE
     assert retired.status_code == HTTP_UNPROCESSABLE

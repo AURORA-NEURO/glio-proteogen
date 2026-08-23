@@ -1,0 +1,27 @@
+services:
+  glio-proteogen:
+    build:
+      context: .
+    image: glio-proteogen:local
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      GLIO_PROTEOGEN_DATABASE_PATH: /data/glio-proteogen/events.sqlite3
+      GLIO_PROTEOGEN_ENVIRONMENT: production
+    volumes:
+      - glio-proteogen-data:/data/glio-proteogen
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.environ.get('GLIO_PROTEOGEN_PORT', '8000') + '/readyz', timeout=3)\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  glio-proteogen-data:

@@ -34,7 +34,6 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
-# PROVISIONAL ABI: inferred solely from dossier lines 8220-8260.
 M2307_MODULE_ID: Final = "GLIO-PROTEOGEN-M23-07"
 M2307_OPERATION: Final = "evaluate_variant_peptide_human_factors_operational"
 M2307_CONTRACT_VERSION: Final = "0.1.0-provisional"
@@ -102,6 +101,15 @@ class OperationalMetric(FrozenModel):
     sample_size: int = Field(ge=1)
     status: OperationalStatus
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2307_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def pass_requires_target_tolerance(self) -> OperationalMetric:
+        if (
+            self.status is OperationalStatus.PASS
+            and abs(self.observed_value - self.target_value) > self.tolerance
+        ):
+            raise ValueError("passing operational metric must meet target tolerance")
+        return self
 
 
 class FallbackScenario(FrozenModel):
@@ -267,6 +275,12 @@ class VariantPeptideHumanFactorsResult(FrozenModel):
             raise ValueError("result request digest does not bind exact request")
         if self.result_id != result_identifier(self.request):
             raise ValueError("result id does not bind exact request")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("finding ids must be unique")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("result evidence must be unique")
         if self.status is EvaluationStatus.EVALUATED:
             if (
                 self.report is None

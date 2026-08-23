@@ -657,10 +657,6 @@ def aggregate_cohort_evidence(result: ResearchCohortResult) -> EvidenceBundle:
         raise ValueError("cohort label contrasts are not reproducible")
     if observed.as_dict() != result.evidence_bundle.as_dict():
         raise ValueError("cohort evidence bundle is not reproducible")
-    # The inner bundle can be coherent even when a caller swaps in a complete
-    # bundle from another result.  Keep this non-executing verifier bound to the
-    # complete outer projection as well, so a stale result digest cannot pass as
-    # an auditable cohort receipt.
     expected_payload = result.as_dict()
     expected_digest = expected_payload.pop("result_digest")
     if expected_digest != result.result_digest or _digest(expected_payload) != expected_digest:
@@ -899,7 +895,7 @@ def _validate_matrix_qc_projection(result: ResearchCohortResult) -> None:
             raise ValueError("cohort sample QC is not linked to sample scales")
 
 
-def _build_label_evidence(  # noqa: PLR0915
+def _build_label_evidence(  # noqa: PLR0915, PLR0917
     ordered_samples: tuple[ResearchCohortSample | _CohortLabelSample, ...],
     groups: tuple[tuple[str, ...], ...],
     raw_matrix: tuple[tuple[tuple[str, ...], tuple[float | None, ...]], ...],
@@ -918,7 +914,6 @@ def _build_label_evidence(  # noqa: PLR0915
     labels: dict[str, list[int]] = defaultdict(list)
     for index, sample in enumerate(ordered_samples):
         labels[sample.cohort_label].append(index)
-    # The matrix is group-major; transpose once into sample-major rows.
     sample_rows: list[dict[tuple[str, ...], float | None]] = [
         {group: values[index] for group, values in raw_matrix}
         for index in range(len(ordered_samples))
@@ -1052,11 +1047,6 @@ def _build_label_evidence(  # noqa: PLR0915
                     else status
                 ),
             )
-        # A no-normalization request is an identity projection, not a claim that
-        # QC passed.  Preserve that caller-requested projection (and its scale
-        # receipts) while retaining the abstained QC status that gates derived
-        # label evidence.  Support-dependent normalization policies continue to
-        # null their projection when a QC gate fails.
         if qc_status.startswith("abstained") and policy != "none":
             for index in indices:
                 normalized_rows[index] = dict.fromkeys(groups)
@@ -1202,10 +1192,6 @@ def run_research_cohort(request: ResearchCohortRequest) -> ResearchCohortResult:
 
     ordered_samples = tuple(sorted(request.samples, key=lambda item: item.sample_id))
     _validate_provenance_policy(request, ordered_samples)
-    # Provenance policy and source-manifest validation are admission boundaries.
-    # Reject mixed, unattested, snapshot-incompatible, or byte-mismatched cohorts
-    # before parsing or traversing raw mzML; otherwise a rejected source could
-    # still trigger scientific computation before the safe failure.
     source_manifest = _source_manifest(request, ordered_samples)
     child = tuple(run_research_protein_inference(item.request) for item in ordered_samples)
     _compatible_configuration(child)

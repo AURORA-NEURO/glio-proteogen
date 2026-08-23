@@ -33,7 +33,6 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
-# PROVISIONAL ABI: inferred solely from the permitted dossier slice.
 M2502_MODULE_ID: Final = "GLIO-PROTEOGEN-M25-02"
 M2502_DOSSIER_SHA256: Final = (
     "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
@@ -222,7 +221,7 @@ class ProteotypeSyntheticTruthResult(FrozenModel):
     human_review_required: bool = False
 
     @model_validator(mode="after")
-    def result_is_closed(self) -> ProteotypeSyntheticTruthResult:
+    def result_is_closed(self) -> ProteotypeSyntheticTruthResult:  # noqa: PLR0912 - envelope closure is intentionally centralized.
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
         if self.result_id != result_identifier(self.request_digest):
@@ -234,6 +233,9 @@ class ProteotypeSyntheticTruthResult(FrozenModel):
         finding_ids = tuple(item.finding_id for item in self.findings)
         if len(finding_ids) != len(set(finding_ids)):
             raise ValueError("result finding IDs must be unique")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("result evidence must be unique")
         if self.status is GenerationStatus.GENERATED:
             if (
                 self.corpus is None

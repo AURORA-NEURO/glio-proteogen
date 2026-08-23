@@ -33,7 +33,6 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
-# PROVISIONAL ABI: inferred solely from dossier lines 8264-8304.
 M2308_MODULE_ID: Final = "GLIO-PROTEOGEN-M23-08"
 M2308_OPERATION: Final = "adjudicate_variant_peptide_evidence_gate"
 M2308_CONTRACT_VERSION: Final = "0.1.0-provisional"
@@ -310,6 +309,12 @@ class VariantPeptideEvidenceGateResult(FrozenModel):
             raise ValueError("result request digest does not bind the exact request")
         if self.result_id != result_identifier(self.request_digest):
             raise ValueError("result identifier must bind the request digest")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("gate finding ids must be unique")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("gate result evidence must be unique")
         if self.status is GateRunStatus.ADJUDICATED:
             if (
                 self.release_record is None

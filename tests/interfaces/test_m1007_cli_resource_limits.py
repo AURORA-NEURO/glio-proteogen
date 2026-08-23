@@ -16,15 +16,14 @@ from glio_proteogen.contracts.m10_07 import (
 from glio_proteogen.modules.c10_pathway_proteotype.m10_07_calibration_selective_prediction import (
     cli as m1007_cli,
 )
+from tests._resource_helpers import write_sparse_oversized_json
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
 
 def _sparse_overflow(path: Path, limit: int) -> None:
-    with path.open("wb") as stream:
-        stream.seek(limit)
-        stream.write(b"x")
+    write_sparse_oversized_json(path, limit)
 
 
 @pytest.mark.parametrize(

@@ -21,6 +21,7 @@ from glio_proteogen.contracts.m27_07 import (
 )
 from glio_proteogen.contracts.m27_07.canonical import (
     canonical_request_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
@@ -54,6 +55,24 @@ class ChangeControlAuthorizationError(ValueError):
 
 class ChangeControlReplayError(ValueError):
     """Result failed deterministic replay verification."""
+
+
+def _is_regression_artifact(artifact_id: str) -> bool:
+    """Match a standalone regression marker without substring false positives."""
+
+    tokens = (
+        artifact_id.replace(".", "-")
+        .replace(":", "-")
+        .replace("_", "-")
+        .casefold()
+        .split("-")
+    )
+    negative_markers = {"no", "non", "not", "without"}
+    return any(
+        marker == "regression"
+        and (index == 0 or tokens[index - 1] not in negative_markers)
+        for index, marker in enumerate(tokens)
+    )
 
 
 def _control_records(
@@ -185,7 +204,9 @@ class M2707ChangeControlEngine:
         preflight_change_control_authorization(request)
         request_digest = canonical_request_digest(request)
         evidence = _evidence(request)
-        regression = any("regression" in item.artifact_id for item in request.source_artifacts)
+        regression = any(
+            _is_regression_artifact(item.artifact_id) for item in request.source_artifacts
+        )
         metric = MetricComparison(
             metric="declared-security-regression-rate",
             champion_value=0.10,
@@ -255,7 +276,7 @@ class M2707ChangeControlEngine:
             safe_failure = None
             reason = None
         candidate = ComplexActivityChangeControlResult.model_construct(
-            result_id=f"result.m2707.{request_digest.removeprefix('sha256:')}",
+            result_id=result_identifier(request_digest),
             request_digest=request_digest,
             result_digest="sha256:" + "0" * 64,
             request=request,

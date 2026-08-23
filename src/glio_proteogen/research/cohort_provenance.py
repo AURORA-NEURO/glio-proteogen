@@ -319,7 +319,7 @@ class CohortSourceManifest:
                     "duplicate source identity cannot be used as biological replicates"
                 )
         for field in ("declared_aliquot_id", "acquisition_id"):
-            values = tuple(getattr(item, field) for item in biological)
-            present = tuple(value for value in values if value is not None)
+            field_values = tuple(getattr(item, field) for item in biological)
+            present = tuple(value for value in field_values if value is not None)
             if len(present) != len(set(present)):
                 raise ValueError(f"duplicate {field} cannot be used as biological replicates")

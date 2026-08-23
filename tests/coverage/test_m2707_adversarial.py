@@ -1,6 +1,6 @@
 """Adversarial M27-07 authorization, replay, and boundary tests."""
 
-# ruff: noqa: PLR2004, TC003
+# ruff: noqa: PLR2004
 
 from __future__ import annotations
 
@@ -17,6 +17,8 @@ from glio_proteogen.contracts.m27_07 import (
     ApprovedChangePackage,
     ChampionChallengerComparison,
     ComparisonStatus,
+    ComplexActivityChangeControlResult,
+    ControlComplexActivityChangeRequest,
     MetricComparison,
     PromotionState,
     RevalidationPlan,
@@ -37,6 +39,7 @@ from glio_proteogen.modules.c27_complex_activity.m27_07_change_control.cli impor
 from glio_proteogen.modules.c27_complex_activity.m27_07_change_control.engine import (
     ChangeControlAuthorizationError,
     M2707ChangeControlEngine,
+    control_complex_activity_change,
 )
 
 
@@ -54,6 +57,13 @@ def test_unsupported_upstream_abstains_before_execution() -> None:
     object.__setattr__(request.upstream_result, "media_type", "application/json")
     with pytest.raises(ValueError, match="request must bind"):
         type(request).model_validate(request.model_dump(mode="python"), strict=True)
+
+
+def test_engine_rejects_unsupported_upstream_media_after_object_mutation() -> None:
+    request = build_request()
+    object.__setattr__(request.upstream_result, "media_type", "application/json")
+    with pytest.raises(ChangeControlAuthorizationError, match="unsupported upstream"):
+        M2707ChangeControlEngine().evaluate(request)
 
 
 def test_consent_withheld_is_denied() -> None:
@@ -107,6 +117,14 @@ def test_plugin_rejects_mutated_request() -> None:
         plugin.run(token)
 
 
+def test_plugin_replay_rejects_a_forged_result() -> None:
+    plugin = M2707Plugin()
+    result = M2707Service().execute(build_request())
+    forged = result.model_copy(update={"result_digest": "sha256:" + "f" * 64})
+    with pytest.raises(ValueError, match="digest mismatch"):
+        plugin.replay(forged)
+
+
 def test_service_rejects_oversized_json() -> None:
     with pytest.raises(ValueError, match="validation failed"):
         M2707Service().validate_request(b"{" + b"a" * (4 * 1024 * 1024) + b"}")
@@ -129,6 +147,21 @@ def test_result_replay_detects_forged_digest() -> None:
     result = service.execute(build_request())
     forged = result.model_copy(update={"result_digest": "sha256:" + "f" * 64})
     assert service.verify(forged) is False
+
+
+def test_result_replay_rejects_request_digest_mismatch() -> None:
+    service = M2707Service()
+    result = service.execute(build_request())
+    forged = result.model_copy(update={"request_digest": "sha256:" + "f" * 64})
+    with pytest.raises(ValueError, match="request digest"):
+        service.replay(forged)
+
+
+def test_result_contract_rejects_unbound_request_digest() -> None:
+    result = M2707Service().execute(build_request())
+    forged = result.model_copy(update={"request_digest": "sha256:" + "f" * 64})
+    with pytest.raises(ValueError, match="request digest"):
+        ComplexActivityChangeControlResult.model_validate(forged.model_dump(mode="python"))
 
 
 def test_result_replay_detects_forged_status() -> None:
@@ -272,12 +305,47 @@ def test_cli_error_and_unknown_schema_paths(tmp_path: Path) -> None:
     assert runner.invoke(cli, ["control", str(missing)]).exit_code != 0
     assert runner.invoke(cli, ["verify", str(missing)]).exit_code != 0
 
+    payload = build_request().model_dump(mode="json")
+    encoded = json.dumps(payload, separators=(",", ":"))
+    needle = f'"request_id":"{payload["request_id"]}"'
+    duplicate = tmp_path / "duplicate.json"
+    duplicate.write_text(encoded.replace(needle, f"{needle},{needle}", 1), encoding="utf-8")
+    assert runner.invoke(cli, ["validate", str(duplicate)]).exit_code != 0
+    assert runner.invoke(cli, ["control", str(duplicate)]).exit_code != 0
+
+
+def test_cli_reports_result_parse_and_output_write_failures(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    runner = CliRunner()
+    malformed = tmp_path / "malformed.json"
+    malformed.write_text("{}", encoding="utf-8")
+    assert runner.invoke(cli, ["verify", str(malformed)]).exit_code != 0
+
+    request_path = tmp_path / "request.json"
+    request_path.write_text(build_request().model_dump_json(), encoding="utf-8")
+
+    def fail_write(*_args: object, **_kwargs: object) -> None:
+        raise OSError from None
+
+    monkeypatch.setattr(Path, "write_text", fail_write)
+    assert (
+        runner.invoke(cli, ["control", str(request_path), "--output", str(tmp_path / "out.json")])
+        .exit_code
+        != 0
+    )
+
 
 def test_canonical_dict_projection_is_deterministic() -> None:
     request = build_request()
     assert canonical_request_digest(request.model_dump(mode="json")) == canonical_request_digest(
         request
     )
+
+
+def test_public_change_control_entrypoint_executes() -> None:
+    result = control_complex_activity_change(build_request())
+    assert result.status.value == "approved"
 
 
 def test_revalidation_plan_rejects_missing_check() -> None:
@@ -324,3 +392,66 @@ def test_approved_package_rejects_failed_comparison() -> None:
             package_digest=request.champion_digest,
             evidence=request.classification.evidence,
         )
+
+
+def test_rejected_package_requires_a_tested_rollback() -> None:
+    result = M2707Service().execute(build_request())
+    assert result.approved_change_package is not None
+    package = result.approved_change_package.model_copy(
+        update={
+            "promotion_state": PromotionState.ROLLED_BACK,
+        }
+    )
+    object.__setattr__(package.rollback_point, "tested", False)
+    with pytest.raises(ValueError, match="tested rollback"):
+        package.promotion_is_authorized()
+
+
+def test_request_rejects_equal_champion_and_challenger_digests() -> None:
+    request = build_request()
+    object.__setattr__(request, "challenger_digest", request.champion_digest)
+    with pytest.raises(ValueError, match="distinct"):
+        ControlComplexActivityChangeRequest.model_validate(request, strict=True)
+
+
+def test_approved_result_rejects_findings_and_review_flag() -> None:
+    service = M2707Service()
+    result = service.execute(build_request())
+    finding = service.execute(build_request(challenger_regression=True)).findings[0]
+    forged = result.model_copy(update={"findings": (finding,)})
+    resigned = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValueError, match="approved result"):
+        type(result).model_validate(resigned.model_dump(mode="python"), strict=True)
+
+    review_forged = result.model_copy(update={"human_review_required": True})
+    review_resigned = review_forged.model_copy(
+        update={"result_digest": result_payload_digest(review_forged)}
+    )
+    with pytest.raises(ValueError, match="approved result"):
+        type(result).model_validate(review_resigned.model_dump(mode="python"), strict=True)
+
+
+def test_approved_result_rejects_package_bound_to_another_request() -> None:
+    service = M2707Service()
+    result = service.execute(build_request())
+    other = service.execute(build_request(request_id="m2707.request.other"))
+    assert result.approved_change_package is not None
+    forged = result.model_copy(
+        update={"approved_change_package": other.approved_change_package}
+    )
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValueError, match="exact change request"):
+        type(result).model_validate(forged.model_dump(mode="python"), strict=True)
+
+
+def test_abstained_result_requires_findings_and_human_review() -> None:
+    service = M2707Service()
+    result = service.execute(build_request(challenger_regression=True))
+    assert result.findings
+    missing_findings = result.model_copy(update={"findings": ()})
+    with pytest.raises(ValueError, match="abstained result"):
+        type(result).model_validate(missing_findings.model_dump(mode="python"), strict=True)
+
+    missing_review = result.model_copy(update={"human_review_required": False})
+    with pytest.raises(ValueError, match="abstained result"):
+        type(result).model_validate(missing_review.model_dump(mode="python"), strict=True)

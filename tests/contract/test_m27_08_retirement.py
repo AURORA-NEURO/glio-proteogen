@@ -1,6 +1,5 @@
 """M27-08 contract, schema and strict replay tests."""
 
-# Contract tests intentionally exercise exact numeric/cardinality boundaries.
 # ruff: noqa: PLR2004
 
 from typing import Any, cast
@@ -14,6 +13,7 @@ from glio_proteogen.contracts.m27_08 import (
 )
 from glio_proteogen.contracts.m27_08.canonical import (
     canonical_request_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.modules.c27_complex_activity.m27_08_retirement import M2708Service
@@ -48,6 +48,28 @@ def test_result_replay_rejects_forged_digest() -> None:
     assert not M2708Service().verify(forged)
 
 
+def test_result_contract_closes_identifier_findings_and_evidence() -> None:
+    result = M2708Service().execute(build_request())
+    assert result.result_id == result_identifier(result.request_digest)
+
+    duplicate_finding = result.model_copy(
+        update={"findings": (*result.findings, result.findings[0])}
+    ) if result.findings else None
+    if duplicate_finding is not None:
+        with pytest.raises(ValueError, match="finding ids must be unique"):
+            type(result).model_validate(duplicate_finding.model_dump(mode="python"), strict=True)
+
+    duplicate_evidence = result.model_copy(
+        update={"evidence": (*result.evidence, result.evidence[0])}
+    )
+    with pytest.raises(ValueError, match="result evidence must be unique"):
+        type(result).model_validate(duplicate_evidence.model_dump(mode="python"), strict=True)
+
+    forged_identifier = result.model_copy(update={"result_id": "result.m2708.forged"})
+    with pytest.raises(ValueError, match="derived from the request digest"):
+        type(result).model_validate(forged_identifier.model_dump(mode="python"), strict=True)
+
+
 def test_result_replay_rejects_self_rehashed_forged_package() -> None:
     result = M2708Service().execute(build_request())
     assert result.package is not None
@@ -63,8 +85,6 @@ def test_result_replay_rejects_stale_request_identity_after_rehash() -> None:
     forged = result.model_copy(update={"request": changed_request})
     rehashed = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
 
-    # Rehashing the outer envelope must not bypass the request-digest and
-    # result-identity closure enforced by the result model.
     assert not M2708Service().verify(rehashed)
 
 

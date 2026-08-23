@@ -34,10 +34,6 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
-# PROVISIONAL ABI: inferred solely from dossier SHA
-# 0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,
-# lines 9212-9252. Owner confirmation and implementation details remain
-# pending.
 M2605_MODULE_ID: Final = "GLIO-PROTEOGEN-M26-05"
 M2605_OPERATION: Final = "emit_proteomics_observability_telemetry"
 M2605_CONTRACT_VERSION: Final = "0.1.0-provisional"
@@ -314,12 +310,18 @@ class ProteomicsTelemetryResult(FrozenModel):
     def result_is_closed(self) -> ProteomicsTelemetryResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        expected_result_id = "result.m2605." + self.request_digest.removeprefix("sha256:")
+        if self.result_id != expected_result_id:
+            raise ValueError("result id does not bind the exact request digest")
         dashboard_ids = tuple(item.dashboard_id for item in self.dashboards)
         if len(dashboard_ids) != len(set(dashboard_ids)):
             raise ValueError("result dashboard ids must be unique")
         finding_ids = tuple(item.finding_id for item in self.findings)
         if len(finding_ids) != len(set(finding_ids)):
             raise ValueError("result finding ids must be unique")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("result evidence must be unique")
         if self.status is TelemetryStatus.EMITTED:
             if (
                 self.telemetry_stream is None

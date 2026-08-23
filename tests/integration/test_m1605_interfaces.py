@@ -126,7 +126,7 @@ def test_typer_present_verify_export_schema_and_no_overwrite(tmp_path: Path) -> 
     assert runner.invoke(m1605_app, ["verify", str(result_path)]).exit_code == 0
     stdout_result = runner.invoke(m1605_app, ["present", str(request_path)])
     assert stdout_result.exit_code == 0
-    assert "presented" in stdout_result.stdout
+    assert "review_required" in stdout_result.stdout
     invalid = tmp_path / "invalid.json"
     invalid.write_text("{", encoding="utf-8")
     assert runner.invoke(m1605_app, ["present", str(invalid)]).exit_code != 0
@@ -137,7 +137,7 @@ def test_plugin_strict_parse_once_and_forged_capability_rejection() -> None:
     plugin = M1605Plugin(M1605Service())
     assert plugin.descriptor().module_id == "GLIO-PROTEOGEN-M16-05"
     token = plugin.validate(_request())
-    assert plugin.run(token).status.value == "presented"
+    assert plugin.run(token).status.value == "review_required"
     assert isinstance(token, ValidatedM1605Request)
     forged = ValidatedM1605Request(request=token.request, _seal=object())
     with pytest.raises(TypeError, match="validated request token"):
@@ -147,5 +147,5 @@ def test_plugin_strict_parse_once_and_forged_capability_rejection() -> None:
     with pytest.raises(ValueError, match="duplicate"):
         plugin.validate('{"request_id":"a","request_id":"b"}')
     bytes_token = plugin.validate(canonical_json_bytes(_request()))
-    assert plugin.run(bytes_token).status.value == "presented"
-    assert plugin.verify(plugin.run(bytes_token)).status.value == "presented"
+    assert plugin.run(bytes_token).status.value == "review_required"
+    assert plugin.verify(plugin.run(bytes_token)).status.value == "review_required"

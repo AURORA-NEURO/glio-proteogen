@@ -399,11 +399,11 @@ class M0906UncertaintyDecompositionEngine:
         return BuiltM0906Result(result=result, canonical_bytes=canonical)
 
     @staticmethod
-    def verify(
+    def verify(  # noqa: PLR0911
         result: object,
         canonical: bytes | bytearray | str,
         request: object | None = None,
-    ) -> M0906ReplayVerification:  # noqa: PLR0911
+    ) -> M0906ReplayVerification:
         try:
             raw = (
                 canonical

@@ -27,8 +27,126 @@ jobs:
       - run: uv sync --locked --all-groups
       - run: uv run ruff check .
       - run: uv run mypy src
+      - run: uv run vulture src/glio_proteogen evals tools --min-confidence 80
+      - run: uv run python tools/verify_project_status.py
       - run: uv run python -m tools.scan_secrets
       - run: uv run pip-audit
+
+  model-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv python install 3.12
+      - run: uv sync --locked --all-groups
+      - name: Run targeted model tests with branch coverage
+        shell: bash
+        run: |
+          model_tests="$(rg --files tests | rg 'test_.*(m15_05|m1505|m23_01|m2301|m23_02|m2302|m23_03|m2303|m23_04|m2304|m23_05|m2305|m23_07|m2307|m23_08|m2308|m24_02|m2402|m24_03|m2403|m24_04|m2404|m24_05|m2405|m24_06|m2406|m24_07|m2407|m24_08|m2408|m25_01|m2501|m25_02|m2502|m25_03|m2503|m25_04|m2504|m25_05|m2505|m25_06|m2506|m25_07|m2507|m25_08|m2508|m2601|m26_01|m26_02|m2602|m2603|m2604|m2605|m2606|m2607|m2608|m27_02|m2702|m27_03|m2703|m2704|m2705|m2706|m27_07|m2707|m2708|m28_04|m2804)')"
+          uv run coverage erase
+          uv run coverage run --branch -m pytest -q -o addopts='' \
+            $model_tests \
+            tests/deployment/test_model_api_transport.py \
+            tests/deployment/test_deployed_model_routes.py
+      - name: Enforce concrete model API coverage
+        run: |
+          uv run coverage report --fail-under=100 \
+          --include=src/glio_proteogen/modules/c20_biomarker_panel/m26_01_registry_configuration_service/api.py,src/glio_proteogen/modules/c20_biomarker_panel/m26_04_api_sdk_cli_gateway/api.py,src/glio_proteogen/modules/c20_biomarker_panel/m26_05_observability_telemetry/api.py,src/glio_proteogen/modules/c20_biomarker_panel/m26_06_security_privacy_access_control/api.py,src/glio_proteogen/modules/c20_biomarker_panel/m26_07_change_control_rollback/api.py,src/glio_proteogen/modules/c20_biomarker_panel/m26_08_retirement_archival_knowledge_transfer/api.py,src/glio_proteogen/modules/c20_biomarker_panel/m27_04_api_sdk_cli_gateway/api.py,src/glio_proteogen/modules/c21_reference_material/m26_03_reproducible_pipeline_orchestrator/api.py,src/glio_proteogen/modules/c26_proteomics/m26_02_data_model_lineage_service/api.py,src/glio_proteogen/modules/c27_complex_activity/m27_03_reproducible_pipeline_orchestrator/api.py,src/glio_proteogen/modules/c27_complex_activity/m27_05_observability_telemetry/api.py,src/glio_proteogen/modules/c27_complex_activity/m27_06_security_access/api.py
+
+          uv run coverage report --fail-under=100 --include=src/glio_proteogen/modules/c15_longitudinal_recurrence_proteotype/m15_05_longitudinal_evolution/api.py,src/glio_proteogen/modules/c21_reference_material/m23_01_reference_truth_benchmark_curator/api.py,src/glio_proteogen/modules/c21_reference_material/m23_02_synthetic_truth_simulation_generator/api.py,src/glio_proteogen/modules/c21_reference_material/m23_03_internal_benchmark_ablation/api.py,src/glio_proteogen/modules/c21_reference_material/m23_04_external_transport_evaluator/api.py,src/glio_proteogen/modules/c21_reference_material/m23_05_subgroup_equity_evaluator/api.py,src/glio_proteogen/modules/c21_reference_material/m23_07_human_factors_operational_evaluator/api.py,src/glio_proteogen/modules/c21_reference_material/m23_08_evidence_gate_release_adjudicator/api.py,src/glio_proteogen/modules/c21_reference_material/m24_02_synthetic_truth_simulation_generator/api.py,src/glio_proteogen/modules/c21_reference_material/m24_03_internal_benchmark_ablation/api.py,src/glio_proteogen/modules/c21_reference_material/m24_04_external_transport_evaluator/api.py,src/glio_proteogen/modules/c21_reference_material/m24_05_subgroup_equity_evaluator/api.py,src/glio_proteogen/modules/c21_reference_material/m24_06_robustness_shift_ood_challenge/api.py,src/glio_proteogen/modules/c21_reference_material/m24_07_human_factors_operational_evaluator/api.py,src/glio_proteogen/modules/c21_reference_material/m24_08_evidence_gate_release_adjudicator/api.py,src/glio_proteogen/modules/c21_reference_material/m25_01_reference_truth_benchmark_curator/api.py,src/glio_proteogen/modules/c21_reference_material/m25_02_synthetic_truth_simulation_generator/api.py,src/glio_proteogen/modules/c21_reference_material/m25_03_internal_benchmark_ablation/api.py,src/glio_proteogen/modules/c21_reference_material/m25_04_external_transport_evaluator/api.py,src/glio_proteogen/modules/c21_reference_material/m25_05_subgroup_equity_evaluator/api.py,src/glio_proteogen/modules/c21_reference_material/m25_06_robustness_shift_ood_challenge/api.py,src/glio_proteogen/modules/c21_reference_material/m25_07_human_factors_operational_evaluator/api.py,src/glio_proteogen/modules/c21_reference_material/m25_08_evidence_gate_release_adjudicator/api.py,src/glio_proteogen/modules/c27_complex_activity/m27_07_change_control/api.py,src/glio_proteogen/modules/c27_complex_activity/m27_08_retirement/api.py,src/glio_proteogen/modules/c13_proteotype/m28_04_api_sdk_cli_gateway/api.py
+
+          uv run coverage report --fail-under=98 --include=src/glio_proteogen/contracts/m27_02/__init__.py,src/glio_proteogen/contracts/m27_02/canonical.py,src/glio_proteogen/contracts/m27_02/schema.py,src/glio_proteogen/contracts/m27_02/v1.py,src/glio_proteogen/modules/c27_complex_activity/m27_02_lineage_service/__init__.py,src/glio_proteogen/modules/c27_complex_activity/m27_02_lineage_service/engine.py,src/glio_proteogen/modules/c27_complex_activity/m27_02_lineage_service/plugin.py,src/glio_proteogen/modules/c27_complex_activity/m27_02_lineage_service/service.py
+
+          uv run coverage report --fail-under=100 --include=src/glio_proteogen/contracts/m27_07/*.py,src/glio_proteogen/modules/c27_complex_activity/m27_07_change_control/*.py
+
+          uv run coverage report --fail-under=100 --include=src/glio_proteogen/contracts/m27_08/*.py,src/glio_proteogen/modules/c27_complex_activity/m27_08_retirement/*.py
+
+          uv run coverage report --fail-under=100 --include=src/glio_proteogen/contracts/m27_05/*.py,src/glio_proteogen/modules/c27_complex_activity/m27_05_observability_telemetry/*.py,src/glio_proteogen/contracts/m27_06/*.py,src/glio_proteogen/modules/c27_complex_activity/m27_06_security_access/*.py
+
+          uv run coverage report --fail-under=100 --include=src/glio_proteogen/modules/c20_biomarker_panel/m26_01_registry_configuration_service/api.py,src/glio_proteogen/modules/c20_biomarker_panel/m26_04_api_sdk_cli_gateway/api.py,src/glio_proteogen/modules/c20_biomarker_panel/m26_05_observability_telemetry/api.py,src/glio_proteogen/modules/c20_biomarker_panel/m26_06_security_privacy_access_control/api.py,src/glio_proteogen/modules/c20_biomarker_panel/m26_07_change_control_rollback/api.py,src/glio_proteogen/modules/c20_biomarker_panel/m26_08_retirement_archival_knowledge_transfer/api.py,src/glio_proteogen/modules/c20_biomarker_panel/m27_04_api_sdk_cli_gateway/api.py
+
+          uv run coverage report --fail-under=100 --include=src/glio_proteogen/modules/c21_reference_material/m23_01_reference_truth_benchmark_curator/api.py,src/glio_proteogen/modules/c21_reference_material/m23_02_synthetic_truth_simulation_generator/api.py,src/glio_proteogen/modules/c21_reference_material/m23_03_internal_benchmark_ablation/api.py,src/glio_proteogen/modules/c21_reference_material/m23_05_subgroup_equity_evaluator/api.py,src/glio_proteogen/modules/c21_reference_material/m23_07_human_factors_operational_evaluator/api.py,src/glio_proteogen/modules/c21_reference_material/m23_08_evidence_gate_release_adjudicator/api.py,src/glio_proteogen/modules/c21_reference_material/m24_04_external_transport_evaluator/api.py,src/glio_proteogen/modules/c21_reference_material/m24_07_human_factors_operational_evaluator/api.py,src/glio_proteogen/modules/c21_reference_material/m25_01_reference_truth_benchmark_curator/api.py,src/glio_proteogen/modules/c21_reference_material/m25_02_synthetic_truth_simulation_generator/api.py,src/glio_proteogen/modules/c21_reference_material/m25_03_internal_benchmark_ablation/api.py,src/glio_proteogen/modules/c21_reference_material/m25_05_subgroup_equity_evaluator/api.py,src/glio_proteogen/modules/c21_reference_material/m25_07_human_factors_operational_evaluator/api.py,src/glio_proteogen/modules/c21_reference_material/m25_08_evidence_gate_release_adjudicator/api.py,src/glio_proteogen/modules/c21_reference_material/m26_03_reproducible_pipeline_orchestrator/api.py
+
+          uv run coverage report --fail-under=98 --include=src/glio_proteogen/contracts/m24_08/*.py,src/glio_proteogen/modules/c21_reference_material/m24_08_evidence_gate_release_adjudicator/*.py
+
+          uv run coverage report --fail-under=98 --include=src/glio_proteogen/contracts/m27_03/*.py,src/glio_proteogen/modules/c27_complex_activity/m27_03_reproducible_pipeline_orchestrator/*.py
+
+          uv run coverage report --fail-under=98 --include=src/glio_proteogen/contracts/m25_04/*.py,src/glio_proteogen/modules/c21_reference_material/m25_04_external_transport_evaluator/*.py
+
+          uv run coverage report --fail-under=98 --include=src/glio_proteogen/contracts/m25_06/*.py,src/glio_proteogen/modules/c21_reference_material/m25_06_robustness_shift_ood_challenge/*.py
+
+  deployment-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv python install 3.12
+      - run: uv sync --locked --all-groups
+      - name: Run deployment tests with branch coverage
+        run: |
+          uv run coverage erase
+          uv run coverage run --branch -m pytest -q -o addopts='' \
+            tests/deployment/test_asgi.py \
+            tests/deployment/test_container_config.py \
+            tests/deployment/test_container_manifest.py
+      - name: Enforce deployment branch coverage
+        run: uv run coverage report --fail-under=100 --include=src/glio_proteogen/deployment.py
+
+  container-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Build the production image
+        run: docker build --tag glio-proteogen:ci .
+      - name: Start the production image
+        run: |
+          docker run --detach --name glio-proteogen-ci --publish 8000:8000 \
+            --volume glio-proteogen-ci-data:/data/glio-proteogen \
+            --env GLIO_PROTEOGEN_DATABASE_PATH=/data/glio-proteogen/events.sqlite3 \
+            glio-proteogen:ci
+      - name: Exercise probes and verify persistent storage
+        run: |
+          test "$(docker inspect --format '{{.Config.User}}' glio-proteogen-ci)" = glio
+          test "$(docker exec glio-proteogen-ci id -u)" != 0
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8000/livez \
+              && curl --fail --silent http://127.0.0.1:8000/readyz \
+              && catalog_json="$(curl --fail --silent http://127.0.0.1:8000/v1/deployment/catalog)" \
+              && printf '%s' "$catalog_json" | python -c "import json, sys; catalog = json.load(sys.stdin); assert catalog['unmounted_route_limit_prefixes'] == []; assert isinstance(catalog['catalog_digest'], str) and catalog['catalog_digest'].startswith('sha256:')" \
+              && curl --fail --silent http://127.0.0.1:8000/v1/modules/M26-01/schemas/request \
+              && curl --fail --silent http://127.0.0.1:8000/v1/modules/M23-02/schemas/request \
+              && curl --fail --silent http://127.0.0.1:8000/v1/modules/M25-08/schemas/request \
+              && curl --fail --silent http://127.0.0.1:8000/v1/contracts/M27-02/output/schema \
+              && test "$(docker inspect --format '{{.State.Health.Status}}' glio-proteogen-ci)" = healthy; then
+              docker run --rm --volumes-from glio-proteogen-ci \
+                --entrypoint python glio-proteogen:ci \
+                -c "from pathlib import Path; assert Path('/data/glio-proteogen/events.sqlite3').is_file()"
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs glio-proteogen-ci
+          exit 1
+      - name: Remove the smoke-test container
+        if: always()
+        run: |
+          docker rm --force glio-proteogen-ci
+          docker volume rm --force glio-proteogen-ci-data
 
   windows-m04-03-interface:
     runs-on: windows-latest
@@ -185,6 +303,8 @@ jobs:
 
   test-and-eval:
     runs-on: ubuntu-latest
+    env:
+      SOURCE_DATE_EPOCH: "315532800"
     # M04-07 focused tests plus its locked evaluator measured over 32 minutes locally.
     timeout-minutes: 90
     steps:
@@ -197,6 +317,7 @@ jobs:
           cache-dependency-glob: uv.lock
       - run: uv python install 3.12
       - run: uv sync --locked --all-groups
+      - run: uv build --out-dir dist
       - run: uv run pytest tests
       - run: uv run python -m evals.m01_01.run --output m01_01-eval.json
       - run: uv run python -m evals.m01_02.run --output m01_02-eval.json

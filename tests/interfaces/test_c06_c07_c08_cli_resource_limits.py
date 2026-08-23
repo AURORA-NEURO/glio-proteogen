@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from glio_proteogen.adapters.limits import RequestBodyTooLargeError
+from tests._resource_helpers import write_sparse_oversized_json
 
 _CLI_FILES = (
     "modules/c06_protein_abundance/m06_02_representation_feature_constructor/cli.py",
@@ -83,9 +84,7 @@ _READERS: tuple[tuple[str, str], ...] = (
 
 
 def _oversized_json(path: Path, limit: int) -> None:
-    with path.open("wb") as stream:
-        stream.seek(limit)
-        stream.write(b"x")
+    write_sparse_oversized_json(path, limit)
 
 
 @pytest.mark.parametrize(("module_name", "reader_name"), _READERS)

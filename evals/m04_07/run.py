@@ -11,6 +11,11 @@ from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, Literal, TypedDict, cast
 
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
+
 from evals.m04_04.run import build_scenario_request as build_m0404_request
 from evals.m04_05 import run as m0405_evidence
 from evals.m04_06 import run as m0406_evidence

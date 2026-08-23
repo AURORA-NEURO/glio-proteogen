@@ -7,7 +7,7 @@ from typing import Any, cast
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import TypeAdapter, ValidationError
 
-from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware
+from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware, is_json_content_type
 from glio_proteogen.contracts.m26_04 import (
     M2604_MAX_CANONICAL_REQUEST_BYTES,
     M2604_MAX_CANONICAL_RESULT_BYTES,
@@ -55,9 +55,9 @@ def _parse_request(body: bytes) -> PublishProteinSubtypeAccessSurfaceRequest:
         raise _invalid_request(error) from error
 
 
-def _parse_object(body: bytes) -> dict[str, Any]:
+def _parse_object(body: bytes, *, max_bytes: int) -> dict[str, Any]:
     try:
-        value = strict_json_loads(body, max_bytes=M2604_MAX_CANONICAL_REQUEST_BYTES)
+        value = strict_json_loads(body, max_bytes=max_bytes)
     except (StrictJsonError, ValueError) as error:
         raise HTTPException(status_code=422, detail="request JSON is invalid") from error
     if not isinstance(value, dict):
@@ -65,15 +65,9 @@ def _parse_object(body: bytes) -> dict[str, Any]:
     return cast("dict[str, Any]", value)
 
 
-async def _read_bounded(request: Request, *, max_bytes: int) -> bytes:
-    chunks: list[bytes] = []
-    total = 0
-    async for chunk in request.stream():
-        total += len(chunk)
-        if total > max_bytes:
-            raise HTTPException(status_code=422, detail="request exceeds byte limit")
-        chunks.append(chunk)
-    return b"".join(chunks)
+def _require_json(request: Request) -> None:
+    if not is_json_content_type(request.headers.get("content-type")):
+        raise HTTPException(status_code=415, detail="content-type must be application/json")
 
 
 def create_app(service: M2604Service | None = None) -> FastAPI:
@@ -81,9 +75,11 @@ def create_app(service: M2604Service | None = None) -> FastAPI:
 
     boundary = service or M2604Service()
     app = FastAPI(title="GLIO-PROTEOGEN M26-04", version="0.1.0-provisional")
-    # Enforce the request ceiling before body materialization; verification
-    # applies the larger result ceiling in its bounded reader.
-    app.add_middleware(RequestSizeLimitMiddleware, max_bytes=M2604_MAX_CANONICAL_REQUEST_BYTES)
+    app.add_middleware(
+        RequestSizeLimitMiddleware,
+        max_bytes=M2604_MAX_CANONICAL_REQUEST_BYTES,
+        result_max_bytes=M2604_MAX_CANONICAL_RESULT_BYTES,
+    )
 
     @app.get("/v1/modules/M26-04/schemas")
     async def schemas() -> dict[str, dict[str, object]]:
@@ -97,8 +93,9 @@ def create_app(service: M2604Service | None = None) -> FastAPI:
 
     @app.post("/v1/modules/M26-04/validate")
     async def validate(request: Request) -> dict[str, object]:
+        _require_json(request)
         payload = _parse_request(
-            await _read_bounded(request, max_bytes=M2604_MAX_CANONICAL_REQUEST_BYTES)
+            await request.body()
         )
         try:
             typed = boundary.validate_request(payload)
@@ -108,8 +105,9 @@ def create_app(service: M2604Service | None = None) -> FastAPI:
 
     @app.post("/v1/modules/M26-04/publish")
     async def publish(request: Request) -> dict[str, object]:
+        _require_json(request)
         payload = _parse_request(
-            await _read_bounded(request, max_bytes=M2604_MAX_CANONICAL_REQUEST_BYTES)
+            await request.body()
         )
         try:
             result = boundary.publish(payload)
@@ -119,8 +117,10 @@ def create_app(service: M2604Service | None = None) -> FastAPI:
 
     @app.post("/v1/modules/M26-04/verify")
     async def verify(request: Request) -> dict[str, object]:
+        _require_json(request)
         envelope = _parse_object(
-            await _read_bounded(request, max_bytes=M2604_MAX_CANONICAL_RESULT_BYTES)
+            await request.body(),
+            max_bytes=M2604_MAX_CANONICAL_RESULT_BYTES,
         )
         candidate = envelope.get("result", envelope)
         supplied_request = envelope.get("request")

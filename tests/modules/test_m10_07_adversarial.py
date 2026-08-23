@@ -45,6 +45,8 @@ from tests.modules.test_m10_07_runtime import _request
 
 _HTTP_OK = 200
 _HTTP_NOT_FOUND = 404
+_HTTP_REQUEST_ENTITY_TOO_LARGE = 413
+_HTTP_UNSUPPORTED_MEDIA_TYPE = 415
 _HTTP_UNPROCESSABLE = 422
 
 
@@ -262,23 +264,23 @@ def test_api_and_cli_reject_transport_edges_and_abstention(tmp_path: Path) -> No
         assert client.get("/v1/modules/M10-07/schemas/unknown").status_code == _HTTP_NOT_FOUND
         assert (
             client.post("/v1/modules/M10-07/validate", content=b"[]").status_code
-            == _HTTP_UNPROCESSABLE
+            == _HTTP_UNSUPPORTED_MEDIA_TYPE
         )
         assert client.post("/v1/modules/M10-07/verify", json={}).status_code == _HTTP_UNPROCESSABLE
         assert (
             client.post("/v1/modules/M10-07/verify", content=b"[]").status_code
-            == _HTTP_UNPROCESSABLE
+            == _HTTP_UNSUPPORTED_MEDIA_TYPE
         )
         assert (
             client.post("/v1/modules/M10-07/verify", content=b"{").status_code
-            == _HTTP_UNPROCESSABLE
+            == _HTTP_UNSUPPORTED_MEDIA_TYPE
         )
         assert (
             client.post(
                 "/v1/modules/M10-07/verify",
                 content=b"{" + b"a" * (M1007_MAX_CANONICAL_RESULT_BYTES + 1),
             ).status_code
-            == _HTTP_UNPROCESSABLE
+            == _HTTP_REQUEST_ENTITY_TOO_LARGE
         )
         denied = _request().model_copy(
             update={
@@ -297,11 +299,11 @@ def test_api_and_cli_reject_transport_edges_and_abstention(tmp_path: Path) -> No
         )
         assert (
             client.post("/v1/modules/M10-07/validate", content=denied.model_dump_json()).status_code
-            == _HTTP_UNPROCESSABLE
+            == _HTTP_UNSUPPORTED_MEDIA_TYPE
         )
         assert (
             client.post("/v1/modules/M10-07/execute", content=denied.model_dump_json()).status_code
-            == _HTTP_UNPROCESSABLE
+            == _HTTP_UNSUPPORTED_MEDIA_TYPE
         )
     runner = CliRunner()
     assert runner.invoke(m1007_cli.app, ["export-schema", "unknown"]).exit_code != 0

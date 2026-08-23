@@ -108,9 +108,6 @@ _EVALUATE_ADAPTER: Final[TypeAdapter[EvaluateMetadataRequest]] = TypeAdapter(
 _LOOKUP_ADAPTER: Final[TypeAdapter[ProtocolLookup]] = TypeAdapter(ProtocolLookup)
 
 
-# Storage failures are intentionally part of the service error family.  Re-exporting the
-# concrete types keeps API and CLI callers on one stable exception surface without wrapping
-# away their useful conflict/not-found distinctions.
 M0101ServiceError = EventStoreError
 
 
@@ -266,9 +263,9 @@ class M0101Service:
 
     def __exit__(
         self,
-        exc_type: type[BaseException] | None,
-        exc_value: BaseException | None,
-        traceback: TracebackType | None,
+        _exc_type: type[BaseException] | None,
+        _exc_value: BaseException | None,
+        _traceback: TracebackType | None,
     ) -> None:
         self.close()
 

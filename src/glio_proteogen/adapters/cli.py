@@ -291,6 +291,13 @@ from glio_proteogen.contracts.m15_02 import (
     M1502_MAX_CANONICAL_REQUEST_BYTES,
     StratifyContextAndSubtypeRequest,
 )
+from glio_proteogen.contracts.m15_05 import (
+    M1505_MAX_CANONICAL_REQUEST_BYTES,
+    ModelComplexActivityLongitudinalEvolutionRequest,
+)
+from glio_proteogen.contracts.m15_05 import (
+    contract_json_schema as m1505_contract_json_schema,
+)
 from glio_proteogen.contracts.m15_08 import (
     M1508_MAX_CANONICAL_REQUEST_BYTES,
     AssembleComplexActivityMechanismDossierRequest,
@@ -639,6 +646,9 @@ from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
     m15_02_context_subtype_stratifier as m1502_module,
 )
 from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
+    m15_05_longitudinal_evolution as m1505_module,
+)
+from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
     m15_08_mechanism_evidence_dossier as m1508,
 )
 from glio_proteogen.modules.c16_kinophos_object_consumer import (
@@ -947,6 +957,11 @@ m1405_app = typer.Typer(
     help="M14-05 provisional longitudinal protein-subtype evolution.",
 )
 app.add_typer(m1405_app, name="longitudinal-evolution")
+m1505_app = typer.Typer(
+    no_args_is_help=True,
+    help="M15-05 provisional complex-activity longitudinal evolution.",
+)
+app.add_typer(m1505_app, name="m15-05-longitudinal-evolution")
 m1403_app = typer.Typer(
     no_args_is_help=True,
     help="M14-03 provisional caller-declared mechanistic feature construction.",
@@ -2882,9 +2897,6 @@ def _raise_anchored_output_error() -> Never:
     raise OSError
 
 
-# The aggregate coverage gate runs on Ubuntu. This native publisher is exercised by the
-# dedicated Windows M04-03 interface job, so its function suites are excluded from that
-# single-platform aggregate instead of being reported as structurally unreachable misses.
 def _write_proteoform_raw_result_windows(  # pragma: no cover
     path: Path,
     payload: bytes,
@@ -5996,6 +6008,40 @@ def infer_m1405(
         M1405_MAX_CANONICAL_REQUEST_BYTES,
     )
     _emit(m1405_module.M1405Service().execute(parsed))
+
+
+@m1505_app.command("export-schema")
+def export_m1505_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "observation",
+            "trajectory-state",
+            "change-point",
+            "configuration",
+            "policy",
+            "diagnostic",
+        ],
+        typer.Argument(help="M15-05 contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one strict provisional M15-05 schema."""
+
+    typer.echo(json.dumps(m1505_contract_json_schema(contract), indent=2, sort_keys=True))
+
+
+@m1505_app.command("infer")
+def infer_m1505(request: RequestArgument) -> None:
+    """Replay an ordered M15-05 request into a bounded trajectory result."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(ModelComplexActivityLongitudinalEvolutionRequest),
+        m1505_module.preflight_m1505_authorization,
+        M1505_MAX_CANONICAL_REQUEST_BYTES,
+    )
+    _emit(m1505_module.M1505Service().execute(parsed))
 
 
 @m1403_app.command("export-schema")

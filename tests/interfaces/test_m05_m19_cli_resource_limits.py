@@ -33,6 +33,7 @@ from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_07_downstream_type
 from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_07_downstream_typed_export.service import (  # noqa: E501
     M1907Service,
 )
+from tests._resource_helpers import write_sparse_oversized_json
 from tests.contract.test_m19_07_deep import _request
 
 _SMALL_LIMIT = 2
@@ -43,9 +44,7 @@ if TYPE_CHECKING:
 
 
 def _sparse_overflow(path: Path, limit: int) -> None:
-    with path.open("wb") as stream:
-        stream.seek(limit)
-        stream.write(b"x")
+    write_sparse_oversized_json(path, limit)
 
 
 @pytest.mark.parametrize(

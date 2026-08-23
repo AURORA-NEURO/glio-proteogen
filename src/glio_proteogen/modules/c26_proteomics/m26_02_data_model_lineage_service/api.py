@@ -8,7 +8,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import TypeAdapter, ValidationError
 
-from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware
+from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware, is_json_content_type
 from glio_proteogen.contracts.m26_02 import (
     M2602_MAX_CANONICAL_REQUEST_BYTES,
     M2602_MAX_CANONICAL_RESULT_BYTES,
@@ -18,7 +18,6 @@ from glio_proteogen.contracts.m26_02 import (
     contract_json_schema,
 )
 from glio_proteogen.kernel.strict_json import (
-    MAX_JSON_BYTES,
     StrictJsonError,
     sanitized_validation_errors,
     strict_json_error_detail,
@@ -39,11 +38,16 @@ _RESULT_ADAPTER: Final[TypeAdapter[ProteinSubtypeLineageResult]] = TypeAdapter(
 )
 
 
+def _require_json(request: Request) -> None:
+    if not is_json_content_type(request.headers.get("content-type")):
+        raise HTTPException(status_code=415, detail="content-type must be application/json")
+
+
 def _validated_payload(
     raw: bytes, service: M2602LineageService
 ) -> BuildProteinSubtypeLineageRequest:
     try:
-        strict_json_loads(raw, max_bytes=MAX_JSON_BYTES)
+        strict_json_loads(raw, max_bytes=M2602_MAX_CANONICAL_REQUEST_BYTES)
         validated = _REQUEST_ADAPTER.validate_json(raw, strict=True)
         return service.validate_request(validated)
     except StrictJsonError as error:
@@ -56,24 +60,16 @@ def _validated_payload(
         ) from error
 
 
-def create_m2602_app(service: M2602LineageService | None = None) -> FastAPI:  # noqa: C901
+def create_m2602_app(service: M2602LineageService | None = None) -> FastAPI:
     """Create an isolated FastAPI application for tests and bounded deployments."""
 
     active_service = service or M2602LineageService()
     app = FastAPI(title="GLIO-PROTEOGEN M26-02", version="0.1.0-provisional")
-    # The middleware must enforce the request ceiling before any route can
-    # materialize a body; result verification has its own stricter route cap.
-    app.add_middleware(RequestSizeLimitMiddleware, max_bytes=M2602_MAX_CANONICAL_REQUEST_BYTES)
-
-    async def read_bounded(request: Request, *, max_bytes: int) -> bytes:
-        chunks: list[bytes] = []
-        total = 0
-        async for chunk in request.stream():
-            total += len(chunk)
-            if total > max_bytes:
-                raise HTTPException(status_code=413, detail="request body exceeds the byte limit")
-            chunks.append(chunk)
-        return b"".join(chunks)
+    app.add_middleware(
+        RequestSizeLimitMiddleware,
+        max_bytes=M2602_MAX_CANONICAL_REQUEST_BYTES,
+        result_max_bytes=M2602_MAX_CANONICAL_RESULT_BYTES,
+    )
 
     @app.get("/m26-02/schema/{name}")
     async def export_schema(name: str) -> JSONResponse:
@@ -85,22 +81,25 @@ def create_m2602_app(service: M2602LineageService | None = None) -> FastAPI:  # 
 
     @app.post("/m26-02/validate")
     async def validate(request: Request) -> JSONResponse:
-        raw = await read_bounded(request, max_bytes=M2602_MAX_CANONICAL_REQUEST_BYTES)
+        _require_json(request)
+        raw = await request.body()
         validated = _validated_payload(raw, active_service)
         return JSONResponse({"valid": True, "requestDigest": canonical_request_digest(validated)})
 
     @app.post("/m26-02/construct")
     async def construct(request: Request) -> JSONResponse:
-        raw = await read_bounded(request, max_bytes=M2602_MAX_CANONICAL_REQUEST_BYTES)
+        _require_json(request)
+        raw = await request.body()
         validated = _validated_payload(raw, active_service)
         result = active_service.execute(validated)
         return JSONResponse(result.model_dump(mode="json"))
 
     @app.post("/m26-02/verify")
     async def verify(request: Request) -> JSONResponse:
-        raw = await read_bounded(request, max_bytes=M2602_MAX_CANONICAL_RESULT_BYTES)
+        _require_json(request)
+        raw = await request.body()
         try:
-            decoded = strict_json_loads(raw, max_bytes=MAX_JSON_BYTES)
+            decoded = strict_json_loads(raw, max_bytes=M2602_MAX_CANONICAL_RESULT_BYTES)
             del decoded
             result = _RESULT_ADAPTER.validate_json(raw, strict=True)
             verified = active_service.verify(result)

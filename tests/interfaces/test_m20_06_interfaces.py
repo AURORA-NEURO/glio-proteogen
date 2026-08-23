@@ -24,6 +24,7 @@ from glio_proteogen.modules.c20_biomarker_panel.m20_06_reviewer_discrepancy_adju
 from glio_proteogen.modules.c20_biomarker_panel.m20_06_reviewer_discrepancy_adjudication import (
     api as m2006_api,
 )
+from tests._resource_helpers import write_sparse_oversized_json
 from tests.contract.test_m20_06_adversarial import _request
 
 _HTTP_OK = 200
@@ -169,9 +170,7 @@ def test_typer_rejects_oversized_request_and_result_before_parse(tmp_path: Any) 
         (request_path, M2006_MAX_CANONICAL_REQUEST_BYTES),
         (result_path, M2006_MAX_CANONICAL_RESULT_BYTES),
     ):
-        with path.open("wb") as stream:
-            stream.seek(limit)
-            stream.write(b"{}")
+        write_sparse_oversized_json(path, limit)
     runner = CliRunner()
     request_failure = runner.invoke(cli_app, ["validate", str(request_path)])
     result_failure = runner.invoke(cli_app, ["verify", str(result_path)])

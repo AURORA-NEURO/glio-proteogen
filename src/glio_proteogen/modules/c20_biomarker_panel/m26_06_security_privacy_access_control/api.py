@@ -7,7 +7,7 @@ from typing import Any, cast
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import TypeAdapter, ValidationError
 
-from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware
+from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware, is_json_content_type
 from glio_proteogen.contracts.m26_06 import (
     M2606_MAX_CANONICAL_REQUEST_BYTES,
     M2606_MAX_CANONICAL_RESULT_BYTES,
@@ -65,15 +65,9 @@ def _parse_object(body: bytes) -> dict[str, Any]:
     return cast("dict[str, Any]", decoded)
 
 
-async def _read_bounded(request: Request, *, max_bytes: int) -> bytes:
-    chunks: list[bytes] = []
-    total = 0
-    async for chunk in request.stream():
-        total += len(chunk)
-        if total > max_bytes:
-            raise HTTPException(status_code=422, detail="request exceeds byte limit")
-        chunks.append(chunk)
-    return b"".join(chunks)
+def _require_json(request: Request) -> None:
+    if not is_json_content_type(request.headers.get("content-type")):
+        raise HTTPException(status_code=415, detail="content-type must be application/json")
 
 
 def create_m2606_app(service: M2606SecurityService | None = None) -> FastAPI:  # noqa: C901
@@ -81,9 +75,11 @@ def create_m2606_app(service: M2606SecurityService | None = None) -> FastAPI:  #
 
     boundary = service or M2606SecurityService()
     app = FastAPI(title="GLIO-PROTEOGEN M26-06", version="0.1.0-provisional")
-    # Enforce the request ceiling before body materialization; verification
-    # applies the larger result ceiling in its bounded reader.
-    app.add_middleware(RequestSizeLimitMiddleware, max_bytes=M2606_MAX_CANONICAL_REQUEST_BYTES)
+    app.add_middleware(
+        RequestSizeLimitMiddleware,
+        max_bytes=M2606_MAX_CANONICAL_REQUEST_BYTES,
+        result_max_bytes=M2606_MAX_CANONICAL_RESULT_BYTES,
+    )
 
     @app.get("/v1/modules/M26-06/schemas")
     async def schemas() -> dict[str, dict[str, object]]:
@@ -97,8 +93,9 @@ def create_m2606_app(service: M2606SecurityService | None = None) -> FastAPI:  #
 
     @app.post("/v1/modules/M26-06/validate")
     async def validate(request: Request) -> dict[str, object]:
+        _require_json(request)
         payload = _parse_request(
-            await _read_bounded(request, max_bytes=M2606_MAX_CANONICAL_REQUEST_BYTES)
+            await request.body()
         )
         try:
             typed = boundary.validate_request(payload)
@@ -112,8 +109,9 @@ def create_m2606_app(service: M2606SecurityService | None = None) -> FastAPI:  #
 
     @app.post("/v1/modules/M26-06/evaluate")
     async def evaluate(request: Request) -> dict[str, object]:
+        _require_json(request)
         payload = _parse_request(
-            await _read_bounded(request, max_bytes=M2606_MAX_CANONICAL_REQUEST_BYTES)
+            await request.body()
         )
         try:
             result = boundary.execute(payload)
@@ -127,8 +125,9 @@ def create_m2606_app(service: M2606SecurityService | None = None) -> FastAPI:  #
 
     @app.post("/v1/modules/M26-06/verify")
     async def verify(request: Request) -> dict[str, object]:
+        _require_json(request)
         envelope = _parse_object(
-            await _read_bounded(request, max_bytes=M2606_MAX_CANONICAL_RESULT_BYTES)
+            await request.body()
         )
         candidate = envelope.get("result", envelope)
         supplied_request = envelope.get("request")

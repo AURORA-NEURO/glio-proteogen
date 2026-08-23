@@ -7,7 +7,13 @@ import json
 import statistics
 import sys
 import time
+from pathlib import Path
 from typing import Any
+
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[1]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
 
 from evals.m26_05.fixture import make_request
 

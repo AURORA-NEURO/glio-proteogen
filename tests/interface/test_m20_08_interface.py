@@ -20,6 +20,7 @@ from glio_proteogen.modules.c20_biomarker_panel.m20_08_translation_monitoring_ro
     cli_app,
     create_app,
 )
+from tests._resource_helpers import write_sparse_oversized_json
 from tests.contract.test_m20_08_hardening import _request
 
 _HTTP_OK = 200
@@ -178,9 +179,7 @@ def test_typer_rejects_oversized_request_and_result_before_parse(tmp_path: Path)
         (request_path, M2008_MAX_CANONICAL_REQUEST_BYTES),
         (result_path, M2008_MAX_CANONICAL_RESULT_BYTES),
     ):
-        with path.open("wb") as stream:
-            stream.seek(limit)
-            stream.write(b"{}")
+        write_sparse_oversized_json(path, limit)
     runner = CliRunner()
     request_failure = runner.invoke(cli_app, ["validate", str(request_path)])
     result_failure = runner.invoke(cli_app, ["verify", str(result_path)])

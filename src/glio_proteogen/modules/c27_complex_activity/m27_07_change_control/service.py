@@ -1,6 +1,6 @@
 """Service and strict JSON boundary for M27-07."""
 
-# ruff: noqa: TRY003, TRY301
+# ruff: noqa: TRY003
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ from glio_proteogen.contracts.m27_07 import (
     ComplexActivityChangeControlResult,
     ControlComplexActivityChangeRequest,
 )
+from glio_proteogen.kernel.strict_json import strict_json_loads
 from glio_proteogen.modules.c27_complex_activity.m27_07_change_control.engine import (
     ChangeControlReplayError,
     M2707ChangeControlEngine,
@@ -29,12 +30,13 @@ class M2707Service:
     ) -> ControlComplexActivityChangeRequest:
         try:
             if isinstance(payload, bytes):
-                if len(payload) > M2707_MAX_CANONICAL_REQUEST_BYTES:
-                    raise ValueError("request exceeds canonical byte limit")
+                strict_json_loads(payload, max_bytes=M2707_MAX_CANONICAL_REQUEST_BYTES)
                 return ControlComplexActivityChangeRequest.model_validate_json(payload, strict=True)
             if isinstance(payload, str):
+                strict_json_loads(payload, max_bytes=M2707_MAX_CANONICAL_REQUEST_BYTES)
                 return ControlComplexActivityChangeRequest.model_validate_json(payload, strict=True)
             document: Any = json.dumps(payload, separators=(",", ":"))
+            strict_json_loads(document, max_bytes=M2707_MAX_CANONICAL_REQUEST_BYTES)
             return ControlComplexActivityChangeRequest.model_validate_json(document, strict=True)
         except (ValueError, TypeError, json.JSONDecodeError) as error:
             raise ValueError("M27-07 request validation failed") from error

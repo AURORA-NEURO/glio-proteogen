@@ -74,6 +74,15 @@ def _handlers(service: M1905Service) -> tuple[Handler, Handler]:
     return present_with_service, verify_with_service
 
 
+def schema(name: str) -> JSONResponse:
+    """Return one M19-05 schema for the central API adapter."""
+
+    try:
+        return JSONResponse(contract_json_schema(name))  # type: ignore[arg-type]
+    except (KeyError, ValueError, TypeError) as error:
+        raise HTTPException(status_code=404, detail="unknown M19-05 contract") from error
+
+
 async def present(request: Request) -> JSONResponse:
     return await _handlers(_CENTRAL_SERVICE)[0](request)
 
@@ -100,12 +109,7 @@ def create_app(service: M1905Service | None = None) -> FastAPI:
         result_max_bytes=M1905_MAX_CANONICAL_RESULT_BYTES,
     )
 
-    @api.get("/v1/m19-05/schema/{name}")
-    async def schema(name: str) -> JSONResponse:
-        try:
-            return JSONResponse(contract_json_schema(name))  # type: ignore[arg-type]
-        except (KeyError, ValueError, TypeError) as error:
-            raise HTTPException(status_code=404, detail="unknown M19-05 contract") from error
+    api.add_api_route("/v1/m19-05/schema/{name}", schema, methods=["GET"])
 
     present_handler, verify_handler = _handlers(service or _CENTRAL_SERVICE)
     api.add_api_route("/v1/modules/M19-05/present", present_handler, methods=["POST"])
@@ -191,4 +195,4 @@ def verify_command(
     typer.echo(canonical_json_bytes(verified).decode("utf-8"))
 
 
-__all__ = ["app", "cli", "create_app"]
+__all__ = ["app", "central_present", "cli", "create_app", "present", "schema", "verify"]

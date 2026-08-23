@@ -10,6 +10,7 @@ from tools.verify_m1208_release import (
 )
 
 
+@pytest.mark.historical_artifact
 def test_m1208_release_evidence_verifies() -> None:
     report = verify_release()
     assert report == {

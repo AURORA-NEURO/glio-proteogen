@@ -22,6 +22,7 @@ _HTTP_BAD_REQUEST = 400
 _HTTP_UNPROCESSABLE = 422
 _HTTP_FORBIDDEN = 403
 _HTTP_NOT_FOUND = 404
+_HTTP_UNSUPPORTED_MEDIA_TYPE = 415
 _HTTP_PAYLOAD_TOO_LARGE = 413
 _CLI_VALIDATION_ERROR = 2
 _CLI_ABSTENTION = 3
@@ -34,13 +35,14 @@ def _encoded_request() -> bytes:
 def test_fastapi_validate_construct_verify_and_schema() -> None:
     client = TestClient(create_m2602_app())
     raw = _encoded_request()
-    validated = client.post("/m26-02/validate", content=raw)
+    headers = {"content-type": "application/json"}
+    validated = client.post("/m26-02/validate", content=raw, headers=headers)
     assert validated.status_code == _HTTP_OK
     assert validated.json() == {
         "valid": True,
         "requestDigest": canonical_request_digest(_request()),
     }
-    constructed = client.post("/m26-02/construct", content=raw)
+    constructed = client.post("/m26-02/construct", content=raw, headers=headers)
     assert constructed.status_code == _HTTP_OK
     result = constructed.json()
     verified = client.post("/m26-02/verify", json=result)
@@ -53,7 +55,11 @@ def test_fastapi_validate_construct_verify_and_schema() -> None:
 
 def test_fastapi_duplicate_keys_are_sanitized_and_rejected() -> None:
     client = TestClient(create_m2602_app())
-    response = client.post("/m26-02/validate", content=b'{"request_id":1,"request_id":2}')
+    response = client.post(
+        "/m26-02/validate",
+        content=b'{"request_id":1,"request_id":2}',
+        headers={"content-type": "application/json"},
+    )
     assert response.status_code == _HTTP_BAD_REQUEST
     assert response.json()["detail"]["type"] == "json_duplicate_key"
     assert "request_id" not in response.text
@@ -62,14 +68,22 @@ def test_fastapi_duplicate_keys_are_sanitized_and_rejected() -> None:
 def test_fastapi_request_ceiling_applies_before_route_parsing() -> None:
     client = TestClient(create_m2602_app())
     response = client.post(
-        "/m26-02/validate", content=b"{" + b"x" * M2602_MAX_CANONICAL_REQUEST_BYTES + b"}"
+        "/m26-02/validate",
+        content=b"{" + b"x" * M2602_MAX_CANONICAL_REQUEST_BYTES + b"}",
+        headers={"content-type": "application/json"},
     )
     assert response.status_code == _HTTP_PAYLOAD_TOO_LARGE
 
 
 def test_fastapi_validation_authorization_and_route_errors() -> None:
     client = TestClient(create_m2602_app())
-    invalid = client.post("/m26-02/validate", content=b'{"request_id":"only"}')
+    missing_content_type = client.post("/m26-02/validate", content=b"{}")
+    assert missing_content_type.status_code == _HTTP_UNSUPPORTED_MEDIA_TYPE
+    invalid = client.post(
+        "/m26-02/validate",
+        content=b'{"request_id":"only"}',
+        headers={"content-type": "application/json"},
+    )
     assert invalid.status_code == _HTTP_UNPROCESSABLE
     denied = _request().model_copy(
         update={
@@ -89,11 +103,16 @@ def test_fastapi_validation_authorization_and_route_errors() -> None:
     denied_response = client.post(
         "/m26-02/validate",
         content=json.dumps(denied.model_dump(mode="json")).encode(),
+        headers={"content-type": "application/json"},
     )
     assert denied_response.status_code == _HTTP_FORBIDDEN
     unknown_schema = client.get("/m26-02/schema/unknown")
     assert unknown_schema.status_code == _HTTP_NOT_FOUND
-    invalid_verify = client.post("/m26-02/verify", content=b"not-json")
+    invalid_verify = client.post(
+        "/m26-02/verify",
+        content=b"not-json",
+        headers={"content-type": "application/json"},
+    )
     assert invalid_verify.status_code == _HTTP_BAD_REQUEST
 
 
@@ -137,5 +156,9 @@ def test_typer_error_and_abstention_paths(tmp_path: Path) -> None:
 
 
 def test_api_verify_validation_error_is_sanitized() -> None:
-    response = TestClient(create_m2602_app()).post("/m26-02/verify", content=b"{}")
+    response = TestClient(create_m2602_app()).post(
+        "/m26-02/verify",
+        content=b"{}",
+        headers={"content-type": "application/json"},
+    )
     assert response.status_code == _HTTP_UNPROCESSABLE

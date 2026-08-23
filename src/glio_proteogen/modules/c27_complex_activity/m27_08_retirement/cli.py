@@ -1,6 +1,5 @@
 """Typer CLI for M27-08 retirement and archive verification."""
 
-# CLI errors are deliberately sanitized at the command boundary.
 # ruff: noqa: TRY003, B904
 
 from __future__ import annotations
@@ -24,6 +23,7 @@ from glio_proteogen.contracts.m27_08 import (
     contract_json_schema,
     contract_json_schemas,
 )
+from glio_proteogen.kernel.strict_json import strict_json_loads
 from glio_proteogen.modules.c27_complex_activity.m27_08_retirement.service import M2708Service
 
 cli = typer.Typer(help="M27-08 retirement and archival controls")
@@ -34,6 +34,12 @@ def _read(path: Path, *, max_bytes: int) -> bytes:
         return read_bounded(path, max_bytes)
     except (OSError, RequestBodyTooLargeError) as error:
         raise typer.BadParameter("unable to read input") from error
+
+
+def _read_json(path: Path, *, max_bytes: int) -> bytes:
+    payload = _read(path, max_bytes=max_bytes)
+    strict_json_loads(payload, max_bytes=max_bytes)
+    return payload
 
 
 @cli.command("export-schema")
@@ -54,7 +60,7 @@ def export_schema(name: str, output: Path | None = None) -> None:
 def validate(request: Path) -> None:
     try:
         parsed = M2708Service().validate_request(
-            _read(request, max_bytes=M2708_MAX_CANONICAL_REQUEST_BYTES)
+            _read_json(request, max_bytes=M2708_MAX_CANONICAL_REQUEST_BYTES)
         )
     except ValueError as error:
         raise typer.BadParameter("request validation failed") from error
@@ -65,7 +71,7 @@ def validate(request: Path) -> None:
 def retire(request: Path, output: Path | None = None) -> None:
     try:
         result = M2708Service().execute_json(
-            _read(request, max_bytes=M2708_MAX_CANONICAL_REQUEST_BYTES)
+            _read_json(request, max_bytes=M2708_MAX_CANONICAL_REQUEST_BYTES)
         )
     except ValueError as error:
         raise typer.BadParameter("retirement denied or invalid") from error
@@ -82,7 +88,7 @@ def retire(request: Path, output: Path | None = None) -> None:
 def verify(result: Path) -> None:
     try:
         parsed = ComplexActivityRetirementResult.model_validate_json(
-            _read(result, max_bytes=M2708_MAX_CANONICAL_RESULT_BYTES), strict=True
+            _read_json(result, max_bytes=M2708_MAX_CANONICAL_RESULT_BYTES), strict=True
         )
         verified = M2708Service().verify(parsed)
     except ValueError:

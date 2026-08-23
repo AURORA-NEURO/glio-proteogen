@@ -10,7 +10,6 @@ from pydantic import TypeAdapter
 from glio_proteogen.contracts.m27_05 import (
     M2705_CONTRACT_VERSION,
     M2705_M2704_INPUT_MEDIA_TYPE,
-    M2705_MAX_CANONICAL_REQUEST_BYTES,
     M2705_MODULE_ID,
     M2705_PARENT,
     DashboardDefinition,
@@ -40,7 +39,6 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
     UpstreamDecisionState,
 )
-from glio_proteogen.kernel.strict_json import strict_json_loads
 
 _REQUEST_ADAPTER: Final = TypeAdapter(EmitProteomicsTelemetryRequest)
 _RESULT_ADAPTER: Final = TypeAdapter(ProteomicsTelemetryResult)
@@ -97,9 +95,6 @@ def preflight_m2705_authorization(candidate: object) -> None:
 
 
 def _validate_request(candidate: object) -> EmitProteomicsTelemetryRequest:
-    if isinstance(candidate, (bytes, bytearray, str)):
-        decoded = strict_json_loads(candidate, max_bytes=M2705_MAX_CANONICAL_REQUEST_BYTES)
-        return _REQUEST_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
     if isinstance(candidate, Mapping):
         return _REQUEST_ADAPTER.validate_json(canonical_json_bytes(dict(candidate)), strict=True)
     return _REQUEST_ADAPTER.validate_python(candidate, strict=True)

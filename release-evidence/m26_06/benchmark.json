@@ -1,0 +1,11 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M26-06",
+  "iterations": 10,
+  "mean_ns": 5783810,
+  "median_ns": 5646500,
+  "p95_ns": 6158100,
+  "budget_mean_ns": 500000000,
+  "budget_p95_ns": 750000000,
+  "budgetPassed": true,
+  "command": "python evals/m26_06/benchmark.py"
+}

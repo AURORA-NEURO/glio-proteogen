@@ -10,6 +10,7 @@ from tools.verify_m1305_release import (
 )
 
 
+@pytest.mark.historical_artifact
 def test_m1305_release_evidence_verifies() -> None:
     assert verify_release() == {
         "module_id": "GLIO-PROTEOGEN-M13-05",

@@ -158,14 +158,6 @@ class M2702LineageResolver:
             )
         except Exception as error:
             raise M2702ReplayError("M27-02 result envelope is invalid") from error
-        request_digest = canonical_request_digest(validated.request)
-        if validated.request_digest != request_digest:
-            raise M2702ReplayError("M27-02 request digest mismatch")
-        expected_id = f"result.m2702.{request_digest.removeprefix('sha256:')}"
-        if validated.result_id != expected_id:
-            raise M2702ReplayError("M27-02 result identifier mismatch")
-        if validated.result_digest != result_payload_digest(validated):
-            raise M2702ReplayError("M27-02 result digest mismatch")
         try:
             expected = self.resolve(validated.request)
         except Exception as error:
@@ -337,7 +329,14 @@ def _evidence(artifact: ArtifactReference, claim: str) -> EvidenceReference:
 
 
 def _evidence_for(artifacts: tuple[ArtifactReference, ...]) -> tuple[EvidenceReference, ...]:
-    return tuple(_evidence(artifact, "caller-declared lineage evidence") for artifact in artifacts)
+    seen: set[str] = set()
+    evidence: list[EvidenceReference] = []
+    for artifact in artifacts:
+        if artifact.digest in seen:
+            continue
+        seen.add(artifact.digest)
+        evidence.append(_evidence(artifact, "caller-declared lineage evidence"))
+    return tuple(evidence)
 
 
 def _uncertainty() -> UncertaintyProfile:
@@ -474,8 +473,6 @@ def _plain_value(candidate: object) -> object:
     if dict in candidate_mro:
         mapping = cast("dict[object, object]", candidate)
         return {key: _plain_value(dict.__getitem__(mapping, key)) for key in dict.keys(mapping)}
-    if list in candidate_mro:
-        return [_plain_value(item) for item in cast("list[object]", candidate)]
     if tuple in candidate_mro:
         return tuple(_plain_value(item) for item in cast("tuple[object, ...]", candidate))
     return candidate

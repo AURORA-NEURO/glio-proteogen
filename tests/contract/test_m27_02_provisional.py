@@ -220,3 +220,59 @@ def test_graph_allows_multi_parent_lineage_and_manifest_digest_is_derived() -> N
         }
     )
     assert graph_payload_digest(graph) == graph_payload_digest(changed_manifest)
+
+
+def test_graph_walks_shared_descendants_and_rejects_duplicate_edge_ids() -> None:
+    source = _node("node.source", LineageNodeKind.SOURCE_DATA)
+    left = _node("node.left", LineageNodeKind.TRANSFORMATION)
+    right = _node("node.right", LineageNodeKind.TRANSFORMATION)
+    target = _node("node.target", LineageNodeKind.TRANSFORMATION)
+
+    def edge(identifier: str, source_id: str, target_id: str) -> LineageEdge:
+        return LineageEdge(
+            edge_id=identifier,
+            source_node_id=source_id,
+            target_node_id=target_id,
+            relation=LineageRelation.DERIVED_FROM,
+            producing_version=_VERSION,
+            evidence=(_evidence(),),
+        )
+
+    edges = (
+        edge("edge.source-left", source.node_id, left.node_id),
+        edge("edge.source-right", source.node_id, right.node_id),
+        edge("edge.left-target", left.node_id, target.node_id),
+        edge("edge.right-target", right.node_id, target.node_id),
+    )
+    bundle = ReproducibilityBundle(
+        bundle_id="bundle.shared-descendant",
+        version=_VERSION,
+        root_node_id=source.node_id,
+        node_ids=tuple(node.node_id for node in (source, left, right, target)),
+        edge_ids=tuple(edge_item.edge_id for edge_item in edges),
+        producing_versions=(_VERSION,),
+        manifest_digest=_DIGEST,
+        evidence=(_evidence(),),
+    )
+    graph = LineageGraph(
+        graph_id="graph.shared-descendant",
+        version=_VERSION,
+        nodes=(source, left, right, target),
+        edges=edges,
+        reproducibility_bundle=bundle,
+        evidence=(_evidence(),),
+    )
+    assert graph.graph_id == "graph.shared-descendant"
+
+    duplicate_edges = (edges[0], edges[1].model_copy(update={"edge_id": edges[0].edge_id}))
+    with pytest.raises(ValidationError, match="lineage edge ids must be unique"):
+        LineageGraph(
+            graph_id="graph.duplicate-edges",
+            version=_VERSION,
+            nodes=(source, left, right, target),
+            edges=duplicate_edges,
+            reproducibility_bundle=bundle.model_copy(
+                update={"edge_ids": (edges[0].edge_id,)}
+            ),
+            evidence=(_evidence(),),
+        )

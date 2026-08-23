@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from pathlib import Path
 
 from starlette.responses import JSONResponse
@@ -22,6 +22,12 @@ class RequestBodyTooLargeError(ValueError):
         super().__init__("request body exceeds the byte limit")
 
 
+def is_json_content_type(value: str | None) -> bool:
+    """Return whether a request media type is exactly JSON, allowing parameters."""
+
+    return (value or "").partition(";")[0].strip().lower() == "application/json"
+
+
 class RequestSizeLimitMiddleware:
     """Reject oversized HTTP requests from headers or streamed bytes before parsing.
 
@@ -37,13 +43,22 @@ class RequestSizeLimitMiddleware:
         app: AsgiApp,
         max_bytes: int = MAX_REQUEST_BYTES,
         result_max_bytes: int | None = None,
+        route_limits: Mapping[str, tuple[int, int | None]] | None = None,
     ) -> None:
         self._app = app
         self._max_bytes = max_bytes
         self._result_max_bytes = result_max_bytes
+        self._route_limits = tuple(
+            sorted((route_limits or {}).items(), key=lambda item: len(item[0]), reverse=True)
+        )
 
     def _limit_for_scope(self, scope: Scope) -> int:
         path = scope.get("path", "")
+        for prefix, (request_max_bytes, result_max_bytes) in self._route_limits:
+            if path == prefix or path.startswith(f"{prefix}/"):
+                if result_max_bytes is not None and path.endswith("/verify"):
+                    return result_max_bytes
+                return request_max_bytes
         if self._result_max_bytes is not None and path.endswith("/verify"):
             return self._result_max_bytes
         return self._max_bytes
@@ -109,5 +124,6 @@ __all__ = [
     "MAX_REQUEST_BYTES",
     "RequestBodyTooLargeError",
     "RequestSizeLimitMiddleware",
+    "is_json_content_type",
     "read_bounded",
 ]

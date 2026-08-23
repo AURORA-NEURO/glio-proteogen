@@ -28,7 +28,6 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
-# PROVISIONAL ABI: inferred solely from dossier lines 8764-8804.
 M2503_MODULE_ID: Final = "GLIO-PROTEOGEN-M25-03"
 M2503_OPERATION: Final = "run_proteotype_internal_benchmark"
 M2503_CONTRACT_VERSION: Final = "0.1.0-provisional"
@@ -255,6 +254,9 @@ class ProteotypeInternalBenchmarkResult(FrozenModel):
             raise ValueError("result request digest does not bind exact request")
         if self.request.context.request_id != self.request.request_id:
             raise ValueError("result request context id must match request id")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("result evidence must be unique")
         if self.status is BenchmarkStatus.COMPLETED:
             if (
                 self.dossier is None

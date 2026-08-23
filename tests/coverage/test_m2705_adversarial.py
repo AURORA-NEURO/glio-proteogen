@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from math import inf
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
@@ -25,10 +26,14 @@ from glio_proteogen.contracts.m27_05 import (
     TelemetryFinding,
     TelemetryFindingCode,
     TelemetrySample,
+    TelemetryStatus,
     TelemetryStream,
     TelemetryUnit,
     contract_json_schemas,
 )
+from glio_proteogen.contracts.m27_05 import v1 as contract_module
+from glio_proteogen.contracts.m27_05.canonical import normalized_request
+from glio_proteogen.kernel.models import SupportStatus
 from glio_proteogen.modules.c27_complex_activity.m27_05_observability_telemetry import (
     M2705AuthorizationError,
     M2705Plugin,
@@ -40,6 +45,9 @@ from glio_proteogen.modules.c27_complex_activity.m27_05_observability_telemetry 
 )
 from glio_proteogen.modules.c27_complex_activity.m27_05_observability_telemetry import (
     cli as cli_module,
+)
+from glio_proteogen.modules.c27_complex_activity.m27_05_observability_telemetry import (
+    engine as engine_module,
 )
 from glio_proteogen.modules.c27_complex_activity.m27_05_observability_telemetry.cli import app
 from glio_proteogen.modules.c27_complex_activity.m27_05_observability_telemetry.plugin import (
@@ -428,3 +436,139 @@ def test_schema_metadata_is_closed() -> None:
         metadata = cast("dict[str, object]", schema["x-glio-contract"])
         assert metadata["unsupportedToNegative"] is False
         assert metadata["provisionalAbi"] is True
+
+
+def test_contract_relational_guards_cover_failure_closures() -> None:
+    request = build_request()
+    assert normalized_request({"request_id": "mapping-input"}) == {
+        "request_id": "mapping-input"
+    }
+
+    with pytest.raises(ValueError, match="finite"):
+        TelemetrySample.model_construct(value=inf).value_is_finite()
+    with pytest.raises(ValueError, match="unique"):
+        DashboardDefinition.model_construct(
+            metrics=("input_quality", "input_quality")
+        ).metrics_are_unique()
+    with pytest.raises(ValueError, match="precede trigger"):
+        AlertRecord.model_construct(
+            triggered_at=request.context.occurred_at,
+            resolved_at=request.context.occurred_at.replace(year=2025),
+        ).resolution_is_chronological()
+    valid_alert = AlertRecord.model_construct(
+        triggered_at=request.context.occurred_at,
+        resolved_at=request.context.occurred_at,
+    )
+    assert valid_alert.resolution_is_chronological() is valid_alert
+
+    sample = TelemetrySample.model_construct(sample_id="m2705.duplicate-sample")
+    finding = TelemetryFinding.model_construct(finding_id="m2705.duplicate-finding")
+    with pytest.raises(ValueError, match="sample ids"):
+        TelemetryStream.model_construct(
+            samples=(sample, sample), findings=()
+        ).samples_are_unique()
+    with pytest.raises(ValueError, match="finding ids"):
+        TelemetryStream.model_construct(
+            samples=(sample,), findings=(finding, finding)
+        ).samples_are_unique()
+
+    with pytest.raises(ValueError, match="media type"):
+        EmitProteomicsTelemetryRequest.model_construct(
+            upstream_result=SimpleNamespace(media_type=""),
+            requested_metrics=("input_quality",),
+            dashboard_definitions=(),
+        ).request_is_bound()
+    with pytest.raises(ValueError, match="metrics"):
+        EmitProteomicsTelemetryRequest.model_construct(
+            upstream_result=SimpleNamespace(media_type="application/json"),
+            requested_metrics=("input_quality", "input_quality"),
+            dashboard_definitions=(),
+        ).request_is_bound()
+    with pytest.raises(ValueError, match="dashboard ids"):
+        EmitProteomicsTelemetryRequest.model_construct(
+            upstream_result=SimpleNamespace(media_type="application/json"),
+            requested_metrics=("input_quality",),
+            dashboard_definitions=(
+                SimpleNamespace(dashboard_id="m2705.dashboard.same"),
+                SimpleNamespace(dashboard_id="m2705.dashboard.same"),
+            ),
+        ).request_is_bound()
+
+def test_result_contract_closures_cover_failure_paths(monkeypatch: pytest.MonkeyPatch) -> None:
+    result = M2705Service().emit(build_request())
+    payload = result.model_dump(mode="python")
+    payload["request_digest"] = "sha256:" + "f" * 64
+    with pytest.raises(ValueError, match="request digest"):
+        ProteomicsTelemetryResult.model_validate(payload, strict=True)
+    payload = result.model_dump(mode="python")
+    payload["evidence"] = (payload["evidence"][0], payload["evidence"][0])
+    with pytest.raises(ValueError, match="evidence"):
+        ProteomicsTelemetryResult.model_validate(payload, strict=True)
+    payload = result.model_dump(mode="python")
+    payload["status"] = TelemetryStatus.EMITTED
+    with pytest.raises(ValueError, match="emitted result"):
+        ProteomicsTelemetryResult.model_validate(payload, strict=True)
+    payload = result.model_dump(mode="python")
+    payload["safe_failure_report"] = None
+    with pytest.raises(ValueError, match="abstained result"):
+        ProteomicsTelemetryResult.model_validate(payload, strict=True)
+    payload = result.model_dump(mode="python")
+    payload["result_digest"] = "sha256:" + "f" * 64
+    with pytest.raises(ValueError, match="result digest"):
+        ProteomicsTelemetryResult.model_validate(payload, strict=True)
+
+    object.__setattr__(result, "status", TelemetryStatus.EMITTED)
+    object.__setattr__(result, "telemetry_stream", object())
+    object.__setattr__(result, "dashboards", (object(),))
+    object.__setattr__(result, "alert", object())
+    object.__setattr__(result, "safe_failure_report", None)
+    object.__setattr__(result, "abstention_reason", None)
+    object.__setattr__(
+        result,
+        "support_decision",
+        result.support_decision.model_copy(update={"status": SupportStatus.SUPPORTED}),
+    )
+    monkeypatch.setattr(contract_module, "result_payload_digest", lambda _: result.result_digest)
+    assert result.result_is_closed() is result
+
+
+def test_engine_replay_guards_run_after_strict_validation(monkeypatch: pytest.MonkeyPatch) -> None:
+    class PassthroughAdapter:
+        def validate_python(self, candidate: object, **_: object) -> object:
+            return candidate
+
+    engine = M2705TelemetryEngine()
+    result = engine.emit(build_request())
+    monkeypatch.setattr(engine_module, "_RESULT_ADAPTER", PassthroughAdapter())
+    for field, value in (
+        ("request_digest", "sha256:" + "f" * 64),
+        ("result_id", "m2705.result.forged"),
+        ("result_digest", "sha256:" + "f" * 64),
+    ):
+        with pytest.raises(M2705ReplayError):
+            engine.replay(result.model_copy(update={field: value}))
+
+    def divergent_emit(self: M2705TelemetryEngine, request: object) -> ProteomicsTelemetryResult:
+        del self, request
+        return result.model_copy(update={"human_review_required": False})
+
+    monkeypatch.setattr(M2705TelemetryEngine, "emit", divergent_emit)
+    with pytest.raises(M2705ReplayError):
+        engine.replay(result)
+
+
+def test_cli_allows_emitted_result_when_runtime_supports_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    request_path = tmp_path / "request.json"
+    request_path.write_text(build_request().model_dump_json(), encoding="utf-8")
+    result = M2705Service().emit(build_request())
+    object.__setattr__(result, "status", TelemetryStatus.EMITTED)
+
+    class EmittingService:
+        def emit(self, request: object) -> ProteomicsTelemetryResult:
+            del request
+            return result
+
+    monkeypatch.setattr(cli_module, "_SERVICE", EmittingService())
+    cli_module.emit(request_path)

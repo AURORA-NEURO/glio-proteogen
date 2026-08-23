@@ -19,6 +19,7 @@ m0807_api = importlib.import_module(f"{m0807_module.__name__}.api")
 m0907_api = importlib.import_module(f"{m0907_module.__name__}.api")
 
 _HTTP_BAD_REQUEST = 400
+_HTTP_REQUEST_ENTITY_TOO_LARGE = 413
 _HTTP_UNPROCESSABLE_ENTITY = 422
 _HTTP_OK = 200
 
@@ -55,8 +56,8 @@ def test_standalone_calibration_routes_apply_request_ceiling(
 
     response = client.post(path, content=b"{}")
 
-    assert response.status_code == _HTTP_BAD_REQUEST
-    assert response.json()["error"]["type"] == "json_too_large"
+    assert response.status_code == _HTTP_REQUEST_ENTITY_TOO_LARGE
+    assert response.json() == {"detail": "request body exceeds the byte limit"}
 
 
 @pytest.mark.parametrize(
@@ -79,8 +80,8 @@ def test_standalone_verify_routes_apply_result_ceiling(
 
     response = client.post(path, content=b"{}")
 
-    assert response.status_code == _HTTP_BAD_REQUEST
-    assert response.json()["error"]["type"] == "json_too_large"
+    assert response.status_code == _HTTP_REQUEST_ENTITY_TOO_LARGE
+    assert response.json() == {"detail": "request body exceeds the byte limit"}
 
 
 @pytest.mark.parametrize(

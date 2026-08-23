@@ -16,11 +16,13 @@ def _copy_release_tree(tmp_path: Path) -> Path:
     return root
 
 
+@pytest.mark.historical_artifact
 def test_release_verifier_accepts_complete_receipt() -> None:
     result = verify_release()
     assert result == {"module": "GLIO-PROTEOGEN-M10-03", "verified": True}
 
 
+@pytest.mark.historical_artifact
 def test_release_verifier_rejects_fixture_case_tampering(tmp_path: Path) -> None:
     root = _copy_release_tree(tmp_path)
     path = root / "release-evidence/M10-03/evaluation.json"
@@ -31,6 +33,7 @@ def test_release_verifier_rejects_fixture_case_tampering(tmp_path: Path) -> None
         verify_release(root)
 
 
+@pytest.mark.historical_artifact
 def test_release_verifier_rejects_package_hash_tampering(tmp_path: Path) -> None:
     root = _copy_release_tree(tmp_path)
     path = root / "release-evidence/M10-03/package.json"

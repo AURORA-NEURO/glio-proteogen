@@ -34,10 +34,6 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
-# PROVISIONAL ABI: inferred solely from dossier SHA
-# 0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,
-# lines 9572-9612. Owner confirmation and implementation details remain
-# pending.
 M2605_MODULE_ID: Final = "GLIO-PROTEOGEN-M27-05"
 M2605_OPERATION: Final = "emit_search_quant_observability_telemetry"
 M2605_CONTRACT_VERSION: Final = "0.1.0-provisional"
@@ -56,8 +52,6 @@ M2605_MAX_FINDINGS: Final = 64
 M2605_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M2605_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
 
-# M27-05 public names. The M2605-prefixed aliases above are retained only as
-# local template compatibility while this inferred ABI remains provisional.
 M2705_MODULE_ID: Final = M2605_MODULE_ID
 M2705_OPERATION: Final = M2605_OPERATION
 M2705_CONTRACT_VERSION: Final = M2605_CONTRACT_VERSION
@@ -296,6 +290,9 @@ class ProteomicsTelemetryResult(FrozenModel):
         expected_result_id = "m2705.result." + self.request_digest.removeprefix("sha256:")
         if self.result_id != expected_result_id:
             raise ValueError("result id does not bind the exact request digest")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("result evidence must be unique")
         if self.status is TelemetryStatus.EMITTED:
             if (
                 self.telemetry_stream is None

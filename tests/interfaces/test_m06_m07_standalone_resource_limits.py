@@ -11,6 +11,7 @@ from typer.testing import CliRunner
 
 from glio_proteogen.adapters import m0608, m0703, m0704, m0708
 from glio_proteogen.adapters.limits import RequestBodyTooLargeError, read_bounded
+from tests._resource_helpers import write_sparse_oversized_json
 
 _MAX_JSON_BYTES = 4 * 1024 * 1024
 
@@ -30,9 +31,7 @@ def test_standalone_cli_rejects_sparse_oversized_input(
     module_name: str,
 ) -> None:
     path = tmp_path / "oversized.json"
-    with path.open("wb") as stream:
-        stream.seek(_MAX_JSON_BYTES)
-        stream.write(b"x")
+    write_sparse_oversized_json(path, _MAX_JSON_BYTES)
     result = CliRunner().invoke(app, ["validate", str(path)])
     assert result.exit_code != 0, module_name
     assert "byte" in result.output.lower() or "rejected" in result.output.lower()
@@ -50,8 +49,6 @@ def test_standalone_cli_adapters_use_bounded_path_reads() -> None:
 
 def test_bounded_reader_raises_before_json_parse(tmp_path: Path) -> None:
     path = tmp_path / "oversized.json"
-    with path.open("wb") as stream:
-        stream.seek(_MAX_JSON_BYTES)
-        stream.write(b"x")
+    write_sparse_oversized_json(path, _MAX_JSON_BYTES)
     with pytest.raises(RequestBodyTooLargeError):
         read_bounded(path, _MAX_JSON_BYTES)

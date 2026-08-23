@@ -89,7 +89,7 @@ def test_verify_replays_bound_request_not_only_self_reported_digest() -> None:
     typed_request = request()
     result = service.execute(typed_request)
     result = result.model_copy(update={"status": CalibrationStatus.ABSTAINED})
-    with pytest.raises(ValueError, match="result|abstained"):
+    with pytest.raises(ValueError, match=r"result|abstained"):
         service.verify_result(result, typed_request)
 
 

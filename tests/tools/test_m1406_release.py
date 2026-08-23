@@ -14,6 +14,7 @@ from tools.verify_m1406_release import (
 )
 
 
+@pytest.mark.historical_artifact
 def test_release_evidence_verifies_current_artifacts() -> None:
     report = verify_release()
     assert report["module_id"] == "GLIO-PROTEOGEN-M14-06"

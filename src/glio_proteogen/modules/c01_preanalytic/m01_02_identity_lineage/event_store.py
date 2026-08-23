@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-# The chain scanner is intentionally exhaustive, append accepts a closed event material set,
-# and DDL interpolation uses compile-time constants only. Typed failures carry stable context.
 # ruff: noqa: PLR0913, TRY003
 import sqlite3
 from contextlib import contextmanager
@@ -332,9 +330,9 @@ class M0102EventStore:
 
     def __exit__(
         self,
-        exc_type: type[BaseException] | None,
-        exc_value: BaseException | None,
-        traceback: TracebackType | None,
+        _exc_type: type[BaseException] | None,
+        _exc_value: BaseException | None,
+        _traceback: TracebackType | None,
     ) -> None:
         self.close()
 

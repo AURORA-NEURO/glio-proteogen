@@ -34,7 +34,6 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
-# PROVISIONAL ABI: inferred solely from dossier lines 8940-8980.
 M2507_MODULE_ID: Final = "GLIO-PROTEOGEN-M25-07"
 M2507_OPERATION: Final = "evaluate_proteotype_human_factors_operational"
 M2507_CONTRACT_VERSION: Final = "0.1.0-provisional"
@@ -222,6 +221,8 @@ class EvaluateProteotypeHumanFactorsRequest(FrozenModel):
         artifacts = tuple(item.artifact_id for item in self.source_artifacts)
         if len(artifacts) != len(set(artifacts)):
             raise ValueError("source artifact identifiers must be unique")
+        if self.upstream_result not in self.source_artifacts:
+            raise ValueError("source artifacts must retain the bound upstream result")
         required = set(self.configuration.required_dimensions)
         metric_dimensions = {item.dimension for item in self.metrics}
         fallback_dimensions = {item.dimension for item in self.fallbacks}
@@ -269,6 +270,9 @@ class ProteotypeHumanFactorsResult(FrozenModel):
             raise ValueError("result request digest does not bind exact request")
         if self.result_id != result_identifier(self.request, self.status.value):
             raise ValueError("result id does not bind exact request and terminal status")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("result evidence must be unique")
         if self.status is EvaluationStatus.EVALUATED:
             if (
                 self.report is None

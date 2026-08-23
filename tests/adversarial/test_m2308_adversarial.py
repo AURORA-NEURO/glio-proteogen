@@ -218,6 +218,23 @@ def test_replay_rejects_self_rehashed_finding_and_evidence_mutations() -> None:
         service.replay(evidence_tampered)
 
 
+def test_result_rejects_duplicate_findings_and_evidence() -> None:
+    service = M2308Service()
+    result = service.adjudicate(_request(satisfied=False))
+    assert result.findings
+    duplicate_findings = result.model_copy(
+        update={"findings": (result.findings[0], result.findings[0])}
+    )
+    with pytest.raises(ValidationError, match="finding ids must be unique"):
+        type(result).model_validate(duplicate_findings.model_dump(mode="python"), strict=True)
+
+    duplicate_evidence = result.model_copy(
+        update={"evidence": (result.evidence[0], result.evidence[0])}
+    )
+    with pytest.raises(ValidationError, match="gate result evidence must be unique"):
+        type(result).model_validate(duplicate_evidence.model_dump(mode="python"), strict=True)
+
+
 def test_plugin_rejects_self_rehashed_provenance_mutation() -> None:
     service = M2308Service()
     result = service.adjudicate(_request())

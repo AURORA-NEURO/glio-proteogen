@@ -52,6 +52,27 @@ def test_unresolved_job_and_compatibility_abstain() -> None:
     assert any(item.code.value == "async_job_unbound" for item in result.findings)
 
 
+def test_result_finding_and_evidence_identity_is_closed() -> None:
+    request = _request()
+    queued = request.jobs[0].model_copy(update={"status": JobStatus.QUEUED})
+    result = M2604GatewayEngine().publish(request.model_copy(update={"jobs": (queued,)}))
+    duplicate_findings = result.model_copy(
+        update={"findings": (result.findings[0], result.findings[0])}
+    )
+    with pytest.raises(ValueError, match="gateway finding ids must be unique"):
+        type(result).model_validate(duplicate_findings.model_dump(mode="python"), strict=True)
+
+    duplicate_evidence = result.model_copy(
+        update={"evidence": (result.evidence[0], result.evidence[0])}
+    )
+    with pytest.raises(ValueError, match="gateway result evidence must be unique"):
+        type(result).model_validate(duplicate_evidence.model_dump(mode="python"), strict=True)
+
+    forged_id = result.model_copy(update={"result_id": "gateway.m2604.forged"})
+    with pytest.raises(ValueError, match="result id must be derived"):
+        type(result).model_validate(forged_id.model_dump(mode="python"), strict=True)
+
+
 def test_authorization_preflight_fails_closed_before_material() -> None:
     request = _request()
     references = request.context.references.model_copy(

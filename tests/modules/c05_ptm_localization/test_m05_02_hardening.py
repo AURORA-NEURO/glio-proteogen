@@ -969,7 +969,7 @@ def test_benchmark_main_writes_stdout_file_and_both_exit_states(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    report = benchmark_module.run_benchmark(1)
+    report = replace(benchmark_module.run_benchmark(1), passed=True)
     monkeypatch.setattr(benchmark_module, "run_benchmark", lambda _iterations: report)
     assert benchmark_module.main(["--iterations", "1"]) == 0
     assert '"passed": true' in capsys.readouterr().out

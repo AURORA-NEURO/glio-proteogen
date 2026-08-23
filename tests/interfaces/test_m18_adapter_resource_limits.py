@@ -32,15 +32,14 @@ from glio_proteogen.contracts.m18_07 import (
     M1807_MAX_CANONICAL_REQUEST_BYTES,
     M1807_MAX_CANONICAL_RESULT_BYTES,
 )
+from tests._resource_helpers import write_sparse_oversized_json
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
 
 def _sparse_overflow(path: Path, limit: int) -> None:
-    with path.open("wb") as stream:
-        stream.seek(limit)
-        stream.write(b"x")
+    write_sparse_oversized_json(path, limit)
 
 
 def _m1802_request(path: Path) -> object:

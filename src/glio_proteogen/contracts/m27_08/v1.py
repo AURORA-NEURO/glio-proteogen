@@ -14,6 +14,7 @@ from pydantic import Field, model_validator
 
 from glio_proteogen.contracts.m27_08.canonical import (
     canonical_request_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -32,7 +33,6 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
-# PROVISIONAL ABI: inferred solely from dossier lines 9704-9744.
 M2708_MODULE_ID: Final = "GLIO-PROTEOGEN-M27-08"
 M2708_OPERATION: Final = "retire_complex_activity_service"
 M2708_CONTRACT_VERSION: Final = "0.1.0-provisional"
@@ -118,7 +118,7 @@ class EvidencePreservation(FrozenModel):
 
     @model_validator(mode="after")
     def verified_checksum_is_retrievable(self) -> EvidencePreservation:
-        if self.checksum_verified and not self.retrievable:
+        if not self.retrievable:
             raise ValueError("checksum-verified preservation must remain retrievable")
         return self
 
@@ -273,20 +273,33 @@ class ComplexActivityRetirementResult(FrozenModel):
     def result_is_closed(self) -> ComplexActivityRetirementResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        if self.result_id != result_identifier(self.request_digest):
+            raise ValueError("result id must be derived from the request digest")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("retirement finding ids must be unique")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("retirement result evidence must be unique")
         if self.status is RetirementRunStatus.EXECUTED:
             if (
                 self.package is None
                 or self.abstention_reason is not None
                 or self.support_decision.status is not SupportStatus.SUPPORTED
+                or self.package.status is not RetirementStatus.EXECUTED
+                or self.findings
             ):
-                raise ValueError("executed result requires a supported retirement package")
+                raise ValueError(
+                    "executed result requires a supported package and no findings"
+                )
         elif (
             self.package is not None
             or self.abstention_reason is None
             or self.support_decision.status
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
+            or not self.findings
         ):
-            raise ValueError("abstained result requires no package and safe status")
+            raise ValueError("abstained result requires findings, no package, and safe status")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self

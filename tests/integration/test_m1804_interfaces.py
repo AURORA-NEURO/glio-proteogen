@@ -47,7 +47,7 @@ def test_api_adapt_verify_and_tamper_boundary() -> None:
         verified = client.post("/v1/modules/M18-04/verify", json=result)
         assert verified.status_code == _HTTP_OK
         tampered = dict(result)
-        tampered["human_review_required"] = True
+        tampered["result_digest"] = "sha256:" + "0" * 64
         assert (
             client.post("/v1/modules/M18-04/verify", json=tampered).status_code
             == _HTTP_UNPROCESSABLE

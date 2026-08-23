@@ -203,15 +203,15 @@ def test_result_closure_rejects_missing_evaluation_or_invalid_status() -> None:
         "grade": PlausibilityGrade.HIGH,
         "evaluations": evaluations,
         "support_decision": SupportDecision(
-            status=SupportStatus.SUPPORTED,
-            reason_code="supported",
-            rationale="All controls passed.",
+            status=SupportStatus.REVIEW_REQUIRED,
+            reason_code="review_required",
+            rationale="All controls passed structurally; human review remains required.",
         ),
         "uncertainty": expected_uncertainty(supported=True),
         "provenance": expected_provenance(request, digest),
         "evidence": (_evidence("sensitivity"),),
         "limitations": ({"code": "provisional", "statement": "Provisional."},),
-        "human_review_required": False,
+        "human_review_required": True,
     }
     with pytest.raises(ValidationError, match="result digest"):
         ComplexActivityPlausibilityAdjudicationResult.model_validate(payload)

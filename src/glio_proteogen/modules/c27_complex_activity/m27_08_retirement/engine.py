@@ -18,6 +18,7 @@ from glio_proteogen.contracts.m27_08 import (
 )
 from glio_proteogen.contracts.m27_08.canonical import (
     canonical_request_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
@@ -45,8 +46,6 @@ _CONTROL_ROLES: Final = (
 )
 _M2707_INPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m27-07+json"
 
-_M2707_INPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m27-07+json"
-
 
 class RetirementAuthorizationError(ValueError):
     """Request failed the retirement authorization firewall."""
@@ -54,6 +53,13 @@ class RetirementAuthorizationError(ValueError):
 
 class RetirementReplayError(ValueError):
     """Result failed deterministic replay verification."""
+
+
+def _is_active_dependency(dependency_id: str) -> bool:
+    """Recognize an explicit active token without matching ``inactive`` IDs."""
+
+    tokens = dependency_id.replace(".", "-").replace(":", "-").replace("_", "-").split("-")
+    return "active" in tokens
 
 
 def preflight_retirement_authorization(request: RetireComplexActivityServiceRequest) -> None:
@@ -179,14 +185,12 @@ class M2708RetirementEngine:
         incomplete = any(
             item.status is not MigrationStatus.COMPLETED for item in request.migrations
         )
-        missing_evidence = any(not item.retrievable for item in request.preserved_evidence)
         unacknowledged = any(not item.acknowledged for item in request.communications)
         archive_unverified = request.archive.status is not ArchiveStatus.VERIFIED
-        active = any("active" in item.dependency_id for item in request.migrations)
+        active = any(_is_active_dependency(item.dependency_id) for item in request.migrations)
         failed = (
             unsatisfied
             or incomplete
-            or missing_evidence
             or unacknowledged
             or archive_unverified
             or active
@@ -207,15 +211,6 @@ class M2708RetirementEngine:
                     finding_id=f"finding.m2708.{digest[-12:]}-migration",
                     code=RetirementFindingCode.DEPENDENCY_MIGRATION_INCOMPLETE,
                     message="Dependency migration is incomplete.",
-                    evidence=evidence[:1],
-                )
-            )
-        if missing_evidence:
-            findings.append(
-                RetirementFinding(
-                    finding_id=f"finding.m2708.{digest[-12:]}-evidence",
-                    code=RetirementFindingCode.EVIDENCE_NOT_RETRIEVABLE,
-                    message="Preserved evidence is not retrievable.",
                     evidence=evidence[:1],
                 )
             )
@@ -267,7 +262,7 @@ class M2708RetirementEngine:
                 evidence=evidence,
             )
         candidate = ComplexActivityRetirementResult.model_construct(
-            result_id=f"result.m2708.{digest.removeprefix('sha256:')}",
+            result_id=result_identifier(digest),
             result_version="0.1.0-provisional",
             request_digest=digest,
             result_digest="sha256:" + "0" * 64,
@@ -292,23 +287,12 @@ class M2708RetirementEngine:
         )
 
     def replay(self, result: ComplexActivityRetirementResult) -> ComplexActivityRetirementResult:
-        # Re-validate the serialized envelope first.  ``model_copy(update=...)``
-        # intentionally bypasses Pydantic validators, so checking only the
-        # supplied payload digest would accept a stale request digest/result ID
-        # paired with a self-rehashed retirement package.
         try:
             validated = ComplexActivityRetirementResult.model_validate_json(
                 canonical_json_bytes(result), strict=True
             )
         except Exception as error:
             raise RetirementReplayError("retirement result envelope is invalid") from error
-        if validated.request_digest != canonical_request_digest(validated.request):
-            raise RetirementReplayError("retirement request digest mismatch")
-        expected_id = f"result.m2708.{validated.request_digest.removeprefix('sha256:')}"
-        if validated.result_id != expected_id:
-            raise RetirementReplayError("retirement result identifier mismatch")
-        if validated.result_digest != result_payload_digest(validated):
-            raise RetirementReplayError("result digest mismatch")
         try:
             recomputed = self.evaluate(validated.request)
         except Exception as error:

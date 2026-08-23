@@ -1,6 +1,5 @@
 """Deep contract/runtime/interface coverage for provisional M27-03."""
 
-# HTTP status assertions intentionally use the protocol constants directly.
 # ruff: noqa: PLR2004,TRY003
 
 from __future__ import annotations
@@ -18,7 +17,9 @@ from glio_proteogen.contracts.m27_03 import (
     ComplexActivityPipelineResult,
     ExecutionPolicy,
     ExecutionStatus,
+    FindingCode,
     OrchestrateComplexActivityPipelineRequest,
+    PipelineFinding,
     PipelineStatus,
     WorkflowDAG,
     WorkflowEdge,
@@ -30,7 +31,9 @@ from glio_proteogen.contracts.m27_03.canonical import (
     execution_id_for_request_digest,
     package_id_for_request_digest,
     result_id_for_request_digest,
+    result_payload_digest,
 )
+from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     ConsentReference,
@@ -46,6 +49,7 @@ from glio_proteogen.kernel.models import (
 )
 from glio_proteogen.modules.c27_complex_activity.m27_03_reproducible_pipeline_orchestrator import (
     M2703Engine,
+    M2703EvaluationError,
     M2703Plugin,
     M2703ReplayError,
     M2703Service,
@@ -53,6 +57,9 @@ from glio_proteogen.modules.c27_complex_activity.m27_03_reproducible_pipeline_or
     create_app,
     execute_complex_activity_pipeline,
     preflight_m2703_authorization,
+)
+from glio_proteogen.modules.c27_complex_activity.m27_03_reproducible_pipeline_orchestrator import (
+    cli as m2703_cli,
 )
 from glio_proteogen.modules.c27_complex_activity.m27_03_reproducible_pipeline_orchestrator import (
     engine as runtime,
@@ -251,6 +258,22 @@ def test_request_rejects_duplicate_source_identity() -> None:
         )
 
 
+def test_result_finding_and_evidence_identity_is_closed() -> None:
+    result = M2703Engine().execute(_request())
+    assert result.findings
+    duplicate_findings = result.model_copy(
+        update={"findings": (result.findings[0], result.findings[0])}
+    )
+    with pytest.raises(ValueError, match="pipeline finding ids must be unique"):
+        type(result).model_validate(duplicate_findings.model_dump(mode="python"), strict=True)
+
+    duplicate_evidence = result.model_copy(
+        update={"evidence": (result.evidence[0], result.evidence[0])}
+    )
+    with pytest.raises(ValueError, match="pipeline result evidence must be unique"):
+        type(result).model_validate(duplicate_evidence.model_dump(mode="python"), strict=True)
+
+
 def test_plugin_requires_opaque_validation_token_and_service_parses_json_once() -> None:
     request = _request()
     plugin = M2703Plugin()
@@ -403,6 +426,42 @@ def test_cli_rejects_invalid_inputs_and_reports_abstention(tmp_path: Path) -> No
     assert runner.invoke(cli_app, ["execute", str(rejected)]).exit_code == 1
 
 
+def test_cli_service_failures_are_sanitized_and_verify_cannot_be_forged(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    request = _request()
+    request_path = tmp_path / "request.json"
+    request_path.write_bytes(request.model_dump_json().encode())
+    result = M2703Engine().execute(request)
+    result_path = tmp_path / "result.json"
+    result_path.write_bytes(result.model_dump_json().encode())
+    runner = CliRunner()
+
+    class FailingService:
+        def validate_request(self, _candidate: object) -> OrchestrateComplexActivityPipelineRequest:
+            raise ValueError from None
+
+        def execute(self, _request: object) -> ComplexActivityPipelineResult:
+            raise ValueError from None
+
+        def verify(self, _result: object) -> ComplexActivityPipelineResult:
+            raise ValueError from None
+
+    monkeypatch.setattr(m2703_cli, "_SERVICE", FailingService())
+    assert runner.invoke(cli_app, ["validate", str(request_path)]).exit_code != 0
+    assert runner.invoke(cli_app, ["execute", str(request_path)]).exit_code != 0
+    assert runner.invoke(cli_app, ["verify", str(result_path)]).exit_code != 0
+
+    class MismatchService:
+        def verify(self, _result: object) -> ComplexActivityPipelineResult:
+            return result.model_copy(update={"result_digest": _digest(250)})
+
+    monkeypatch.setattr(m2703_cli, "_SERVICE", MismatchService())
+    mismatch = runner.invoke(cli_app, ["verify", str(result_path)])
+    assert mismatch.exit_code == 1
+    assert '"verified": false' in mismatch.stdout
+
+
 def test_contract_rejects_self_edge_unknown_and_duplicate_edges() -> None:
     request = _request()
     first, second = request.workflow.nodes
@@ -434,6 +493,16 @@ def test_contract_rejects_self_edge_unknown_and_duplicate_edges() -> None:
             entry_node_id="entry",
             exit_node_id="exit",
             evidence=(_evidence(223),),
+        )
+    with pytest.raises(ValidationError, match="edge ids must be unique"):
+        WorkflowDAG(
+            workflow_id="duplicate-edge-ids",
+            version="1.0.0",
+            nodes=(first, second),
+            edges=(edge, edge.model_copy(update={"edge_id": "edge"})),
+            entry_node_id="entry",
+            exit_node_id="exit",
+            evidence=(_evidence(224),),
         )
 
 
@@ -468,6 +537,193 @@ def test_contract_rejects_unknown_edge_and_unreachable_node() -> None:
         )
 
 
+def test_workflow_closure_covers_joined_reachability_and_exit_paths() -> None:
+    request = _request()
+    first, last = request.workflow.nodes
+    left = first.model_copy(update={"node_id": "left", "evidence": (_evidence(227),)})
+    right = first.model_copy(update={"node_id": "right", "evidence": (_evidence(228),)})
+    edges = (
+        WorkflowEdge(
+            edge_id="entry-left",
+            source_node_id="entry",
+            target_node_id="left",
+            evidence=(_evidence(229),),
+        ),
+        WorkflowEdge(
+            edge_id="entry-right",
+            source_node_id="entry",
+            target_node_id="right",
+            evidence=(_evidence(230),),
+        ),
+        WorkflowEdge(
+            edge_id="left-exit",
+            source_node_id="left",
+            target_node_id="exit",
+            evidence=(_evidence(231),),
+        ),
+        WorkflowEdge(
+            edge_id="right-exit",
+            source_node_id="right",
+            target_node_id="exit",
+            evidence=(_evidence(232),),
+        ),
+    )
+    dag = WorkflowDAG(
+        workflow_id="joined-workflow",
+        version="1.0.0",
+        nodes=(first, left, right, last),
+        edges=edges,
+        entry_node_id="entry",
+        exit_node_id="exit",
+        evidence=(_evidence(233),),
+    )
+    assert tuple(node.node_id for node in dag.nodes) == ("entry", "left", "right", "exit")
+
+    with pytest.raises(ValidationError, match="every workflow node must be reachable"):
+        WorkflowDAG(
+            workflow_id="disconnected-workflow",
+            version="1.0.0",
+            nodes=(first, last, left),
+            edges=(edges[2],),
+            entry_node_id="entry",
+            exit_node_id="exit",
+            evidence=(_evidence(234),),
+        )
+    with pytest.raises(ValidationError, match="every workflow node must reach exit"):
+        WorkflowDAG(
+            workflow_id="dead-end-workflow",
+            version="1.0.0",
+            nodes=(first, last, left),
+            edges=(
+                WorkflowEdge(
+                    edge_id="entry-exit",
+                    source_node_id="entry",
+                    target_node_id="exit",
+                    evidence=(_evidence(235),),
+                ),
+                WorkflowEdge(
+                    edge_id="entry-dead",
+                    source_node_id="entry",
+                    target_node_id="left",
+                    evidence=(_evidence(236),),
+                ),
+            ),
+            entry_node_id="entry",
+            exit_node_id="exit",
+            evidence=(_evidence(237),),
+        )
+
+
+def test_request_and_result_closures_cover_execution_invariants() -> None:
+    request = _request()
+    with pytest.raises(ValidationError, match="M27-02 lineage result"):
+        OrchestrateComplexActivityPipelineRequest.model_validate(
+            request.model_copy(update={"upstream_result": _artifact("wrong-input", 238)})
+        )
+
+    result = M2703Engine().execute(request)
+    assert result.execution_record is not None
+    assert result.result_package is not None
+    execution = result.execution_record
+    package = result.result_package
+
+    def rehashed(update: dict[str, object]) -> ComplexActivityPipelineResult:
+        candidate = result.model_copy(update=update)
+        return candidate.model_copy(update={"result_digest": result_payload_digest(candidate)})
+
+    cases: tuple[tuple[str, dict[str, object]], ...] = (
+        ("execution records", {"execution_record": None}),
+        (
+            "successful execution status",
+            {"execution_record": execution.model_copy(update={"status": ExecutionStatus.FAILED})},
+        ),
+        (
+            "retry policy",
+            {
+                "execution_record": execution.model_copy(
+                    update={"attempts": request.policy.max_retries + 2}
+                )
+            },
+        ),
+        (
+            "checkpoint digest",
+            {"execution_record": execution.model_copy(update={"checkpoint_digest": None})},
+        ),
+        (
+            "package version",
+            {"result_package": package.model_copy(update={"version": "9.9.9"})},
+        ),
+        (
+            "reproducibility digest",
+            {"result_package": package.model_copy(update={"reproducibility_digest": _digest(239)})},
+        ),
+        (
+            "output digest",
+            {
+                "execution_record": execution.model_copy(update={"output_digest": None}),
+                "result_package": package.model_copy(
+                    update={
+                        "artifact_references": (
+                            package.artifact_references[0].model_copy(
+                                update={"digest": _digest(0)}
+                            ),
+                            *package.artifact_references[1:],
+                        ),
+                        "reproducibility_digest": sha256_digest(
+                            {
+                                "manifest": package.manifest_digest,
+                                "environment": execution.environment_digest,
+                                "output": None,
+                            }
+                        ),
+                    }
+                ),
+            },
+        ),
+        (
+            "blocking findings",
+            {
+                "findings": (
+                    PipelineFinding(
+                        finding_id="blocking-node",
+                        code=FindingCode.NODE_FAILED,
+                        message="node failed",
+                    ),
+                )
+            },
+        ),
+        ("human review", {"human_review_required": True}),
+    )
+    for message, update in cases:
+        with pytest.raises(ValidationError, match=message):
+            ComplexActivityPipelineResult.model_validate(rehashed(update), strict=True)
+
+    rejected = M2703Engine().execute(_request(support=UpstreamDecisionState.REJECTED))
+    assert rejected.safe_failure_report is not None
+    abstained_cases: tuple[tuple[str, dict[str, object]], ...] = (
+        ("safe failure", {"safe_failure_report": None}),
+        ("human review", {"human_review_required": False}),
+        ("retain", {"findings": ()}),
+        (
+            "bind the request digest",
+            {
+                "safe_failure_report": rejected.safe_failure_report.model_copy(
+                    update={"report_id": "wrong"}
+                )
+            },
+        ),
+    )
+    for message, update in abstained_cases:
+        candidate = rejected.model_copy(update=update)
+        candidate = candidate.model_copy(update={"result_digest": result_payload_digest(candidate)})
+        with pytest.raises(ValidationError, match=message):
+            ComplexActivityPipelineResult.model_validate(candidate, strict=True)
+
+    invalid_digest = result.model_copy(update={"result_digest": _digest(240)})
+    with pytest.raises(ValidationError, match="result digest"):
+        ComplexActivityPipelineResult.model_validate(invalid_digest, strict=True)
+
+
 def test_preflight_mapping_and_public_entry_point() -> None:
     request = _request()
     preflight_m2703_authorization(request.model_dump(mode="json"))
@@ -483,6 +739,101 @@ def test_engine_safe_failure_catches_scheduler_error(monkeypatch: pytest.MonkeyP
     monkeypatch.setattr(runtime, "_execution", fail)
     result = M2703Engine().execute(_request())
     assert result.status is PipelineStatus.ABSTAINED
+
+
+def test_engine_defensive_scheduler_and_replay_guards(monkeypatch: pytest.MonkeyPatch) -> None:
+    request = _request()
+
+    class BrokenReferences:
+        def __getattr__(self, _name: str) -> object:
+            raise RuntimeError
+
+    with pytest.raises(ValueError, match="malformed"):
+        preflight_m2703_authorization({"context": {"references": BrokenReferences()}})
+
+    first, last = request.workflow.nodes
+    left = first.model_copy(update={"node_id": "left", "evidence": (_evidence(241),)})
+    right = first.model_copy(update={"node_id": "right", "evidence": (_evidence(242),)})
+    joined = WorkflowDAG(
+        workflow_id="joined-runtime-workflow",
+        version="1.0.0",
+        nodes=(first, left, right, last),
+        edges=(
+            WorkflowEdge(
+                edge_id="entry-left",
+                source_node_id="entry",
+                target_node_id="left",
+                evidence=(_evidence(243),),
+            ),
+            WorkflowEdge(
+                edge_id="entry-right",
+                source_node_id="entry",
+                target_node_id="right",
+                evidence=(_evidence(244),),
+            ),
+            WorkflowEdge(
+                edge_id="left-exit",
+                source_node_id="left",
+                target_node_id="exit",
+                evidence=(_evidence(245),),
+            ),
+            WorkflowEdge(
+                edge_id="right-exit",
+                source_node_id="right",
+                target_node_id="exit",
+                evidence=(_evidence(246),),
+            ),
+        ),
+        entry_node_id="entry",
+        exit_node_id="exit",
+        evidence=(_evidence(247),),
+    )
+    assert M2703Engine().execute(request.model_copy(update={"workflow": joined})).status is (
+        PipelineStatus.EXECUTED
+    )
+
+    cycle = request.workflow.model_copy(
+        update={
+            "edges": (
+                request.workflow.edges[0],
+                WorkflowEdge(
+                    edge_id="cycle",
+                    source_node_id="exit",
+                    target_node_id="entry",
+                    evidence=(_evidence(248),),
+                ),
+            )
+        }
+    )
+    with pytest.raises(M2703EvaluationError, match="cannot be scheduled"):
+        runtime._topological_nodes(request.model_copy(update={"workflow": cycle}))
+
+    original_adapter = runtime._RESULT_ADAPTER
+
+    class FailingAdapter:
+        def validate_python(self, *_args: object, **_kwargs: object) -> object:
+            raise ValueError from None
+
+    monkeypatch.setattr(runtime, "_RESULT_ADAPTER", FailingAdapter())
+    with pytest.raises(M2703EvaluationError, match="construction"):
+        M2703Engine().execute(request)
+
+    monkeypatch.setattr(runtime, "_RESULT_ADAPTER", original_adapter)
+    result = M2703Engine().execute(request)
+    monkeypatch.setattr(runtime, "result_payload_digest", lambda _: _digest(249))
+    with pytest.raises(M2703ReplayError, match="digest mismatch"):
+        M2703Engine().verify(result, replay=False)
+
+    monkeypatch.setattr(runtime, "result_payload_digest", result_payload_digest)
+
+    def mismatching_execute(
+        _engine: M2703Engine, _request: object
+    ) -> ComplexActivityPipelineResult:
+        return result.model_copy(update={"limitations": (result.limitations[0],)})
+
+    monkeypatch.setattr(M2703Engine, "execute", mismatching_execute)
+    with pytest.raises(M2703ReplayError, match="replay mismatch"):
+        M2703Engine().verify(result)
 
 
 def test_canonical_identity_helpers_reject_non_digest_inputs() -> None:
@@ -519,6 +870,7 @@ def test_service_and_plugin_verify_reject_supplied_request_mismatch() -> None:
         service.verify(result, request=altered)
     with pytest.raises(ValueError, match="replay request mismatch"):
         M2703Plugin(service).verify(result, request=altered)
+    assert service.verify(result, request=request, replay=False) == result
 
 
 def test_service_mapping_and_engine_validation_errors() -> None:
@@ -578,3 +930,42 @@ def test_result_closure_rejects_mismatched_bindings() -> None:
                 }
             )
         )
+
+
+def test_result_closure_rejects_resigned_package_and_execution_tampering() -> None:
+    result = M2703Engine().execute(_request())
+    assert result.execution_record is not None
+    assert result.result_package is not None
+
+    tampered_package = result.model_copy(
+        update={
+            "result_package": result.result_package.model_copy(
+                update={"manifest_digest": _digest(903)}
+            )
+        }
+    ).model_dump(mode="python")
+    tampered_package["result_digest"] = result_payload_digest(tampered_package)
+    with pytest.raises(ValidationError, match="manifest"):
+        ComplexActivityPipelineResult.model_validate(tampered_package, strict=True)
+
+    tampered_execution = result.model_copy(
+        update={
+            "execution_record": result.execution_record.model_copy(
+                update={"policy": result.request.policy.model_copy(update={"max_retries": 0})}
+            )
+        }
+    ).model_dump(mode="python")
+    tampered_execution["result_digest"] = result_payload_digest(tampered_execution)
+    with pytest.raises(ValidationError, match="policy"):
+        ComplexActivityPipelineResult.model_validate(tampered_execution, strict=True)
+
+    duplicate_completion = result.model_copy(
+        update={
+            "execution_record": result.execution_record.model_copy(
+                update={"completed_node_ids": ("entry", "exit", "entry")}
+            )
+        }
+    ).model_dump(mode="python")
+    duplicate_completion["result_digest"] = result_payload_digest(duplicate_completion)
+    with pytest.raises(ValidationError, match="every workflow node"):
+        ComplexActivityPipelineResult.model_validate(duplicate_completion, strict=True)

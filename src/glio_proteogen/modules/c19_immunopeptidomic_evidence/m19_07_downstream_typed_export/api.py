@@ -33,7 +33,7 @@ async def _read_bounded(request: Request, *, max_bytes: int) -> bytes:
     async for chunk in request.stream():
         total += len(chunk)
         if total > max_bytes:
-            raise HTTPException(status_code=422, detail="request exceeds byte limit")
+            raise HTTPException(status_code=413, detail="request exceeds byte limit")
         chunks.append(chunk)
     return b"".join(chunks)
 
@@ -65,8 +65,6 @@ def create_m1907_app(service: M1907Service | None = None) -> FastAPI:
 
     m1907_service = service or M1907Service()
     app = FastAPI(title="GLIO-PROTEOGEN M19-07", version="0.1.0-provisional")
-    # Enforce the request ceiling before body materialization; verification
-    # applies the larger result ceiling in its bounded reader.
     app.add_middleware(RequestSizeLimitMiddleware, max_bytes=M1907_MAX_CANONICAL_REQUEST_BYTES)
 
     @app.exception_handler(M1907AuthorizationError)

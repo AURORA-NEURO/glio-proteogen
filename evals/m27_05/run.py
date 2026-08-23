@@ -23,7 +23,6 @@ if __package__:
 else:
     from evals.m27_05.fixture import build_request
 
-_EXPECTED_SAMPLE_COUNT = 9
 _FIXTURE_DIGEST = "sha256:ff5606a7368f85fdecffc0ce9a44f94def90e8a9c8286e532cd2b2c83636704d"
 
 
@@ -44,9 +43,12 @@ def run() -> dict[str, object]:
         build_request("m2705.request.unsupported", upstream_media_type="application/json")
     )
     checks = {
-        "emitted": result.status is TelemetryStatus.EMITTED,
-        "stream_samples": result.telemetry_stream is not None
-        and len(result.telemetry_stream.samples) == _EXPECTED_SAMPLE_COUNT,
+        "no_fabricated_stream": result.status is TelemetryStatus.ABSTAINED
+        and result.telemetry_stream is None
+        and result.dashboards == ()
+        and result.alert is None,
+        "observations_abstained": result.safe_failure_report is not None
+        and result.safe_failure_report.trigger == "telemetry_observations_missing",
         "replay": replay == result,
         "plugin_parity": plugin_result == result,
         "tamper_rejected": rejected,

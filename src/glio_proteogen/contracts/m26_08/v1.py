@@ -16,6 +16,7 @@ from glio_proteogen.contracts.m26_08.canonical import (
     canonical_request_digest,
     result_payload_digest,
 )
+from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     EvidenceReference,
@@ -32,7 +33,6 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
-# PROVISIONAL ABI: inferred solely from dossier lines 9344-9384.
 M2608_DOSSIER_SHA256: Final = "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
 M2608_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:9344-9384"
 M2608_MODULE_ID: Final = "GLIO-PROTEOGEN-M26-08"
@@ -320,20 +320,62 @@ class ProteinSubtypeRetirementResult(FrozenModel):
     def result_is_closed(self) -> ProteinSubtypeRetirementResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        expected_result_id = "result.m2608." + self.request_digest.removeprefix("sha256:")
+        if self.result_id != expected_result_id:
+            raise ValueError("result id does not bind the exact request digest")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("result finding ids must be unique")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("result evidence must be unique")
         if self.status is RetirementRunStatus.EXECUTED:
             if (
                 self.package is None
                 or self.abstention_reason is not None
                 or self.support_decision.status is not SupportStatus.SUPPORTED
+                or self.package.status is not RetirementStatus.EXECUTED
+                or any(
+                    item.code
+                    in {
+                        RetirementFindingCode.CRITERION_UNSATISFIED,
+                        RetirementFindingCode.DEPENDENCY_MIGRATION_INCOMPLETE,
+                        RetirementFindingCode.EVIDENCE_NOT_RETRIEVABLE,
+                        RetirementFindingCode.COMMUNICATION_UNACKNOWLEDGED,
+                        RetirementFindingCode.ARCHIVE_UNVERIFIED,
+                        RetirementFindingCode.ACTIVE_DEPENDENCY,
+                    }
+                    for item in self.findings
+                )
             ):
                 raise ValueError("executed result requires a supported retirement package")
+            expected_package_payload = {
+                "criteria": self.request.criteria,
+                "migrations": self.request.migrations,
+                "preserved_evidence": self.request.preserved_evidence,
+                "communications": self.request.communications,
+                "archive": self.request.archive,
+                "configuration": self.request.configuration,
+            }
+            if (
+                self.package.package_id != f"package.m2608.{self.request.request_id}"
+                or self.package.criteria != self.request.criteria
+                or self.package.migrations != self.request.migrations
+                or self.package.preserved_evidence != self.request.preserved_evidence
+                or self.package.communications != self.request.communications
+                or self.package.archive != self.request.archive
+                or self.package.configuration != self.request.configuration
+                or self.package.package_digest != sha256_digest(expected_package_payload)
+            ):
+                raise ValueError("executed package must bind the exact retirement request")
         elif (
             self.package is not None
             or self.abstention_reason is None
+            or not self.findings
             or self.support_decision.status
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
-            raise ValueError("abstained result requires no package and safe status")
+            raise ValueError("abstained result requires findings, no package, and safe status")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self

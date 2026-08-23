@@ -1,6 +1,5 @@
 """M27-08 API/CLI/plugin interface parity smoke tests."""
 
-# Interface tests intentionally assert protocol status codes and schema counts.
 # ruff: noqa: PLR2004, PT018
 
 import json
@@ -14,11 +13,23 @@ from glio_proteogen.modules.c27_complex_activity.m27_08_retirement.api import cr
 from glio_proteogen.modules.c27_complex_activity.m27_08_retirement.cli import cli
 from glio_proteogen.modules.c27_complex_activity.m27_08_retirement.service import M2708Service
 
+_HTTP_UNSUPPORTED_MEDIA = 415
+
+
+def _duplicate_request_member(payload: dict[str, object]) -> bytes:
+    encoded = json.dumps(payload, separators=(",", ":"))
+    marker = '"request_id":"'
+    start = encoded.index(marker)
+    end = encoded.index('"', start + len(marker)) + 1
+    member = encoded[start:end]
+    return encoded.replace(member, f"{member},{member}", 1).encode()
+
 
 def test_schema_routes_and_validate_route() -> None:
     client = TestClient(create_app())
     response = client.get("/v1/contracts/M27-08/schema")
     assert response.status_code == 200
+    assert client.get("/v1/contracts/M27-08/request/schema").status_code == 200
     assert len(response.json()) == 10
     validated = client.post(
         "/v1/modules/M27-08/validate", json=build_request().model_dump(mode="json")
@@ -46,6 +57,17 @@ def test_invalid_json_is_sanitized() -> None:
     )
     assert response.status_code == 422
     assert "request validation failed" in response.json()["detail"]
+
+
+def test_verify_rejects_duplicate_json_members() -> None:
+    client = TestClient(create_app())
+    response = client.post(
+        "/v1/modules/M27-08/verify",
+        content=b'{"result":{},"result":{}}',
+        headers={"content-type": "application/json"},
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"] == "result verification failed"
 
 
 def test_service_api_digest_parity() -> None:
@@ -123,6 +145,38 @@ def test_api_malformed_and_unknown_payloads_are_sanitized() -> None:
         ).status_code
         == 422
     )
+    assert (
+        client.post(
+            "/v1/modules/M27-08/verify",
+            content=b"{}",
+            headers={"content-type": "text/plain"},
+        ).status_code
+        == _HTTP_UNSUPPORTED_MEDIA
+    )
+    assert (
+        client.post(
+            "/v1/modules/M27-08/verify",
+            content=b"[]",
+            headers={"content-type": "application/json"},
+        ).status_code
+        == 422
+    )
+    result = client.post("/v1/modules/M27-08/retire", json=build_request().model_dump(mode="json"))
+    assert result.status_code == 200
+    invalid_envelope = client.post(
+        "/v1/modules/M27-08/verify",
+        json={"result": result.json(), "request": []},
+    )
+    assert invalid_envelope.status_code == 422
+
+
+def test_api_rejects_duplicate_json_members_before_contract_validation() -> None:
+    client = TestClient(create_app())
+    duplicate = _duplicate_request_member(build_request().model_dump(mode="json"))
+    headers = {"content-type": "application/json"}
+    for route in ("/v1/modules/M27-08/validate", "/v1/modules/M27-08/retire"):
+        response = client.post(route, content=duplicate, headers=headers)
+        assert response.status_code == 422
 
 
 def test_cli_error_paths_are_non_destructive(tmp_path: Path) -> None:
@@ -142,6 +196,11 @@ def test_cli_error_paths_are_non_destructive(tmp_path: Path) -> None:
     bad_result = tmp_path / "bad-result.json"
     bad_result.write_text("{}", encoding="utf-8")
     assert runner.invoke(cli, ["verify", str(bad_result)]).exit_code != 0
+
+    duplicate = tmp_path / "duplicate.json"
+    duplicate.write_bytes(_duplicate_request_member(build_request().model_dump(mode="json")))
+    assert runner.invoke(cli, ["validate", str(duplicate)]).exit_code != 0
+    assert runner.invoke(cli, ["retire", str(duplicate)]).exit_code != 0
 
 
 def test_cli_stdout_and_tamper_paths(tmp_path: Path) -> None:

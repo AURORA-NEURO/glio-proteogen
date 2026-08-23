@@ -15,6 +15,7 @@ from pydantic import Field, model_validator
 
 from glio_proteogen.contracts.m25_06.canonical import (
     canonical_request_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -33,15 +34,11 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
-# PROVISIONAL ABI: inferred solely from dossier SHA
-# 0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,
-# lines 8896-8936. Owner confirmation and implementation details remain
-# pending.
 M2506_MODULE_ID: Final = "GLIO-PROTEOGEN-M25-06"
 M2506_OPERATION: Final = "challenge_proteotype_robustness_surface"
 M2506_CONTRACT_VERSION: Final = "0.1.0-provisional"
 M2506_OUTPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m25-06+json"
-M2506_M2505_INPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m25-05+json"
+M2506_M2505_INPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m25-04+json"
 M2506_PARENT: Final = "proteotype"
 M2506_OWNER: Final = "Clinical science"
 M2506_SAFETY_CLASS: Final = "S3"
@@ -54,6 +51,11 @@ M2506_MAX_FINDINGS: Final = 64
 M2506_MAX_CHALLENGE_KINDS: Final = 8
 M2506_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M2506_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
+M2506_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M2506_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:8833-8875"
+M2506_M2504_INPUT_MEDIA_TYPE: Final = M2506_M2505_INPUT_MEDIA_TYPE
 
 
 class ChallengeKind(StrEnum):
@@ -65,6 +67,9 @@ class ChallengeKind(StrEnum):
     SITE_SHIFT = "site_shift"
     ARTIFACT = "artifact"
     NOVEL_STATE = "novel_state"
+
+
+M2506_REQUIRED_CHALLENGE_KINDS: Final = frozenset(ChallengeKind)
 
 
 class ChallengeSeverity(StrEnum):
@@ -156,6 +161,8 @@ class RobustnessConfiguration(FrozenModel):
     def challenge_kinds_are_unique(self) -> RobustnessConfiguration:
         if len(set(self.required_challenge_kinds)) != len(self.required_challenge_kinds):
             raise ValueError("required challenge kinds must be unique")
+        if set(self.required_challenge_kinds) != M2506_REQUIRED_CHALLENGE_KINDS:
+            raise ValueError("configuration must require exactly all eight challenge kinds")
         return self
 
 
@@ -184,6 +191,28 @@ class RobustnessSurface(FrozenModel):
         allowed = set(scenario_ids)
         if any(item.scenario_id not in allowed for item in self.observations):
             raise ValueError("observation references an unknown scenario")
+        required = set(self.configuration.required_challenge_kinds)
+        present = {item.kind for item in self.scenarios}
+        if present != required:
+            raise ValueError("surface must include every configured challenge kind exactly")
+        observed = {item.scenario_id for item in self.observations}
+        if observed != allowed:
+            raise ValueError("surface must include one or more observations for every scenario")
+        scenario_by_id = {scenario.scenario_id: scenario for scenario in self.scenarios}
+        for observation in self.observations:
+            scenario = scenario_by_id[observation.scenario_id]
+            if observation.disposition is not scenario.expected_disposition:
+                raise ValueError("observation disposition must match scenario expectation")
+            if observation.disposition is ChallengeDisposition.WITHIN_ENVELOPE and (
+                observation.ood_band not in {OODBand.IN_DOMAIN, OODBand.BORDERLINE}
+                or not observation.within_envelope
+            ):
+                raise ValueError("within-envelope observations must remain in supported OOD bands")
+            if observation.disposition is ChallengeDisposition.ABSTAIN_UNSUPPORTED and (
+                observation.ood_band not in {OODBand.OUT_OF_DOMAIN, OODBand.NOT_EVALUABLE}
+                or observation.within_envelope
+            ):
+                raise ValueError("unsupported observations must be OOD or not evaluable")
         return self
 
 
@@ -225,11 +254,22 @@ class ChallengeProteotypeRobustnessRequest(FrozenModel):
 
     @model_validator(mode="after")
     def request_is_bound(self) -> ChallengeProteotypeRobustnessRequest:
-        if self.upstream_result.media_type != M2506_M2505_INPUT_MEDIA_TYPE:
-            raise ValueError("request must bind the provisional M25-05 proteotype result")
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context request id must match request id")
+        if self.upstream_result.media_type != M2506_M2504_INPUT_MEDIA_TYPE:
+            raise ValueError("request must bind the provisional M25-04 proteotype result")
         scenario_ids = tuple(item.scenario_id for item in self.scenarios)
         if len(scenario_ids) != len(set(scenario_ids)):
             raise ValueError("request scenario ids must be unique")
+        source_ids = tuple(item.artifact_id for item in self.source_artifacts)
+        if len(source_ids) != len(set(source_ids)):
+            raise ValueError("source artifacts must be unique")
+        if self.upstream_result.artifact_id not in set(source_ids):
+            raise ValueError("source artifacts must include the upstream result")
+        if {item.kind for item in self.scenarios} != M2506_REQUIRED_CHALLENGE_KINDS:
+            raise ValueError(
+                "locked challenge configuration must declare exactly all eight challenge kinds"
+            )
         return self
 
 
@@ -260,6 +300,10 @@ class ProteotypeRobustnessChallengeResult(FrozenModel):
     def result_is_closed(self) -> ProteotypeRobustnessChallengeResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        if self.request.context.request_id != self.request.request_id:
+            raise ValueError("result request context id must match request id")
+        if self.result_id != result_identifier(self.request, self.status.value):
+            raise ValueError("result identifier does not bind request and status")
         if self.status is RobustnessStatus.EVALUATED:
             if (
                 self.robustness_surface is None
@@ -277,12 +321,20 @@ class ProteotypeRobustnessChallengeResult(FrozenModel):
             raise ValueError("abstained result requires safe failure and safe status")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
+        if self.provenance.module_id != M2506_MODULE_ID:
+            raise ValueError("result provenance must identify M25-06")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("finding identifiers must be unique")
         return self
 
 
 __all__ = [
     "M2506_CONTRACT_VERSION",
+    "M2506_DOSSIER_SHA256",
+    "M2506_DOSSIER_SLICE",
     "M2506_GATE",
+    "M2506_M2504_INPUT_MEDIA_TYPE",
     "M2506_M2505_INPUT_MEDIA_TYPE",
     "M2506_MAX_CANONICAL_REQUEST_BYTES",
     "M2506_MAX_CANONICAL_RESULT_BYTES",
@@ -297,6 +349,7 @@ __all__ = [
     "M2506_OWNER",
     "M2506_PARENT",
     "M2506_PROVISIONAL_ABI",
+    "M2506_REQUIRED_CHALLENGE_KINDS",
     "M2506_SAFETY_CLASS",
     "ChallengeDisposition",
     "ChallengeFinding",

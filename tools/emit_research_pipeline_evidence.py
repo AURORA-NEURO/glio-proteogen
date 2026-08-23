@@ -41,7 +41,18 @@ def refresh() -> None:
         or not fdr_quant_group_invariants["passed"]
     ):
         raise ValueError("locked research evaluator did not pass")
+    evaluation["scenario_ids"] = [
+        outcome["scenario_id"]
+        for outcome in evaluation["outcomes"]
+        if isinstance(outcome, dict) and "scenario_id" in outcome
+    ]
+    cohort["scenario_ids"] = [
+        outcome["id"]
+        for outcome in cohort["outcomes"]
+        if isinstance(outcome, dict) and "id" in outcome
+    ]
     evidence["fixture_sha256"] = evaluation["fixture_sha256"]
+    evidence["evaluation"] = evaluation
     evidence["evaluator"] = evaluation
     evidence["cohort_evaluation"] = cohort
     evidence["precursor_policy_evaluation"] = precursor_policy

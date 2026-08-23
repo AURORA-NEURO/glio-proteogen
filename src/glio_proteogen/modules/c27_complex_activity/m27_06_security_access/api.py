@@ -7,7 +7,7 @@ from typing import cast
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import TypeAdapter, ValidationError
 
-from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware
+from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware, is_json_content_type
 from glio_proteogen.contracts.m27_06 import (
     M2706_MAX_CANONICAL_REQUEST_BYTES,
     M2706_MAX_CANONICAL_RESULT_BYTES,
@@ -69,10 +69,7 @@ def create_app(service: M2706Service | None = None) -> FastAPI:  # noqa: C901
     )
 
     def _require_json(request: Request) -> None:
-        if (
-            request.headers.get("content-type", "").partition(";")[0].strip().lower()
-            != "application/json"
-        ):
+        if not is_json_content_type(request.headers.get("content-type")):
             raise HTTPException(status_code=415, detail="content-type must be application/json")
 
     @app.get("/v1/modules/M27-06/schemas")
@@ -109,7 +106,9 @@ def create_app(service: M2706Service | None = None) -> FastAPI:  # noqa: C901
     async def verify(request: Request) -> dict[str, object]:
         _require_json(request)
         try:
-            decoded = strict_json_loads(await request.body())
+            decoded = strict_json_loads(
+                await request.body(), max_bytes=M2706_MAX_CANONICAL_RESULT_BYTES
+            )
             envelope = _require_object(decoded)
             candidate = envelope.get("result", envelope)
             supplied_request = envelope.get("request")

@@ -10,7 +10,7 @@ _DIRECT_ENTRYPOINTS = tuple(
     sorted((*_EVALS_ROOT.glob("m*/benchmark.py"), *_EVALS_ROOT.glob("m*/run.py")))
 )
 _BOOTSTRAP = "sys.path.insert(0, str("
-_ENTRYPOINT_COUNT = 328
+_ENTRYPOINT_COUNT = 373
 
 
 def test_all_evaluator_entrypoints_bootstrap_repository_root() -> None:

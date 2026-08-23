@@ -29,6 +29,7 @@ from glio_proteogen.contracts.m20_04 import (
     M2004_MAX_CANONICAL_REQUEST_BYTES,
     M2004_MAX_CANONICAL_RESULT_BYTES,
 )
+from tests._resource_helpers import write_sparse_oversized_json
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
@@ -39,9 +40,7 @@ _HTTP_PAYLOAD_TOO_LARGE = 413
 
 
 def _sparse_overflow(path: Path, limit: int) -> None:
-    with path.open("wb") as stream:
-        stream.seek(limit)
-        stream.write(b"x")
+    write_sparse_oversized_json(path, limit)
 
 
 def _m2001_request(path: Path) -> object:

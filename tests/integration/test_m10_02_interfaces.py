@@ -15,7 +15,6 @@ from glio_proteogen.modules.c10_pathway_proteotype.m10_02_representation_feature
     cli_app,
     create_m1002_app,
 )
-from glio_proteogen.modules.c10_pathway_proteotype.m10_02_representation_feature_constructor.service import M1002Service
 from glio_proteogen.modules.c10_pathway_proteotype.m10_02_representation_feature_constructor.engine import (
     RepresentationAuthorizationError,
 )

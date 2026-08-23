@@ -11,9 +11,9 @@ from glio_proteogen.contracts.m23_01 import (
 from glio_proteogen.kernel.models import SupportStatus
 from glio_proteogen.modules.c21_reference_material.m23_01_reference_truth_benchmark_curator import (
     M2301AuthorizationError,
+    M2301Plugin,
     M2301ReferenceTruthBenchmarkCurator,
     M2301ReplayError,
-    M2301Plugin,
     M2301Service,
     preflight_m2301_authorization,
 )

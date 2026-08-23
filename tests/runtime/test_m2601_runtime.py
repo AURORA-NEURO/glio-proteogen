@@ -91,6 +91,29 @@ def test_incompatible_configuration_abstains_and_preserves_finding() -> None:
     )
 
 
+def test_result_finding_and_evidence_identity_is_closed() -> None:
+    request = _request()
+    quarantined = request.entries[0].model_copy(update={"status": RegistryEntryStatus.QUARANTINED})
+    result = M2601RegistryEngine().register(
+        request.model_copy(update={"entries": (quarantined, *request.entries[1:])})
+    )
+    duplicate_findings = result.model_copy(
+        update={"findings": (result.findings[0], result.findings[0])}
+    )
+    with pytest.raises(ValueError, match="registry finding ids must be unique"):
+        type(result).model_validate(duplicate_findings.model_dump(mode="python"), strict=True)
+
+    duplicate_evidence = result.model_copy(
+        update={"evidence": (result.evidence[0], result.evidence[0])}
+    )
+    with pytest.raises(ValueError, match="registry result evidence must be unique"):
+        type(result).model_validate(duplicate_evidence.model_dump(mode="python"), strict=True)
+
+    forged_id = result.model_copy(update={"result_id": "registry.m2601.forged"})
+    with pytest.raises(ValueError, match="result id must be derived"):
+        type(result).model_validate(forged_id.model_dump(mode="python"), strict=True)
+
+
 def test_authorization_fails_closed_for_denied_and_hostile_controls() -> None:
     request = _request()
     denied_context = request.context.model_copy(update={"references": _denied_references()})

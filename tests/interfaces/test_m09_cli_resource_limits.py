@@ -32,6 +32,7 @@ from glio_proteogen.modules.c09_complex_stoichiometry.m09_07_calibration_selecti
 from glio_proteogen.modules.c09_complex_stoichiometry.m09_08_evidence_explanation_publisher import (
     cli as m0908,
 )
+from tests._resource_helpers import write_sparse_oversized_json
 
 _MAX_JSON_BYTES = 4 * 1024 * 1024
 _CLIS: tuple[tuple[Any, str], ...] = (
@@ -48,9 +49,7 @@ _CLIS: tuple[tuple[Any, str], ...] = (
 
 def test_m09_validate_commands_reject_sparse_oversized_inputs(tmp_path: Path) -> None:
     path = tmp_path / "oversized.json"
-    with path.open("wb") as stream:
-        stream.seek(_MAX_JSON_BYTES)
-        stream.write(b"x")
+    write_sparse_oversized_json(path, _MAX_JSON_BYTES)
     for module, _ in _CLIS:
         result = CliRunner().invoke(module.app, ["validate", str(path)])
         assert result.exit_code != 0

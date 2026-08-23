@@ -13,11 +13,11 @@ from glio_proteogen.contracts.m22_02 import (
     SyntheticTruthCorpus,
     contract_json_schemas,
 )
+from glio_proteogen.contracts.m22_02.canonical import result_payload_digest
 from glio_proteogen.modules.c21_reference_material.m22_02_synthetic_truth_simulation_generator import (  # noqa: E501
     M2202Service,
     create_app,
 )
-from glio_proteogen.contracts.m22_02.canonical import result_payload_digest
 from tests.contract.test_m22_02_hardening import _request
 
 

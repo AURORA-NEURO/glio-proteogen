@@ -14,6 +14,9 @@ def test_security_evaluator_matrix_is_safe_and_replay_verified() -> None:
     assert report["module"] == "M26-06"
     assert report["scenario_count"] == _SCENARIO_COUNT
     assert report["passed"] == _SCENARIO_COUNT
+    assert report["allPassed"] is True
+    assert report["semanticReplayRecompute"] is True
+    assert report["selfRehashedDigestRejected"] is True
     records = report["records"]
     assert records[0]["outcome"] == "evaluated"
     assert records[0]["replay_verified"] is True
@@ -24,6 +27,8 @@ def test_security_evaluator_matrix_is_safe_and_replay_verified() -> None:
 
 def test_locked_benchmark_stays_within_security_budgets() -> None:
     report = benchmark(_BENCHMARK_ITERATIONS)
+    assert report["moduleId"] == "GLIO-PROTEOGEN-M26-06"
     assert report["iterations"] == _BENCHMARK_ITERATIONS
     assert report["mean_ns"] < report["budget_mean_ns"]
     assert report["p95_ns"] < report["budget_p95_ns"]
+    assert report["budgetPassed"] is True

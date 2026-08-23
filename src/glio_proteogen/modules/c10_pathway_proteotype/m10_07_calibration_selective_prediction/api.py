@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, cast
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import TypeAdapter, ValidationError
 
@@ -79,8 +79,8 @@ def create_app(service: M1007Service | None = None) -> FastAPI:  # noqa: C901
             raise HTTPException(status_code=404, detail="unknown M10-07 contract")
         return contract_json_schema(name)  # type: ignore[arg-type]
 
-    @app.post("/v1/modules/M10-07/validate")
-    async def validate(request: Request) -> dict[str, object]:
+    @app.post("/v1/modules/M10-07/validate", response_model=None)
+    async def validate(request: Request) -> Response | dict[str, object]:
         if (
             request.headers.get("content-type", "").partition(";")[0].strip().lower()
             != "application/json"
@@ -93,8 +93,8 @@ def create_app(service: M1007Service | None = None) -> FastAPI:  # noqa: C901
             raise _safe_validation(error) from error
         return typed.model_dump(mode="json")
 
-    @app.post("/v1/modules/M10-07/execute")
-    async def execute(request: Request) -> dict[str, object]:
+    @app.post("/v1/modules/M10-07/execute", response_model=None)
+    async def execute(request: Request) -> Response | dict[str, object]:
         if (
             request.headers.get("content-type", "").partition(";")[0].strip().lower()
             != "application/json"
@@ -110,8 +110,8 @@ def create_app(service: M1007Service | None = None) -> FastAPI:  # noqa: C901
             "canonical": built.canonical_bytes.decode("utf-8"),
         }
 
-    @app.post("/v1/modules/M10-07/verify")
-    async def verify(request: Request) -> dict[str, object]:
+    @app.post("/v1/modules/M10-07/verify", response_model=None)
+    async def verify(request: Request) -> Response | dict[str, object]:
         if (
             request.headers.get("content-type", "").partition(";")[0].strip().lower()
             != "application/json"

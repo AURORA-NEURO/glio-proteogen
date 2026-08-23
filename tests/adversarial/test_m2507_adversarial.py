@@ -87,6 +87,17 @@ def test_duplicate_source_artifact_ids_are_rejected() -> None:
         EvaluateProteotypeHumanFactorsRequest.model_validate(data, strict=True)
 
 
+def test_bound_upstream_artifact_must_be_retained_in_sources() -> None:
+    request = build_request()
+    data = request.model_dump(mode="python")
+    data["source_artifacts"] = (
+        request.source_artifacts[0].model_copy(update={"artifact_id": "unrelated-source"}),
+    )
+
+    with pytest.raises(ValidationError, match="retain the bound upstream result"):
+        EvaluateProteotypeHumanFactorsRequest.model_validate(data, strict=True)
+
+
 def test_wrong_media_and_context_identity_are_rejected() -> None:
     request = build_request()
     wrong_media = request.model_copy(

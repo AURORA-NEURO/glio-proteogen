@@ -20,6 +20,9 @@ from glio_proteogen.modules.c20_biomarker_panel.m26_06_security_privacy_access_c
     preflight_m2606_authorization,
     verify_security_access_result,
 )
+from glio_proteogen.modules.c20_biomarker_panel.m26_06_security_privacy_access_control import (
+    engine as runtime_engine,
+)
 from tests.contract.test_m26_06_provisional import _request
 
 
@@ -156,6 +159,11 @@ def test_service_replay_rejects_non_result_objects() -> None:
     with pytest.raises(M2606ReplayError):
         M2606SecurityService.verify({"not": "a-result"})
 
+    result = M2606SecurityEngine().evaluate(_request())
+    mismatched_request = _request().model_copy(update={"request_id": "m2606.foreign"})
+    with pytest.raises(ValueError, match=r"^$"):
+        M2606SecurityService.verify(result, request=mismatched_request)
+
 
 def test_replay_rejects_tampered_payload_and_same_request_is_deterministic() -> None:
     request = _request()
@@ -171,3 +179,50 @@ def test_replay_rejects_tampered_payload_and_same_request_is_deterministic() -> 
     with pytest.raises(M2606ReplayError):
         verify_security_access_result(tampered)
     assert result_payload_digest(first) == first.result_digest
+
+
+def test_result_contract_rejects_duplicate_evidence_and_incomplete_states() -> None:
+    result = M2606SecurityEngine().evaluate(_request())
+    duplicate_evidence = result.model_copy(
+        update={"evidence": (result.evidence[0], result.evidence[0])}
+    )
+    with pytest.raises(ValueError, match="result evidence must be unique"):
+        type(result).model_validate(duplicate_evidence.model_dump(mode="python"))
+
+    missing_decision = result.model_copy(update={"access_decision": None})
+    with pytest.raises(ValueError, match="evaluated result requires"):
+        type(result).model_validate(missing_decision.model_dump(mode="python"))
+
+    request = _request()
+    declarations = tuple(
+        item.model_copy(
+            update={
+                "status": ControlStatus.NOT_EVALUABLE,
+                "rationale": "Security evidence is unavailable.",
+            }
+        )
+        if item.control is SecurityControlKind.ENCRYPTION
+        else item
+        for item in request.control_declarations
+    )
+    abstained = M2606SecurityEngine().evaluate(
+        type(request).model_validate(
+            request.model_copy(update={"control_declarations": declarations})
+        )
+    )
+    invalid_review = abstained.model_copy(update={"human_review_required": False})
+    with pytest.raises(ValueError, match="require human review"):
+        type(abstained).model_validate(invalid_review.model_dump(mode="python"))
+
+
+def test_replay_converts_recomputation_failures_to_safe_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    result = M2606SecurityEngine().evaluate(_request())
+
+    def fail_evaluate(_self: object, _request: object) -> object:
+        raise RuntimeError("recomputation failed")  # noqa: TRY003
+
+    monkeypatch.setattr(runtime_engine.M2606SecurityEngine, "evaluate", fail_evaluate)
+    with pytest.raises(M2606ReplayError):
+        runtime_engine.verify_security_access_result(result)

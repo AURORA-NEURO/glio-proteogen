@@ -1,6 +1,5 @@
 """Locked M27-03 orchestration microbenchmark."""
 
-# Allow direct `python benchmarks/...` execution from a clean checkout.
 
 from __future__ import annotations
 
@@ -19,8 +18,13 @@ from glio_proteogen.modules.c27_complex_activity.m27_03_reproducible_pipeline_or
     M2703Engine,
 )
 
+_MEAN_BUDGET_NS = 500_000_000
+_P95_BUDGET_NS = 750_000_000
+
 
 def run(iterations: int = 10) -> dict[str, float | int]:
+    if iterations < 1:
+        raise ValueError("iterations must be positive")  # noqa: TRY003
     engine = M2703Engine()
     candidate = request()
     samples: list[int] = []
@@ -31,11 +35,17 @@ def run(iterations: int = 10) -> dict[str, float | int]:
         if result.execution_record is None:
             raise RuntimeError("benchmark fixture unexpectedly abstained")  # noqa: TRY003
     ordered = sorted(samples)
+    mean_ns = float(statistics.mean(samples))
+    p95_ns = float(ordered[min(len(ordered) - 1, int(len(ordered) * 0.95))])
     return {
+        "moduleId": "GLIO-PROTEOGEN-M27-03",
         "iterations": iterations,
-        "mean_ns": float(statistics.mean(samples)),
+        "mean_ns": mean_ns,
         "median_ns": float(statistics.median(samples)),
-        "p95_ns": float(ordered[min(len(ordered) - 1, int(len(ordered) * 0.95))]),
+        "p95_ns": p95_ns,
+        "budget_mean_ns": _MEAN_BUDGET_NS,
+        "budget_p95_ns": _P95_BUDGET_NS,
+        "budgetPassed": mean_ns <= _MEAN_BUDGET_NS and p95_ns <= _P95_BUDGET_NS,
     }
 
 

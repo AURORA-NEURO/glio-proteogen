@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 import pytest
 from pydantic import ValidationError
 
+import glio_proteogen.modules.c27_complex_activity.m27_02_lineage_service.engine as engine_module
 from glio_proteogen.contracts.m27_02 import (
     M2702_M2701_INPUT_MEDIA_TYPE,
     ComplexActivityLineageResult,
@@ -29,6 +30,7 @@ from glio_proteogen.modules.c27_complex_activity.m27_02_lineage_service import (
     M2702AuthorizationError,
     M2702LineageResolver,
     M2702Plugin,
+    M2702ReplayError,
     M2702Service,
 )
 
@@ -115,6 +117,19 @@ def test_runtime_resolves_multi_source_graph_and_replays_exactly() -> None:
     assert M2702Service().verify(first)
 
 
+def test_runtime_accepts_dicts_and_request_bound_service_verification() -> None:
+    request = _request()
+    resolver = M2702LineageResolver()
+    assert resolver.resolve(request.model_dump(mode="python")) == resolver.resolve(request)
+
+    service = M2702Service()
+    result = service.execute(request)
+    assert service.verify(result, request) == result
+    changed = request.model_copy(update={"root_object_id": "activity.m2702.changed"})
+    with pytest.raises(ValueError, match="lineage replay mismatch"):
+        service.verify(result, changed)
+
+
 def test_replay_rejects_self_rehashed_semantic_mutation() -> None:
     result = M2702LineageResolver().resolve(_request())
     mutated_support = result.support_decision.model_copy(
@@ -151,6 +166,7 @@ def test_plugin_strict_json_validate_then_run_matches_typed_request() -> None:
     token = plugin.validate(canonical_json_bytes(request.model_dump(mode="json")))
 
     assert plugin.run(token) == M2702LineageResolver().resolve(request)
+    assert plugin.validate(request).request == request
     with pytest.raises(TypeError, match="validated request token"):
         plugin.run(object())  # type: ignore[arg-type]
 
@@ -176,6 +192,30 @@ def test_authorization_fails_before_unsupported_control_is_used() -> None:
 
     with pytest.raises(M2702AuthorizationError):
         M2702LineageResolver().resolve(request)
+
+
+def test_authorization_fails_closed_when_control_reader_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def broken_member(candidate: object, field: str) -> object:
+        del candidate, field
+        raise RuntimeError
+
+    monkeypatch.setattr(engine_module, "_member", broken_member)
+    with pytest.raises(M2702AuthorizationError):
+        engine_module.preflight_m2702_authorization(_request())
+
+
+def test_replay_wraps_a_resolver_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    result = M2702LineageResolver().resolve(_request())
+
+    def broken_resolve(self: M2702LineageResolver, request: object) -> object:
+        del self, request
+        raise RuntimeError
+
+    monkeypatch.setattr(M2702LineageResolver, "resolve", broken_resolve)
+    with pytest.raises(M2702ReplayError, match="result replay failed"):
+        M2702LineageResolver().replay(result)
 
 
 def test_result_replay_rejects_tampered_digest() -> None:

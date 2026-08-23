@@ -34,7 +34,6 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
-# PROVISIONAL ABI: inferred solely from dossier lines 8984-9024.
 M2508_MODULE_ID: Final = "GLIO-PROTEOGEN-M25-08"
 M2508_OPERATION: Final = "adjudicate_proteotype_evidence_gate"
 M2508_CONTRACT_VERSION: Final = "0.1.0-provisional"
@@ -48,7 +47,6 @@ M2508_DOSSIER_SHA256: Final = (
     "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
 )
 M2508_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:8984-9024"
-# M25-06 remains a declared media boundary; it is not imported as a runtime ABI.
 M2508_M2506_INPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m25-06+json"
 M2508_M2507_INPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m25-07+json"
 M2508_MAX_REQUIREMENTS: Final = 128
@@ -307,7 +305,7 @@ class ProteotypeEvidenceGateResult(FrozenModel):
     human_review_required: Literal[True] = True
 
     @model_validator(mode="after")
-    def result_is_closed(self) -> ProteotypeEvidenceGateResult:
+    def result_is_closed(self) -> ProteotypeEvidenceGateResult:  # noqa: PLR0912
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
         if self.result_id != result_identifier(self.request):
@@ -325,6 +323,21 @@ class ProteotypeEvidenceGateResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("adjudicated result requires a supported release record")
+            if self.release_record.requirements != self.request.requirements:
+                raise ValueError("release requirements must bind the request")
+            if self.release_record.benchmarks != self.request.benchmarks:
+                raise ValueError("release benchmarks must bind the request")
+            if self.release_record.residual_risks != self.request.residual_risks:
+                raise ValueError("release risks must bind the request")
+            if self.release_record.approvals != self.request.approvals:
+                raise ValueError("release approvals must bind the request")
+            if (
+                self.release_record.post_release_obligations
+                != self.request.post_release_obligations
+            ):
+                raise ValueError("release obligations must bind the request")
+            if self.findings and not all(item.evidence for item in self.findings):
+                raise ValueError("adjudicated findings must carry evidence")
         elif (
             self.release_record is not None
             or self.abstention_reason is None
@@ -332,6 +345,8 @@ class ProteotypeEvidenceGateResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no release record and safe status")
+        if self.status is GateRunStatus.ABSTAINED and not self.findings:
+            raise ValueError("abstained result must retain at least one finding")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self

@@ -75,12 +75,14 @@ def test_api_verify_requires_object_and_valid_result() -> None:
     request = _request()
     with TestClient(create_app()) as client:
         non_object = client.post("/v1/modules/M28-04/verify", content=b"[]")
+        invalid_json = client.post("/v1/modules/M28-04/verify", content=b"{not-json")
         malformed = client.post("/v1/modules/M28-04/verify", json={"result": {}})
         published = client.post(
             "/v1/modules/M28-04/publish", json=request.model_dump(mode="json")
         ).json()
         wrapped = client.post("/v1/modules/M28-04/verify", json={"result": published})
     assert non_object.status_code == HTTP_UNPROCESSABLE_CONTENT
+    assert invalid_json.status_code == HTTP_UNPROCESSABLE_CONTENT
     assert malformed.status_code == HTTP_UNPROCESSABLE_CONTENT
     assert wrapped.status_code == HTTP_OK
 

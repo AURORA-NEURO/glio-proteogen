@@ -34,7 +34,6 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
-# PROVISIONAL ABI: inferred solely from dossier lines 8580-8620.
 M2407_MODULE_ID: Final = "GLIO-PROTEOGEN-M24-07"
 M2407_OPERATION: Final = "evaluate_biomarker_panel_human_factors_operational"
 M2407_CONTRACT_VERSION: Final = "0.1.0-provisional"
@@ -269,6 +268,9 @@ class BiomarkerPanelHumanFactorsResult(FrozenModel):
             raise ValueError("finding ids must be unique")
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind exact request")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("result evidence must be unique")
         if self.status is EvaluationStatus.EVALUATED:
             if (
                 self.report is None

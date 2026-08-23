@@ -35,11 +35,15 @@ jobs:
       - run: uv sync --locked --all-groups
       - run: uv run ruff check .
       - run: uv run mypy src
+      - run: uv run vulture src/glio_proteogen evals tools --min-confidence 80
+      - run: uv run python tools/verify_project_status.py
       - run: uv run python -m tools.scan_secrets
       - name: Execute locked tests and coverage
         run: |
           mkdir -p evidence
-          uv run pytest tests --junitxml=evidence/tests.junit.xml --cov-report=xml:evidence/coverage.xml
+          uv build --out-dir dist
+          uv run pytest tests \
+            --junitxml=evidence/tests.junit.xml --cov-report=xml:evidence/coverage.xml
       - name: Execute module evaluations and benchmarks
         run: |
           uv run python -m evals.m01_01.run --output evidence/m01-01-eval.json

@@ -1,7 +1,6 @@
 """Strict service boundary for M27-08."""
 
-# Public error text is intentionally sanitized and stable.
-# ruff: noqa: TRY003, TRY301
+# ruff: noqa: TRY003
 
 from __future__ import annotations
 
@@ -13,6 +12,7 @@ from glio_proteogen.contracts.m27_08 import (
     ComplexActivityRetirementResult,
     RetireComplexActivityServiceRequest,
 )
+from glio_proteogen.kernel.strict_json import strict_json_loads
 from glio_proteogen.modules.c27_complex_activity.m27_08_retirement.engine import (
     M2708RetirementEngine,
     RetirementReplayError,
@@ -28,13 +28,15 @@ class M2708Service:
     ) -> RetireComplexActivityServiceRequest:
         try:
             if isinstance(payload, bytes):
-                if len(payload) > M2708_MAX_CANONICAL_REQUEST_BYTES:
-                    raise ValueError("request exceeds canonical byte limit")
+                strict_json_loads(payload, max_bytes=M2708_MAX_CANONICAL_REQUEST_BYTES)
                 return RetireComplexActivityServiceRequest.model_validate_json(payload, strict=True)
             if isinstance(payload, str):
+                strict_json_loads(payload, max_bytes=M2708_MAX_CANONICAL_REQUEST_BYTES)
                 return RetireComplexActivityServiceRequest.model_validate_json(payload, strict=True)
+            document = json.dumps(payload, separators=(",", ":"))
+            strict_json_loads(document, max_bytes=M2708_MAX_CANONICAL_REQUEST_BYTES)
             return RetireComplexActivityServiceRequest.model_validate_json(
-                json.dumps(payload, separators=(",", ":")), strict=True
+                document, strict=True
             )
         except (ValueError, TypeError, json.JSONDecodeError) as error:
             raise ValueError("M27-08 request validation failed") from error

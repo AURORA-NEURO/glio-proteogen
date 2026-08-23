@@ -1,7 +1,5 @@
 """Evaluator and benchmark assertions for M19-04."""
 
-# The repository intentionally keeps test directories namespace-only.
-# ruff: noqa: INP001
 
 from evals.m19_04.benchmark import run_benchmark
 from evals.m19_04.run import evaluate

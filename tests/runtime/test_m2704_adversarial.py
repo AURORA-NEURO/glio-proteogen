@@ -8,6 +8,7 @@ from pydantic import ValidationError
 from glio_proteogen.contracts.m27_04 import (
     AccessProtocol,
     AsyncJobRecord,
+    AuthorizationDecision,
     CompatibilityStatus,
     GatewayConfiguration,
     GatewayFindingCode,
@@ -16,7 +17,10 @@ from glio_proteogen.contracts.m27_04 import (
     OperationStatus,
     PublishComplexActivityAccessSurfaceRequest,
 )
-from glio_proteogen.contracts.m27_04.canonical import canonical_request_digest
+from glio_proteogen.contracts.m27_04.canonical import (
+    canonical_request_digest,
+    result_payload_digest,
+)
 from glio_proteogen.kernel.strict_json import StrictJsonError
 from glio_proteogen.modules.c20_biomarker_panel.m27_04_api_sdk_cli_gateway.engine import (
     M2704GatewayEngine,
@@ -230,3 +234,54 @@ def test_replay_checks_each_digest_and_identifier_binding() -> None:
         forged = result.model_copy(update={field: value})
         with pytest.raises(M2704ReplayError):
             engine.replay(forged)
+
+
+def test_result_contract_closes_identifier_findings_and_evidence() -> None:
+    result = M2704GatewayEngine().publish(_request())
+    duplicate_finding = result.model_copy(
+        update={"findings": (*result.findings, result.findings[0])}
+    )
+    with pytest.raises(ValidationError, match="finding ids must be unique"):
+        type(result).model_validate(duplicate_finding.model_dump(mode="python"), strict=True)
+
+    duplicate_evidence = result.model_copy(
+        update={"evidence": (*result.evidence, result.evidence[0])}
+    )
+    with pytest.raises(ValidationError, match="result evidence must be unique"):
+        type(result).model_validate(duplicate_evidence.model_dump(mode="python"), strict=True)
+
+    forged_identifier = result.model_copy(update={"result_id": "gateway.m2704.forged"})
+    with pytest.raises(ValidationError, match="derived from the request digest"):
+        type(result).model_validate(forged_identifier.model_dump(mode="python"), strict=True)
+
+
+def test_published_result_rejects_blocking_gateway_findings() -> None:
+    request = _request()
+    denied = request.authorizations[0].model_copy(update={"decision": AuthorizationDecision.DENY})
+    abstained = M2704GatewayEngine().publish(
+        request.model_copy(update={"authorizations": (denied,)})
+    )
+    published = M2704GatewayEngine().publish(request)
+    forged = abstained.model_copy(
+        update={
+            "status": GatewayStatus.PUBLISHED,
+            "access_surface": published.access_surface,
+            "abstention_reason": None,
+            "support_decision": published.support_decision,
+        }
+    )
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValidationError, match="blocking gateway findings"):
+        type(forged).model_validate(forged.model_dump(mode="python"), strict=True)
+
+
+def test_abstained_result_requires_findings() -> None:
+    request = _request()
+    denied = request.authorizations[0].model_copy(update={"decision": AuthorizationDecision.DENY})
+    result = M2704GatewayEngine().publish(
+        request.model_copy(update={"authorizations": (denied,)})
+    )
+    forged = result.model_copy(update={"findings": ()})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValidationError, match="abstained result"):
+        type(forged).model_validate(forged.model_dump(mode="python"), strict=True)

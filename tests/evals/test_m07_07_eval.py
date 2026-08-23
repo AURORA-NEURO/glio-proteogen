@@ -1,6 +1,6 @@
 """Executable evaluator and benchmark locks for M07-07."""
 
-# ruff: noqa: INP001, PLR2004
+# ruff: noqa: PLR2004
 
 from __future__ import annotations
 

@@ -1,11 +1,10 @@
 """FastAPI schema, validation, execution, and verification routes."""
 
-# ruff: noqa: C901, TRY003, TRY004, TRY300, TRY301
+# ruff: noqa: C901, TRY003, TRY004, TRY301
 
 from __future__ import annotations
 
-import json
-from typing import Any
+from typing import Any, cast
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -18,6 +17,7 @@ from glio_proteogen.contracts.m27_07 import (
     contract_json_schema,
     contract_json_schemas,
 )
+from glio_proteogen.kernel.strict_json import StrictJsonError, strict_json_loads
 from glio_proteogen.modules.c27_complex_activity.m27_07_change_control.service import M2707Service
 
 
@@ -46,11 +46,11 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=415, detail="content-type must be application/json")
         try:
             raw = await request.body()
-            value = json.loads(raw)
+            value = strict_json_loads(raw, max_bytes=M2707_MAX_CANONICAL_REQUEST_BYTES)
             if not isinstance(value, dict):
                 raise ValueError("object required")
-            return value
-        except (ValueError, TypeError, json.JSONDecodeError) as error:
+            return cast("dict[str, Any]", value)
+        except (StrictJsonError, ValueError, TypeError) as error:
             raise HTTPException(status_code=422, detail="request validation failed") from error
 
     @api.post("/v1/modules/M27-07/validate")
@@ -85,10 +85,9 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=415, detail="content-type must be application/json")
         try:
             raw = await request.body()
+            strict_json_loads(raw, max_bytes=M2707_MAX_CANONICAL_RESULT_BYTES)
             result = ComplexActivityChangeControlResult.model_validate_json(raw, strict=True)
             return JSONResponse({"verified": service.verify(result)})
-        except HTTPException:
-            raise
         except (ValueError, TypeError) as error:
             raise HTTPException(status_code=422, detail="result verification failed") from error
 

@@ -81,6 +81,15 @@ def test_api_unknown_schema_duplicate_json_and_bad_replay_are_sanitized() -> Non
     assert nonobject.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
 
+def test_api_verify_rejects_unsupported_content_type() -> None:
+    response = TestClient(api.create_m2605_app()).post(
+        "/v1/modules/M26-05/verify",
+        content=b"{}",
+        headers={"content-type": "text/plain"},
+    )
+    assert response.status_code == HTTPStatus.UNSUPPORTED_MEDIA_TYPE
+
+
 def test_api_authentication_failure_is_forbidden() -> None:
     request = _request()
     quality = request.context.references.quality.model_copy(
@@ -96,10 +105,14 @@ def test_api_authentication_failure_is_forbidden() -> None:
         }
     )
     response = TestClient(api.create_m2605_app()).post(
-        "/v1/modules/M26-05/emit", content=denied.model_dump_json()
+        "/v1/modules/M26-05/emit",
+        content=denied.model_dump_json(),
+        headers={"content-type": "application/json"},
     )
     validation = TestClient(api.create_m2605_app()).post(
-        "/v1/modules/M26-05/validate", content=denied.model_dump_json()
+        "/v1/modules/M26-05/validate",
+        content=denied.model_dump_json(),
+        headers={"content-type": "application/json"},
     )
     malformed = TestClient(api.create_m2605_app()).post("/v1/modules/M26-05/emit", json={})
     assert response.status_code == HTTPStatus.FORBIDDEN

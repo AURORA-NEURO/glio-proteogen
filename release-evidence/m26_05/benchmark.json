@@ -1,0 +1,10 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M26-05",
+  "iterations": 10,
+  "meanNs": 2283470,
+  "medianNs": 2101100.0,
+  "p95Ns": 2203400,
+  "budgetsNs": {"mean": 500000000, "p95": 750000000},
+  "budgetPassed": true,
+  "command": "python benchmarks/m26_05_telemetry.py --iterations 10"
+}

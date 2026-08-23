@@ -1,6 +1,5 @@
 """Additional negative-path locks for M07-07 safety and replay closure."""
 
-# ruff: noqa: INP001
 
 from __future__ import annotations
 

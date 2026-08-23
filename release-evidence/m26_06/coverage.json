@@ -1,0 +1,16 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M26-06",
+  "scope": [
+    "glio_proteogen.contracts.m26_06",
+    "glio_proteogen.modules.c20_biomarker_panel.m26_06_security_privacy_access_control"
+  ],
+  "testRun": {"passed": 45, "warnings": 0},
+  "branchEnabled": true,
+  "statements": {"total": 657, "covered": 657, "missing": 0},
+  "branches": {"total": 96, "covered": 96, "missing": 0, "partial": 0},
+  "statementPercent": 100.0,
+  "branchPercent": 100.0,
+  "failUnder": 95,
+  "passed": true,
+  "command": "coverage run --branch -m pytest -q -o addopts='' <m26 focused selector>"
+}

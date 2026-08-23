@@ -1,0 +1,1 @@
+"""Spatial-proteomics module family."""

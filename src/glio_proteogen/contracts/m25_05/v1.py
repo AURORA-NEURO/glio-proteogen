@@ -28,7 +28,6 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
-# PROVISIONAL ABI: inferred solely from dossier lines 8852-8892.
 M2505_MODULE_ID: Final = "GLIO-PROTEOGEN-M25-05"
 M2505_OPERATION: Final = "evaluate_proteotype_subgroup_equity"
 M2505_CONTRACT_VERSION: Final = "0.1.0-provisional"
@@ -273,6 +272,9 @@ class ProteotypeSubgroupEvaluationResult(FrozenModel):
             raise ValueError("result request digest does not bind exact request")
         if self.result_id != result_identifier(self.request, self.status.value):
             raise ValueError("result id does not bind exact request and terminal status")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("result evidence must be unique")
         if self.status is EvaluationStatus.EVALUATED:
             if (
                 self.report is None

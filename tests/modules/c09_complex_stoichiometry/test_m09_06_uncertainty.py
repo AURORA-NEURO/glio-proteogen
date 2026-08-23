@@ -1,6 +1,5 @@
 """Adversarial runtime tests for the M09-06 uncertainty boundary."""
 
-# ruff: noqa: INP001
 
 from __future__ import annotations
 

@@ -14,6 +14,7 @@ from pydantic import Field, model_validator
 
 from glio_proteogen.contracts.m26_04.canonical import (
     canonical_request_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -32,7 +33,6 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
-# PROVISIONAL ABI: inferred solely from dossier lines 9168-9208.
 M2604_DOSSIER_SHA256: Final = (
     "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
 )
@@ -356,6 +356,14 @@ class ProteinSubtypeAccessSurfaceResult(FrozenModel):
     def result_is_closed(self) -> ProteinSubtypeAccessSurfaceResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        if self.result_id != result_identifier(self.request_digest):
+            raise ValueError("result id must be derived from the request digest")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("gateway finding ids must be unique")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("gateway result evidence must be unique")
         if self.status is GatewayStatus.PUBLISHED:
             if (
                 self.access_surface is None
@@ -363,13 +371,27 @@ class ProteinSubtypeAccessSurfaceResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("published result requires a supported access surface")
+            if any(
+                finding.code
+                in {
+                    GatewayFindingCode.OPERATION_UNAUTHORIZED,
+                    GatewayFindingCode.ASYNC_JOB_UNBOUND,
+                    GatewayFindingCode.COMPATIBILITY_UNRESOLVED,
+                    GatewayFindingCode.AUDIT_MISSING,
+                }
+                for finding in self.findings
+            ):
+                raise ValueError("published result cannot retain blocking gateway findings")
         elif (
             self.access_surface is not None
             or self.abstention_reason is None
+            or not self.findings
             or self.support_decision.status
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
-            raise ValueError("abstained result requires no access surface and safe status")
+            raise ValueError(
+                "abstained result requires findings, no access surface, and safe status"
+            )
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
