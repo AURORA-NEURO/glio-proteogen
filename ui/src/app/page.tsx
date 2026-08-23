@@ -53,6 +53,10 @@ type OpenApi = {
 
 type ServiceState = "online" | "offline" | "checking";
 
+type Account = {
+  email: string;
+};
+
 const methodOrder = ["post", "get", "put", "patch", "delete"];
 
 function sampleFromSchema(schema?: SchemaNode): unknown {
@@ -94,6 +98,7 @@ export default function ControlRoom() {
   const [executing, setExecuting] = useState(false);
   const [liveState, setLiveState] = useState<ServiceState>("checking");
   const [readyState, setReadyState] = useState<ServiceState>("checking");
+  const [account, setAccount] = useState<Account | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -121,6 +126,13 @@ export default function ControlRoom() {
       }
     }
     void load();
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/auth/me", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() as Promise<{ account: Account }> : null)
+      .then((data) => setAccount(data?.account ?? null))
+      .catch(() => setAccount(null));
   }, []);
 
   const filteredModules = useMemo(() => {
@@ -214,6 +226,7 @@ export default function ControlRoom() {
         </div>
         <div className="topbar-right">
           <span className="environment-chip">{catalog?.environment ?? "loading"}</span>
+          <a href={account ? "/console" : "/register"} className="agent-link">{account ? "Open agent console ↗" : "Register + pair ↗"}</a>
           <a href="/backend/docs" target="_blank" rel="noreferrer" className="docs-link">
             Open API docs ↗
           </a>
@@ -231,6 +244,10 @@ export default function ControlRoom() {
             <span className={`status-pill ${liveState}`}><i /> Live {liveState}</span>
             <span className={`status-pill ${readyState}`}><i /> Ready {readyState}</span>
             <span className="digest-pill">catalog {catalog ? shortDigest(catalog.catalog_digest) : "--------"}</span>
+          </div>
+          <div className="hero-actions">
+            <a className="execute-button link-button" href={account ? "/console" : "/register"}>{account ? "Launch GLIO Agent Console" : "Create account + pair T3 Code"}<span>↗</span></a>
+            <span className="hero-action-note">T3 Code runtime · one-time secure pairing</span>
           </div>
         </div>
         <div className="metric-panel">

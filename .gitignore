@@ -33,3 +33,4 @@ evidence-m18-06/
 ui/node_modules/
 ui/.next/
 ui/tsconfig.tsbuildinfo
+ui/.data/

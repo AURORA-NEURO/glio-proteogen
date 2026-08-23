@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "GLIO Proteogen Control Room",
-  description: "Operational workspace for GLIO Proteogen model routes.",
+  title: "GLIO Proteogen",
+  description: "Evidence-grade model operations and secure agent workspace.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
