@@ -19,6 +19,7 @@ from glio_proteogen.adapters import m2002 as m2002_adapter
 from glio_proteogen.adapters import m2003 as m2003_adapter
 from glio_proteogen.adapters import m2004 as m2004_adapter
 from glio_proteogen.adapters.limits import MAX_REQUEST_BYTES, RequestSizeLimitMiddleware
+from glio_proteogen.adapters.openapi import install_request_body_openapi
 from glio_proteogen.contracts.m01_01.schema import (
     ContractName as M0101ContractName,
 )
@@ -4663,6 +4664,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     async def central_m2004_verify(request: Request) -> JSONResponse:
         return await m2004_adapter.verify(request)
 
+    install_request_body_openapi(app)
     return app
 
 
