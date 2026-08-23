@@ -30,3 +30,6 @@ coverage-m18-06*.json
 runtime-m18-06.txt
 release-m18-*/
 evidence-m18-06/
+ui/node_modules/
+ui/.next/
+ui/tsconfig.tsbuildinfo
