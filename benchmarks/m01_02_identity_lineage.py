@@ -2,15 +2,17 @@
 
 Budgets are intentionally broad across CI hardware. They detect algorithmic or persistence
 regressions, not small machine-to-machine variance. The maximum graph benchmark isolates the
-linear reconciliation kernel; contract, public solver, and ledger replay have separate gates.
+near-linear reconciliation kernel with matched CPU-time samples while pytest-benchmark
+independently records wall latency; contract, public solver, and ledger replay have separate gates.
 """
 
 from __future__ import annotations
 
+import gc
 import tracemalloc
 from pathlib import Path
 from statistics import median
-from time import perf_counter_ns
+from time import process_time_ns
 from typing import TYPE_CHECKING, Any, cast
 
 import pytest
@@ -76,7 +78,11 @@ MAX_GRAPH_PEAK_BYTES = 256 * 1024 * 1024
 REFERENCE_EDGE_COUNT = 6
 MAX_GRAPH_NODES = 10_000
 SCALING_BASELINE_NODES = MAX_GRAPH_NODES // 4
-SCALING_TIMING_ROUNDS = 3
+SCALING_TIMING_ROUNDS = 5
+SCALING_MAXIMUM_REPETITIONS = 2
+SCALING_BASELINE_REPETITIONS = (
+    SCALING_MAXIMUM_REPETITIONS * MAX_GRAPH_NODES // SCALING_BASELINE_NODES
+)
 MAX_GRAPH_BENCHMARK_ROUNDS = 3
 _REQUEST_ADAPTER = TypeAdapter(ReconcileIdentityLineageRequest)
 
@@ -194,14 +200,35 @@ def _maximum_wide_dag(node_count: int = MAX_GRAPH_NODES) -> dict[str, Any]:
     }
 
 
-def _median_runtime_seconds(request: dict[str, Any]) -> float:
-    _analyze(cast("Any", request))
-    samples: list[int] = []
-    for _ in range(SCALING_TIMING_ROUNDS):
-        started = perf_counter_ns()
+def _cpu_seconds_per_analysis(request: dict[str, Any], repetitions: int) -> float:
+    started = process_time_ns()
+    for _ in range(repetitions):
         _analyze(cast("Any", request))
-        samples.append(perf_counter_ns() - started)
-    return median(samples) / 1_000_000_000
+    return (process_time_ns() - started) / repetitions / 1_000_000_000
+
+
+def _paired_median_cpu_seconds(
+    baseline: dict[str, Any],
+    maximum: dict[str, Any],
+) -> tuple[float, float]:
+    _analyze(cast("Any", baseline))
+    _analyze(cast("Any", maximum))
+    baseline_samples: list[float] = []
+    maximum_samples: list[float] = []
+    workloads = (
+        (baseline, SCALING_BASELINE_REPETITIONS, baseline_samples),
+        (maximum, SCALING_MAXIMUM_REPETITIONS, maximum_samples),
+    )
+    for round_index in range(SCALING_TIMING_ROUNDS):
+        # Alternate equal-node-work batches to remove ordering and CPU-frequency drift. Collection
+        # remains outside the measured region so an unrelated prior test cannot inject a cyclic-GC
+        # pause. Process CPU time excludes hosted-runner preemption, which can affect a 10k-node
+        # wall sample without affecting its shorter baseline.
+        ordered_workloads = workloads if round_index % 2 == 0 else reversed(workloads)
+        for request, repetitions, samples in ordered_workloads:
+            gc.collect()
+            samples.append(_cpu_seconds_per_analysis(request, repetitions))
+    return median(baseline_samples), median(maximum_samples)
 
 
 def test_reference_strict_contract_mean_latency(benchmark: BenchmarkFixture) -> None:
@@ -268,7 +295,11 @@ def test_ten_thousand_node_wide_dag_stays_within_linear_budget(
 ) -> None:
     request = _maximum_wide_dag()
     baseline = _maximum_wide_dag(SCALING_BASELINE_NODES)
-    baseline_seconds = _median_runtime_seconds(baseline)
+    baseline_cpu_seconds, maximum_cpu_seconds = _paired_median_cpu_seconds(
+        baseline,
+        request,
+    )
+    fourfold_ratio = maximum_cpu_seconds / baseline_cpu_seconds
 
     analysis = benchmark.pedantic(
         _analyze,
@@ -278,7 +309,6 @@ def test_ten_thousand_node_wide_dag_stays_within_linear_budget(
         iterations=1,
     )
     maximum_seconds = benchmark.stats.stats.mean
-    fourfold_ratio = maximum_seconds / baseline_seconds
 
     tracemalloc.start()
     try:
@@ -289,12 +319,21 @@ def test_ten_thousand_node_wide_dag_stays_within_linear_budget(
 
     benchmark.extra_info.update(
         {
-            "complexity_expectation": "O(V + E)",
+            "complexity_expectation": (
+                "near-linear; O((V + E) log(V + E)) deterministic-ordering bound"
+            ),
             "baseline_nodes": SCALING_BASELINE_NODES,
             "maximum_nodes": MAX_GRAPH_NODES,
             "maximum_edges": MAX_GRAPH_NODES - 1,
             "fourfold_latency_ratio": fourfold_ratio,
             "fourfold_ratio_budget": MAX_GRAPH_FOURFOLD_RATIO,
+            "scaling_clock": "process_time_ns",
+            "scaling_design": "paired-equal-node-work-alternating-order",
+            "scaling_timing_rounds": SCALING_TIMING_ROUNDS,
+            "scaling_baseline_repetitions": SCALING_BASELINE_REPETITIONS,
+            "scaling_maximum_repetitions": SCALING_MAXIMUM_REPETITIONS,
+            "baseline_median_cpu_seconds": baseline_cpu_seconds,
+            "maximum_median_cpu_seconds": maximum_cpu_seconds,
             "peak_traced_bytes": peak_bytes,
             "peak_traced_bytes_budget": MAX_GRAPH_PEAK_BYTES,
             "mean_budget_seconds": MAX_GRAPH_MEAN_BUDGET_SECONDS,
