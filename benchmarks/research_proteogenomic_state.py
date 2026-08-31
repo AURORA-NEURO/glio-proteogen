@@ -74,6 +74,7 @@ MINIMUM_PERMUTATIONS = 32
 WORKLOAD_BOOTSTRAPS = 64
 WORKLOAD_PERMUTATIONS = 256
 MIB = 1_024 * 1_024
+KIB = 1_024
 P95_PERCENT = 95
 PERCENT_DENOMINATOR = 100
 ROUND_DIGITS_SECONDS = 6
@@ -98,6 +99,7 @@ _NUMERIC_THREAD_ENVIRONMENT_VARIABLES = (
     "OPENBLAS_NUM_THREADS",
     "VECLIB_MAXIMUM_THREADS",
 )
+_LINUX_PROCESS_STATUS = Path("/proc/self/status")
 
 
 class BenchmarkError(RuntimeError):
@@ -298,10 +300,38 @@ def _windows_rss_bytes() -> int:
     return int(counters.peak_working_set_size)
 
 
+def _linux_peak_rss_bytes() -> int:
+    """Read the current executable image's Linux resident-set high-water mark.
+
+    ``getrusage(RUSAGE_SELF).ru_maxrss`` is preserved across ``execve`` on
+    Linux.  A benchmark launched from a coverage-heavy Python process can
+    therefore inherit the launcher's historical peak even though the new
+    executable image never used that memory.  ``VmHWM`` belongs to the current
+    memory image and retains the absolute peak-RSS semantics required here.
+    """
+
+    try:
+        status = _LINUX_PROCESS_STATUS.read_text(encoding="ascii")
+    except OSError as error:
+        raise BenchmarkError("Linux peak RSS could not be read from procfs") from error
+    high_water_rows = [line.split() for line in status.splitlines() if line.startswith("VmHWM:")]
+    if len(high_water_rows) != 1:
+        raise BenchmarkError("Linux procfs did not report exactly one peak-RSS value")
+    row = high_water_rows[0]
+    if len(row) != 3 or row[0] != "VmHWM:" or row[2] != "kB" or not row[1].isdecimal():
+        raise BenchmarkError("Linux procfs reported an invalid peak-RSS value")
+    peak_kib = int(row[1])
+    if peak_kib <= 0:
+        raise BenchmarkError("Linux procfs reported a non-positive peak-RSS value")
+    return peak_kib * KIB
+
+
 def _process_peak_rss_bytes() -> int:
     runtime_system = platform.system()
     if runtime_system == "Windows":
         return _windows_rss_bytes()
+    if runtime_system == "Linux":
+        return _linux_peak_rss_bytes()
     resource_module = importlib.import_module("resource")
     usage = resource_module.getrusage(resource_module.RUSAGE_SELF)
     maximum_rss = int(usage.ru_maxrss)

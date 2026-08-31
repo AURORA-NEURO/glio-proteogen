@@ -45,6 +45,22 @@ EXPECTED_UNION_FEATURE_COUNT: Final = 256
 EXPECTED_BOOTSTRAP_REPLICATES: Final = 128
 EXPECTED_DESIGN_COLUMNS: Final = EXPECTED_PROGRAM_COUNT + 1
 EXPECTED_SOLVER_MAX_ITERATIONS: Final = 200
+EXPECTED_GLOBAL_LOADING_DIGEST: Final = (
+    "sha256:a84008c65aa0df62df825ed454e567819e7e9243802156901e27219c7ea8405d"
+)
+EXPECTED_CONDITIONAL_LOADING_DIGEST: Final = (
+    "sha256:6dd836dc704fb42fac4519ceabd8e307b71fbc12424aafd9961f8872e35c62e6"
+)
+EXPECTED_CONDITIONAL_LOADING_SEMANTIC_DIGEST: Final = (
+    "sha256:d4105a9cdedca972dd403405757297cdf52bb533151bf1eaa1ca14647884ca34"
+)
+LOADING_SEMANTIC_DIGEST_DECIMALS: Final = 12
+REFERENCE_LOADING_RELATIVE_TOLERANCE: Final = 1.0e-12
+REFERENCE_LOADING_ABSOLUTE_TOLERANCE: Final = 1.0e-13
+REFERENCE_CONDITION_RELATIVE_TOLERANCE: Final = 1.0e-9
+REFERENCE_CONDITION_ABSOLUTE_TOLERANCE: Final = 1.0e-9
+
+DesignDecomposition = tuple[FloatArray, float, float, FloatArray]
 
 
 @dataclass(frozen=True, slots=True)
@@ -277,13 +293,13 @@ def _derive_design(
     degree: FloatArray,
     *,
     use_degree: bool = True,
-) -> tuple[FloatArray, tuple[tuple[FloatArray, float, float, FloatArray], ...]]:
+) -> tuple[FloatArray, tuple[DesignDecomposition, ...]]:
     norm = float(np.linalg.norm(effect))
     if not math.isfinite(norm) or norm <= 0.0:
         _fail("fitted global effect has invalid norm")
     global_loading = effect / norm
     columns = [global_loading]
-    decompositions: list[tuple[FloatArray, float, float, FloatArray]] = []
+    decompositions: list[DesignDecomposition] = []
     for positions_value in members:
         positions = np.asarray(positions_value, dtype=np.int64)
         raw = np.zeros(effect.size, dtype=np.float64)
@@ -301,6 +317,35 @@ def _derive_design(
         decompositions.append((raw / residual_norm, projection, residual_norm, conditional))
     design = np.column_stack(columns) * math.sqrt(effect.size)
     return design, tuple(decompositions)
+
+
+def _portable_reference_design(
+    effect: FloatArray,
+    eligible: BoolArray,
+    members: tuple[tuple[int, ...], ...],
+    degree: FloatArray,
+) -> tuple[FloatArray, tuple[DesignDecomposition, ...]]:
+    """Reconstruct reference loadings without BLAS-dependent reductions."""
+
+    norm = math.sqrt(math.fsum(float(value) * float(value) for value in effect))
+    global_loading = effect / norm
+    columns = [global_loading]
+    decompositions: list[DesignDecomposition] = []
+    for positions_value in members:
+        positions = np.asarray(positions_value, dtype=np.int64)
+        raw = np.zeros(effect.size, dtype=np.float64)
+        selected = positions[eligible[positions]]
+        raw[selected] = effect[selected] / np.sqrt(degree[selected])
+        projection = math.fsum(
+            float(global_value) * float(raw_value)
+            for global_value, raw_value in zip(global_loading, raw, strict=True)
+        )
+        residual = raw - projection * global_loading
+        residual_norm = math.sqrt(math.fsum(float(value) * float(value) for value in residual))
+        conditional = residual / residual_norm
+        columns.append(conditional)
+        decompositions.append((raw / residual_norm, projection, residual_norm, conditional))
+    return np.column_stack(columns) * math.sqrt(effect.size), tuple(decompositions)
 
 
 def _derive_equal_membership_design(
@@ -327,6 +372,146 @@ def _derive_equal_membership_design(
             _fail("fitted equal-membership loading has invalid norm")
         columns.append(raw / residual_norm)
     return np.column_stack(columns) * math.sqrt(effect.size)
+
+
+def _portable_equal_membership_design(
+    effect: FloatArray,
+    eligible: BoolArray,
+    members: tuple[tuple[int, ...], ...],
+    degree: FloatArray,
+) -> FloatArray:
+    """Reconstruct the comparison dictionary with scalar reductions."""
+
+    norm = math.sqrt(math.fsum(float(value) * float(value) for value in effect))
+    global_loading = effect / norm
+    columns = [global_loading]
+    for positions_value in members:
+        positions = np.asarray(positions_value, dtype=np.int64)
+        raw = np.zeros(effect.size, dtype=np.float64)
+        selected = positions[eligible[positions]]
+        raw[selected] = 1.0 / np.sqrt(degree[selected])
+        projection = math.fsum(
+            float(global_value) * float(raw_value)
+            for global_value, raw_value in zip(global_loading, raw, strict=True)
+        )
+        raw -= global_loading * projection
+        residual_norm = math.sqrt(math.fsum(float(value) * float(value) for value in raw))
+        columns.append(raw / residual_norm)
+    return np.column_stack(columns) * math.sqrt(effect.size)
+
+
+def _loading_array_matches(actual: FloatArray, expected: FloatArray) -> bool:
+    return actual.shape == expected.shape and bool(
+        np.allclose(
+            actual,
+            expected,
+            rtol=REFERENCE_LOADING_RELATIVE_TOLERANCE,
+            atol=REFERENCE_LOADING_ABSOLUTE_TOLERANCE,
+        )
+    )
+
+
+def _quantized_loading_digest(array: FloatArray) -> str:
+    scale = 10**LOADING_SEMANTIC_DIGEST_DECIMALS
+    quantized = [
+        [round(float(value) * scale) for value in row]
+        for row in np.asarray(array, dtype=np.float64)
+    ]
+    return _digest(quantized)
+
+
+def _verify_reference_designs(
+    design: FloatArray,
+    equal_membership_design: FloatArray,
+    decompositions: tuple[DesignDecomposition, ...],
+    *,
+    effect: FloatArray,
+    eligible: BoolArray,
+    members: tuple[tuple[int, ...], ...],
+    degree: FloatArray,
+    reference: dict[str, object],
+    digests: Mapping[str, str],
+) -> None:
+    # Exact digests bind the immutable offline artifact. Runtime floating
+    # reductions are checked against scalar-reduction reconstructions so
+    # equivalent BLAS implementations need not be byte-identical.
+    if (
+        reference.get("design_raw_sha256") != digests["reference_design_digest"]
+        or reference.get("equal_membership_design_raw_sha256")
+        != digests["equal_membership_design_digest"]
+    ):
+        _fail("fitted reference loading provenance digest mismatch")
+
+    expected_design, expected_decompositions = _portable_reference_design(
+        effect,
+        eligible,
+        members,
+        degree,
+    )
+    expected_equal_membership = _portable_equal_membership_design(
+        effect,
+        eligible,
+        members,
+        degree,
+    )
+    if not _loading_array_matches(design, expected_design) or not _loading_array_matches(
+        equal_membership_design,
+        expected_equal_membership,
+    ):
+        _fail("fitted reference loading semantic mismatch")
+    if (
+        _raw_digest(np.ascontiguousarray(expected_design[:, 0], dtype="<f8").tobytes())
+        != digests["global_loading_digest"]
+        or _quantized_loading_digest(expected_design[:, 1:])
+        != EXPECTED_CONDITIONAL_LOADING_SEMANTIC_DIGEST
+        or _quantized_loading_digest(design[:, 1:]) != EXPECTED_CONDITIONAL_LOADING_SEMANTIC_DIGEST
+    ):
+        _fail("fitted reference loading semantic digest mismatch")
+    if len(decompositions) != len(expected_decompositions):
+        _fail("fitted reference loading decomposition mismatch")
+    for actual, expected in zip(decompositions, expected_decompositions, strict=True):
+        if (
+            not _loading_array_matches(actual[0], expected[0])
+            or not math.isclose(
+                actual[1],
+                expected[1],
+                rel_tol=REFERENCE_LOADING_RELATIVE_TOLERANCE,
+                abs_tol=REFERENCE_LOADING_ABSOLUTE_TOLERANCE,
+            )
+            or not math.isclose(
+                actual[2],
+                expected[2],
+                rel_tol=REFERENCE_LOADING_RELATIVE_TOLERANCE,
+                abs_tol=REFERENCE_LOADING_ABSOLUTE_TOLERANCE,
+            )
+            or not _loading_array_matches(actual[3], expected[3])
+        ):
+            _fail("fitted reference loading decomposition mismatch")
+
+    conditions = (
+        (
+            _finite(reference.get("design_condition_number"), "design condition"),
+            float(np.linalg.cond(design)),
+        ),
+        (
+            _finite(
+                reference.get("equal_membership_design_condition_number"),
+                "equal-membership design condition",
+            ),
+            float(np.linalg.cond(equal_membership_design)),
+        ),
+    )
+    if any(
+        not math.isfinite(runtime)
+        or not math.isclose(
+            declared,
+            runtime,
+            rel_tol=REFERENCE_CONDITION_RELATIVE_TOLERANCE,
+            abs_tol=REFERENCE_CONDITION_ABSOLUTE_TOLERANCE,
+        )
+        for declared, runtime in conditions
+    ):
+        _fail("fitted reference loading condition mismatch")
 
 
 def _loading_cosines(left: FloatArray, right: FloatArray) -> tuple[float, ...]:
@@ -373,11 +558,18 @@ def _locked_digests(document: dict[str, object]) -> dict[str, str]:
         "bootstrap_ensemble_digest",
         "evaluation_digest",
     }
-    if set(values) != expected_keys or any(
-        not isinstance(values[key], str)
-        or not str(values[key]).startswith("sha256:")
-        or len(str(values[key])) != 71
-        for key in expected_keys
+    if (
+        set(values) != expected_keys
+        or any(
+            not isinstance(values[key], str)
+            or not str(values[key]).startswith("sha256:")
+            or len(str(values[key])) != 71
+            for key in expected_keys
+        )
+        or (
+            values["global_loading_digest"] != EXPECTED_GLOBAL_LOADING_DIGEST
+            or values["conditional_loading_digest"] != EXPECTED_CONDITIONAL_LOADING_DIGEST
+        )
     ):
         _fail("fitted artifact locked digest inventory mismatch")
     return {key: str(values[key]) for key in expected_keys}
@@ -593,36 +785,17 @@ def neftel_program_fitted_catalog() -> NeftelProgramFittedCatalog:  # noqa: PLR0
         members,
         degree,
     )
-    design_bytes = np.ascontiguousarray(design, dtype="<f8").tobytes()
-    equal_design_bytes = np.ascontiguousarray(
+    _verify_reference_designs(
+        design,
         equal_membership_design,
-        dtype="<f8",
-    ).tobytes()
-    if (
-        _raw_digest(design_bytes) != digests["reference_design_digest"]
-        or reference.get("design_raw_sha256") != digests["reference_design_digest"]
-        or _raw_digest(equal_design_bytes) != digests["equal_membership_design_digest"]
-        or reference.get("equal_membership_design_raw_sha256")
-        != digests["equal_membership_design_digest"]
-        or _raw_digest(np.ascontiguousarray(design[:, 0], dtype="<f8").tobytes())
-        != digests["global_loading_digest"]
-        or _raw_digest(np.ascontiguousarray(design[:, 1:], dtype="<f8").tobytes())
-        != digests["conditional_loading_digest"]
-        or not math.isclose(
-            _finite(reference.get("design_condition_number"), "design condition"),
-            float(np.linalg.cond(design)),
-            abs_tol=5.0e-11,
-        )
-        or not math.isclose(
-            _finite(
-                reference.get("equal_membership_design_condition_number"),
-                "equal-membership design condition",
-            ),
-            float(np.linalg.cond(equal_membership_design)),
-            abs_tol=5.0e-11,
-        )
-    ):
-        _fail("fitted reference loading digest or condition mismatch")
+        decompositions,
+        effect=reference_effect,
+        eligible=reference_eligible,
+        members=members,
+        degree=degree,
+        reference=reference,
+        digests=digests,
+    )
 
     processing = _object(document.get("source_processing_ablation"), "source processing ablation")
     ordinary_tensor = processing.get("effect")

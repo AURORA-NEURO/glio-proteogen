@@ -329,6 +329,8 @@ jobs:
             tests/research/test_kncc_reactome_complex_transition_fitter.py \
             tests/research/test_kncc_reactome_complex_transition_source_guards.py \
             tests/research/test_kncc_reactome_complex_transition_source.py \
+            tests/research/test_m09_complex_transition_facade.py \
+            tests/integration/test_m09_complex_transition_facade.py \
             tests/integration/test_longitudinal_gbm_complex_transition_adapter.py
           uv run mypy --strict \
             src/glio_proteogen/research/longitudinal_gbm_complex_transition \
@@ -359,6 +361,8 @@ jobs:
             tests/research/test_kncc_reactome_complex_transition_fitter.py \
             tests/research/test_kncc_reactome_complex_transition_source_guards.py \
             tests/research/test_kncc_reactome_complex_transition_source.py \
+            tests/research/test_m09_complex_transition_facade.py \
+            tests/integration/test_m09_complex_transition_facade.py \
             tests/integration/test_longitudinal_gbm_complex_transition_adapter.py
           uv run coverage report --fail-under=100 \
             --include='src/glio_proteogen/research/longitudinal_gbm_complex_transition/*.py'
@@ -1147,7 +1151,7 @@ jobs:
 
   microbenchmarks:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:

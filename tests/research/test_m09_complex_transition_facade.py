@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING, cast
 
 import pytest
 from pydantic import ValidationError
@@ -23,6 +24,17 @@ from glio_proteogen.research.longitudinal_gbm_complex_transition.service import 
     analyze_longitudinal_gbm_complex_transition,
     verify_longitudinal_gbm_complex_transition_replay,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+
+def _run_bound_profile_validator(profile: M09ComplexTransitionFacadeProfile) -> None:
+    validator = cast(
+        "Callable[[], M09ComplexTransitionFacadeProfile]",
+        profile.profile_is_complete_and_content_bound,
+    )
+    validator()
 
 
 def test_profile_binds_exact_engine_complete_mapping_and_literal_claim_ceiling() -> None:
@@ -73,6 +85,20 @@ def test_profile_binds_exact_engine_complete_mapping_and_literal_claim_ceiling()
 
 def test_facade_profile_rejects_resealed_reordered_or_forged_metadata() -> None:
     profile = m09_facade_profile()
+
+    with pytest.raises(ValidationError, match="delegated profile digest"):
+        M09ComplexTransitionFacadeProfile.model_validate(
+            profile.model_copy(update={"delegated_profile_digest": "sha256:" + "0" * 64})
+        )
+
+    forged_delegated_profile = profile.delegated_profile.model_copy(
+        update={"claim_ceiling": "forged_claim_ceiling"}
+    )
+    with pytest.raises(ValueError, match="exceeds the M09 facade claim ceiling"):
+        _run_bound_profile_validator(
+            profile.model_copy(update={"delegated_profile": forged_delegated_profile})
+        )
+
     document = profile.model_dump(mode="json")
     document["responsibility_boundaries"] = list(reversed(document["responsibility_boundaries"]))
     payload = {key: value for key, value in document.items() if key != "facade_profile_digest"}

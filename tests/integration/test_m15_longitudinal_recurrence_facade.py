@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -11,8 +12,13 @@ from glio_proteogen.adapters import longitudinal_gbm as adapter
 from glio_proteogen.research.longitudinal_gbm import LongitudinalGbmRequest
 from glio_proteogen.research.longitudinal_gbm.service import analyze_longitudinal_gbm
 
+if TYPE_CHECKING:
+    import pytest
+
 _PREFIX = adapter.M15_LONGITUDINAL_RECURRENCE_ROUTE_PREFIX
 _HTTP_OK = 200
+_HTTP_INTERNAL_SERVER_ERROR = 500
+_SENSITIVE = "sensitive fitted-profile detail"
 
 
 def _app() -> FastAPI:
@@ -79,3 +85,16 @@ def test_http_lifecycle_is_exact_content_bound_delegation() -> None:
     assert openapi["paths"][f"{_PREFIX}/verify"]["post"]["requestBody"]["content"][
         "application/json"
     ]["schema"] == {"$ref": "#/components/schemas/LongitudinalGbmReplayVerificationRequest"}
+
+
+def test_profile_integrity_failure_is_sanitized(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fail() -> None:
+        raise RuntimeError(_SENSITIVE)
+
+    monkeypatch.setattr(adapter, "m15_facade_profile", fail)
+    with TestClient(_app()) as client:
+        response = client.get(f"{_PREFIX}/profile")
+
+    assert response.status_code == _HTTP_INTERNAL_SERVER_ERROR
+    assert response.json() == {"detail": "longitudinal GBM analysis failed safely"}
+    assert "sensitive" not in response.text

@@ -17,6 +17,8 @@ from glio_proteogen.research.longitudinal_gbm_neftel_transition.errors import (
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
+_RUNTIME_DESIGN_DIGEST_ASSERTION = "runtime-derived reference designs must not be raw-digested"
+
 
 @pytest.fixture(autouse=True)
 def _clear_fitted_cache() -> Iterator[None]:
@@ -253,6 +255,25 @@ def test_fitted_catalog_rejects_locked_domain_mutations(
         fitted.neftel_program_fitted_catalog()
 
 
+@pytest.mark.parametrize(
+    "field",
+    ["global_loading_digest", "conditional_loading_digest"],
+)
+def test_fitted_catalog_rejects_forged_loading_digest_inventory(
+    monkeypatch: pytest.MonkeyPatch,
+    field: str,
+) -> None:
+    document = _artifact_document()
+    cast("dict[str, object]", document["digests"])[field] = "sha256:" + "0" * 64
+    _install_document(monkeypatch, document)
+
+    with pytest.raises(
+        NeftelConditionalModelIntegrityError,
+        match="locked digest inventory",
+    ):
+        fitted.neftel_program_fitted_catalog()
+
+
 def test_fitted_catalog_rejects_membership_reference_and_design_mismatches(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -331,7 +352,188 @@ def test_fitted_catalog_rejects_membership_reference_and_design_mismatches(
         "cond",
         lambda value: float(original_condition(value)) + 1.0,
     )
-    with pytest.raises(NeftelConditionalModelIntegrityError, match="loading digest"):
+    with pytest.raises(NeftelConditionalModelIntegrityError, match="loading condition"):
+        fitted.neftel_program_fitted_catalog()
+
+
+def test_fitted_catalog_accepts_portable_reference_loading_roundoff(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    baseline = fitted.neftel_program_fitted_catalog()
+    fitted.neftel_program_fitted_catalog.cache_clear()
+    original_derive = fitted._derive_design
+    original_equal = fitted._derive_equal_membership_design
+    original_raw_digest = fitted._raw_digest
+    original_condition = np.linalg.cond
+    reference_design_bytes = baseline.reference_design.nbytes
+    invocation_count = 0
+    equal_membership_varied = False
+
+    def one_ulp_reference_design(
+        effect: fitted.FloatArray,
+        eligible: fitted.BoolArray,
+        members: tuple[tuple[int, ...], ...],
+        degree: fitted.FloatArray,
+        *,
+        use_degree: bool = True,
+    ) -> tuple[fitted.FloatArray, tuple[fitted.DesignDecomposition, ...]]:
+        nonlocal invocation_count
+        design, decompositions = original_derive(
+            effect,
+            eligible,
+            members,
+            degree,
+            use_degree=use_degree,
+        )
+        if invocation_count == 0:
+            design = np.array(design, copy=True)
+            index = np.unravel_index(np.argmax(np.abs(design)), design.shape)
+            design[index] = np.nextafter(design[index], math.inf)
+        invocation_count += 1
+        return design, decompositions
+
+    def one_ulp_equal_membership_design(
+        effect: fitted.FloatArray,
+        eligible: fitted.BoolArray,
+        members: tuple[tuple[int, ...], ...],
+        degree: fitted.FloatArray,
+    ) -> fitted.FloatArray:
+        nonlocal equal_membership_varied
+        design = np.array(original_equal(effect, eligible, members, degree), copy=True)
+        index = np.unravel_index(np.argmax(np.abs(design)), design.shape)
+        design[index] = np.nextafter(design[index], math.inf)
+        equal_membership_varied = True
+        return design
+
+    def forbid_runtime_design_digest(value: bytes) -> str:
+        if len(value) == reference_design_bytes:
+            raise AssertionError(_RUNTIME_DESIGN_DIGEST_ASSERTION)
+        return original_raw_digest(value)
+
+    monkeypatch.setattr(fitted, "_derive_design", one_ulp_reference_design)
+    monkeypatch.setattr(
+        fitted,
+        "_derive_equal_membership_design",
+        one_ulp_equal_membership_design,
+    )
+    monkeypatch.setattr(fitted, "_raw_digest", forbid_runtime_design_digest)
+    monkeypatch.setattr(
+        np.linalg,
+        "cond",
+        lambda value: float(original_condition(value)) + 2.0e-10,
+    )
+    varied = fitted.neftel_program_fitted_catalog()
+
+    assert varied.reference_design_digest == baseline.reference_design_digest
+    assert varied.equal_membership_design_digest == baseline.equal_membership_design_digest
+    assert not np.array_equal(varied.reference_design, baseline.reference_design)
+    assert equal_membership_varied
+
+
+@pytest.mark.parametrize(
+    ("target", "message"),
+    [
+        ("design", "loading semantic"),
+        ("equal design", "loading semantic"),
+        ("decomposition", "loading decomposition"),
+        ("decomposition count", "loading decomposition"),
+    ],
+)
+def test_fitted_catalog_rejects_material_reference_loading_changes(
+    monkeypatch: pytest.MonkeyPatch,
+    target: str,
+    message: str,
+) -> None:
+    original_derive = fitted._derive_design
+    original_equal = fitted._derive_equal_membership_design
+    invocation_count = 0
+
+    def corrupt_reference_design(
+        effect: fitted.FloatArray,
+        eligible: fitted.BoolArray,
+        members: tuple[tuple[int, ...], ...],
+        degree: fitted.FloatArray,
+        *,
+        use_degree: bool = True,
+    ) -> tuple[fitted.FloatArray, tuple[fitted.DesignDecomposition, ...]]:
+        nonlocal invocation_count
+        design, decompositions = original_derive(
+            effect,
+            eligible,
+            members,
+            degree,
+            use_degree=use_degree,
+        )
+        if invocation_count == 0:
+            if target == "design":
+                design = np.array(design, copy=True)
+                design[0, 0] += 1.0e-6
+            elif target == "decomposition":
+                first = decompositions[0]
+                corrupted = np.array(first[0], copy=True)
+                corrupted[0] += 1.0e-6
+                decompositions = ((corrupted, *first[1:]), *decompositions[1:])
+            elif target == "decomposition count":
+                decompositions = decompositions[:-1]
+        invocation_count += 1
+        return design, decompositions
+
+    def corrupt_equal_membership_design(
+        effect: fitted.FloatArray,
+        eligible: fitted.BoolArray,
+        members: tuple[tuple[int, ...], ...],
+        degree: fitted.FloatArray,
+    ) -> fitted.FloatArray:
+        design = original_equal(effect, eligible, members, degree)
+        if target != "equal design":
+            return design
+        corrupted = np.array(design, copy=True)
+        corrupted[0, 0] += 1.0e-6
+        return corrupted
+
+    monkeypatch.setattr(fitted, "_derive_design", corrupt_reference_design)
+    monkeypatch.setattr(
+        fitted,
+        "_derive_equal_membership_design",
+        corrupt_equal_membership_design,
+    )
+    with pytest.raises(NeftelConditionalModelIntegrityError, match=message):
+        fitted.neftel_program_fitted_catalog()
+
+
+@pytest.mark.parametrize(
+    "field",
+    ["design_raw_sha256", "equal_membership_design_raw_sha256"],
+)
+def test_fitted_catalog_rejects_unbound_reference_design_provenance(
+    monkeypatch: pytest.MonkeyPatch,
+    field: str,
+) -> None:
+    document = _artifact_document()
+    reference = cast("dict[str, object]", document["reference_fit"])
+    reference[field] = "sha256:" + "0" * 64
+    _install_document(monkeypatch, document)
+
+    with pytest.raises(
+        NeftelConditionalModelIntegrityError,
+        match="loading provenance digest",
+    ):
+        fitted.neftel_program_fitted_catalog()
+
+
+def test_fitted_catalog_rejects_unbound_conditional_semantic_digest(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        fitted,
+        "_quantized_loading_digest",
+        lambda _array: "sha256:" + "0" * 64,
+    )
+
+    with pytest.raises(
+        NeftelConditionalModelIntegrityError,
+        match="loading semantic digest",
+    ):
         fitted.neftel_program_fitted_catalog()
 
 

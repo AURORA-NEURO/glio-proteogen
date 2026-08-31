@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -12,12 +13,17 @@ from glio_proteogen.adapters.api import _MODEL_ROUTE_LIMITS
 from glio_proteogen.research.longitudinal_gbm_complex_transition import (
     LongitudinalGbmComplexTransitionRequest,
 )
+from glio_proteogen.research.longitudinal_gbm_complex_transition.errors import (
+    ComplexTransitionModelIntegrityError,
+    ComplexTransitionSourceIntegrityError,
+)
 from glio_proteogen.research.longitudinal_gbm_complex_transition.service import (
     analyze_longitudinal_gbm_complex_transition,
 )
 
 _PREFIX = adapter.M09_COMPLEX_TRANSITION_ROUTE_PREFIX
 _HTTP_OK = 200
+_HTTP_INTERNAL_SERVER_ERROR = 500
 
 
 def _app() -> FastAPI:
@@ -100,3 +106,43 @@ def test_transport_limits_are_exact_delegated_bounds() -> None:
         adapter.M09_COMPLEX_TRANSITION_REPLAY_MAX_BYTES,
         adapter.M09_COMPLEX_TRANSITION_RESULT_MAX_BYTES,
     )
+
+
+@pytest.mark.parametrize(
+    ("failure", "status_code"),
+    [
+        (ComplexTransitionSourceIntegrityError("sensitive"), 503),
+        (ComplexTransitionModelIntegrityError("sensitive"), 503),
+        (RuntimeError("sensitive"), 500),
+    ],
+)
+def test_profile_failures_are_sanitized(
+    monkeypatch: pytest.MonkeyPatch,
+    failure: Exception,
+    status_code: int,
+) -> None:
+    def fail() -> None:
+        raise failure
+
+    app = _app()
+    monkeypatch.setattr(adapter, "m09_facade_profile", fail)
+    with TestClient(app) as client:
+        response = client.get(f"{_PREFIX}/profile")
+
+    assert response.status_code == status_code
+    assert "sensitive" not in response.text
+
+
+def test_profile_transport_bound_is_enforced(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        adapter,
+        "canonical_json_bytes",
+        lambda _value: b"x" * (adapter.M09_COMPLEX_TRANSITION_RESULT_MAX_BYTES + 1),
+    )
+    with TestClient(_app()) as client:
+        response = client.get(f"{_PREFIX}/profile")
+
+    assert response.status_code == _HTTP_INTERNAL_SERVER_ERROR
+    assert response.json() == {
+        "detail": "M09 complex-transition profile exceeded its transport bound"
+    }

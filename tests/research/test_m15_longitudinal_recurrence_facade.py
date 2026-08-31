@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import pytest
+from pydantic import ValidationError
+
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.research.longitudinal_gbm import ReplayVerificationRequest
 from glio_proteogen.research.longitudinal_gbm.m15_facade import (
+    M15LongitudinalRecurrenceFacadeProfile,
     M15ResponsibilityDisposition,
     analyze_m15_longitudinal_recurrence_evidence,
     m15_facade_demo,
@@ -54,6 +58,29 @@ def test_profile_binds_exact_engine_and_conservative_m15_ceiling() -> None:
     assert (
         boundaries["GLIO-PROTEOGEN-M15-06"].disposition is M15ResponsibilityDisposition.OUT_OF_SCOPE
     )
+
+
+def test_profile_rejects_incomplete_or_forged_content_bindings() -> None:
+    profile = m15_facade_profile()
+
+    with pytest.raises(ValidationError, match="complete and ordered"):
+        M15LongitudinalRecurrenceFacadeProfile.model_validate(
+            profile.model_copy(
+                update={
+                    "responsibility_boundaries": tuple(reversed(profile.responsibility_boundaries))
+                }
+            )
+        )
+
+    with pytest.raises(ValidationError, match="delegated profile digest"):
+        M15LongitudinalRecurrenceFacadeProfile.model_validate(
+            profile.model_copy(update={"delegated_profile_digest": "sha256:" + "0" * 64})
+        )
+
+    with pytest.raises(ValidationError, match="canonical profile content"):
+        M15LongitudinalRecurrenceFacadeProfile.model_validate(
+            profile.model_copy(update={"facade_profile_digest": "sha256:" + "f" * 64})
+        )
 
 
 def test_demo_analysis_and_replay_are_exact_delegations() -> None:

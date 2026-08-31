@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import os
 from collections import Counter
+from typing import TYPE_CHECKING
 
 import pytest
 from benchmarks.research_proteogenomic_state import (
@@ -37,6 +38,9 @@ from glio_proteogen.research.proteogenomic_state import (
     NodeKind,
 )
 from glio_proteogen.research.proteogenomic_state.canonical import canonical_json_bytes
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 DIGEST_A = "sha256:" + "a" * 64
 DIGEST_B = "sha256:" + "b" * 64
@@ -76,6 +80,21 @@ def _updated_scenario(value: ScenarioEvidence, **updates: object) -> ScenarioEvi
     payload = value.model_dump(mode="python")
     payload.update(updates)
     return ScenarioEvidence.model_validate(payload, strict=True)
+
+
+def _performance_evidence(
+    scenarios: tuple[ScenarioEvidence, ScenarioEvidence],
+    *,
+    passed: bool,
+) -> PerformanceEvidence:
+    return PerformanceEvidence(
+        profile_digest=DIGEST_A,
+        numpy_version="2.5.2",
+        python_version="3.12.13",
+        platform="test-platform",
+        scenarios=scenarios,
+        passed=passed,
+    )
 
 
 def test_maximum_fixture_is_locked_and_reaches_every_named_structural_bound() -> None:
@@ -135,16 +154,10 @@ def test_evidence_models_reject_incomplete_or_self_inconsistent_claims() -> None
         _updated_scenario(_scenario(), result_bytes=MAX_RESULT_BYTES + 1)
     demo = _scenario()
     maximum = _scenario("maximum-bounds")
-    common = {
-        "profile_digest": DIGEST_A,
-        "numpy_version": "2.5.2",
-        "python_version": "3.12.13",
-        "platform": "test-platform",
-    }
     with pytest.raises(ValidationError, match="both scenarios"):
-        PerformanceEvidence(**common, scenarios=(maximum, demo), passed=True)
+        _performance_evidence((maximum, demo), passed=True)
     with pytest.raises(ValidationError, match="receipt pass state"):
-        PerformanceEvidence(**common, scenarios=(demo, maximum), passed=False)
+        _performance_evidence((demo, maximum), passed=False)
 
 
 def test_nearest_rank_p95_is_conservative_and_rejects_invalid_inputs() -> None:
@@ -170,6 +183,53 @@ def test_fresh_benchmark_process_has_bounded_numeric_worker_counts(
     assert all(environment[variable] == "1" for variable in variables)
     assert all(os.environ[variable] == "64" for variable in variables)
     assert environment["PYTHONDONTWRITEBYTECODE"] == "1"
+
+
+def test_linux_peak_rss_uses_the_current_executable_image_high_water_mark(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    status_path = tmp_path / "status"
+    status_path.write_text(
+        "Name:\tpython\nVmHWM:\t73421 kB\nVmRSS:\t70000 kB\n",
+        encoding="ascii",
+    )
+    monkeypatch.setattr(performance_benchmark, "_LINUX_PROCESS_STATUS", status_path)
+
+    assert performance_benchmark._linux_peak_rss_bytes() == 73_421 * 1_024
+
+
+@pytest.mark.parametrize(
+    "status",
+    [
+        "Name:\tpython\n",
+        "VmHWM:\t1 kB\nVmHWM:\t2 kB\n",
+        "VmHWM:\tnot-a-number kB\n",
+        "VmHWM:\t12 bytes\n",
+        "VmHWM:\t0 kB\n",
+    ],
+)
+def test_linux_peak_rss_fails_closed_on_invalid_procfs_status(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    status: str,
+) -> None:
+    status_path = tmp_path / "status"
+    status_path.write_text(status, encoding="ascii")
+    monkeypatch.setattr(performance_benchmark, "_LINUX_PROCESS_STATUS", status_path)
+
+    with pytest.raises(performance_benchmark.BenchmarkError, match=r"peak.RSS"):
+        performance_benchmark._linux_peak_rss_bytes()
+
+
+def test_linux_peak_rss_fails_closed_when_procfs_cannot_be_read(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(performance_benchmark, "_LINUX_PROCESS_STATUS", tmp_path / "missing")
+
+    with pytest.raises(performance_benchmark.BenchmarkError, match="procfs"):
+        performance_benchmark._linux_peak_rss_bytes()
 
 
 @pytest.mark.benchmark

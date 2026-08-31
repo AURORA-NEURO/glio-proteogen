@@ -23,6 +23,9 @@ _HISTORICAL_ARTIFACT_BY_TEST_FILE = {
     "test_m1404_release.py": "dist-m14-04",
     "test_m1406_release.py": "dist-m14-06",
     "test_m1807_release.py": "dist-m18-07",
+    "test_m2502_release.py": "dist-m25-02",
+    "test_m2504_release.py": "dist-m25-04",
+    "test_m2702_release.py": "dist-m27-02",
 }
 
 

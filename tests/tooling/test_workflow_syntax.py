@@ -34,6 +34,9 @@ def test_repository_workflow_has_unique_mapping_keys() -> None:
     assert "rg --files" not in workflow_text
     assert "tests/research/test_m15_longitudinal_recurrence_facade.py" in workflow_text
     assert "tests/integration/test_m15_longitudinal_recurrence_facade.py" in workflow_text
+    assert "tests/research/test_m09_complex_transition_facade.py" in workflow_text
+    assert "tests/integration/test_m09_complex_transition_facade.py" in workflow_text
+    assert "microbenchmarks:\n    runs-on: ubuntu-latest\n    timeout-minutes: 30" in workflow_text
     assert "--junit-xml evidence/tests.junit.xml" in release_text
     assert "--coverage-report evidence/coverage.xml" in release_text
 
