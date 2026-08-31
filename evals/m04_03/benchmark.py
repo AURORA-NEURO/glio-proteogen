@@ -29,7 +29,10 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_03_raw_ingestion import (
     ingest_proteoform_raw_inputs,
 )
 
-ITERATIONS: Final = 25
+# One hundred samples make nearest-rank p95 the 95th ordered observation rather
+# than the second-slowest value from a 25-call run. This preserves the installed
+# latency ceilings while preventing two isolated tail samples from defining p95.
+ITERATIONS: Final = 100
 WARMUP_COUNT: Final = 1
 # The mean ceiling is calibrated to retain a 20% reserve below the unchanged
 # p95 ceiling.  That separation catches sustained regressions without treating
@@ -75,11 +78,17 @@ class NonDeterministicBenchmarkError(RuntimeError):
     """A timed ingestion disagreed with the untimed warmup result."""
 
 
+class InvalidBenchmarkEnvironmentError(RuntimeError):
+    """The interpreter does not expose the benchmark's normal cyclic-GC policy."""
+
+
 def run_benchmark(iterations: int = ITERATIONS) -> BenchmarkReport:
     """Build and warm outside timing, then time the bounded public workload."""
 
     if iterations < 1:
         raise ValueError("iterations must be positive")  # noqa: TRY003
+    if not gc.isenabled():
+        raise InvalidBenchmarkEnvironmentError
     scenario = build_scenario()
     warmup = ingest_proteoform_raw_inputs(scenario.request, scenario.artifacts_by_role)
     if (
@@ -157,7 +166,12 @@ def main(argv: list[str] | None = None) -> int:
     return 0 if report.passed else 1
 
 
-__all__ = ["BenchmarkReport", "main", "run_benchmark"]
+__all__ = [
+    "BenchmarkReport",
+    "InvalidBenchmarkEnvironmentError",
+    "main",
+    "run_benchmark",
+]
 
 
 if __name__ == "__main__":
