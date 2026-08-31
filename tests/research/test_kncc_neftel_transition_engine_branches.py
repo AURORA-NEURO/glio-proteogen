@@ -209,7 +209,17 @@ def test_solver_nonconvergence_condition_and_linear_failures(
             SolverEvidence(1, 1.0, "exact_delta", 1.0),
         ),
     )
-    assert math.isinf(collinear.diagnostics.design_condition_number)
+    # LAPACK implementations may represent the same singular design as either
+    # infinity or a finite condition number large enough to reject the solve.
+    assert not engine._solve_is_valid(collinear)
+
+    with monkeypatch.context() as condition_patch:
+        condition_patch.setattr(np.linalg, "cond", lambda *_: math.inf)
+        non_finite_condition = solve_conditional_coordinates(
+            np.ones((1, 1), dtype=np.float64),
+            (SolverEvidence(0, 1.0, "exact_delta", 1.0),),
+        )
+    assert math.isinf(non_finite_condition.diagnostics.design_condition_number)
 
     monkeypatch.setattr(
         np.linalg,
