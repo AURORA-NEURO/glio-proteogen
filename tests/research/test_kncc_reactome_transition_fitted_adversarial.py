@@ -168,7 +168,9 @@ def test_solver_rejects_invalid_constants(kwargs: dict[str, float | int]) -> Non
         )
 
 
-def test_solver_reports_nonconvergence_and_infinite_condition() -> None:
+def test_solver_reports_nonconvergence_and_infinite_condition(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     result = solve_conditional_coordinates(
         np.eye(2, dtype=np.float64),
         (
@@ -180,13 +182,15 @@ def test_solver_reports_nonconvergence_and_infinite_condition() -> None:
     )
     assert not result.diagnostics.converged
     assert result.diagnostics.iterations == 1
-    collinear = solve_conditional_coordinates(
-        np.ones((2, 2), dtype=np.float64),
-        (
-            SolverEvidence(0, 1.0, "exact_delta", 1.0),
-            SolverEvidence(1, 1.0, "exact_delta", 1.0),
-        ),
-    )
+    with monkeypatch.context() as condition_patch:
+        condition_patch.setattr(np.linalg, "cond", lambda *_: 5.961777047638983e16)
+        collinear = solve_conditional_coordinates(
+            np.ones((2, 2), dtype=np.float64),
+            (
+                SolverEvidence(0, 1.0, "exact_delta", 1.0),
+                SolverEvidence(1, 1.0, "exact_delta", 1.0),
+            ),
+        )
     assert math.isinf(collinear.diagnostics.design_condition_number)
 
 

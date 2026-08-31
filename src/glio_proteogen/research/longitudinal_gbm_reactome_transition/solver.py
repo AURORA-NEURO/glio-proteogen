@@ -253,6 +253,14 @@ def solve_conditional_coordinates(
         for left, right in pairwise(objective_trace)
     )
     condition = float(np.linalg.cond(active_design))
+    # LAPACK may encode an exactly rank-deficient design as either infinity or
+    # a very large finite condition number. Apply an explicit numerical-rank
+    # cutoff so the diagnostic has the same semantics on every runner.
+    singular_values = np.linalg.svd(active_design, compute_uv=False)
+    rank_tolerance = np.finfo(np.float64).eps * max(active_design.shape) * float(singular_values[0])
+    rank_deficient = float(singular_values[-1]) <= rank_tolerance
+    if rank_deficient:
+        condition = math.inf
     if not math.isfinite(condition):
         condition = math.inf
     return ConditionalSolveResult(
