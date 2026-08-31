@@ -83,10 +83,39 @@ from glio_proteogen.adapters.api import (
     _support_routing_contract_schema,
     create_app,
 )
+from glio_proteogen.adapters.cptac_gbm_cis_dosage import (
+    cli as cptac_gbm_cis_dosage_app,
+)
+from glio_proteogen.adapters.cptac_gbm_transcript_protein_discordance import (
+    cli as cptac_gbm_transcript_protein_discordance_app,
+)
+from glio_proteogen.adapters.gbm_factor_graph import cli as gbm_factor_graph_app
+from glio_proteogen.adapters.gbm_functional_proteotype import (
+    cli as gbm_functional_proteotype_app,
+)
+from glio_proteogen.adapters.gbm_master_kinases import cli as gbm_master_kinases_app
+from glio_proteogen.adapters.gbm_rna_purity import cli as gbm_rna_purity_app
+from glio_proteogen.adapters.glioma_models import cli as gbm_axes_app
 from glio_proteogen.adapters.limits import (
     MAX_REQUEST_BYTES,
     RequestBodyTooLargeError,
     read_bounded,
+)
+from glio_proteogen.adapters.longitudinal_gbm import cli as longitudinal_gbm_app
+from glio_proteogen.adapters.longitudinal_gbm_complex_transition import (
+    cli as longitudinal_gbm_complex_transition_app,
+)
+from glio_proteogen.adapters.longitudinal_gbm_kinase_transition import (
+    cli as longitudinal_gbm_kinase_transition_app,
+)
+from glio_proteogen.adapters.longitudinal_gbm_neftel_transition import (
+    cli as longitudinal_gbm_neftel_transition_app,
+)
+from glio_proteogen.adapters.longitudinal_gbm_phospho import (
+    cli as longitudinal_gbm_phospho_app,
+)
+from glio_proteogen.adapters.longitudinal_gbm_reactome_transition import (
+    cli as longitudinal_gbm_reactome_transition_app,
 )
 from glio_proteogen.adapters.m1901 import m1901_app
 from glio_proteogen.adapters.m1902 import m1902_app
@@ -95,6 +124,8 @@ from glio_proteogen.adapters.m2001 import m2001_app
 from glio_proteogen.adapters.m2002 import m2002_app
 from glio_proteogen.adapters.m2003 import m2003_app
 from glio_proteogen.adapters.m2004 import m2004_app
+from glio_proteogen.adapters.neftel_programs import cli as neftel_programs_app
+from glio_proteogen.adapters.research_state import cli as research_state_app
 from glio_proteogen.contracts.m01_01.v1 import (
     EvaluateMetadataRequest,
     RegisterProtocolRequest,
@@ -709,6 +740,33 @@ if TYPE_CHECKING:
 app = typer.Typer(no_args_is_help=True, pretty_exceptions_enable=False)
 protocol_app = typer.Typer(no_args_is_help=True, help="M01-01 protocol operations.")
 app.add_typer(protocol_app, name="protocol")
+app.add_typer(research_state_app, name="research-state")
+app.add_typer(gbm_factor_graph_app, name="gbm-factor-graph")
+app.add_typer(gbm_functional_proteotype_app, name="gbm-functional-proteotype")
+app.add_typer(gbm_axes_app, name="gbm-axes")
+app.add_typer(neftel_programs_app, name="neftel-programs")
+app.add_typer(gbm_master_kinases_app, name="gbm-master-kinases")
+app.add_typer(gbm_rna_purity_app, name="gbm-rna-purity")
+app.add_typer(longitudinal_gbm_app, name="longitudinal-gbm")
+app.add_typer(longitudinal_gbm_complex_transition_app, name="complex-transition")
+app.add_typer(longitudinal_gbm_phospho_app, name="longitudinal-gbm-phospho")
+app.add_typer(
+    longitudinal_gbm_kinase_transition_app,
+    name="longitudinal-gbm-kinase-transition",
+)
+app.add_typer(
+    longitudinal_gbm_neftel_transition_app,
+    name="longitudinal-gbm-neftel-transition",
+)
+app.add_typer(
+    longitudinal_gbm_reactome_transition_app,
+    name="longitudinal-gbm-reactome-transition",
+)
+app.add_typer(cptac_gbm_cis_dosage_app, name="cptac-gbm-cis-dosage")
+app.add_typer(
+    cptac_gbm_transcript_protein_discordance_app,
+    name="cptac-gbm-transcript-protein-discordance",
+)
 identity_app = typer.Typer(no_args_is_help=True, help="M01-02 identity and lineage operations.")
 app.add_typer(identity_app, name="identity")
 raw_app = typer.Typer(no_args_is_help=True, help="M01-03 bounded raw-format ingestion.")

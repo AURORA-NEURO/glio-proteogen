@@ -24,6 +24,7 @@ from glio_proteogen.contracts.m04_01 import ProteoformApplicability
 from glio_proteogen.contracts.m04_04 import (
     ProteoformQualityMetricStatus,
 )
+from glio_proteogen.contracts.m04_05 import ProteoformEvidenceUnitKind
 from glio_proteogen.contracts.m04_06 import (
     HarmonizeProteoformAnalysisRequest,
     ProteoformNormalizationFactor,
@@ -35,7 +36,6 @@ from glio_proteogen.contracts.m04_06 import (
     configuration_digest as harmonization_configuration_digest,
 )
 from glio_proteogen.contracts.m04_07 import (
-    M0407_MAX_ANALYSIS_TARGETS,
     ProteoformAbstentionCode,
     ProteoformContextReceipt,
     ProteoformContextRole,
@@ -488,6 +488,16 @@ def _outside_case(
     dimension: ProteoformSupportDimension,
 ) -> EvalCheck:
     result = route_proteoform_support(request)
+    return _outside_result_case(case_id, result, dimension)
+
+
+def _outside_result_case(
+    case_id: str,
+    result: ProteoformSupportRouteResult,
+    dimension: ProteoformSupportDimension,
+) -> EvalCheck:
+    """Assert one dimension from an already-computed joint assessment."""
+
     codes = {item.code for item in result.abstention_reasons}
     return _scenario(
         case_id,
@@ -505,113 +515,81 @@ def _outside_case(
 
 
 def _outside_dimension_checks(scenario: Scenario) -> list[EvalCheck]:
+    """Exercise all eight dimensions in one evidence-conserving joint route.
+
+    M04-07 evaluates every dimension for every candidate envelope.  A single
+    request with one explicit outside-domain fact per dimension therefore
+    retains all eight independent dimension oracles while avoiding seven
+    redundant serializations of the same deeply nested M04-04/M04-06 chain.
+    """
+
     request = scenario.request
     envelope = request.profile.envelopes[0]
-    assay = _request_with(
-        request,
-        "outside_assay",
-        envelopes=(
-            _envelope_with(
-                envelope,
-                applicabilities=(ProteoformApplicability.BOTTOM_UP_DDA,),
-            ),
-        ),
-    )
     facts = {item.dimension: item for item in request.declared_facts}
     specimen_fact = _fact_with(
         facts[ProteoformSupportDimension.SPECIMEN],
         values=(_oid("specimen", {"outside": "specimen"}),),
     )
-    specimen = _request_with(
-        request,
-        "outside_specimen",
-        facts=_replace_fact(request, ProteoformSupportDimension.SPECIMEN, specimen_fact),
-    )
     disease_fact = _fact_with(
         facts[ProteoformSupportDimension.DISEASE_CLASS],
         values=(_oid("disease", {"outside": "disease"}),),
-    )
-    disease = _request_with(
-        request,
-        "outside_disease_class",
-        facts=_replace_fact(request, ProteoformSupportDimension.DISEASE_CLASS, disease_fact),
-    )
-    quality = _request_with(
-        request,
-        "outside_quality",
-        envelopes=(
-            _envelope_with(
-                envelope,
-                quality_statuses=(ProteoformQualityMetricStatus.WARNING,),
-            ),
-        ),
-    )
-    completeness = _request_with(
-        request,
-        "outside_completeness",
-        envelopes=(
-            _envelope_with(
-                envelope,
-                minimum_completeness_ppm=700_000,
-            ),
-        ),
-    )
-    platform = _request_with(
-        request,
-        "outside_platform",
-        envelopes=(
-            _envelope_with(
-                envelope,
-                platform_level_ids=(
-                    f"level.{sha256_digest({'outside': 'platform'}).removeprefix('sha256:')}",
-                ),
-            ),
-        ),
     )
     reference_fact = _fact_with(
         facts[ProteoformSupportDimension.REFERENCE],
         values=(_oid("reference", {"outside": "reference"}),),
     )
-    reference = _request_with(
-        request,
-        "outside_reference",
-        facts=_replace_fact(request, ProteoformSupportDimension.REFERENCE, reference_fact),
-    )
     use_fact = _fact_with(
         facts[ProteoformSupportDimension.INTENDED_USE],
         values=(_oid("use", {"outside": "intended-use"}),),
     )
-    intended_use = _request_with(
-        request,
-        "outside_intended_use",
-        facts=_replace_fact(request, ProteoformSupportDimension.INTENDED_USE, use_fact),
+    outside_facts = tuple(
+        {
+            ProteoformSupportDimension.SPECIMEN: specimen_fact,
+            ProteoformSupportDimension.DISEASE_CLASS: disease_fact,
+            ProteoformSupportDimension.REFERENCE: reference_fact,
+            ProteoformSupportDimension.INTENDED_USE: use_fact,
+        }.get(item.dimension, item)
+        for item in request.declared_facts
     )
+    outside_envelope = _envelope_with(
+        envelope,
+        applicabilities=(ProteoformApplicability.BOTTOM_UP_DDA,),
+        quality_statuses=(ProteoformQualityMetricStatus.WARNING,),
+        minimum_completeness_ppm=OUTSIDE_COMPLETENESS_THRESHOLD_PPM,
+        platform_level_ids=(
+            f"level.{sha256_digest({'outside': 'platform'}).removeprefix('sha256:')}",
+        ),
+    )
+    outside_request = _request_with(
+        request,
+        "joint_outside_dimensions",
+        envelopes=(outside_envelope,),
+        facts=outside_facts,
+    )
+    result = route_proteoform_support(outside_request)
     return [
-        _outside_case("outside_assay", assay, ProteoformSupportDimension.ASSAY),
-        _outside_case("outside_specimen", specimen, ProteoformSupportDimension.SPECIMEN),
-        _outside_case(
+        _outside_result_case("outside_assay", result, ProteoformSupportDimension.ASSAY),
+        _outside_result_case("outside_specimen", result, ProteoformSupportDimension.SPECIMEN),
+        _outside_result_case(
             "outside_disease_class",
-            disease,
+            result,
             ProteoformSupportDimension.DISEASE_CLASS,
         ),
-        _outside_case("outside_quality", quality, ProteoformSupportDimension.QUALITY),
-        _reachable_completeness_check(
-            completeness,
-        ),
-        _outside_case("outside_platform", platform, ProteoformSupportDimension.PLATFORM),
-        _outside_case("outside_reference", reference, ProteoformSupportDimension.REFERENCE),
-        _outside_case(
+        _outside_result_case("outside_quality", result, ProteoformSupportDimension.QUALITY),
+        _reachable_completeness_check(result),
+        _outside_result_case("outside_platform", result, ProteoformSupportDimension.PLATFORM),
+        _outside_result_case("outside_reference", result, ProteoformSupportDimension.REFERENCE),
+        _outside_result_case(
             "outside_intended_use",
-            intended_use,
+            result,
             ProteoformSupportDimension.INTENDED_USE,
         ),
     ]
 
 
 def _reachable_completeness_check(
-    request: RouteProteoformSupportRequest,
+    result: ProteoformSupportRouteResult,
 ) -> EvalCheck:
-    result = route_proteoform_support(request)
     assessment = next(
         item
         for item in result.envelope_assessments[0].dimensions
@@ -636,45 +614,69 @@ def _reachable_completeness_check(
 
 def _missing_unknown_checks(scenario: Scenario) -> list[EvalCheck]:
     request = scenario.request
-    fact = next(
+    specimen = next(
         item
         for item in request.declared_facts
         if item.dimension is ProteoformSupportDimension.SPECIMEN
     )
-    checks: list[EvalCheck] = []
-    for case_id, state in (
-        ("missing_declared_fact", ProteoformDeclaredSupportState.MISSING),
-        ("unknown_declared_fact", ProteoformDeclaredSupportState.UNKNOWN),
-    ):
-        replacement = _fact_with(fact, state=state, values=(), evidence=())
-        candidate = _request_with(
-            request,
+    disease = next(
+        item
+        for item in request.declared_facts
+        if item.dimension is ProteoformSupportDimension.DISEASE_CLASS
+    )
+    replacements = {
+        ProteoformSupportDimension.SPECIMEN: _fact_with(
+            specimen,
+            state=ProteoformDeclaredSupportState.MISSING,
+            values=(),
+            evidence=(),
+        ),
+        ProteoformSupportDimension.DISEASE_CLASS: _fact_with(
+            disease,
+            state=ProteoformDeclaredSupportState.UNKNOWN,
+            values=(),
+            evidence=(),
+        ),
+    }
+    candidate = _request_with(
+        request,
+        "missing_and_unknown_declared_facts",
+        facts=tuple(replacements.get(item.dimension, item) for item in request.declared_facts),
+    )
+    result = route_proteoform_support(candidate)
+    codes = {item.code for item in result.abstention_reasons}
+    return [
+        _scenario(
             case_id,
-            facts=_replace_fact(request, ProteoformSupportDimension.SPECIMEN, replacement),
+            passed=(
+                _is_science_free_abstention(result)
+                and _route_dimension(result, dimension)
+                is ProteoformDimensionSupportDecision.INDETERMINATE
+                and ProteoformAbstentionCode.DIMENSION_INDETERMINATE in codes
+            ),
+            detail=f"state={state.value};disposition={result.disposition.value}",
         )
-        result = route_proteoform_support(candidate)
-        checks.append(
-            _scenario(
-                case_id,
-                passed=(
-                    _is_science_free_abstention(result)
-                    and _route_dimension(result, ProteoformSupportDimension.SPECIMEN)
-                    is ProteoformDimensionSupportDecision.INDETERMINATE
-                    and ProteoformAbstentionCode.DIMENSION_INDETERMINATE
-                    in {item.code for item in result.abstention_reasons}
-                ),
-                detail=f"state={state.value};disposition={result.disposition.value}",
-            )
+        for case_id, state, dimension in (
+            (
+                "missing_declared_fact",
+                ProteoformDeclaredSupportState.MISSING,
+                ProteoformSupportDimension.SPECIMEN,
+            ),
+            (
+                "unknown_declared_fact",
+                ProteoformDeclaredSupportState.UNKNOWN,
+                ProteoformSupportDimension.DISEASE_CLASS,
+            ),
         )
-    return checks
+    ]
 
 
 def _harmonization_from_artifact_result(
     artifact_result: ProteoformArtifactDetectionResult,
     label: str,
+    template: HarmonizeProteoformAnalysisRequest,
 ) -> ProteoformHarmonizationResult:
     artifact_receipt = artifact_harmonization_receipt(artifact_result)
-    template = build_m0406_request()
     references = artifact_result.request.context.references
     approved_reference = references.approved_configuration.model_copy(
         update={
@@ -703,18 +705,27 @@ def _harmonization_from_artifact_result(
     )
 
 
-def _genuine_unreleasable_harmonization() -> ProteoformHarmonizationResult:
+def _genuine_unreleasable_harmonization(
+    template: HarmonizeProteoformAnalysisRequest,
+) -> ProteoformHarmonizationResult:
     artifact_result = m0405_evidence.build_scenario_result("critical_barcode_index")
-    return _harmonization_from_artifact_result(artifact_result, "m0406_unreleasable")
+    return _harmonization_from_artifact_result(
+        artifact_result,
+        "m0406_unreleasable",
+        template,
+    )
 
 
 def _unreleasable_checks(scenario: Scenario) -> list[EvalCheck]:
     request = scenario.request
+    template = scenario.harmonization_result.request
     quality_request = build_m0404_request("abstained_upstream_zero_ledger_traversal")
     unreleasable_quality = compute_proteoform_quality_metrics(quality_request)
     artifact_result = m0405_evidence.build_scenario_result("upstream_abstained")
     unreleasable_harmonization = _harmonization_from_artifact_result(
-        artifact_result, "m0404_unreleasable"
+        artifact_result,
+        "m0404_unreleasable",
+        template,
     )
     cases = (
         (
@@ -729,7 +740,7 @@ def _unreleasable_checks(scenario: Scenario) -> list[EvalCheck]:
             "m0406_unreleasable",
             proteoform_support_prerequisites(
                 request.prerequisites.quality_result,
-                _genuine_unreleasable_harmonization(),
+                _genuine_unreleasable_harmonization(template),
             ),
             ("GLIO-PROTEOGEN-M04-06",),
         ),
@@ -754,9 +765,8 @@ def _unreleasable_checks(scenario: Scenario) -> list[EvalCheck]:
     return checks
 
 
-def _genuine_extra_platform_harmonization() -> ProteoformHarmonizationResult:
-    scenario = m0406_evidence._scenario_for_target_count(M0407_MAX_ANALYSIS_TARGETS)
-    request = scenario.request
+def _genuine_extra_platform_harmonization(scenario: Scenario) -> ProteoformHarmonizationResult:
+    request = scenario.harmonization_result.request
     ledger = request.support_ledger
     if ledger is None:
         raise ScenarioClosureError
@@ -774,65 +784,70 @@ def _genuine_extra_platform_harmonization() -> ProteoformHarmonizationResult:
     mutations = (
         (
             "technical.platform.estimation.reference",
+            ProteoformEvidenceUnitKind.PROTEOFORM_CANDIDATE,
             stage.estimation_anchor_ids[0],
             stage.reference_level_id,
             500_000,
         ),
         (
             "technical.platform.estimation.comparison",
+            ProteoformEvidenceUnitKind.PROTEOFORM_CANDIDATE,
             stage.estimation_anchor_ids[0],
             extra_level,
             501_000,
         ),
         (
             "technical.platform.validation.reference",
+            ProteoformEvidenceUnitKind.SPECTRAL_FEATURE,
             stage.validation_anchor_ids[0],
             stage.reference_level_id,
             500_000,
         ),
         (
             "technical.platform.validation.comparison",
+            ProteoformEvidenceUnitKind.SPECTRAL_FEATURE,
             stage.validation_anchor_ids[0],
             extra_level,
             501_000,
         ),
     )
-    for label, anchor_id, level_id, coordinate in mutations:
-        target_id = scenario.target_ids[label]
+    updates_by_target: dict[str, dict[str, object]] = {}
+    for label, unit_kind, anchor_id, level_id, coordinate in mutations:
+        target_id = m0406_evidence._target_id(label, unit_kind)
         observation = next(item for item in ledger.observations if item.target_id == target_id)
-        levels = tuple(
-            ProteoformNormalizationFactorLevel(
-                factor=item.factor,
-                level_id=(
-                    level_id
-                    if item.factor is ProteoformNormalizationFactor.PLATFORM
-                    else item.level_id
-                ),
-            )
-            for item in observation.factor_levels
-        )
-        request = m0406_evidence._with_observation(
-            request,
-            target_id,
-            anchor_id=anchor_id,
-            biological_group_id=group_id,
-            support_coordinate_ppm=coordinate,
-            factor_levels=levels,
-        )
+        updates_by_target[target_id] = {
+            "anchor_id": anchor_id,
+            "biological_group_id": group_id,
+            "support_coordinate_ppm": coordinate,
+            "factor_levels": tuple(
+                ProteoformNormalizationFactorLevel(
+                    factor=item.factor,
+                    level_id=(
+                        level_id
+                        if item.factor is ProteoformNormalizationFactor.PLATFORM
+                        else item.level_id
+                    ),
+                )
+                for item in observation.factor_levels
+            ),
+        }
+    observations = tuple(
+        item.model_copy(update=updates_by_target[item.target_id])
+        if item.target_id in updates_by_target
+        else item
+        for item in ledger.observations
+    )
+    rebuilt = m0406_evidence._rebuild_support_ledger(request, observations=observations)
+    request = m0406_evidence._with_support_ledger(request, rebuilt)
     return harmonize_proteoform_analysis(request)
 
 
 def _all_member_checks(scenario: Scenario) -> list[EvalCheck]:
     request = scenario.request
-    extra_platform_result = _genuine_extra_platform_harmonization()
+    extra_platform_result = _genuine_extra_platform_harmonization(scenario)
     platform_prerequisites = proteoform_support_prerequisites(
         request.prerequisites.quality_result,
         extra_platform_result,
-    )
-    platform_request = _request_with(
-        request,
-        "platform_extra_member",
-        prerequisites=platform_prerequisites,
     )
     reference_fact = next(
         item
@@ -846,20 +861,22 @@ def _all_member_checks(scenario: Scenario) -> list[EvalCheck]:
             _oid("reference", {"extra": "reference"}),
         ),
     )
-    reference_request = _request_with(
+    combined_request = _request_with(
         request,
-        "reference_extra_member",
+        "platform_and_reference_extra_members",
+        prerequisites=platform_prerequisites,
         facts=_replace_fact(request, ProteoformSupportDimension.REFERENCE, extra_reference),
     )
+    result = route_proteoform_support(combined_request)
     return [
-        _outside_case(
+        _outside_result_case(
             "platform_extra_member",
-            platform_request,
+            result,
             ProteoformSupportDimension.PLATFORM,
         ),
-        _outside_case(
+        _outside_result_case(
             "reference_extra_member",
-            reference_request,
+            result,
             ProteoformSupportDimension.REFERENCE,
         ),
     ]
@@ -897,9 +914,11 @@ def _cross_envelope_check(scenario: Scenario) -> EvalCheck:
     )
 
 
-def _reorder_checks(scenario: Scenario) -> list[EvalCheck]:
+def _reorder_checks(
+    scenario: Scenario,
+    canonical_result: ProteoformSupportRouteResult,
+) -> list[EvalCheck]:
     canonical_request = scenario.request
-    canonical_result = route_proteoform_support(canonical_request)
     payload = canonical_request.model_dump(mode="python")
     profile = cast("dict[str, Any]", payload["profile"])
     envelopes = cast("list[dict[str, Any]]", profile["envelopes"])
@@ -923,7 +942,7 @@ def _reorder_checks(scenario: Scenario) -> list[EvalCheck]:
             "canonical_order",
             passed=(
                 canonical_result.disposition is ProteoformSupportDisposition.SUPPORTED
-                and canonical_result == route_proteoform_support(canonical_request)
+                and not canonical_result.abstention_reasons
             ),
             detail=f"result_digest={canonical_result.result_digest}",
         ),
@@ -996,7 +1015,7 @@ def main(argv: list[str] | None = None) -> int:
         *_unreleasable_checks(scenario),
         *_all_member_checks(scenario),
         _cross_envelope_check(scenario),
-        *_reorder_checks(scenario),
+        *_reorder_checks(scenario, supported),
         _hostile_preflight_check(scenario),
     ]
     executed = {

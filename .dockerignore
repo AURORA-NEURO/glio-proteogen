@@ -1,5 +1,7 @@
 .git
 .venv
+.coverage*
+.tmp-*
 .pytest_cache
 .mypy_cache
 .ruff_cache
@@ -8,6 +10,8 @@
 __pycache__
 *.pyc
 coverage.xml
+coverage*.json
+coverage*.xml
 htmlcov
 build
 dist
@@ -19,4 +23,9 @@ research
 tests
 tools
 docs
+ui
+current-candidate-receipt.json
+module-validation.json
+research-state-performance.json
+*.junit.xml
 *.sqlite*

@@ -332,7 +332,10 @@ def _parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     report = run_evaluation()
-    print(json.dumps(report, sort_keys=True) if args.json else report)  # noqa: T201
+    # Evaluator stdout is a machine-consumed receipt.  Keep ``--json`` as a
+    # backwards-compatible accepted flag, but never fall back to Python repr.
+    del args
+    print(json.dumps(report, sort_keys=True))  # noqa: T201
     return 0 if report["passed"] else 1
 
 

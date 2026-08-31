@@ -125,19 +125,22 @@ def evaluate() -> dict[str, Any]:
         request(RepresentationMissingness.OBSERVED, "not-a-method")
     )
     replay = verify_result_replay(supported)
+    cases = {
+        "supported_constructed": supported.status.value == "constructed",
+        "unsupported_abstained": abstained.status.value == "abstained",
+        "unsupported_operation_abstained": unsupported_operation.status.value == "abstained",
+        "lineage_complete": bool(
+            supported.representation and supported.representation.lineage_complete
+        ),
+        "replay_verified": replay,
+        "parent_not_emitted": supported.emits_parent is False,
+    }
     return {
         "module": "GLIO-PROTEOGEN-M10-02",
         "contract_version": "0.1.0-provisional",
-        "cases": {
-            "supported_constructed": supported.status.value == "constructed",
-            "unsupported_abstained": abstained.status.value == "abstained",
-            "unsupported_operation_abstained": unsupported_operation.status.value == "abstained",
-            "lineage_complete": bool(
-                supported.representation and supported.representation.lineage_complete
-            ),
-            "replay_verified": replay,
-            "parent_not_emitted": supported.emits_parent is False,
-        },
+        "passed": all(cases.values()),
+        "checks": cases,
+        "cases": cases,
     }
 
 

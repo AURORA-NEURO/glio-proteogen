@@ -10,12 +10,21 @@ from pathlib import Path
 from zipfile import ZipFile
 
 import pytest
+import tools.current_candidate_receipt as candidate_receipts
 from tools.verify_research_public_proteomics import (
     VerificationError,
     _member_inventory_digest,
     _verify_member_inventory,
     _verify_package,
     _verify_reproducibility,
+    verify,
+)
+
+from tests.tooling.test_current_candidate_receipt import (
+    COMMIT,
+    PROFILE,
+    _artifacts,
+    _receipt_file,
 )
 
 
@@ -123,3 +132,35 @@ def test_checked_in_public_receipt_has_complete_reproducible_inventories() -> No
         assert members == sorted(members)
         assert inventory["count"] == len(members) == record["members"]
         assert inventory["sha256"] == _member_inventory_digest(members)
+
+
+def test_public_verifier_accepts_explicit_current_candidate_receipt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    wheel, sdist, replay_wheel, replay_sdist = _artifacts(tmp_path)
+    receipt = _receipt_file(tmp_path, wheel, sdist, replay_wheel, replay_sdist)
+    monkeypatch.setattr(candidate_receipts, "_profile_identity", lambda: PROFILE)
+
+    verify(
+        wheel,
+        sdist,
+        candidate_receipt=receipt,
+        expected_source_commit=COMMIT,
+    )
+
+
+def test_public_verifier_rejects_candidate_artifact_drift(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    wheel, sdist, replay_wheel, replay_sdist = _artifacts(tmp_path)
+    receipt = _receipt_file(tmp_path, wheel, sdist, replay_wheel, replay_sdist)
+    monkeypatch.setattr(candidate_receipts, "_profile_identity", lambda: PROFILE)
+    sdist.write_bytes(sdist.read_bytes() + b"drift")
+
+    with pytest.raises(candidate_receipts.CandidateReceiptError, match="sdist does not match"):
+        verify(
+            wheel,
+            sdist,
+            candidate_receipt=receipt,
+            expected_source_commit=COMMIT,
+        )

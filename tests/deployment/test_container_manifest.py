@@ -30,10 +30,24 @@ def test_compose_preserves_persistence_and_container_hardening() -> None:
     assert "/readyz" in compose
 
 
+def test_backend_build_context_excludes_generated_and_frontend_trees() -> None:
+    exclusions = set((REPOSITORY_ROOT / ".dockerignore").read_text(encoding="utf-8").splitlines())
+
+    assert {
+        ".coverage*",
+        ".tmp-*",
+        "coverage*.json",
+        "coverage*.xml",
+        "current-candidate-receipt.json",
+        "module-validation.json",
+        "research-state-performance.json",
+        "*.junit.xml",
+        "ui",
+    } <= exclusions
+
+
 def test_ci_container_smoke_checks_the_persistent_database_volume() -> None:
-    workflow = (REPOSITORY_ROOT / ".github" / "workflows" / "ci.yml").read_text(
-        encoding="utf-8"
-    )
+    workflow = (REPOSITORY_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
 
     assert "--volume glio-proteogen-ci-data:/data/glio-proteogen" in workflow
     assert "--volumes-from glio-proteogen-ci" in workflow
@@ -51,9 +65,7 @@ def test_ci_container_smoke_checks_the_persistent_database_volume() -> None:
 
 
 def test_ci_enforces_the_concrete_model_coverage_gate() -> None:
-    workflow = (REPOSITORY_ROOT / ".github" / "workflows" / "ci.yml").read_text(
-        encoding="utf-8"
-    )
+    workflow = (REPOSITORY_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
 
     assert "model-quality:" in workflow
     assert "coverage run --branch" in workflow
@@ -83,9 +95,7 @@ def test_ci_enforces_the_concrete_model_coverage_gate() -> None:
 
 
 def test_ci_enforces_deployment_branch_coverage() -> None:
-    workflow = (REPOSITORY_ROOT / ".github" / "workflows" / "ci.yml").read_text(
-        encoding="utf-8"
-    )
+    workflow = (REPOSITORY_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
 
     assert "deployment-quality:" in workflow
     assert "tests/deployment/test_asgi.py" in workflow
@@ -93,12 +103,12 @@ def test_ci_enforces_deployment_branch_coverage() -> None:
 
 
 def test_full_test_jobs_execute_the_repository_suite() -> None:
-    ci_workflow = (REPOSITORY_ROOT / ".github" / "workflows" / "ci.yml").read_text(
-        encoding="utf-8"
-    )
+    ci_workflow = (REPOSITORY_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     release_workflow = (
         REPOSITORY_ROOT / ".github" / "workflows" / "release-evidence.yml"
     ).read_text(encoding="utf-8")
 
-    assert "uv run pytest tests\n" in ci_workflow
+    assert "uv run pytest tests --junitxml=module-tests.junit.xml" in ci_workflow
     assert "uv run pytest tests \\\n" in release_workflow
+    assert "--junitxml=evidence/tests.junit.xml" in release_workflow
+    assert "--cov-report=xml:evidence/coverage.xml" in release_workflow

@@ -67,9 +67,11 @@ class NonDeterministicBenchmarkError(RuntimeError):
     """A timed ingestion disagreed with the untimed warmup result."""
 
 
-def run_benchmark() -> BenchmarkReport:
-    """Build and warm outside timing, then time exactly 25 public ingestions."""
+def run_benchmark(iterations: int = ITERATIONS) -> BenchmarkReport:
+    """Build and warm outside timing, then time the bounded public workload."""
 
+    if iterations < 1:
+        raise ValueError("iterations must be positive")  # noqa: TRY003
     scenario = build_scenario()
     warmup = ingest_proteoform_raw_inputs(scenario.request, scenario.artifacts_by_role)
     if (
@@ -85,7 +87,7 @@ def run_benchmark() -> BenchmarkReport:
         raise InvalidRepresentativeWorkloadError
 
     samples: list[int] = []
-    for _ in range(ITERATIONS):
+    for _ in range(iterations):
         started = perf_counter_ns()
         result = ingest_proteoform_raw_inputs(
             scenario.request,
@@ -104,7 +106,7 @@ def run_benchmark() -> BenchmarkReport:
         contract_version="1.0.0",
         workload="genuine_four_modest_canonical_raw_manifest_documents",
         timed_boundary="ingest_proteoform_raw_inputs_only",
-        iterations=ITERATIONS,
+        iterations=iterations,
         warmup_count=WARMUP_COUNT,
         input_artifact_count=len(scenario.request.artifacts),
         document_count=len(scenario.artifacts_by_role),

@@ -360,6 +360,8 @@
         "request_build_timed": false,
         "serialization_timed": false,
         "warmup_count": 1,
+        "pre_timing_full_gc_collection": true,
+        "cyclic_gc_enabled_during_timing": true,
         "timed_public_calls": 25,
         "timed_boundary": "compute_proteoform_quality_metrics_only",
         "mean_budget_ns": 500000000,

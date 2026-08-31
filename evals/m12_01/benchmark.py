@@ -36,6 +36,7 @@ def run_benchmark(iterations: int = 10) -> dict[str, object]:
     ordered = sorted(durations)
     p95 = ordered[min(len(ordered) - 1, max(0, (95 * len(ordered) + 99) // 100 - 1))]
     return {
+        "module_id": "GLIO-PROTEOGEN-M12-01",
         "iterations": iterations,
         "mean_ns": int(mean(durations)),
         "median_ns": int(median(durations)),

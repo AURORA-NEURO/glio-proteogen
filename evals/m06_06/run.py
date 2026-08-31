@@ -363,8 +363,20 @@ def run_evaluation() -> dict[str, object]:
         "abstained_upstream": build_scenario(upstream_abstained=True),
     }
     outputs = {name: service.execute(case.request) for name, case in cases.items()}
+    checks = [
+        {
+            "case_id": name,
+            "passed": (
+                output.status.value == "abstained"
+                and output.abstention_reason == cases[name].expected_reason
+            ),
+        }
+        for name, output in outputs.items()
+    ]
     return {
-        "module": "GLIO-PROTEOGEN-M06-06",
+        "module_id": "GLIO-PROTEOGEN-M06-06",
+        "passed": all(bool(check["passed"]) for check in checks),
+        "checks": checks,
         "provisional_abi": True,
         "upstream_builder": "contract-level synthetic M06-05 result; no estimator execution",
         "scenarios": {
@@ -380,15 +392,15 @@ def run_evaluation() -> dict[str, object]:
     }
 
 
-def main() -> None:
+def main() -> int:
     parser = argparse.ArgumentParser(description="Run the M06-06 provisional evaluator.")
     parser.add_argument("--json", action="store_true", help="Emit canonical JSON.")
     args = parser.parse_args()
     payload = run_evaluation()
-    sys.stdout.write(
-        (json.dumps(payload, indent=2, sort_keys=True) if args.json else str(payload)) + "\n"
-    )
+    del args
+    sys.stdout.write(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    return 0 if payload["passed"] else 1
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

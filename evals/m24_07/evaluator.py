@@ -70,14 +70,15 @@ def run_matrix() -> dict[str, Any]:
         "denied_control_rejected": denied,
         "replay_verified": replay.result_digest == supported.result_digest,
         "semantic_replay_rejected": semantic_replay_rejected,
-        "supported_result_digest": supported.result_digest,
     }
-    scenario_ids = [key for key in scenarios if key != "supported_result_digest"]
+    scenario_ids = list(scenarios)
     return {
-        "module": "M24-07",
+        "module_id": "GLIO-PROTEOGEN-M24-07",
+        "passed": all(scenarios.values()),
         "scenario_count": len(scenario_ids),
         "scenario_ids": scenario_ids,
         "scenarios": scenarios,
+        "supported_result_digest": supported.result_digest,
     }
 
 

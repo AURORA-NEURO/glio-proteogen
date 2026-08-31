@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any, cast
 import pytest
 from pydantic import TypeAdapter
 
+from benchmarks._module_validation import run_pytest_benchmark
 from glio_proteogen.contracts.m01_02.v1 import ReconcileIdentityLineageRequest
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.strict_json import strict_json_loads
@@ -31,7 +32,38 @@ from glio_proteogen.modules.c01_preanalytic.m01_02_identity_lineage.solver impor
 )
 
 if TYPE_CHECKING:
-    from pytest_benchmark.fixture import BenchmarkFixture
+    from collections.abc import Callable
+    from typing import Protocol, TypeVar
+
+    _ResultT = TypeVar("_ResultT")
+
+    class _TimingStatistics(Protocol):
+        mean: float
+
+    class _BenchmarkStatistics(Protocol):
+        stats: _TimingStatistics
+
+    class BenchmarkFixture(Protocol):
+        stats: _BenchmarkStatistics
+        extra_info: dict[str, object]
+
+        def __call__(
+            self,
+            operation: Callable[..., _ResultT],
+            *args: object,
+            **kwargs: object,
+        ) -> _ResultT: ...
+
+        def pedantic(
+            self,
+            operation: Callable[..., _ResultT],
+            *,
+            args: tuple[object, ...] = (),
+            rounds: int,
+            warmup_rounds: int,
+            iterations: int,
+        ) -> _ResultT: ...
+
 
 ROOT = Path(__file__).parents[1]
 SCENARIO_PATH = ROOT / "tests" / "fixtures" / "m01_02" / "scenarios.json"
@@ -275,3 +307,14 @@ def test_ten_thousand_node_wide_dag_stays_within_linear_budget(
     assert maximum_seconds <= MAX_GRAPH_MEAN_BUDGET_SECONDS
     assert fourfold_ratio <= MAX_GRAPH_FOURFOLD_RATIO
     assert peak_bytes <= MAX_GRAPH_PEAK_BYTES
+
+
+def run_benchmark(iterations: int = 10) -> dict[str, object]:
+    """Run the locked representative public lineage solver workload."""
+
+    return run_pytest_benchmark(
+        module_id="GLIO-PROTEOGEN-M01-02",
+        workload=test_reference_public_solver_mean_latency,
+        iterations=iterations,
+        mean_budget_seconds=REFERENCE_SOLVER_MEAN_BUDGET_SECONDS,
+    )

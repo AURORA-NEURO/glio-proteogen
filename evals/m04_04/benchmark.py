@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import gc
 import json
 import sys
 from dataclasses import asdict, dataclass
@@ -45,6 +46,8 @@ class BenchmarkReport:
     timed_boundary: str
     iterations: int
     warmup_count: int
+    pre_timing_gc_collected_objects: int
+    cyclic_gc_enabled_during_timing: bool
     role_count: int
     profile_count: int
     threshold_count: int
@@ -71,9 +74,17 @@ class NonDeterministicBenchmarkError(RuntimeError):
     """A timed computation disagreed with the untimed warm-up result."""
 
 
-def run_benchmark() -> BenchmarkReport:
-    """Build and warm outside timing, then time exactly 25 public computations."""
+class InvalidBenchmarkEnvironmentError(RuntimeError):
+    """The interpreter does not expose the benchmark's normal cyclic-GC policy."""
 
+
+def run_benchmark(iterations: int = ITERATIONS) -> BenchmarkReport:
+    """Build and warm outside timing, then time the bounded public workload."""
+
+    if iterations < 1:
+        raise ValueError("iterations must be positive")  # noqa: TRY003
+    if not gc.isenabled():
+        raise InvalidBenchmarkEnvironmentError
     scenario = build_representative_quality_fixture()
     request = scenario.request
     warmup = compute_proteoform_quality_metrics(request)
@@ -94,8 +105,13 @@ def run_benchmark() -> BenchmarkReport:
     ):
         raise InvalidRepresentativeWorkloadError
 
+    # The genuine upstream builder and warm-up intentionally execute outside the
+    # measured boundary. Settle their full-generation scan state here so a later
+    # timed call cannot be charged for untimed setup. Cyclic GC remains enabled
+    # throughout every public computation, retaining computation-owned collection.
+    pre_timing_gc_collected_objects = gc.collect()
     samples: list[int] = []
-    for _ in range(ITERATIONS):
+    for _ in range(iterations):
         started = perf_counter_ns()
         result = compute_proteoform_quality_metrics(request)
         elapsed = perf_counter_ns() - started
@@ -111,8 +127,10 @@ def run_benchmark() -> BenchmarkReport:
         contract_version="1.0.0",
         workload="genuine_maximum_supported_quality_metadata_shape",
         timed_boundary="compute_proteoform_quality_metrics_only",
-        iterations=ITERATIONS,
+        iterations=iterations,
         warmup_count=WARMUP_COUNT,
+        pre_timing_gc_collected_objects=pre_timing_gc_collected_objects,
+        cyclic_gc_enabled_during_timing=gc.isenabled(),
         role_count=M0404_ROLE_COUNT,
         profile_count=len(request.policy.profiles),
         threshold_count=threshold_count,
@@ -149,7 +167,12 @@ def main(argv: list[str] | None = None) -> int:
     return 0 if report.passed else 1
 
 
-__all__ = ["BenchmarkReport", "main", "run_benchmark"]
+__all__ = [
+    "BenchmarkReport",
+    "InvalidBenchmarkEnvironmentError",
+    "main",
+    "run_benchmark",
+]
 
 
 if __name__ == "__main__":

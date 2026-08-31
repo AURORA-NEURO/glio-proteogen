@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m01_01.v1 import (
     Cardinality,
-    ExecutionContext,
     FieldSpecification,
     M0101Request,
     MetadataDocument,
@@ -18,12 +17,13 @@ from glio_proteogen.contracts.m01_01.v1 import (
     ProtocolSchema,
     RegisterProtocolRequest,
 )
-from glio_proteogen.kernel.strict_json import strict_json_loads
+from glio_proteogen.kernel.models import ExecutionContext
+from glio_proteogen.kernel.strict_json import JsonValue, strict_json_loads
 
 FIXTURE_DIRECTORY = Path(__file__).parent / "fixtures" / "m01_01"
 MANIFEST_PATH = FIXTURE_DIRECTORY / "manifest.json"
 
-TARGET_ADAPTERS = {
+TARGET_ADAPTERS: dict[str, TypeAdapter[Any]] = {
     "Cardinality": TypeAdapter(Cardinality),
     "ExecutionContext": TypeAdapter(ExecutionContext),
     "FieldSpecification": TypeAdapter(FieldSpecification),
@@ -35,14 +35,17 @@ TARGET_ADAPTERS = {
 }
 
 
-def load_json(path: Path) -> Any:
+def load_json(path: Path) -> JsonValue:
     """Load one bounded RFC 8259 document through the production decoder."""
 
     return strict_json_loads(path.read_bytes())
 
 
 def load_manifest() -> dict[str, Any]:
-    return load_json(MANIFEST_PATH)
+    value = load_json(MANIFEST_PATH)
+    if not isinstance(value, dict):
+        raise TypeError("M01-01 fixture manifest must be a JSON object")  # noqa: TRY003
+    return cast("dict[str, Any]", value)
 
 
 def load_case(case: dict[str, Any]) -> Any:

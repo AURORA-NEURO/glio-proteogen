@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 from evals.m02_04.run import build_scenario_request
 
+from benchmarks._module_validation import run_pytest_benchmark
 from glio_proteogen.contracts.m02_04 import (
     ComputeIdentificationQualityRequest,
     IdentificationQualityDisposition,
@@ -27,10 +28,7 @@ pytestmark = pytest.mark.benchmark
 def _compute_batch(
     request: ComputeIdentificationQualityRequest,
 ) -> tuple[IdentificationQualityDisposition, ...]:
-    return tuple(
-        compute_identification_quality(request).disposition
-        for _ in range(BATCH_SIZE)
-    )
+    return tuple(compute_identification_quality(request).disposition for _ in range(BATCH_SIZE))
 
 
 def test_representative_public_quality_batch_latency(
@@ -54,3 +52,14 @@ def test_representative_public_quality_batch_latency(
     statistics = benchmark_stats.stats
     assert statistics is not None
     assert statistics.mean <= MEAN_BUDGET_SECONDS
+
+
+def run_benchmark(iterations: int = 10) -> dict[str, object]:
+    """Run the locked representative quality-metrics batch workload."""
+
+    return run_pytest_benchmark(
+        module_id="GLIO-PROTEOGEN-M02-04",
+        workload=test_representative_public_quality_batch_latency,
+        iterations=iterations,
+        mean_budget_seconds=MEAN_BUDGET_SECONDS,
+    )

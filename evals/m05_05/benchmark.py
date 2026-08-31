@@ -62,9 +62,11 @@ class NonDeterministicBenchmarkError(RuntimeError):
     """A timed detector result disagreed with the untimed warmup."""
 
 
-def run_benchmark() -> BenchmarkReport:
-    """Build outside timing, warm once, then time exactly 25 public detections."""
+def run_benchmark(iterations: int = M0505_BENCHMARK_ITERATIONS) -> BenchmarkReport:
+    """Build outside timing, warm once, then time the bounded public workload."""
 
+    if iterations < 1:
+        raise ValueError("iterations must be positive")  # noqa: TRY003
     scenario = build_scenario("clear")
     warmup = detect_ptm_localization_artifacts(scenario.request)
     if (
@@ -76,7 +78,7 @@ def run_benchmark() -> BenchmarkReport:
         raise InvalidRepresentativeWorkloadError
 
     samples: list[int] = []
-    for _ in range(M0505_BENCHMARK_ITERATIONS):
+    for _ in range(iterations):
         started = perf_counter_ns()
         result = detect_ptm_localization_artifacts(scenario.request)
         elapsed = perf_counter_ns() - started
@@ -93,7 +95,7 @@ def run_benchmark() -> BenchmarkReport:
         contract_version=M0505_CONTRACT_VERSION,
         workload="genuine_m05_03_replay_one_target_seven_detector_classes",
         timed_boundary="detect_ptm_localization_artifacts_only",
-        iterations=M0505_BENCHMARK_ITERATIONS,
+        iterations=iterations,
         warmup_count=M0505_BENCHMARK_WARMUPS,
         detector_class_count=len(warmup.artifact_posteriors),
         request_bytes=request_bytes,
@@ -109,7 +111,7 @@ def run_benchmark() -> BenchmarkReport:
         p95_budget_ns=M0505_P95_BUDGET_NS,
         passed=(
             request_bytes <= M0505_MAX_CANONICAL_REQUEST_BYTES
-            and len(samples) == M0505_BENCHMARK_ITERATIONS
+            and len(samples) == iterations
             and mean <= M0505_MEAN_BUDGET_NS
             and p95 <= M0505_P95_BUDGET_NS
         ),

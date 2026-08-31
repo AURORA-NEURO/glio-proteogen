@@ -31,10 +31,13 @@ RELEASE_WORKFLOW = ROOT / ".github" / "workflows" / "release-evidence.yml"
 CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 PYPROJECT = ROOT / "pyproject.toml"
 SECURITY_POLICY = ROOT / "SECURITY.md"
+THIRD_PARTY_NOTICES = ROOT / "THIRD_PARTY_NOTICES.md"
 EVIDENCE_POLICY = ROOT / "docs" / "evidence" / "M01-01.md"
 SHA256_HEX_LENGTH = 64
 EXPECTED_RUNTIME_COMPONENTS = 2
 EXPECTED_MODULE_COUNT = 36
+EXPECTED_RELEASE_CANDIDATE_CONSUMERS = 3
+EXPECTED_RESEARCH_CANDIDATE_CONSUMERS = 2
 M0407_LOCKED_CHECK_NAMES = (
     "scenario.joint_supported",
     "scenario.outside_assay",
@@ -144,12 +147,32 @@ def test_sdist_excludes_generated_release_and_coverage_outputs() -> None:
     for generated_path in (
         '"/.coverage*"',
         '"/.tmp-*"',
+        '"/coverage-*.json"',
         '"/dist-*"',
         '"/evidence"',
+        '"/docs/evidence"',
+        '"/docs/release-evidence"',
         '"/glio-proteogen-evidence.tar.gz"',
         '"/release-build-*"',
+        '"/tests"',
+        '"/ui/tests"',
     ):
         assert generated_path in sdist
+
+
+def test_wheel_carries_source_specific_research_data_license_notices() -> None:
+    configuration = PYPROJECT.read_text(encoding="utf-8")
+    notices = THIRD_PARTY_NOTICES.read_text(encoding="utf-8")
+
+    assert '"THIRD_PARTY_NOTICES.md" = "glio_proteogen/THIRD_PARTY_NOTICES.md"' in configuration
+    assert "10.1016/j.ccell.2023.12.015" in notices
+    assert "PDC000514 and PDC000515" in notices
+    assert "10.1038/s43018-022-00510-x" in notices
+    assert "CC BY 4.0" in notices
+    assert "not ports or retrainings of SPHINKS/MK" in notices
+    assert "Reactome pathway-annotation projection" in notices
+    assert "release 97" in notices
+    assert "CC0 1.0" in notices
 
 
 def _wheel(tmp_path: Path, *, name: str = "glio-proteogen", version: str = "0.1.0") -> Path:
@@ -723,10 +746,28 @@ def test_release_workflow_attests_only_after_reproducible_wheel_replay() -> None
     workflow = RELEASE_WORKFLOW.read_text(encoding="utf-8")
 
     build = workflow.index("Build reproducible candidate distributions")
+    receipt = workflow.index("Generate and verify the current candidate receipt")
+    m2608 = workflow.index("tools/verify_m2608_release.py", receipt)
     install = workflow.index("Install and test the exact candidate wheel")
+    pipeline = workflow.index("tools/verify_research_pipeline.py", install)
+    public = workflow.index("tools/verify_research_public_proteomics.py", pipeline)
     sbom = workflow.index("Generate reproducible runtime SBOM from the wheel environment")
     attest = workflow.index("Attest candidate distribution provenance")
-    assert build < install < sbom < attest
+    assert build < receipt < m2608 < install < pipeline < public < sbom < attest
+    assert "tools/verify_m2608_release.py" not in workflow[:build]
+    assert "tools/current_candidate_receipt.py generate" in workflow[receipt:install]
+    assert "tools/current_candidate_receipt.py verify" in workflow[receipt:install]
+    assert "release-evidence/m26_08/package.json" in workflow[receipt:install]
+    assert "RELEASE_WHEEL=$wheel" in workflow[build:receipt]
+    assert "RELEASE_SDIST=$sdist" in workflow[build:receipt]
+    assert "RELEASE_CANDIDATE_RECEIPT=$candidate_receipt" in workflow[receipt:install]
+    assert (
+        workflow[receipt:sbom].count("--candidate-receipt") == EXPECTED_RELEASE_CANDIDATE_CONSUMERS
+    )
+    assert (
+        workflow[receipt:sbom].count('--expected-source-commit "$GITHUB_SHA"')
+        == EXPECTED_RELEASE_CANDIDATE_CONSUMERS
+    )
     assert "tools/release-sbom-requirements.txt" in workflow
     assert "sbom-tool-dependency-audit.json" in workflow
     assert "tools/release-build-requirements.txt" in workflow
@@ -778,6 +819,9 @@ def test_release_workflow_attests_only_after_reproducible_wheel_replay() -> None
     assert "evals.m05_02.run --output evidence/m05-02-eval.json" in workflow
     assert "evals.m05_03.run --output evidence/m05-03-eval.json" in workflow
     assert "evals.m05_06.run --output evidence/m05-06-eval.json" in workflow
+    assert "tools/emit_research_pipeline_evidence.py" in workflow
+    assert "--output evidence/research-proteomics-eval.json" in workflow
+    assert "evals.research_proteomics.run >" not in workflow
     assert "benchmark-json=evidence/m01-01-benchmark.json" in workflow
     assert "benchmark-json=evidence/m01-02-benchmark.json" in workflow
     assert "benchmark-json=evidence/m01-03-benchmark.json" in workflow
@@ -934,12 +978,28 @@ def test_ci_records_eval_and_benchmark_evidence_for_all_modules() -> None:
 def test_ci_replays_public_proteomics_receipt_from_installed_wheel() -> None:
     workflow = CI_WORKFLOW.read_text(encoding="utf-8")
 
+    assert "tools/emit_research_pipeline_evidence.py" in workflow
+    assert "--output research-proteomics-eval.json" in workflow
+    assert "evals.research_proteomics.run >" not in workflow
+    build = workflow.index("Build twice from the same source epoch")
+    generate = workflow.index("tools/current_candidate_receipt.py generate", build)
+    receipt_verify = workflow.index("tools/current_candidate_receipt.py verify", generate)
     replay = workflow.index("Replay from the built wheel in a clean environment")
     pipeline = workflow.index("tools/verify_research_pipeline.py", replay)
     public = workflow.index("tools/verify_research_public_proteomics.py", pipeline)
-    assert pipeline < public
+    assert build < generate < receipt_verify < replay < pipeline < public
+    assert "PACKAGE_REPLAY_WHEEL=$wheel" in workflow[build:replay]
+    assert "PACKAGE_REPLAY_SDIST=$sdist" in workflow[build:replay]
+    assert "PACKAGE_REPLAY_CANDIDATE_RECEIPT=$candidate_receipt" in workflow[build:replay]
     assert "docs/evidence/research-foundation/evaluation.json" in workflow[pipeline:public]
-    assert '"$wheel" "$sdist"' in workflow[public:]
+    assert (
+        workflow[replay:].count('--candidate-receipt "$PACKAGE_REPLAY_CANDIDATE_RECEIPT"')
+        == EXPECTED_RESEARCH_CANDIDATE_CONSUMERS
+    )
+    assert (
+        workflow[replay:].count('--expected-source-commit "$GITHUB_SHA"')
+        == EXPECTED_RESEARCH_CANDIDATE_CONSUMERS
+    )
 
 
 def test_ci_exercises_the_native_m04_03_windows_interface() -> None:

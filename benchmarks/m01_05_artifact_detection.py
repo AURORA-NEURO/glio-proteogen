@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 from evals.m01_05.run import build_scenario_request
 
+from benchmarks._module_validation import run_pytest_benchmark
 from glio_proteogen.modules.c01_preanalytic.m01_05_artifact_detection import (
     detect_artifacts,
 )
@@ -42,3 +43,14 @@ def test_seeded_batch_public_engine_latency(benchmark: BenchmarkFixture) -> None
     statistics = benchmark_stats.stats
     assert statistics is not None
     assert statistics.mean <= MEAN_BUDGET_SECONDS
+
+
+def run_benchmark(iterations: int = 10) -> dict[str, object]:
+    """Run the locked seeded artifact-detection workload."""
+
+    return run_pytest_benchmark(
+        module_id="GLIO-PROTEOGEN-M01-05",
+        workload=test_seeded_batch_public_engine_latency,
+        iterations=iterations,
+        mean_budget_seconds=MEAN_BUDGET_SECONDS,
+    )

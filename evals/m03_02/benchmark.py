@@ -29,6 +29,7 @@ P95_BUDGET_NS = 600_000_000
 
 @dataclass(frozen=True, slots=True)
 class BenchmarkReport:
+    module_id: str
     workload: str
     iterations: int
     mean_ns: float
@@ -76,6 +77,7 @@ def run_benchmark(iterations: int = DEFAULT_ITERATIONS) -> BenchmarkReport:
     p95 = ordered[min(len(ordered) - 1, (95 * len(ordered) - 1) // 100)]
     mean = fmean(samples)
     return BenchmarkReport(
+        module_id="GLIO-PROTEOGEN-M03-02",
         workload="genuine_m0102_to_m0301_to_m0302_canonical_chain",
         iterations=iterations,
         mean_ns=mean,

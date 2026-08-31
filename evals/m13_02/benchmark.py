@@ -35,6 +35,7 @@ def run_benchmark(iterations: int = 10) -> dict[str, object]:
     mean = int(statistics.fmean(samples))
     median = int(statistics.median(samples))
     return {
+        "module_id": "GLIO-PROTEOGEN-M13-02",
         "iterations": iterations,
         "mean_ns": mean,
         "median_ns": median,
