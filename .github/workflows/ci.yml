@@ -889,8 +889,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SOURCE_DATE_EPOCH: "315532800"
-    # M04-07 focused tests plus its locked evaluator measured over 32 minutes locally.
-    timeout-minutes: 90
+    # The complete coverage suite exceeded 90 minutes on the hosted runner before
+    # module binding and evaluator receipts began; preserve headroom for both phases.
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
