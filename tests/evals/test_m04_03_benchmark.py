@@ -7,12 +7,16 @@ from types import SimpleNamespace
 
 import pytest
 from evals.m04_03 import benchmark
+from evals.m04_03.run import build_scenario
 
 from glio_proteogen.contracts.m04_03 import (
     M0403_LIMITATION_COUNT,
     M0403_MIN_EVIDENCE,
     M0403_ROLE_COUNT,
     ProteoformRawInputDisposition,
+)
+from glio_proteogen.modules.c04_proteoform_isoform.m04_03_raw_ingestion import (
+    ingest_proteoform_raw_inputs,
 )
 
 _GC_COLLECTED_OBJECTS = 17
@@ -21,6 +25,12 @@ _FINISHED_NS = 200
 _ELAPSED_NS = _FINISHED_NS - _STARTED_NS
 _EXPECTED_DEFAULT_ITERATIONS = 100
 _EXPECTED_P95_INDEX = 94
+_EXPECTED_CANONICAL_REQUEST_DIGEST = (
+    "sha256:645f31fcb30ea16ec8da7482790ea27934a90a5c1689f8bc7e917ef55033c92c"
+)
+_EXPECTED_CANONICAL_RESULT_DIGEST = (
+    "sha256:b250dfb880099886932a738607104a05b96990efa2f7ef871d1e4736fbbbfd55"
+)
 
 
 def _synthetic_representative_workload() -> tuple[SimpleNamespace, SimpleNamespace]:
@@ -45,6 +55,14 @@ def _synthetic_representative_workload() -> tuple[SimpleNamespace, SimpleNamespa
 def test_default_sample_count_produces_a_real_p95_tail() -> None:
     assert benchmark.ITERATIONS == _EXPECTED_DEFAULT_ITERATIONS
     assert (95 * benchmark.ITERATIONS - 1) // 100 == _EXPECTED_P95_INDEX
+
+
+def test_representative_request_and_result_digests_remain_exact() -> None:
+    scenario = build_scenario()
+    result = ingest_proteoform_raw_inputs(scenario.request, scenario.artifacts_by_role)
+
+    assert result.request_digest == _EXPECTED_CANONICAL_REQUEST_DIGEST
+    assert result.result_digest == _EXPECTED_CANONICAL_RESULT_DIGEST
 
 
 def test_untimed_setup_gc_precedes_every_timed_call(monkeypatch: pytest.MonkeyPatch) -> None:
