@@ -172,10 +172,18 @@ m1102_app = typer.Typer(
 
 
 def _read_argument(value: str, max_bytes: int = M1102_MAX_CANONICAL_REQUEST_BYTES) -> bytes:
+    encoded = value.encode("utf-8")
+    if value.lstrip().startswith(("{", "[")):
+        return encoded
     path = Path(value)
-    if path.is_file():
-        return read_bounded(path, max_bytes)
-    return value.encode("utf-8")
+    try:
+        if path.is_file():
+            return read_bounded(path, max_bytes)
+    except OSError:
+        # Arbitrary inline JSON/text can exceed a platform's filename limit.
+        # It is input data, not a failed filesystem request.
+        return encoded
+    return encoded
 
 
 def _parse_argument(value: str, max_bytes: int = M1102_MAX_CANONICAL_REQUEST_BYTES) -> object:

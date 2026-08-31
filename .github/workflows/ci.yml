@@ -885,13 +885,18 @@ jobs:
           uv run pytest -o addopts="" --strict-config --strict-markers --no-cov
           tests/integration/test_m05_04_interfaces.py
 
-  test-and-eval:
+  test-shards:
     runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
     env:
       SOURCE_DATE_EPOCH: "315532800"
-    # The complete coverage suite alone runs well beyond 150 minutes on the hosted
-    # runner. Keep this required check focused on tests and fresh coverage binding.
-    timeout-minutes: 240
+      SHARD_COUNT: "12"
+      SHARD_INDEX: "${{ matrix.shard }}"
+      COVERAGE_FILE: ".coverage.${{ matrix.shard }}"
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -903,21 +908,119 @@ jobs:
       - run: uv python install 3.12
       - run: uv sync --locked --all-groups
       - run: uv build --out-dir dist
-      - name: Execute the complete test and coverage gate
-        run: uv run pytest tests --junitxml=module-tests.junit.xml
+      - name: Select one deterministic test-file shard
+        shell: bash
+        run: |
+          mapfile -t ranked_files < <(
+            git ls-files tests \
+              | grep -E '(^|/)test_.*\.py$|(^|/).*_test\.py$' \
+              | while IFS= read -r path; do
+                  printf '%012d %s\n' "$(wc -c < "$path")" "$path"
+                done \
+              | LC_ALL=C sort -k1,1nr -k2,2 \
+              | cut -d ' ' -f 2-
+          )
+          selected_files=()
+          for position in "${!ranked_files[@]}"; do
+            if (( position % SHARD_COUNT == SHARD_INDEX )); then
+              selected_files+=("${ranked_files[$position]}")
+            fi
+          done
+          test "${#selected_files[@]}" -gt 0
+          printf '%s\n' "${selected_files[@]}" > "test-shard-${SHARD_INDEX}.manifest.txt"
+      - name: Execute one complete test and branch-coverage shard
+        shell: bash
+        run: |
+          mapfile -t selected_files < "test-shard-${SHARD_INDEX}.manifest.txt"
+          uv run pytest "${selected_files[@]}" \
+            -o addopts='' \
+            --strict-config \
+            --strict-markers \
+            --cov=glio_proteogen \
+            --cov-report= \
+            --cov-fail-under=0 \
+            --junitxml="module-tests-${SHARD_INDEX}.junit.xml"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: ${{ always() }}
+        with:
+          name: test-shard-${{ matrix.shard }}
+          path: |
+            test-shard-${{ matrix.shard }}.manifest.txt
+            module-tests-${{ matrix.shard }}.junit.xml
+            .coverage.${{ matrix.shard }}
+          include-hidden-files: true
+          if-no-files-found: error
+
+  test-and-eval:
+    runs-on: ubuntu-latest
+    needs: test-shards
+    if: ${{ always() }}
+    timeout-minutes: 30
+    env:
+      SOURCE_DATE_EPOCH: "315532800"
+      SHARD_COUNT: "12"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv python install 3.12
+      - run: uv sync --locked --all-groups
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: test-shard-*
+          path: test-shards
+      - name: Verify exact-once test-file partitioning
+        shell: bash
+        run: |
+          mapfile -d '' manifests < <(
+            find test-shards -type f -name 'test-shard-*.manifest.txt' -print0 \
+              | LC_ALL=C sort -z
+          )
+          test "${#manifests[@]}" -eq "$SHARD_COUNT"
+          cat "${manifests[@]}" | LC_ALL=C sort > actual-test-files.txt
+          git ls-files tests \
+            | grep -E '(^|/)test_.*\.py$|(^|/).*_test\.py$' \
+            | LC_ALL=C sort > expected-test-files.txt
+          diff -u expected-test-files.txt actual-test-files.txt
+      - name: Combine branch coverage and enforce the global gate
+        run: |
+          uv run coverage combine --keep test-shards/test-shard-*
+          uv run coverage xml -o coverage.xml
+          uv run coverage report --fail-under=95
       - name: Bind every module to fresh test and coverage evidence
-        run: >-
-          uv run python tools/verify_module_validation.py
-          --junit-xml module-tests.junit.xml
-          --coverage-report coverage.xml
-          --format json
-          --output module-test-coverage-validation.json
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          mapfile -d '' junit_reports < <(
+            find test-shards -type f -name 'module-tests-*.junit.xml' -print0 \
+              | LC_ALL=C sort -z
+          )
+          test "${#junit_reports[@]}" -eq "$SHARD_COUNT"
+          junit_arguments=()
+          for report in "${junit_reports[@]}"; do
+            junit_arguments+=(--junit-xml "$report")
+          done
+          uv run python tools/verify_module_validation.py \
+            "${junit_arguments[@]}" \
+            --coverage-report coverage.xml \
+            --format json \
+            --output module-test-coverage-validation.json
+      - name: Require every test shard to pass
+        if: ${{ always() }}
+        env:
+          TEST_SHARDS_RESULT: "${{ needs['test-shards'].result }}"
+        run: test "$TEST_SHARDS_RESULT" = success
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: ${{ always() }}
         with:
           name: module-test-coverage-validation
           path: |
-            module-tests.junit.xml
+            test-shards/**/module-tests-*.junit.xml
+            test-shards/**/test-shard-*.manifest.txt
             coverage.xml
             module-test-coverage-validation.json
           if-no-files-found: error
