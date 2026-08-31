@@ -108,7 +108,11 @@ def test_full_test_jobs_execute_the_repository_suite() -> None:
         REPOSITORY_ROOT / ".github" / "workflows" / "release-evidence.yml"
     ).read_text(encoding="utf-8")
 
-    assert "uv run pytest tests --junitxml=module-tests.junit.xml" in ci_workflow
+    assert "git ls-files tests \\" in ci_workflow
+    assert 'uv run pytest "${selected_files[@]}" \\' in ci_workflow
+    assert "diff -u expected-test-files.txt actual-test-files.txt" in ci_workflow
+    assert "coverage combine --keep test-shards/test-shard-*" in ci_workflow
+    assert "coverage report --fail-under=95" in ci_workflow
     assert "uv run pytest tests \\\n" in release_workflow
     assert "--junitxml=evidence/tests.junit.xml" in release_workflow
     assert "--cov-report=xml:evidence/coverage.xml" in release_workflow

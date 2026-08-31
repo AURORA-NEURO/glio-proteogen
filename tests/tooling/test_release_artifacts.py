@@ -170,7 +170,7 @@ def test_wheel_carries_source_specific_research_data_license_notices() -> None:
     assert "10.1038/s43018-022-00510-x" in notices
     assert "CC BY 4.0" in notices
     assert "not ports or retrainings of SPHINKS/MK" in notices
-    assert "Reactome pathway-annotation projection" in notices
+    assert "Reactome pathway- and complex-annotation projections" in notices
     assert "release 97" in notices
     assert "CC0 1.0" in notices
 
@@ -313,7 +313,7 @@ def test_m0404_evidence_verifier_requires_exact_corpus_shape_and_budgets(
         "module_id": "GLIO-PROTEOGEN-M04-04",
         "measurement_clock": "process_time_ns",
         "passed": True,
-        "iterations": 25,
+        "iterations": 100,
         "warmup_count": 1,
         "pre_timing_gc_collected_objects": 0,
         "cyclic_gc_enabled_during_timing": True,

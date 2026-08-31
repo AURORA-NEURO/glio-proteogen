@@ -32,7 +32,10 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
     compute_proteoform_quality_metrics,
 )
 
-ITERATIONS: Final = 25
+# One hundred samples make the nearest-rank p95 a genuine tail estimate instead
+# of the second-slowest value from a 25-call run.  This keeps the existing
+# latency ceilings while reducing sensitivity to an isolated cyclic-GC sample.
+ITERATIONS: Final = 100
 WARMUP_COUNT: Final = 1
 # The mean ceiling is calibrated to retain a 20% reserve below the unchanged
 # p95 ceiling.  The p95 gate continues to guard the maximum-shape hot path.

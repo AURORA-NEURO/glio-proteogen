@@ -328,7 +328,7 @@ def test_development_profile_cryptographically_proves_the_model_is_unavailable()
         GbmapDevelopmentProfile.model_validate(forged, strict=True)
 
 
-def test_unfitted_package_has_no_runtime_files_route_or_catalog_operation(tmp_path: Path) -> None:
+def test_unfitted_package_has_only_identity_data_and_no_runtime_route(tmp_path: Path) -> None:
     package_path = Path(gbmap_package.__file__).parent
     assert not {
         "adapter.py",
@@ -337,7 +337,12 @@ def test_unfitted_package_has_no_runtime_files_route_or_catalog_operation(tmp_pa
         "engine.py",
         "service.py",
     } & {path.name for path in package_path.iterdir()}
-    assert not (package_path / "data").exists()
+    packaged_data = {
+        path.relative_to(package_path).as_posix()
+        for path in (package_path / "data").rglob("*")
+        if path.is_file()
+    }
+    assert packaged_data == {gbmap_package.FEATURE_IDENTITY_RESOURCE}
 
     database_path = tmp_path / "events.sqlite3"
     app = create_app(database_path)

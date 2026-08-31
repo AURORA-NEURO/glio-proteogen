@@ -362,7 +362,7 @@
         "warmup_count": 1,
         "pre_timing_full_gc_collection": true,
         "cyclic_gc_enabled_during_timing": true,
-        "timed_public_calls": 25,
+        "timed_public_calls": 100,
         "timed_boundary": "compute_proteoform_quality_metrics_only",
         "mean_budget_ns": 625000000,
         "p95_budget_ns": 750000000

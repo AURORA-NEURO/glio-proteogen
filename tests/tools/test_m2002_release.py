@@ -10,12 +10,13 @@ import pytest
 from tools.verify_m20_02_release import ReleaseEvidenceError, verify_release
 
 
-def test_m20_02_release_verifier_accepts_locked_reports() -> None:
+@pytest.mark.historical_artifact
+def test_m20_02_release_verifier_accepts_locked_reports_and_artifacts() -> None:
     root = Path(__file__).parents[2]
     verify_release(
         root / "docs" / "evidence" / "m20_02",
-        root / "dist" / "glio_proteogen-0.1.0-py3-none-any.whl",
-        root / "dist" / "glio_proteogen-0.1.0.tar.gz",
+        root / "dist-m20-02" / "glio_proteogen-0.1.0-py3-none-any.whl",
+        root / "dist-m20-02" / "glio_proteogen-0.1.0.tar.gz",
     )
 
 
