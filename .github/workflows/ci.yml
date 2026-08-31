@@ -889,9 +889,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SOURCE_DATE_EPOCH: "315532800"
-    # The complete coverage suite exceeded 90 minutes on the hosted runner before
-    # module binding and evaluator receipts began; preserve headroom for both phases.
-    timeout-minutes: 180
+    # The complete coverage suite alone runs well beyond 150 minutes on the hosted
+    # runner. Keep this required check focused on tests and fresh coverage binding.
+    timeout-minutes: 240
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -921,6 +921,24 @@ jobs:
             coverage.xml
             module-test-coverage-validation.json
           if-no-files-found: error
+
+  evaluator-receipts:
+    runs-on: ubuntu-latest
+    env:
+      SOURCE_DATE_EPOCH: "315532800"
+    # Evaluator receipts are independent of the global coverage report and can run
+    # concurrently instead of consuming the required test-and-eval timeout budget.
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv python install 3.12
+      - run: uv sync --locked --all-groups
       - run: uv run python -m evals.m01_01.run --output m01_01-eval.json
       - run: uv run python -m evals.m01_02.run --output m01_02-eval.json
       - run: uv run python -m evals.m01_03.run --output m01_03-eval.json

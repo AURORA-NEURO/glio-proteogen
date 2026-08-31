@@ -37,9 +37,24 @@ def test_repository_workflow_has_unique_mapping_keys() -> None:
     assert "tests/research/test_m09_complex_transition_facade.py" in workflow_text
     assert "tests/integration/test_m09_complex_transition_facade.py" in workflow_text
     test_and_eval = workflow_text.split("  test-and-eval:\n", maxsplit=1)[1].split(
+        "\n  evaluator-receipts:", maxsplit=1
+    )[0]
+    assert "\n    timeout-minutes: 240\n" in test_and_eval
+    assert "uv run pytest tests --junitxml=module-tests.junit.xml" in test_and_eval
+    assert "tools/verify_module_validation.py" in test_and_eval
+    assert "name: module-test-coverage-validation" in test_and_eval
+    assert "-m evals." not in test_and_eval
+    assert "emit_research_pipeline_evidence.py" not in test_and_eval
+    evaluator_receipts = workflow_text.split("  evaluator-receipts:\n", maxsplit=1)[1].split(
         "\n  microbenchmarks:", maxsplit=1
     )[0]
-    assert "\n    timeout-minutes: 180\n" in test_and_eval
+    assert "\n    timeout-minutes: 60\n" in evaluator_receipts
+    assert "\n    needs:" not in evaluator_receipts
+    assert "uv sync --locked --all-groups" in evaluator_receipts
+    assert "uv build" not in evaluator_receipts
+    assert "-m evals.m01_01.run" in evaluator_receipts
+    assert "-m evals.m05_08.run" in evaluator_receipts
+    assert "emit_research_pipeline_evidence.py" in evaluator_receipts
     assert "microbenchmarks:\n    runs-on: ubuntu-latest\n    timeout-minutes: 30" in workflow_text
     assert "--junit-xml evidence/tests.junit.xml" in release_text
     assert "--coverage-report evidence/coverage.xml" in release_text
