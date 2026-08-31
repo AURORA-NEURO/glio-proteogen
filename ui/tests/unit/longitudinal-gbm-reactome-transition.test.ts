@@ -396,6 +396,387 @@ describe("longitudinal GBM Reactome wire admission", () => {
       "X-GLIO-Profile-Digest response header must match the admitted payload.",
     );
   });
+
+  it("fails closed across every nested profile boundary", () => {
+    const profileCases: Array<[
+      label: string,
+      mutate: (profile: JsonObject) => void,
+      expected: string,
+    ]> = [
+      ["algorithm identity", (profile) => { profile.algorithm_id = "foreign"; },
+        "profile algorithm/model identity is invalid."],
+      ["parent identity", (profile) => { profile.parent_feature_axis_model_id = "foreign"; },
+        "profile parent feature-axis dependency is invalid."],
+      ["digest syntax", (profile) => { profile.profile_digest = "SHA256:BAD"; },
+        "profile.profile_digest must be a lowercase sha256 digest."],
+      ["numpy runtime", (profile) => { profile.numpy_version = "latest"; },
+        "profile.numpy_version must equal the locked 2.5.2 runtime."],
+      ["claim ceiling", (profile) => { profile.claim_ceiling = "clinical"; },
+        "profile exceeds or differs from the admitted research claim ceiling."],
+      ["assay object", (profile) => { profile.required_assay_compatibility = null; },
+        "profile.required_assay_compatibility must be an object."],
+      ["constants object", (profile) => { profile.constants = null; },
+        "profile.constants must be an object."],
+      ["locked constant", (profile) => {
+        (profile.constants as JsonObject).huber_delta = 2;
+      }, "profile.constants.huber_delta differs from the locked algorithm profile."],
+      ["limits object", (profile) => { profile.limits = null; },
+        "profile.limits must be an object."],
+      ["locked limit", (profile) => {
+        (profile.limits as JsonObject).fixed_pathway_count = 9;
+      }, "profile.limits.fixed_pathway_count differs from the locked algorithm profile."],
+      ["counts object", (profile) => { profile.counts = null; },
+        "profile.counts must be an object."],
+      ["locked count", (profile) => {
+        (profile.counts as JsonObject).source_patient_count = 103;
+      }, "profile.counts.source_patient_count is invalid."],
+      ["global feature bound", (profile) => {
+        (profile.counts as JsonObject).fitted_global_feature_count = 15;
+      }, "profile.counts.fitted_global_feature_count is outside the source bound."],
+      ["pathway feature bound", (profile) => {
+        (profile.counts as JsonObject).fitted_pathway_feature_count = 4;
+      }, "profile.counts.fitted_pathway_feature_count is outside the source bound."],
+      ["digests object", (profile) => { profile.digests = null; },
+        "profile.digests must be an object."],
+      ["nested digest", (profile) => {
+        (profile.digests as JsonObject).fold_policy_digest = "bad";
+      }, "profile.digests.fold_policy_digest must be a sha256 digest."],
+      ["evaluation object", (profile) => { profile.evaluation = null; },
+        "profile.evaluation must be an object."],
+      ["evaluation ceiling", (profile) => {
+        (profile.evaluation as JsonObject).validation_scope = "external validation";
+      }, "profile.evaluation exceeds or differs from the locked same-cohort evidence."],
+      ["pathway panel", (profile) => { profile.pathways = []; },
+        "profile.pathways must contain the exact ten-pathway panel."],
+      ["pathway record", (profile) => {
+        (profile.pathways as unknown[])[0] = null;
+      }, "profile.pathways[0] must be an object."],
+      ["pathway identity", (profile) => {
+        ((profile.pathways as JsonObject[])[0]).reactome_id = "R-HSA-0";
+      }, "profile.pathways[0] does not preserve the fixed Reactome V97 identity."],
+      ["source member bound", (profile) => {
+        ((profile.pathways as JsonObject[])[0]).source_member_count = 4;
+      }, "profile.pathways[0].source_member_count is outside the contract bound."],
+      ["unique member bound", (profile) => {
+        ((profile.pathways as JsonObject[])[0]).unique_fitted_feature_count = -1;
+      }, "profile.pathways[0].unique_fitted_feature_count is outside the contract bound."],
+      ["PI3K confounding", (profile) => {
+        ((profile.pathways as JsonObject[])[2]).overlap_confounded = false;
+      }, "profile.pathways[2] must expose PI3K/AKT overlap confounding."],
+      ["demo digest", (profile) => { profile.demo_request_digest = "bad"; },
+        "profile.demo_request_digest must be a sha256 digest."],
+      ["demo id", (profile) => { profile.demo_id = " "; },
+        "profile.demo_id must be non-empty."],
+      ["source attribution", (profile) => { profile.source_attribution = ""; },
+        "profile.source_attribution must be non-empty."],
+      ["transformation notice", (profile) => { profile.source_transformation_notice = null; },
+        "profile.source_transformation_notice must be non-empty."],
+      ["source licenses", (profile) => { profile.source_licenses = ["CC-BY-4.0"]; },
+        "profile.source_licenses must contain 2 through 4 non-empty entries."],
+    ];
+
+    const { profile } = admittedDocuments();
+    for (const [label, mutate, expected] of profileCases) {
+      const candidate = document(profile);
+      mutate(candidate);
+      expect(validateReactomeTransitionProfile(candidate), label).toContain(expected);
+    }
+
+    expect(validateReactomeTransitionProfileHeaders(headers({}), profile)).toContain(
+      "X-GLIO-Profile-Digest response header must be a lowercase sha256 digest.",
+    );
+  });
+
+  it("fails closed across nested result estimates, uncertainty, evidence, and ablations", () => {
+    type ResultMutation = (result: JsonObject) => void;
+    const transition = (result: JsonObject): JsonObject =>
+      (result.transitions as JsonObject[])[0];
+    const global = (result: JsonObject): JsonObject =>
+      transition(result).global_recurrence as JsonObject;
+    const pathway = (result: JsonObject, index = 0): JsonObject =>
+      (transition(result).pathways as JsonObject[])[index];
+    const uncertainty = (result: JsonObject): JsonObject =>
+      pathway(result).uncertainty as JsonObject;
+    const contribution = (result: JsonObject): JsonObject =>
+      (pathway(result).top_contributions as JsonObject[])[0];
+    const ablation = (result: JsonObject): JsonObject =>
+      (pathway(result).ablations as JsonObject).global_axis as JsonObject;
+
+    const resultCases: Array<[
+      label: string,
+      mutate: ResultMutation,
+      expected: string,
+    ]> = [
+      ["algorithm identity", (result) => { result.algorithm_version = "2.0.0"; },
+        "result algorithm/profile identity is invalid."],
+      ["digest syntax", (result) => { result.request_digest = "bad"; },
+        "result.request_digest must be a sha256 digest."],
+      ["claim ceiling", (result) => { result.research_use_only = false; },
+        "result semantics exceed or differ from the admitted research boundary."],
+      ["assay shape", (result) => { result.assay_compatibility = null; },
+        "result.assay_compatibility must be an object."],
+      ["normalization shape", (result) => { result.normalization_reference = []; },
+        "result.normalization_reference must be an object."],
+      ["time-point shape", (result) => { result.time_point_ids = ["same", "same"]; },
+        "result.time_point_ids must contain 2 through 16 unique identifiers."],
+      ["transition cardinality", (result) => { result.transitions = []; },
+        "result.transitions must contain one entry per consecutive time-point pair."],
+      ["transition object", (result) => {
+        (result.transitions as unknown[])[0] = null;
+      }, "result.transitions[0] must be an object."],
+      ["transition topology", (result) => { transition(result).duration_days = 0; },
+        "result.transitions[0] must bind consecutive ordered time points."],
+      ["global object", (result) => { transition(result).global_recurrence = null; },
+        "result.transitions[0].global_recurrence must be an object."],
+      ["global semantics", (result) => { global(result).output_semantics = "activation"; },
+        "result.transitions[0].global_recurrence.output_semantics is invalid."],
+      ["global support", (result) => { global(result).support = "unknown"; },
+        "result.transitions[0].global_recurrence.support is invalid."],
+      ["global classification", (result) => { global(result).classification = "unknown"; },
+        "result.transitions[0].global_recurrence.classification is invalid."],
+      ["global interval level", (result) => { global(result).interval_level = 0.8; },
+        "result.transitions[0].global_recurrence.interval_level must equal 0.9."],
+      ["global active genes", (result) => { global(result).shared_active_gene_count = -1; },
+        "result.transitions[0].global_recurrence.shared_active_gene_count must be 0 through 4096."],
+      ["global mass", (result) => { global(result).coefficient_mass_coverage = 2; },
+        "result.transitions[0].global_recurrence.coefficient_mass_coverage must be in [0,1]."],
+      ["global effective sample", (result) => { global(result).effective_sample_size = -1; },
+        "result.transitions[0].global_recurrence.effective_sample_size must be nonnegative."],
+      ["global reasons", (result) => { global(result).abstention_reasons = [3]; },
+        "result.transitions[0].global_recurrence.abstention_reasons must contain at most 8 strings."],
+      ["global abstention", (result) => { global(result).support = "abstained"; },
+        "result.transitions[0].global_recurrence abstention fields are inconsistent."],
+      ["global estimate", (result) => { global(result).lower_bound = 1; },
+        "result.transitions[0].global_recurrence requires a finite ordered estimate and bootstraps."],
+      ["global interval classification", (result) => {
+        global(result).classification = "source_recurrence_aligned";
+      }, "result.transitions[0].global_recurrence.classification must be supported by its 90% interval."],
+      ["global indeterminate interval", (result) => {
+        global(result).score = 0;
+        global(result).lower_bound = -0.3;
+        global(result).upper_bound = 0.3;
+        global(result).classification = "stable";
+      }, "result.transitions[0].global_recurrence.classification must be supported by its 90% interval."],
+      ["global gates", (result) => { global(result).shared_active_gene_count = 15; },
+        "result.transitions[0].global_recurrence estimated output does not meet global support gates."],
+      ["global supported reasons", (result) => {
+        global(result).abstention_reasons = ["unexpected"];
+      }, "result.transitions[0].global_recurrence supported output cannot carry limitation reasons."],
+      ["global limited reason", (result) => {
+        global(result).support = "limited";
+      }, "result.transitions[0].global_recurrence LIMITED output requires a limitation reason."],
+      ["pathway panel", (result) => { transition(result).pathways = []; },
+        "result.transitions[0].pathways must contain the exact ten-pathway panel."],
+      ["pathway object", (result) => {
+        (transition(result).pathways as unknown[])[0] = null;
+      }, "result.transitions[0].pathways[0] must be an object."],
+      ["pathway identity", (result) => { pathway(result).panel_index = 8; },
+        "result.transitions[0].pathways[0] does not preserve the fixed Reactome V97 pathway order."],
+      ["pathway semantics", (result) => { pathway(result).output_semantics = "activation"; },
+        "result.transitions[0].pathways[0].output_semantics is invalid."],
+      ["pathway support", (result) => { pathway(result).support = "unknown"; },
+        "result.transitions[0].pathways[0].support is invalid."],
+      ["pathway classification", (result) => { pathway(result).classification = "unknown"; },
+        "result.transitions[0].pathways[0].classification is invalid."],
+      ["pathway interval", (result) => { pathway(result).interval_level = 0.8; },
+        "result.transitions[0].pathways[0].interval_level must equal 0.9."],
+      ["pathway count", (result) => { pathway(result).active_feature_count = -1; },
+        "result.transitions[0].pathways[0].active_feature_count must be an integer from 0 through 4096."],
+      ["pathway source count", (result) => { pathway(result).source_member_count = 4; },
+        "result.transitions[0].pathways[0].source_member_count is outside the contract bound."],
+      ["pathway fitted count", (result) => { pathway(result).fitted_feature_count = 0; },
+        "result.transitions[0].pathways[0].fitted_feature_count must be 1 through 4096."],
+      ["pathway count closure", (result) => { pathway(result).observed_count = 1; },
+        "result.transitions[0].pathways[0] active feature counts do not close."],
+      ["unique active count", (result) => { pathway(result).unique_active_gene_count = 4_097; },
+        "result.transitions[0].pathways[0].unique_active_gene_count must be an integer from 0 through 4096."],
+      ["unique active closure", (result) => { pathway(result).unique_active_gene_count = 39; },
+        "result.transitions[0].pathways[0].unique_active_gene_count cannot exceed active features."],
+      ["PI3K confounding", (result) => { pathway(result, 2).overlap_confounded = false; },
+        "result.transitions[0].pathways[2] must expose PI3K/AKT overlap confounding."],
+      ["uncertainty object", (result) => { pathway(result).uncertainty = null; },
+        "result.transitions[0].pathways[0].uncertainty must be an object."],
+      ["uncertainty finite", (result) => { uncertainty(result).combined_standard_error = null; },
+        "result.transitions[0].pathways[0].uncertainty.combined_standard_error must be finite."],
+      ["uncertainty nonnegative", (result) => { uncertainty(result).variance_closure_residual = -1; },
+        "result.transitions[0].pathways[0].uncertainty.variance_closure_residual must be nonnegative."],
+      ["uncertainty bootstrap", (result) => { uncertainty(result).bootstrap_replicates_used = 0; },
+        "result.transitions[0].pathways[0].uncertainty.bootstrap_replicates_used must be 1 through 256."],
+      ["uncertainty estimated reason", (result) => { uncertainty(result).reason = "bad"; },
+        "result.transitions[0].pathways[0].uncertainty.reason must be null when estimated."],
+      ["uncertainty abstention", (result) => {
+        uncertainty(result).state = "not_estimable";
+      }, "result.transitions[0].pathways[0].uncertainty.measurement_standard_error must be null."],
+      ["uncertainty state", (result) => { uncertainty(result).state = "unknown"; },
+        "result.transitions[0].pathways[0].uncertainty.state is invalid."],
+      ["contribution list", (result) => { pathway(result).top_contributions = null; },
+        "result.transitions[0].pathways[0].top_contributions must contain at most 10 entries."],
+      ["contribution object", (result) => {
+        (pathway(result).top_contributions as unknown[])[0] = null;
+      }, "result.transitions[0].pathways[0].top_contributions[0] must be an object."],
+      ["contribution digest", (result) => { contribution(result).from_provenance_digest = "bad"; },
+        "result.transitions[0].pathways[0].top_contributions[0].from_provenance_digest must be a sha256 digest."],
+      ["contribution state", (result) => { contribution(result).from_state = "missing"; },
+        "result.transitions[0].pathways[0].top_contributions[0] must decompose an exact observed-to-observed delta."],
+      ["contribution finite", (result) => { contribution(result).pathway_loading = null; },
+        "result.transitions[0].pathways[0].top_contributions[0].pathway_loading must be finite."],
+      ["contribution closure", (result) => { contribution(result).conditional_contribution = 0.17; },
+        "result.transitions[0].pathways[0].top_contributions[0] conditional contribution does not close its decomposition."],
+      ["contribution direction", (result) => {
+        contribution(result).direction = "conditional_source_primary_aligned";
+      }, "result.transitions[0].pathways[0].top_contributions[0].direction must match its nonzero conditional contribution."],
+      ["contribution reliability", (result) => { contribution(result).reliability_weight = 0; },
+        "result.transitions[0].pathways[0].top_contributions[0].reliability_weight must be in (0,1]."],
+      ["ablations object", (result) => { pathway(result).ablations = null; },
+        "result.transitions[0].pathways[0].ablations must be an object."],
+      ["ablation object", (result) => {
+        (pathway(result).ablations as JsonObject).global_axis = 3;
+      }, "result.transitions[0].pathways[0].ablations.global_axis must be an object."],
+      ["ablation kind", (result) => { ablation(result).component_kind = "unknown"; },
+        "result.transitions[0].pathways[0].ablations.global_axis.component_kind is invalid."],
+      ["ablation support", (result) => { ablation(result).support = "unknown"; },
+        "result.transitions[0].pathways[0].ablations.global_axis.support is invalid."],
+      ["ablation removed count", (result) => { ablation(result).removed_feature_count = -1; },
+        "result.transitions[0].pathways[0].ablations.global_axis.removed_feature_count must be 0 through 4096."],
+      ["ablation abstention", (result) => { ablation(result).support = "abstained"; },
+        "result.transitions[0].pathways[0].ablations.global_axis abstention fields are inconsistent."],
+      ["ablation estimate", (result) => {
+        ablation(result).conditional_score_without_component = null;
+      }, "result.transitions[0].pathways[0].ablations.global_axis requires finite estimated ablation fields."],
+      ["supported ablation reason", (result) => { ablation(result).support = "supported"; },
+        "result.transitions[0].pathways[0].ablations.global_axis supported ablation must not carry a reason."],
+      ["limited ablation reason", (result) => { ablation(result).reason = ""; },
+        "result.transitions[0].pathways[0].ablations.global_axis LIMITED ablation requires a reason."],
+      ["ablation arrays", (result) => {
+        (pathway(result).ablations as JsonObject).source_processing = null;
+      }, "result.transitions[0].pathways[0].ablations.source_processing must be an array."],
+      ["pathway reasons", (result) => { pathway(result).abstention_reasons = [3]; },
+        "result.transitions[0].pathways[0].abstention_reasons must contain at most 12 strings."],
+      ["pathway abstention", (result) => { pathway(result).support = "abstained"; },
+        "result.transitions[0].pathways[0] abstention fields are inconsistent."],
+      ["pathway estimate", (result) => { pathway(result).score = null; },
+        "result.transitions[0].pathways[0] requires complete finite coordinates and diagnostics."],
+      ["pathway interval classification", (result) => {
+        pathway(result).classification = "conditionally_stable";
+      }, "result.transitions[0].pathways[0].classification must be supported by its 90% interval."],
+      ["pathway support gates", (result) => { pathway(result).coefficient_mass_coverage = 0.4; },
+        "result.transitions[0].pathways[0] estimated output does not meet pathway support gates."],
+      ["pathway attribution gates", (result) => { pathway(result).stability = 0.7; },
+        "result.transitions[0].pathways[0] SUPPORTED output does not meet attribution gates."],
+      ["limited pathway reason", (result) => {
+        pathway(result).support = "limited";
+      }, "result.transitions[0].pathways[0] LIMITED output requires an explicit limitation reason."],
+      ["provenance object", (result) => { result.provenance = null; },
+        "result.provenance must be an object."],
+      ["provenance identity", (result) => {
+        (result.provenance as JsonObject).source_patient_count = 1;
+      }, "result provenance identity does not close with the receipt."],
+      ["provenance digest", (result) => {
+        (result.provenance as JsonObject).computational_digest = "bad";
+      }, "result.provenance.computational_digest must be a sha256 digest."],
+      ["provenance seed", (result) => {
+        (result.provenance as JsonObject).bootstrap_seed = -1;
+      }, "result.provenance.bootstrap_seed must be a safe non-negative integer."],
+      ["assay digest binding", (result) => {
+        (result.provenance as JsonObject).assay_compatibility_digest = shaA;
+      }, "result.provenance.assay_compatibility_digest does not match the result."],
+      ["normalization binding", (result) => {
+        (result.provenance as JsonObject).normalization_reference_digest = shaA;
+      }, "result.provenance.normalization_reference_digest does not match the result."],
+      ["provenance licenses", (result) => {
+        (result.provenance as JsonObject).source_licenses = ["only-one"];
+      }, "result.provenance.source_licenses must contain 2 through 4 entries."],
+      ["limitations", (result) => { result.limitations = ["too short"]; },
+        "result.limitations must contain 6 through 20 non-empty entries."],
+    ];
+
+    const { result } = admittedDocuments();
+    for (const [label, mutate, expected] of resultCases) {
+      const candidate = document(result);
+      mutate(candidate);
+      expect(validateReactomeTransitionResult(candidate), label).toContain(expected);
+    }
+  });
+
+  it("fails closed across demo, result, profile, and replay bindings", () => {
+    const { request, profile, result, verification } = admittedDocuments();
+
+    expect(validateReactomeTransitionDemo(request, headers({
+      "X-GLIO-Request-Digest": String(profile.demo_request_digest),
+    }), null)).toContain(
+      "The admitted Reactome-transition profile is unavailable for demo binding.",
+    );
+    const foreignDemoProfile = document(profile);
+    foreignDemoProfile.demo_id = "foreign";
+    foreignDemoProfile.demo_request_digest = shaA;
+    expect(validateReactomeTransitionDemo(request, headers({
+      "X-GLIO-Profile-Digest": String(foreignDemoProfile.profile_digest),
+      "X-GLIO-Request-Digest": String(profile.demo_request_digest),
+    }), foreignDemoProfile)).toEqual(expect.arrayContaining([
+      "The Reactome demo series_id must match the loaded profile.demo_id.",
+      "The canonical Reactome demo request digest must match profile.demo_request_digest.",
+    ]));
+
+    const foreignRequest = document(request);
+    foreignRequest.profile_id = "foreign";
+    foreignRequest.assay_compatibility = { foreign: true };
+    foreignRequest.normalization_reference = { foreign: true };
+    foreignRequest.time_points = [null, { time_point_id: 3 }];
+    expect(validateReactomeTransitionResultRequestBinding(result, foreignRequest)).toEqual(
+      expect.arrayContaining([
+        "result.profile_id must match the submitted request.",
+        "result.assay_compatibility must exactly match the submitted request.",
+        "result.normalization_reference must exactly match the submitted request.",
+        "result.time_point_ids must exactly match the submitted request order.",
+      ]),
+    );
+
+    const foreignProfile = document(profile);
+    foreignProfile.profile_digest = shaA;
+    foreignProfile.required_assay_compatibility = { foreign: true };
+    (foreignProfile.digests as JsonObject).fold_policy_digest = `sha256:${"b".repeat(64)}`;
+    ((foreignProfile.pathways as JsonObject[])[0]).pathway_name = "foreign";
+    expect(validateReactomeTransitionResultProfileBinding(result, foreignProfile)).toEqual(
+      expect.arrayContaining([
+        "result.profile_digest must match the admitted loaded profile.",
+        "result.assay_compatibility must match the loaded profile requirement.",
+        "result.provenance.fold_policy_digest must match profile.digests.fold_policy_digest.",
+        "result.transitions[0].pathways[0] does not match the loaded profile identity.",
+      ]),
+    );
+
+    const malformedResult = document(result);
+    (malformedResult.transitions as unknown[])[0] = null;
+    expect(validateReactomeTransitionResultProfileBinding(malformedResult, profile)).toEqual([]);
+
+    const malformedVerification = document(verification);
+    malformedVerification.semantic_match = "true";
+    malformedVerification.recomputed_request_digest = shaA;
+    const foreignResult = document(result);
+    foreignResult.profile_digest = shaA;
+    expect(validateReactomeTransitionVerification(
+      malformedVerification,
+      foreignResult,
+      profile,
+    )).toEqual(expect.arrayContaining([
+      "verification.semantic_match must be Boolean.",
+      "verification.semantic_match does not close its semantic checks.",
+      "verification recomputed digests must match the admitted receipt.",
+      "verification result/profile binding does not match the admitted profile.",
+    ]));
+
+    expect(validateReactomeTransitionResultHeaders(headers({
+      "X-GLIO-Profile-Digest": String(result.profile_digest),
+      "X-GLIO-Request-Digest": String(result.request_digest),
+      "X-GLIO-Result-Digest": String(result.result_digest),
+    }), result)).toEqual([]);
+    expect(validateReactomeTransitionVerificationHeaders(headers({}), verification, profile))
+      .toEqual(expect.arrayContaining([
+        "X-GLIO-Profile-Digest response header must be a lowercase sha256 digest.",
+        "X-GLIO-Request-Digest response header must be a lowercase sha256 digest.",
+        "X-GLIO-Result-Digest response header must be a lowercase sha256 digest.",
+      ]));
+  });
 });
 
 describe("longitudinal GBM Reactome result normalization", () => {

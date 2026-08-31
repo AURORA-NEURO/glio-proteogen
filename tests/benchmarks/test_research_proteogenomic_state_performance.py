@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import os
 from collections import Counter
 
 import pytest
@@ -155,6 +156,20 @@ def test_nearest_rank_p95_is_conservative_and_rejects_invalid_inputs() -> None:
         nearest_rank_percentile((0.1,), 0)
     with pytest.raises(ValueError, match=r"\[1, 100\]"):
         nearest_rank_percentile((0.1,), 101)
+
+
+def test_fresh_benchmark_process_has_bounded_numeric_worker_counts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    variables = performance_benchmark._NUMERIC_THREAD_ENVIRONMENT_VARIABLES
+    for variable in variables:
+        monkeypatch.setenv(variable, "64")
+
+    environment = performance_benchmark._fresh_process_environment()
+
+    assert all(environment[variable] == "1" for variable in variables)
+    assert all(os.environ[variable] == "64" for variable in variables)
+    assert environment["PYTHONDONTWRITEBYTECODE"] == "1"
 
 
 @pytest.mark.benchmark

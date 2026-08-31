@@ -1,6 +1,11 @@
 import {
   LONGITUDINAL_GBM_REACTOME_TRANSITION_PROFILE_ID,
+  reactomeTransitionProfileDigest,
+  reactomeTransitionRequestDigest,
+  reactomeTransitionResultDigest,
+  reactomeTransitionValueDigest,
 } from "../../src/lib/longitudinal-gbm-reactome-transition";
+import type { JsonObject } from "../../src/lib/research-state";
 import {
   LONGITUDINAL_ASSAY_PROFILE_ID,
   LONGITUDINAL_ASSAY_SCHEMA_VERSION,
@@ -327,3 +332,174 @@ export const reactomeTransitionVerification = {
   recomputed_result_digest: resultDigest,
   message: "Deterministic replay verified.",
 };
+
+function cloneDocument(value: unknown): JsonObject {
+  return JSON.parse(JSON.stringify(value)) as JsonObject;
+}
+
+function intervalClassification(lower: number, upper: number): string {
+  if (lower > 0.25) return "conditional_source_recurrence_aligned";
+  if (upper < -0.25) return "conditional_source_primary_aligned";
+  if (lower >= -0.25 && upper <= 0.25) return "conditionally_stable";
+  return "indeterminate";
+}
+
+/** Build one internally digest-bound wire fixture for strict browser admission. */
+export function admittedReactomeTransitionDocuments(): {
+  request: JsonObject;
+  profile: JsonObject;
+  result: JsonObject;
+  verification: JsonObject;
+} {
+  const request = cloneDocument(reactomeTransitionDemoRequest);
+  const canonicalRequestDigest = reactomeTransitionRequestDigest(request);
+  const profile = cloneDocument(reactomeTransitionProfile);
+  profile.parent_feature_axis_model_id = "kncc-paired-protein-transition/1.0.0";
+  profile.parent_dependency_semantics =
+    "feature_axis_and_assay_binding_only_no_runtime_delegation";
+  profile.required_assay_compatibility = cloneDocument(request.assay_compatibility);
+  profile.constants = {
+    estimator: "global_adjusted_robust_conditional_coordinate_v1",
+    missing_evidence_policy: "missing_and_unsupported_never_become_negative_v1",
+    censoring_policy: "reported_limit_one_sided_bound_v1",
+    output_semantics: "global_recurrence_concordance_and_conditional_pathway_concordance_only",
+    huber_delta: 1.345,
+    ridge_lambda: 1,
+    global_ridge_multiplier: 0.25,
+    damping: 0.7,
+    solver_max_iterations: 200,
+    solver_tolerance: 1e-9,
+    maximum_condition_number: 25,
+    interval_level: 0.9,
+    aligned_threshold: 0.25,
+    stable_threshold: 0.25,
+    default_bootstrap_replicates: 64,
+    supported_minimum_bootstrap_replicates: 64,
+    minimum_bootstrap_replicates: 32,
+    maximum_bootstrap_replicates: 256,
+    offline_bootstrap_ensemble_size: 256,
+    global_minimum_active_genes: 16,
+    global_minimum_coefficient_mass: 0.25,
+    global_minimum_effective_sample_size: 8,
+    pathway_minimum_active_genes: 5,
+    pathway_minimum_coefficient_mass: 0.5,
+    pathway_minimum_effective_sample_size: 3,
+    pathway_minimum_unique_genes: 3,
+    pathway_minimum_unique_mass: 0.2,
+    pathway_supported_minimum_stability: 0.8,
+    request_reconstruction_gene_folds: 5,
+    pathway_supported_required_evaluable_gene_folds: 5,
+    pathway_supported_minimum_improved_gene_folds: 4,
+    pathway_supported_minimum_reconstruction_gain: 0.01,
+    pi3k_always_overlap_confounded: true,
+    outer_fold_salt: "kncc-reactome-panel-outer-v1",
+    gene_fold_salt: "kncc-reactome-gene-fold-v1",
+    quantization_decimals: 8,
+    solver_work_unit_formula: "(time_points - 1) * (186 + 3 * bootstrap_replicates)",
+  };
+  profile.limits = {
+    min_time_points: 2,
+    max_time_points: 16,
+    max_observations_per_time_point: 4_096,
+    max_total_observations: 12_000,
+    fixed_pathway_count: 10,
+    max_top_contributions: 10,
+    max_overlap_ablations: 9,
+    request_max_bytes: 2_097_152,
+    result_max_bytes: 4_194_304,
+    replay_max_bytes: 8_388_608,
+    max_solver_work_units: 4_608,
+  };
+  profile.counts = {
+    ...(profile.counts as JsonObject),
+    excluded_candidate_count: 12,
+    reactome_release: 97,
+    outer_fold_count: 8,
+    gene_fold_count: 5,
+  };
+  const digestFields = [
+    "source_catalog_artifact_digest",
+    "source_catalog_content_digest",
+    "source_binding_digest",
+    "selection_candidate_digest",
+    "pathway_order_digest",
+    "pathway_membership_digest",
+    "gene_order_digest",
+    "patient_order_rule_digest",
+    "fitted_artifact_digest",
+    "fitted_content_digest",
+    "union_feature_digest",
+    "reference_tensor_digest",
+    "centering_scaling_digest",
+    "reference_design_digest",
+    "global_loading_digest",
+    "conditional_loading_digest",
+    "bootstrap_ensemble_digest",
+    "training_recipe_digest",
+    "fold_policy_digest",
+    "source_processing_ablation_digest",
+    "evaluation_digest",
+    "input_contract_schema_digest",
+    "engine_semantic_digest",
+  ];
+  profile.digests = Object.fromEntries(digestFields.map((field) => [field, digest]));
+  profile.evaluation = {
+    ...(profile.evaluation as JsonObject),
+    outer_design_condition_minimum: 4.9,
+    outer_design_condition_maximum: 5.5,
+    full_patient_nonconverged_count: 0,
+    global_held_gene_nonconverged_count: 0,
+    joint_held_gene_nonconverged_count: 0,
+    leave_pathway_out_nonconverged_count: 0,
+    leave_pathway_interval_count: 10,
+  };
+  profile.demo_id = request.series_id;
+  profile.demo_request_digest = canonicalRequestDigest;
+  profile.demo_semantic_oracle_digest = digest;
+  profile.source_attribution = "Kim et al., Cancer Cell 2024, PDC000514; Reactome V97";
+  profile.source_licenses = ["CC-BY-4.0", "Reactome CC0"];
+  profile.source_transformation_notice =
+    "De-identified fitted artifact; no patient matrix is bundled.";
+  profile.interpretation =
+    "global_adjusted_reactome_membership_coordinate_not_pathway_activation_or_flux";
+  profile.maximum_evidence_grade = "limited_same_cohort_without_external_validation";
+  profile.profile_digest = reactomeTransitionProfileDigest(profile);
+
+  const result = cloneDocument(reactomeTransitionAnalysisResult);
+  result.profile_digest = profile.profile_digest;
+  result.request_digest = canonicalRequestDigest;
+  for (const pathwayResult of (result.transitions as JsonObject[])[0].pathways as JsonObject[]) {
+    pathwayResult.classification = intervalClassification(
+      pathwayResult.lower_bound as number,
+      pathwayResult.upper_bound as number,
+    );
+  }
+  const profileDigests = profile.digests as JsonObject;
+  result.provenance = {
+    ...(result.provenance as JsonObject),
+    ...profileDigests,
+    request_digest: canonicalRequestDigest,
+    profile_digest: profile.profile_digest,
+    computational_digest: digest,
+    numerical_seed_digest: digest,
+    demo_semantic_oracle_digest: profile.demo_semantic_oracle_digest,
+    assay_compatibility_digest: reactomeTransitionValueDigest(result.assay_compatibility),
+    normalization_reference_digest: (result.normalization_reference as JsonObject).binding_digest,
+    caller_evidence_set_digest: digest,
+    bootstrap_seed: 17,
+  };
+  result.limitations = [
+    ...(result.limitations as string[]),
+    "No external validation is claimed.",
+    "No recurrence prediction is produced.",
+    "No treatment recommendation is produced.",
+  ];
+  result.result_digest = reactomeTransitionResultDigest(result);
+
+  const verification = cloneDocument(reactomeTransitionVerification);
+  verification.recomputed_request_digest = canonicalRequestDigest;
+  verification.recomputed_result_digest = result.result_digest;
+  verification.message =
+    "Replay exactly matches the deterministic conditional-concordance receipt.";
+  return { request, profile, result, verification };
+}

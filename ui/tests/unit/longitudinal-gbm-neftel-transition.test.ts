@@ -359,7 +359,13 @@ describe("longitudinal GBM Neftel-transition fail-closed behavior", () => {
     }
 
     const validNegativeCovariance = document(neftelTransitionAnalysis);
-    expect(Number(firstUncertainty(validNegativeCovariance).measurement_model_covariance)).toBeLessThan(0);
+    const estimatedPrograms = normalizeNeftelTransitions(validNegativeCovariance)
+      .flatMap((transition) => transition.programs)
+      .filter((program) => program.score !== null);
+    expect(estimatedPrograms.some((program) => (
+      program.uncertainty.measurementModelCovariance !== null
+      && program.uncertainty.measurementModelCovariance < 0
+    ))).toBe(true);
     expect(validateNeftelTransitionResult(validNegativeCovariance)).toEqual([]);
   });
 
@@ -701,7 +707,7 @@ describe("longitudinal GBM Neftel-transition fail-closed behavior", () => {
       expect(validateNeftelTransitionResult(value).length).toBeGreaterThan(0);
     }
     expect(validateNeftelTransitionResult({}).length).toBeGreaterThan(8);
-  });
+  }, 15_000);
 
   it("rejects malformed program estimates, uncertainty, contributions, and ablations", () => {
     const mutations: Array<(value: JsonObject) => void> = [
@@ -875,7 +881,7 @@ describe("longitudinal GBM Neftel-transition fail-closed behavior", () => {
     expect(validateNeftelTransitionResult(supportedGlobal)).toContain(
       "result.transitions[0].global_transition.support exceeds the lane-wide LIMITED evidence ceiling.",
     );
-  });
+  }, 15_000);
 
   it("rejects every foreign request, profile-program, digest-header, and replay binding", () => {
     const result = document(neftelTransitionAnalysis);

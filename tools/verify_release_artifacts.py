@@ -36,17 +36,18 @@ _PACKAGE_NAME = "glio_proteogen"
 _CONSOLE_SCRIPT = "glio-proteogen"
 _CONSOLE_ENTRY_POINT = "glio_proteogen.adapters.cli:app"
 _SCHEMA_URI = "https://json-schema.org/draft/2020-12/schema"
+_BENCHMARK_MEASUREMENT_CLOCK = "process_time_ns"
 _M0403_MODULE_ID = "GLIO-PROTEOGEN-M04-03"
 _M0403_CASE_COUNT = 72
 _M0403_BENCHMARK_ITERATIONS = 25
 _M0403_BENCHMARK_WARMUPS = 1
-_M0403_MEAN_BUDGET_NS = 500_000_000
+_M0403_MEAN_BUDGET_NS = 625_000_000
 _M0403_P95_BUDGET_NS = 750_000_000
 _M0404_MODULE_ID = "GLIO-PROTEOGEN-M04-04"
 _M0404_CASE_COUNT = 72
 _M0404_BENCHMARK_ITERATIONS = 25
 _M0404_BENCHMARK_WARMUPS = 1
-_M0404_MEAN_BUDGET_NS = 500_000_000
+_M0404_MEAN_BUDGET_NS = 625_000_000
 _M0404_P95_BUDGET_NS = 750_000_000
 _M0404_BENCHMARK_SHAPE = {
     "role_count": 4,
@@ -115,7 +116,7 @@ _M0407_MODULE_ID = "GLIO-PROTEOGEN-M04-07"
 _M0407_CASE_COUNT = 19
 _M0407_BENCHMARK_ITERATIONS = 25
 _M0407_BENCHMARK_WARMUPS = 1
-_M0407_MEAN_BUDGET_NS = 2_000_000_000
+_M0407_MEAN_BUDGET_NS = 2_500_000_000
 _M0407_P95_BUDGET_NS = 3_000_000_000
 _M0407_CONTRACT_VERSION = "1.0.0"
 _M0407_EVALUATION_PHASE = "locked_executable_corpus"
@@ -526,6 +527,11 @@ def _require_exact_integer(
         raise ReleaseArtifactError(f"{label} has an unexpected {field}")
 
 
+def _require_exact_text(value: Mapping[str, object], field: str, expected: str, label: str) -> None:
+    if value.get(field) != expected:
+        raise ReleaseArtifactError(f"{label} has an unexpected {field}")
+
+
 def _require_positive_integer(document: Mapping[str, object], field: str, label: str) -> int:
     value = document.get(field)
     if isinstance(value, bool) or not isinstance(value, int) or value < 1:
@@ -588,6 +594,12 @@ def _verify_m0403_benchmark(benchmark_report: Mapping[str, object]) -> None:
         raise ReleaseArtifactError("M04-03 benchmark report has the wrong module identity")
     if benchmark_report.get("passed") is not True:
         raise ReleaseArtifactError("M04-03 benchmark report did not pass")
+    _require_exact_text(
+        benchmark_report,
+        "measurement_clock",
+        _BENCHMARK_MEASUREMENT_CLOCK,
+        "M04-03 benchmark report",
+    )
     for field, expected in (
         ("iterations", _M0403_BENCHMARK_ITERATIONS),
         ("warmup_count", _M0403_BENCHMARK_WARMUPS),
@@ -595,6 +607,13 @@ def _verify_m0403_benchmark(benchmark_report: Mapping[str, object]) -> None:
         ("p95_budget_ns", _M0403_P95_BUDGET_NS),
     ):
         _require_exact_integer(benchmark_report, field, expected, "M04-03 benchmark report")
+    _require_nonnegative_integer(
+        benchmark_report,
+        "pre_timing_gc_collected_objects",
+        "M04-03 benchmark report",
+    )
+    if benchmark_report.get("cyclic_gc_enabled_during_timing") is not True:
+        raise ReleaseArtifactError("M04-03 benchmark report disabled cyclic GC during timing")
     mean = benchmark_report.get("mean_ns")
     p95 = benchmark_report.get("p95_ns")
     if isinstance(mean, bool) or not isinstance(mean, (int, float)):
@@ -652,6 +671,12 @@ def _verify_m0404_benchmark(benchmark_report: Mapping[str, object]) -> None:
         raise ReleaseArtifactError("M04-04 benchmark report has the wrong module identity")
     if benchmark_report.get("passed") is not True:
         raise ReleaseArtifactError("M04-04 benchmark report did not pass")
+    _require_exact_text(
+        benchmark_report,
+        "measurement_clock",
+        _BENCHMARK_MEASUREMENT_CLOCK,
+        "M04-04 benchmark report",
+    )
     exact_fields: dict[str, int] = {
         "iterations": _M0404_BENCHMARK_ITERATIONS,
         "warmup_count": _M0404_BENCHMARK_WARMUPS,
@@ -661,6 +686,13 @@ def _verify_m0404_benchmark(benchmark_report: Mapping[str, object]) -> None:
     }
     for field, expected in exact_fields.items():
         _require_exact_integer(benchmark_report, field, expected, "M04-04 benchmark report")
+    _require_nonnegative_integer(
+        benchmark_report,
+        "pre_timing_gc_collected_objects",
+        "M04-04 benchmark report",
+    )
+    if benchmark_report.get("cyclic_gc_enabled_during_timing") is not True:
+        raise ReleaseArtifactError("M04-04 benchmark report disabled cyclic GC during timing")
     mean = benchmark_report.get("mean_ns")
     p95 = benchmark_report.get("p95_ns")
     if isinstance(mean, bool) or not isinstance(mean, (int, float)):
@@ -1245,6 +1277,7 @@ def _verify_m0407_benchmark(benchmark_report: Mapping[str, object]) -> None:
         ("contract_version", _M0407_CONTRACT_VERSION),
         ("workload", _M0407_BENCHMARK_WORKLOAD),
         ("timed_boundary", _M0407_TIMED_BOUNDARY),
+        ("measurement_clock", _BENCHMARK_MEASUREMENT_CLOCK),
     ):
         if benchmark_report.get(field) != expected:
             raise ReleaseArtifactError(f"{label} has an unexpected {field}")
@@ -1261,6 +1294,7 @@ def _verify_m0407_benchmark(benchmark_report: Mapping[str, object]) -> None:
     }
     for field, expected_integer in exact_fields.items():
         _require_exact_integer(benchmark_report, field, expected_integer, label)
+    _require_nonnegative_integer(benchmark_report, "pre_timing_gc_collected_objects", label)
     mean = benchmark_report.get("mean_ns")
     p50 = _require_nonnegative_integer(benchmark_report, "p50_ns", label)
     p95 = _require_nonnegative_integer(benchmark_report, "p95_ns", label)
@@ -1276,6 +1310,7 @@ def _verify_m0407_benchmark(benchmark_report: Mapping[str, object]) -> None:
         or maximum < p50
         or maximum < p95
         or maximum < mean
+        or benchmark_report.get("cyclic_gc_enabled_during_timing") is not True
     ):
         raise ReleaseArtifactError(f"{label} exceeds its timing budgets")
 

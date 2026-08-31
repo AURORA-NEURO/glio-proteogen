@@ -17,6 +17,7 @@ def test_repository_workflow_has_unique_mapping_keys() -> None:
     validate_workflow(release_workflow)
     workflow_text = workflow.read_text(encoding="utf-8")
     release_text = release_workflow.read_text(encoding="utf-8")
+    assert "push:\n    branches:\n      - main" in workflow_text
     assert "YAML.parse_file(path)" in workflow_text
     assert "python tools/validate_workflows.py" in workflow_text
     for text in (workflow_text, release_text):
@@ -29,6 +30,10 @@ def test_repository_workflow_has_unique_mapping_keys() -> None:
         assert "--benchmark-timeout-seconds 300" in text
     assert "--junit-xml module-tests.junit.xml" in workflow_text
     assert "--coverage-report coverage.xml" in workflow_text
+    assert "git ls-files tests | grep -E" in workflow_text
+    assert "rg --files" not in workflow_text
+    assert "tests/research/test_m15_longitudinal_recurrence_facade.py" in workflow_text
+    assert "tests/integration/test_m15_longitudinal_recurrence_facade.py" in workflow_text
     assert "--junit-xml evidence/tests.junit.xml" in release_text
     assert "--coverage-report evidence/coverage.xml" in release_text
 

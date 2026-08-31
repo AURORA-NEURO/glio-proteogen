@@ -397,7 +397,12 @@ def test_asgi_main_passes_resolved_settings_to_uvicorn(
     }
 
 
-def test_asgi_file_execution_bootstraps_src_root(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_asgi_file_execution_bootstraps_src_root(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "asgi-probe" / "events.sqlite3"
+    monkeypatch.setenv("GLIO_PROTEOGEN_DATABASE_PATH", str(database))
     asgi = importlib.import_module("glio_proteogen.asgi")
     source = Path(asgi.__file__).resolve()
     source_root = source.parents[1]
@@ -407,3 +412,4 @@ def test_asgi_file_execution_bootstraps_src_root(monkeypatch: pytest.MonkeyPatch
 
     assert namespace["_SOURCE_ROOT"] == source_root
     assert namespace["app"] is not None
+    assert namespace["app"].state.deployment["database_path"] == str(database)

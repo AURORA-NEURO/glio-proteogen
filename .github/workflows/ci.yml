@@ -2,6 +2,8 @@ name: evidence
 
 on:
   push:
+    branches:
+      - main
   pull_request:
 
 permissions:
@@ -62,6 +64,13 @@ jobs:
   research-state-quality:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      BLIS_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      NUMEXPR_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      VECLIB_MAXIMUM_THREADS: "1"
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -273,6 +282,8 @@ jobs:
             tests/research/test_longitudinal_gbm_contracts.py \
             tests/research/test_longitudinal_gbm_engine.py \
             tests/research/test_longitudinal_gbm_service.py \
+            tests/research/test_m15_longitudinal_recurrence_facade.py \
+            tests/integration/test_m15_longitudinal_recurrence_facade.py \
             tests/integration/test_longitudinal_gbm_adapter.py
           uv run coverage report --fail-under=100 \
             --include='src/glio_proteogen/research/longitudinal_gbm/*.py'
@@ -484,7 +495,7 @@ jobs:
       - name: Run targeted model tests with branch coverage
         shell: bash
         run: |
-          model_tests="$(rg --files tests | rg 'test_.*(m15_05|m1505|m23_01|m2301|m23_02|m2302|m23_03|m2303|m23_04|m2304|m23_05|m2305|m23_07|m2307|m23_08|m2308|m24_02|m2402|m24_03|m2403|m24_04|m2404|m24_05|m2405|m24_06|m2406|m24_07|m2407|m24_08|m2408|m25_01|m2501|m25_02|m2502|m25_03|m2503|m25_04|m2504|m25_05|m2505|m25_06|m2506|m25_07|m2507|m25_08|m2508|m2601|m26_01|m26_02|m2602|m2603|m2604|m2605|m2606|m2607|m2608|m27_02|m2702|m27_03|m2703|m2704|m2705|m2706|m27_07|m2707|m2708|m28_04|m2804)')"
+          model_tests="$(git ls-files tests | grep -E 'test_.*(m15_05|m1505|m23_01|m2301|m23_02|m2302|m23_03|m2303|m23_04|m2304|m23_05|m2305|m23_07|m2307|m23_08|m2308|m24_02|m2402|m24_03|m2403|m24_04|m2404|m24_05|m2405|m24_06|m2406|m24_07|m2407|m24_08|m2408|m25_01|m2501|m25_02|m2502|m25_03|m2503|m25_04|m2504|m25_05|m2505|m25_06|m2506|m25_07|m2507|m25_08|m2508|m2601|m26_01|m26_02|m2602|m2603|m2604|m2605|m2606|m2607|m2608|m27_02|m2702|m27_03|m2703|m2704|m2705|m2706|m27_07|m2707|m2708|m28_04|m2804)')"
           uv run coverage erase
           uv run coverage run --branch -m pytest -q -o addopts='' \
             $model_tests \

@@ -26,8 +26,7 @@ _ELAPSED_NS = _FINISHED_NS - _STARTED_NS
 
 def _synthetic_maximum_shape() -> tuple[SimpleNamespace, SimpleNamespace]:
     profiles = tuple(
-        SimpleNamespace(thresholds=(None,) * M0404_METRIC_COUNT)
-        for _ in range(M0404_MAX_PROFILES)
+        SimpleNamespace(thresholds=(None,) * M0404_METRIC_COUNT) for _ in range(M0404_MAX_PROFILES)
     )
     request = SimpleNamespace(
         policy=SimpleNamespace(profiles=profiles),
@@ -36,8 +35,7 @@ def _synthetic_maximum_shape() -> tuple[SimpleNamespace, SimpleNamespace]:
     metrics_per_role = M0404_COMPUTED_METRIC_COUNT // M0404_ROLE_COUNT
     result = SimpleNamespace(
         assay_quality=tuple(
-            SimpleNamespace(metrics=(None,) * metrics_per_role)
-            for _ in range(M0404_ROLE_COUNT)
+            SimpleNamespace(metrics=(None,) * metrics_per_role) for _ in range(M0404_ROLE_COUNT)
         ),
         disposition=ProteoformQualityDisposition.QUALIFIED,
         evidence=(None,) * M0404_MAX_EVIDENCE,
@@ -66,13 +64,14 @@ def test_untimed_setup_gc_precedes_every_timed_call(monkeypatch: pytest.MonkeyPa
     monkeypatch.setattr(benchmark, "build_representative_quality_fixture", lambda: scenario)
     monkeypatch.setattr(benchmark, "compute_proteoform_quality_metrics", compute)
     monkeypatch.setattr(gc, "collect", collect)
-    monkeypatch.setattr(benchmark, "perf_counter_ns", lambda: next(ticks))
+    monkeypatch.setattr(benchmark, "process_time_ns", lambda: next(ticks))
 
     report = benchmark.run_benchmark(iterations=1)
 
     assert events == ["compute", "collect", "compute"]
     assert report.pre_timing_gc_collected_objects == _GC_COLLECTED_OBJECTS
     assert report.cyclic_gc_enabled_during_timing is True
+    assert report.measurement_clock == "process_time_ns"
     assert report.mean_ns == _ELAPSED_NS
     assert report.passed is True
 

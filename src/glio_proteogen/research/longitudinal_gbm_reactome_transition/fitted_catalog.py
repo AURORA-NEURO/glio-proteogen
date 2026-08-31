@@ -33,9 +33,7 @@ BoolArray = NDArray[np.bool_]
 
 ARTIFACT_RESOURCE: Final = "data/kncc_reactome_conditional_transition_model.v1.json"
 MODEL_ID: Final = "kncc-reactome-conditional-transition-model/1.0.0"
-SCHEMA_VERSION: Final = (
-    "glio-proteogen.kncc-reactome-conditional-transition-model/1.0.0"
-)
+SCHEMA_VERSION: Final = "glio-proteogen.kncc-reactome-conditional-transition-model/1.0.0"
 EXPECTED_ARTIFACT_BYTES: Final = 4_434_141
 EXPECTED_ARTIFACT_SHA256: Final = (
     "sha256:16f2e417f82d6c45dc413ed5516e073ee6c17de26cc0156db8918cfd57eca27f"
@@ -80,6 +78,12 @@ EXPECTED_UNION_FEATURE_COUNT: Final = 1_872
 EXPECTED_BOOTSTRAP_REPLICATES: Final = 256
 EXPECTED_DESIGN_COLUMNS: Final = EXPECTED_PATHWAY_COUNT + 1
 EXPECTED_SOLVER_MAX_ITERATIONS: Final = 200
+REFERENCE_LOADING_RELATIVE_TOLERANCE: Final = 1.0e-12
+REFERENCE_LOADING_ABSOLUTE_TOLERANCE: Final = 1.0e-13
+REFERENCE_CONDITION_RELATIVE_TOLERANCE: Final = 1.0e-9
+REFERENCE_CONDITION_ABSOLUTE_TOLERANCE: Final = 1.0e-9
+
+DesignDecomposition = tuple[FloatArray, float, float, FloatArray]
 
 
 @dataclass(frozen=True, slots=True)
@@ -259,9 +263,7 @@ def _readonly[DType: np.generic](array: NDArray[DType]) -> NDArray[DType]:
 def _deep_freeze(value: object) -> object:
     if type(value) is dict:
         document = cast("dict[str, object]", value)
-        return MappingProxyType(
-            {key: _deep_freeze(child) for key, child in document.items()}
-        )
+        return MappingProxyType({key: _deep_freeze(child) for key, child in document.items()})
     if type(value) is list:
         return tuple(_deep_freeze(child) for child in cast("list[object]", value))
     return value
@@ -309,13 +311,13 @@ def _derive_design(
     degree: FloatArray,
     *,
     use_degree: bool = True,
-) -> tuple[FloatArray, tuple[tuple[FloatArray, float, float, FloatArray], ...]]:
+) -> tuple[FloatArray, tuple[DesignDecomposition, ...]]:
     norm = float(np.linalg.norm(effect))
     if not math.isfinite(norm) or norm <= 0.0:
         _fail("fitted global effect has invalid norm")
     global_loading = effect / norm
     columns = [global_loading]
-    decompositions: list[tuple[FloatArray, float, float, FloatArray]] = []
+    decompositions: list[DesignDecomposition] = []
     for positions_value in members:
         positions = np.asarray(positions_value, dtype=np.int64)
         raw = np.zeros(effect.size, dtype=np.float64)
@@ -333,6 +335,111 @@ def _derive_design(
         decompositions.append((raw / residual_norm, projection, residual_norm, conditional))
     design = np.column_stack(columns) * math.sqrt(effect.size)
     return design, tuple(decompositions)
+
+
+def _portable_reference_design(
+    effect: FloatArray,
+    eligible: BoolArray,
+    members: tuple[tuple[int, ...], ...],
+    degree: FloatArray,
+) -> tuple[FloatArray, tuple[DesignDecomposition, ...]]:
+    """Reconstruct reference loadings without BLAS-dependent reductions."""
+
+    norm = math.sqrt(math.fsum(float(value) * float(value) for value in effect))
+    global_loading = effect / norm
+    columns = [global_loading]
+    decompositions: list[DesignDecomposition] = []
+    for positions_value in members:
+        positions = np.asarray(positions_value, dtype=np.int64)
+        raw = np.zeros(effect.size, dtype=np.float64)
+        selected = positions[eligible[positions]]
+        raw[selected] = effect[selected] / np.sqrt(degree[selected])
+        projection = math.fsum(
+            float(global_value) * float(raw_value)
+            for global_value, raw_value in zip(global_loading, raw, strict=True)
+        )
+        residual = raw - projection * global_loading
+        residual_norm = math.sqrt(math.fsum(float(value) * float(value) for value in residual))
+        conditional = residual / residual_norm
+        columns.append(conditional)
+        decompositions.append((raw / residual_norm, projection, residual_norm, conditional))
+    return np.column_stack(columns) * math.sqrt(effect.size), tuple(decompositions)
+
+
+def _loading_array_matches(actual: FloatArray, expected: FloatArray) -> bool:
+    return actual.shape == expected.shape and bool(
+        np.allclose(
+            actual,
+            expected,
+            rtol=REFERENCE_LOADING_RELATIVE_TOLERANCE,
+            atol=REFERENCE_LOADING_ABSOLUTE_TOLERANCE,
+        )
+    )
+
+
+def _verify_reference_design(
+    design: FloatArray,
+    decompositions: tuple[DesignDecomposition, ...],
+    *,
+    effect: FloatArray,
+    eligible: BoolArray,
+    members: tuple[tuple[int, ...], ...],
+    degree: FloatArray,
+    declared_design_digest: object,
+    locked_design_digest: str,
+    declared_condition_number: object,
+) -> None:
+    # These exact digests bind the offline artifact and remain public provenance.
+    # Runtime floating reductions are instead checked against a scalar-reduction
+    # reconstruction so equivalent BLAS implementations need not be byte-identical.
+    if declared_design_digest != locked_design_digest:
+        _fail("fitted reference loading provenance digest mismatch")
+
+    expected_design, expected_decompositions = _portable_reference_design(
+        effect,
+        eligible,
+        members,
+        degree,
+    )
+    if not _loading_array_matches(design, expected_design):
+        _fail("fitted reference loading semantic mismatch")
+    if len(decompositions) != len(expected_decompositions):
+        _fail("fitted reference loading decomposition mismatch")
+    for actual, expected in zip(
+        decompositions,
+        expected_decompositions,
+        strict=True,
+    ):
+        if (
+            not _loading_array_matches(actual[0], expected[0])
+            or not math.isclose(
+                actual[1],
+                expected[1],
+                rel_tol=REFERENCE_LOADING_RELATIVE_TOLERANCE,
+                abs_tol=REFERENCE_LOADING_ABSOLUTE_TOLERANCE,
+            )
+            or not math.isclose(
+                actual[2],
+                expected[2],
+                rel_tol=REFERENCE_LOADING_RELATIVE_TOLERANCE,
+                abs_tol=REFERENCE_LOADING_ABSOLUTE_TOLERANCE,
+            )
+            or not _loading_array_matches(actual[3], expected[3])
+        ):
+            _fail("fitted reference loading decomposition mismatch")
+
+    declared_condition = _finite(
+        declared_condition_number,
+        "design condition",
+    )
+    runtime_condition = float(np.linalg.cond(design))
+    if not math.isfinite(runtime_condition) or not math.isclose(
+        declared_condition,
+        runtime_condition,
+        rel_tol=REFERENCE_CONDITION_RELATIVE_TOLERANCE,
+        abs_tol=REFERENCE_CONDITION_ABSOLUTE_TOLERANCE,
+    ):
+        _fail("fitted reference loading condition mismatch")
 
 
 def _source_binding(
@@ -387,9 +494,7 @@ def reactome_conditional_fitted_catalog() -> ReactomeConditionalFittedCatalog:  
     try:
         raw = cast("object", json.loads(payload))
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
-        raise ReactomeConditionalModelIntegrityError(
-            "fitted artifact is not valid JSON"
-        ) from error
+        raise ReactomeConditionalModelIntegrityError("fitted artifact is not valid JSON") from error
     if type(raw) is not dict:
         _fail("fitted artifact root must be an object")
     document = cast("dict[str, object]", raw)
@@ -442,11 +547,7 @@ def reactome_conditional_fitted_catalog() -> ReactomeConditionalFittedCatalog:  
         for value in _array(document.get("union_feature_indices"), "union features")
     )
     expected_union = tuple(
-        sorted(
-            set().union(
-                *(set(pathway.member_feature_indices) for pathway in source.pathways)
-            )
-        )
+        sorted(set().union(*(set(pathway.member_feature_indices) for pathway in source.pathways)))
     )
     if union != expected_union or _digest(list(union)) != digests["union_feature_digest"]:
         _fail("fitted union feature axis mismatch")
@@ -510,9 +611,7 @@ def reactome_conditional_fitted_catalog() -> ReactomeConditionalFittedCatalog:  
         _fail("fitted reference tensor domain mismatch")
     if _digest(tensors) != digests["reference_tensor_digest"]:
         _fail("fitted reference tensor digest mismatch")
-    centering_scaling = {
-        key: tensors[key] for key in ("scale", "support", "eligible")
-    }
+    centering_scaling = {key: tensors[key] for key in ("scale", "support", "eligible")}
     if _digest(centering_scaling) != digests["centering_scaling_digest"]:
         _fail("fitted centering/scaling digest mismatch")
     design, decompositions = _derive_design(
@@ -521,29 +620,19 @@ def reactome_conditional_fitted_catalog() -> ReactomeConditionalFittedCatalog:  
         members,
         degree,
     )
-    design_bytes = np.ascontiguousarray(design, dtype="<f8").tobytes()
-    if (
-        _raw_digest(design_bytes) != digests["reference_design_digest"]
-        or reference.get("design_raw_sha256") != digests["reference_design_digest"]
-        or _raw_digest(
-            np.ascontiguousarray(design[:, 0], dtype="<f8").tobytes()
-        )
-        != digests["global_loading_digest"]
-        or _raw_digest(
-            np.ascontiguousarray(design[:, 1:], dtype="<f8").tobytes()
-        )
-        != digests["conditional_loading_digest"]
-        or not math.isclose(
-            _finite(reference.get("design_condition_number"), "design condition"),
-            float(np.linalg.cond(design)),
-            abs_tol=5.0e-11,
-        )
-    ):
-        _fail("fitted reference loading digest or condition mismatch")
-
-    processing = _object(
-        document.get("source_processing_ablation"), "source processing ablation"
+    _verify_reference_design(
+        design,
+        decompositions,
+        effect=reference_effect,
+        eligible=reference_eligible,
+        members=members,
+        degree=degree,
+        declared_design_digest=reference.get("design_raw_sha256"),
+        locked_design_digest=digests["reference_design_digest"],
+        declared_condition_number=reference.get("design_condition_number"),
     )
+
+    processing = _object(document.get("source_processing_ablation"), "source processing ablation")
     ordinary_tensor = processing.get("effect")
     ordinary_effect = cast(
         "FloatArray",
@@ -591,8 +680,7 @@ def reactome_conditional_fitted_catalog() -> ReactomeConditionalFittedCatalog:  
         ),
     )
     row_digests = tuple(
-        str(value)
-        for value in _array(bootstrap.get("row_digests"), "bootstrap row digests")
+        str(value) for value in _array(bootstrap.get("row_digests"), "bootstrap row digests")
     )
     if (
         len(row_digests) != EXPECTED_BOOTSTRAP_REPLICATES
@@ -632,9 +720,7 @@ def reactome_conditional_fitted_catalog() -> ReactomeConditionalFittedCatalog:  
         if component in scales or scale <= 0.0:
             _fail("cross-fitted coordinate scale inventory mismatch")
         scales[component] = scale
-    expected_components = {"global_recurrence"} | {
-        item.reactome_id for item in source.pathways
-    }
+    expected_components = {"global_recurrence"} | {item.reactome_id for item in source.pathways}
     if set(scales) != expected_components:
         _fail("cross-fitted coordinate component inventory mismatch")
 
@@ -665,12 +751,10 @@ def reactome_conditional_fitted_catalog() -> ReactomeConditionalFittedCatalog:  
                 global_adjustment_loading=adjustment,
                 conditional_loading=conditional,
                 ordinary_conditional_loading=_readonly(
-                    ordinary_design[:, pathway.panel_index + 1]
-                    / math.sqrt(len(union))
+                    ordinary_design[:, pathway.panel_index + 1] / math.sqrt(len(union))
                 ),
                 no_degree_conditional_loading=_readonly(
-                    no_degree_design[:, pathway.panel_index + 1]
-                    / math.sqrt(len(union))
+                    no_degree_design[:, pathway.panel_index + 1] / math.sqrt(len(union))
                 ),
                 cross_fitted_mad_scale=scales[pathway.reactome_id],
             )
@@ -681,9 +765,7 @@ def reactome_conditional_fitted_catalog() -> ReactomeConditionalFittedCatalog:  
     privacy = _object(document.get("privacy"), "privacy")
     if any(value is not False for value in privacy.values()) or len(privacy) != 5:
         _fail("fitted artifact privacy declaration mismatch")
-    limitations = tuple(
-        str(value) for value in _array(document.get("limitations"), "limitations")
-    )
+    limitations = tuple(str(value) for value in _array(document.get("limitations"), "limitations"))
     if len(limitations) < 8 or not all(limitations):
         _fail("fitted artifact limitation inventory mismatch")
     provenance = _object(document.get("provenance"), "provenance")
@@ -723,9 +805,7 @@ def reactome_conditional_fitted_catalog() -> ReactomeConditionalFittedCatalog:  
         global_loading_digest=digests["global_loading_digest"],
         conditional_loading_digest=digests["conditional_loading_digest"],
         fold_policy_digest=digests["fold_policy_digest"],
-        source_processing_ablation_digest=digests[
-            "source_processing_ablation_digest"
-        ],
+        source_processing_ablation_digest=digests["source_processing_ablation_digest"],
         bootstrap_ensemble_digest=digests["bootstrap_ensemble_digest"],
         evaluation_digest=digests["evaluation_digest"],
         numpy_version=numpy_version,

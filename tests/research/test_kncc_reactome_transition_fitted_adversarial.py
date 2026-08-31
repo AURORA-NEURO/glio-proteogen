@@ -60,6 +60,7 @@ if TYPE_CHECKING:
 
 _OVERLAP_PAIR_ASSERTION = "demo requires pairwise overlap with retained support"
 _FORCED_OVERLAP_FAILURE = "forced overlap failure"
+_RUNTIME_DESIGN_DIGEST_ASSERTION = "runtime-derived reference design must not be raw-digested"
 
 
 @pytest.fixture(autouse=True)
@@ -443,7 +444,128 @@ def test_fitted_catalog_rejects_centering_and_design_recomputation_mismatch(
         "cond",
         lambda value: float(original_condition(value)) + 1.0,
     )
-    with pytest.raises(ReactomeConditionalModelIntegrityError, match="loading digest"):
+    with pytest.raises(ReactomeConditionalModelIntegrityError, match="loading condition"):
+        fitted.reactome_conditional_fitted_catalog()
+
+
+def test_fitted_catalog_accepts_portable_reference_loading_roundoff(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    baseline = fitted.reactome_conditional_fitted_catalog()
+    fitted.reactome_conditional_fitted_catalog.cache_clear()
+    original_derive = fitted._derive_design
+    original_raw_digest = fitted._raw_digest
+    original_condition = np.linalg.cond
+    reference_design_bytes = baseline.reference_design.nbytes
+    invocation_count = 0
+
+    def one_ulp_reference_design(
+        effect: fitted.FloatArray,
+        eligible: fitted.BoolArray,
+        members: tuple[tuple[int, ...], ...],
+        degree: fitted.FloatArray,
+        *,
+        use_degree: bool = True,
+    ) -> tuple[fitted.FloatArray, tuple[fitted.DesignDecomposition, ...]]:
+        nonlocal invocation_count
+        design, decompositions = original_derive(
+            effect,
+            eligible,
+            members,
+            degree,
+            use_degree=use_degree,
+        )
+        if invocation_count == 0:
+            design = np.array(design, copy=True)
+            index = np.unravel_index(np.argmax(np.abs(design)), design.shape)
+            design[index] = np.nextafter(design[index], math.inf)
+        invocation_count += 1
+        return design, decompositions
+
+    def forbid_runtime_design_digest(value: bytes) -> str:
+        if len(value) == reference_design_bytes:
+            raise AssertionError(_RUNTIME_DESIGN_DIGEST_ASSERTION)
+        return original_raw_digest(value)
+
+    monkeypatch.setattr(fitted, "_derive_design", one_ulp_reference_design)
+    monkeypatch.setattr(fitted, "_raw_digest", forbid_runtime_design_digest)
+    monkeypatch.setattr(
+        np.linalg,
+        "cond",
+        lambda value: float(original_condition(value)) + 2.0e-10,
+    )
+    varied = fitted.reactome_conditional_fitted_catalog()
+
+    assert varied.reference_design_digest == fitted.EXPECTED_REFERENCE_DESIGN_DIGEST
+    assert not np.array_equal(varied.reference_design, baseline.reference_design)
+
+
+@pytest.mark.parametrize(
+    ("target", "message"),
+    [
+        ("design", "loading semantic"),
+        ("decomposition", "loading decomposition"),
+        ("decomposition count", "loading decomposition"),
+    ],
+)
+def test_fitted_catalog_rejects_material_reference_loading_changes(
+    monkeypatch: pytest.MonkeyPatch,
+    target: str,
+    message: str,
+) -> None:
+    original_derive = fitted._derive_design
+    invocation_count = 0
+
+    def corrupt_reference_design(
+        effect: fitted.FloatArray,
+        eligible: fitted.BoolArray,
+        members: tuple[tuple[int, ...], ...],
+        degree: fitted.FloatArray,
+        *,
+        use_degree: bool = True,
+    ) -> tuple[fitted.FloatArray, tuple[fitted.DesignDecomposition, ...]]:
+        nonlocal invocation_count
+        design, decompositions = original_derive(
+            effect,
+            eligible,
+            members,
+            degree,
+            use_degree=use_degree,
+        )
+        if invocation_count == 0:
+            if target == "design":
+                design = np.array(design, copy=True)
+                design[0, 0] += 1.0e-6
+            elif target == "decomposition":
+                first = decompositions[0]
+                corrupted = np.array(first[0], copy=True)
+                corrupted[0] += 1.0e-6
+                decompositions = ((corrupted, *first[1:]), *decompositions[1:])
+            else:
+                decompositions = decompositions[:-1]
+        invocation_count += 1
+        return design, decompositions
+
+    monkeypatch.setattr(fitted, "_derive_design", corrupt_reference_design)
+    with pytest.raises(
+        ReactomeConditionalModelIntegrityError,
+        match=message,
+    ):
+        fitted.reactome_conditional_fitted_catalog()
+
+
+def test_fitted_catalog_rejects_unbound_reference_design_provenance(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    document = _artifact_document()
+    reference = cast("dict[str, object]", document["reference_fit"])
+    reference["design_raw_sha256"] = "sha256:" + "0" * 64
+    _install_document(monkeypatch, document)
+
+    with pytest.raises(
+        ReactomeConditionalModelIntegrityError,
+        match="loading provenance digest",
+    ):
         fitted.reactome_conditional_fitted_catalog()
 
 
@@ -673,9 +795,7 @@ def test_bootstrap_index_and_engine_classification_boundaries() -> None:
     assert engine._global_classification(-0.5, -0.26) is (
         GlobalRecurrenceClassification.SOURCE_PRIMARY_ALIGNED
     )
-    assert engine._global_classification(-0.25, 0.25) is (
-        GlobalRecurrenceClassification.STABLE
-    )
+    assert engine._global_classification(-0.25, 0.25) is (GlobalRecurrenceClassification.STABLE)
     assert engine._global_classification(-0.3, 0.3) is (
         GlobalRecurrenceClassification.INDETERMINATE
     )
@@ -739,8 +859,7 @@ def test_engine_rejects_unknown_active_gene_and_honors_cancellation() -> None:
 def test_request_total_observation_limit_branch_is_fail_closed() -> None:
     digest = synthetic_demo_request().normalization_reference.binding_digest
     observations = tuple(
-        SimpleNamespace(observation_id=f"observation.{index}")
-        for index in range(12_001)
+        SimpleNamespace(observation_id=f"observation.{index}") for index in range(12_001)
     )
     fake_points = cast(
         "tuple[LongitudinalTimePoint, ...]",
@@ -930,9 +1049,7 @@ def _bootstrap_rows(
     coordinate: float = 0.1,
     failures: int = 0,
 ) -> engine._BootstrapCoordinates:
-    rows = tuple(
-        tuple(coordinate for _ in range(coordinate_count)) for _ in range(count)
-    )
+    rows = tuple(tuple(coordinate for _ in range(coordinate_count)) for _ in range(count))
     return engine._BootstrapCoordinates(
         measurement=rows,
         fitted_model=rows,
@@ -1001,13 +1118,9 @@ def test_request_reconstruction_failures_remain_non_evaluable(
         **_kwargs: object,
     ) -> ConditionalSolveResult:
         full = design.shape[1] == catalog.reference_design.shape[1]
-        if (outcome == "full_error" and full) or (
-            outcome == "omitted_error" and not full
-        ):
+        if (outcome == "full_error" and full) or (outcome == "omitted_error" and not full):
             raise ReactomeConditionalInferenceError("forced")
-        if (outcome == "full_invalid" and full) or (
-            outcome == "omitted_invalid" and not full
-        ):
+        if (outcome == "full_invalid" and full) or (outcome == "omitted_invalid" and not full):
             return _invalid_result(condition=2.0)
         return _valid_result(design.shape[1])
 
@@ -1126,8 +1239,8 @@ def test_pathway_result_covers_invalid_and_limited_evidence_gates(
     monkeypatch.setattr(
         engine,
         "_pathway_ablations",
-        lambda _active, _catalog, _pathway, score, _cache, *, cancellation: (
-            _all_numeric_ablations(score)
+        lambda _active, _catalog, _pathway, score, _cache, *, cancellation: _all_numeric_ablations(
+            score
         ),
     )
     point = _valid_result(catalog.pathway_count + 1)
@@ -1152,8 +1265,8 @@ def test_pathway_result_covers_invalid_and_limited_evidence_gates(
     monkeypatch.setattr(
         engine,
         "_pathway_ablations",
-        lambda _active, _catalog, _pathway, score, _cache, *, cancellation: (
-            _all_numeric_ablations(score, reverse=True)
+        lambda _active, _catalog, _pathway, score, _cache, *, cancellation: _all_numeric_ablations(
+            score, reverse=True
         ),
     )
     reversed_result = engine._pathway_result(
@@ -1176,17 +1289,11 @@ def _overlap_pair(
 ) -> tuple[fitted.FittedPathwayLoading, fitted.FittedPathwayLoading, tuple[int, ...]]:
     for left_index, left in enumerate(catalog.pathways):
         for right in catalog.pathways[left_index + 1 :]:
-            shared = frozenset(left.member_local_indices) & frozenset(
-                right.member_local_indices
-            )
-            removed = tuple(
-                pair.local_position for pair in active if pair.local_position in shared
-            )
+            shared = frozenset(left.member_local_indices) & frozenset(right.member_local_indices)
+            removed = tuple(pair.local_position for pair in active if pair.local_position in shared)
             if not removed:
                 continue
-            remaining = tuple(
-                pair for pair in active if pair.local_position not in shared
-            )
+            remaining = tuple(pair for pair in active if pair.local_position not in shared)
             supported = True
             for pathway in (left, right):
                 metrics = engine._mass_metrics(
@@ -1216,9 +1323,7 @@ def test_overlap_removal_refit_is_cached_and_fail_closed(
     left, right, removed_positions = _overlap_pair(active, catalog)
     small_catalog = replace(catalog, pathways=(left, right))
     remaining_positions = frozenset(
-        pair.local_position
-        for pair in active
-        if pair.local_position not in removed_positions
+        pair.local_position for pair in active if pair.local_position not in removed_positions
     )
     overlap_solve_calls = 0
 
@@ -1257,9 +1362,7 @@ def test_overlap_removal_refit_is_cached_and_fail_closed(
     )
     assert overlap_solve_calls == 1
     assert tuple(cache) == (removed_positions,)
-    expected_support = (
-        AnalysisSupport.LIMITED if outcome == "valid" else AnalysisSupport.ABSTAINED
-    )
+    expected_support = AnalysisSupport.LIMITED if outcome == "valid" else AnalysisSupport.ABSTAINED
     assert left_result.overlap[0].support is expected_support
     assert right_result.overlap[0].support is expected_support
 
@@ -1340,9 +1443,7 @@ def test_demo_oracle_guard_fails_closed_on_semantic_mismatch(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     request = _missing_request()
-    profile = algorithm_profile().model_copy(
-        update={"demo_request_digest": request.request_digest}
-    )
+    profile = algorithm_profile().model_copy(update={"demo_request_digest": request.request_digest})
     monkeypatch.setattr(engine, "algorithm_profile", lambda: profile)
     monkeypatch.setattr(
         engine,

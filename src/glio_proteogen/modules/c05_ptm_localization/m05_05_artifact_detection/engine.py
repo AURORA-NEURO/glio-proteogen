@@ -146,6 +146,11 @@ class _SerializedRequestTooLargeError(ValueError):
         super().__init__("M05-05 canonical request exceeds its byte limit")
 
 
+class _InvalidEngineResultError(TypeError):
+    def __init__(self) -> None:
+        super().__init__("M05-05 engine output graph is not contract-exact")
+
+
 def preflight_ptm_localization_artifact_authorization(candidate: object) -> None:
     """Check all seven controls before opening governed nested request fields."""
 
@@ -911,6 +916,64 @@ def _expected_receipt(
     return PtmLocalizationArtifactComputationReceipt.model_validate(payload, strict=True)
 
 
+def _assert_exact_model_storage(value: object, expected_type: type[BaseModel]) -> None:
+    """Reject any non-engine model shape before trusted result assembly."""
+
+    if type(value) is not expected_type:
+        raise _InvalidEngineResultError
+    storage = object.__getattribute__(value, "__dict__")
+    extra = object.__getattribute__(value, "__pydantic_extra__")
+    if (
+        type(storage) is not dict
+        or extra is not None
+        or any(type(key) is not str for key in dict.keys(storage))
+        or frozenset(dict.keys(storage)) != frozenset(expected_type.model_fields)
+    ):
+        raise _InvalidEngineResultError
+
+
+def _assert_engine_result_graph(result: PtmLocalizationArtifactDetectionResult) -> None:
+    """Assert exact types and storage for every direct result child."""
+
+    _assert_exact_model_storage(result, PtmLocalizationArtifactDetectionResult)
+    _assert_exact_model_storage(result.request, DetectPtmLocalizationArtifactsRequest)
+    _assert_exact_model_storage(result.receipt, PtmLocalizationArtifactComputationReceipt)
+    _assert_exact_model_storage(result.support, SupportDecision)
+    _assert_exact_model_storage(result.uncertainty, UncertaintyProfile)
+    _assert_exact_model_storage(result.provenance, ProvenanceRecord)
+    collections: tuple[tuple[object, type[BaseModel]], ...] = (
+        (result.artifact_posteriors, PtmLocalizationArtifactPosterior),
+        (result.contamination_flags, PtmLocalizationContaminationFlag),
+        (result.exclusion_mask, PtmLocalizationExclusionMaskEntry),
+        (result.findings, PtmLocalizationArtifactFinding),
+        (result.evidence, EvidenceReference),
+        (result.limitations, Limitation),
+    )
+    for values, expected_type in collections:
+        if type(values) is not tuple:
+            raise _InvalidEngineResultError
+        for value in cast("tuple[object, ...]", values):
+            _assert_exact_model_storage(value, expected_type)
+
+
+def _close_engine_result(
+    payload: dict[str, object],
+) -> PtmLocalizationArtifactDetectionResult:
+    """Close an internally built result without replaying its admitted request.
+
+    Every child is produced by a strict constructor in this module. Exact storage
+    checks protect that trust boundary, while both inherited and result-specific
+    after-validators retain the governed non-inference, binding, digest, and size
+    invariants. Public ``model_validate`` remains the strict external replay path.
+    """
+
+    result = PtmLocalizationArtifactDetectionResult.model_construct(**payload)  # type: ignore[arg-type]
+    _assert_engine_result_graph(result)
+    result.non_inference_boundary_is_closed()  # type: ignore[operator]
+    result.result_is_closed()  # type: ignore[operator]
+    return result
+
+
 def _compute_result(
     request: DetectPtmLocalizationArtifactsRequest,
 ) -> PtmLocalizationArtifactDetectionResult:
@@ -971,7 +1034,7 @@ def _compute_result(
     }
     assembled = PtmLocalizationArtifactDetectionResult.model_construct(**payload)  # type: ignore[arg-type]
     payload["result_digest"] = result_payload_digest(assembled)
-    return PtmLocalizationArtifactDetectionResult.model_validate(payload, strict=True)
+    return _close_engine_result(payload)
 
 
 def _member(candidate: object, field: str) -> object:

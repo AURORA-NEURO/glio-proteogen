@@ -90,6 +90,14 @@ _COVERAGE_ENVIRONMENT_VARIABLES = (
     "COV_CORE_DATAFILE",
     "COV_CORE_BRANCH",
 )
+_NUMERIC_THREAD_ENVIRONMENT_VARIABLES = (
+    "BLIS_NUM_THREADS",
+    "MKL_NUM_THREADS",
+    "NUMEXPR_NUM_THREADS",
+    "OMP_NUM_THREADS",
+    "OPENBLAS_NUM_THREADS",
+    "VECLIB_MAXIMUM_THREADS",
+)
 
 
 class BenchmarkError(RuntimeError):
@@ -430,6 +438,9 @@ def _fresh_process_environment() -> dict[str, str]:
     environment = dict(os.environ)
     for variable in _COVERAGE_ENVIRONMENT_VARIABLES:
         environment.pop(variable, None)
+    for variable in _NUMERIC_THREAD_ENVIRONMENT_VARIABLES:
+        environment[variable] = "1"
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
     return environment
 
 

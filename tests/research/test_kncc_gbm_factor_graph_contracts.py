@@ -300,7 +300,7 @@ def test_profile_binds_exact_child_artifacts_numpy_topology_and_oracle() -> None
         "block": "protein_reactome",
         "child_profile_id": "kncc-reactome-conditional-transition/1.0.0",
         "child_profile_digest": (
-            "sha256:31aa06bd49f0aad8ff1734553d1fad8c9d97b21cbbfb3dd998331e431a661d9e"
+            "sha256:91f2f1816deddb74f31d536dc5091ef88d6666ff7b19726705ba0ca1dedfaecb"
         ),
         "source_digest": (
             "sha256:84732b0bb2c89e82285c7b10fd567c3612eb89ae3a36846df0d7b88b6be59584"
@@ -346,13 +346,13 @@ def test_profile_binds_exact_child_artifacts_numpy_topology_and_oracle() -> None
 def test_profile_is_content_bound_and_has_a_locked_composition_digest() -> None:
     profile = algorithm_profile()
     assert profile.profile_digest == (
-        "sha256:957ac8ba93c88add32b5864239b0e0685ec64797dbd93bc08f90a0de7031a0af"
+        "sha256:d3c200ab6a793ce117815a186ef80c6c21cb91b74bc022c6c73c0a6176c84303"
     )
     assert profile.demo_request_digest == (
         "sha256:bee98bde0309065837ab39d2be3eb54ed192ac6242ff3a3b4e4e9efa042b0938"
     )
     assert profile.demo_semantic_oracle_digest == (
-        "sha256:40ad39cad4dd2fb707349dda4f4079d9682d517bd533853c226b875337f58dc3"
+        "sha256:9dedba0fb288f8a05c1442ef5f6dcec468a0dfa64dc0edb0035b5e846c176bf3"
     )
     payload = profile.model_dump(mode="python")
     payload["reactome_child"]["source_digest"] = ONE_DIGEST

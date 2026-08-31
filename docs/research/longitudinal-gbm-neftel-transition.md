@@ -134,9 +134,9 @@ The shipped aggregate artifact is
 
 - Bytes: `357871`.
 - Raw SHA-256:
-  `sha256:920f66efa326e6b2d1b92f12dbc055c590e5774be1af09c82a03ca24cdba01eb`.
+  `sha256:cdc00db86c83bee0ff62eb30f4e0130da8621b09ebca298adf16458e073d38a9`.
 - Canonical content digest:
-  `sha256:7f535d98a5c6da796617fdc5ae1f95a41843eb7285660fe61ee12a1f24a9aea2`.
+  `sha256:815b4066891c9ddf78b3be374e573be28e299eb15ed612ee3c662f33a84c8e41`.
 - Evaluation digest:
   `sha256:14a773347547306420d288620b3344f18b1f1100cc97bb5ab12e0c3f4b19ccad`.
 - Bootstrap-ensemble digest:

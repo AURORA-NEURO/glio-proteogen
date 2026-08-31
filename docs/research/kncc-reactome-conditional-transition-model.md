@@ -213,9 +213,12 @@ draws, cross-fitted coordinate MAD scales, and aggregate evaluation evidence.
 
 Loading is fail-closed. The loader checks canonical bytes, byte and content digests, every
 tensor byte digest and shape, source-catalog binding, feature union, design reconstruction,
-global and conditional loading digests, training constants, fold policy, bootstrap row locks,
-evaluation oracles, privacy declarations, and the exact NumPy version. Loaded arrays are
-read-only and nested evaluation metadata is recursively immutable.
+the exact offline design/global/conditional provenance digests, training constants, fold
+policy, bootstrap row locks, evaluation oracles, privacy declarations, and the exact NumPy
+version. Runtime-derived design and decomposition values are independently checked against a
+scalar-reduction reconstruction with explicit numerical tolerances; their raw bytes are not
+hashed because equivalent BLAS implementations can differ by a few least-significant bits.
+Loaded arrays are read-only and nested evaluation metadata is recursively immutable.
 
 The reproducible offline importer is
 `tools/import_kncc_reactome_conditional_transition_model.py`. It requires the locally admitted,

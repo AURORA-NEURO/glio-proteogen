@@ -26,7 +26,7 @@ legacy symbols and establish whether an entry has a UniProt protein product.
 | Exact raw program/rank projection | `f3fd4171b07c7b0ac7b001d62fffebe0f613c9c3737ce28cdcbc71b0cd3c013b` |
 | HGNC complete-set source | `854162118530e929f06249f3349465dd5fe0515fcccf0347f463e833609c1270` |
 | Canonical runtime catalog content | `5f0baa349db65f0ee740a318db6aad334b4ab9fa94b9f9d69158441054c1582f` |
-| Bundled catalog bytes | `f08b7521ffecb3435bb18a113dc10e306df9a4895b7d4daf3235217468be2a5c` |
+| Bundled catalog bytes | `69254d918c3730d7840e9157f0c9d417905bc67b9b2aa5915a1090ae95524d66` |
 | Pinned 20,288-protein HGNC–UniProt rank background | `bc339006d99637bae20d7bcce327b67c31043e6618cb70659a85d7b2b8ff1669` |
 
 The exact source columns contain MES2 (50), MES1 (50), AC (39), OPC (50), NPC1 (50),

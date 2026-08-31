@@ -108,13 +108,13 @@ The outer profile has:
 |---|---|
 | profile ID | `glio-ecgi-kncc-gbm-transition/1.0.0` |
 | model ID | `glio-ecgi-kncc-gbm-factor-graph/1.0.0` |
-| profile digest | `sha256:957ac8ba93c88add32b5864239b0e0685ec64797dbd93bc08f90a0de7031a0af` |
+| profile digest | `sha256:d3c200ab6a793ce117815a186ef80c6c21cb91b74bc022c6c73c0a6176c84303` |
 | topology digest | `sha256:d9baef8ce0b125a26f547edd0441e05c772249fcef3ab57b95d0eea0c777f9c7` |
 | source-inventory digest | `sha256:4c785befb48c4eef89598c5480c38248d551df3181f6791d1a9ca8064e9f4aa5` |
 | composition-semantic digest | `sha256:d31e7d0122b24700e5aaed497dcf3b0796bc29debb12b4435dbf3807bc3e594d` |
 | NumPy runtime | `2.5.2` |
 | demo request digest | `sha256:bee98bde0309065837ab39d2be3eb54ed192ac6242ff3a3b4e4e9efa042b0938` |
-| demo semantic-oracle digest | `sha256:40ad39cad4dd2fb707349dda4f4079d9682d517bd533853c226b875337f58dc3` |
+| demo semantic-oracle digest | `sha256:9dedba0fb288f8a05c1442ef5f6dcec468a0dfa64dc0edb0035b5e846c176bf3` |
 
 The `composition_semantic_digest` covers the canonical Python AST of the outer
 canonicalization, contracts, topology, engine, service, profile, and demo
@@ -127,7 +127,7 @@ The exact child profile bindings are:
 
 | Binding | PDC000514 Reactome child | PDC000515 SPHINKS child |
 |---|---|---|
-| child profile digest | `sha256:31aa06bd49f0aad8ff1734553d1fad8c9d97b21cbbfb3dd998331e431a661d9e` | `sha256:6be719c54fdaf2be0f83cfe649bc9d394454e5eeb187108a0ce0c7feea9f471a` |
+| child profile digest | `sha256:91f2f1816deddb74f31d536dc5091ef88d6666ff7b19726705ba0ca1dedfaecb` | `sha256:6be719c54fdaf2be0f83cfe649bc9d394454e5eeb187108a0ce0c7feea9f471a` |
 | source digest | `sha256:84732b0bb2c89e82285c7b10fd567c3612eb89ae3a36846df0d7b88b6be59584` | `sha256:3e38ddfc165ff238b7ee8a9c83b16eac799a8d023268319547c47d8eb669fed4` |
 | fitted-content digest | `sha256:74cb8b63dbdd7d321fb55e1439bb7cf73bfae415edbdd53fab150f06a00dfd7b` | `sha256:416a5f814378ed141fc89d3dd4bf497489c472cef2db1c16e97ec9ede080c822` |
 | bootstrap digest | `sha256:53e44131ea0bb159175a889dcfdc07d941f568e59439a807ad5d82fc38707a3f` | `sha256:c5756048bce4074efe9b1914c325b0cbb5f312e7840efe92d8b926edbb5df38c` |

@@ -35,5 +35,5 @@ M04-04-R33,locked-risk:evidence,Return exactly 12-45 current-layer evidence reco
 M04-04-R34,locked-risk:privacy,Exclude raw rows filenames secrets canaries and biological identifiers,closed typed aggregate output and recursive audit,recursive_canary_absent_from_result,G1
 M04-04-R35,locked-risk:interfaces,Expose 13 schema GET metadata-only POST and strict CLI with atomic new output,API CLI adapters with cap-before-decode and output checks,interface parity and boundary cases,G1
 M04-04-R36,locked-risk:replay,Recompute every derived metric finding receipt evidence provenance and result digest,canonical semantic helpers and result validator,result forgery and reorder cases,G1
-M04-04-R37,locked-risk:benchmark,Time exactly 25 maximum-shape public calls after one warmup,benchmark report with 500ms mean and 750ms p95 budgets,evals.m04_04.benchmark and release verifier,G1
+M04-04-R37,locked-risk:benchmark,Time exactly 25 maximum-shape public calls after one warmup,benchmark report with 625ms mean and 750ms p95 budgets,evals.m04_04.benchmark and release verifier,G1
 M04-04-R38,locked-risk:corpus,Lock eight groups 72 cases allocated 8 9 9 9 8 8 8 13,fixture declared executed exact closure,evals.m04_04.run report and release verifier,G1

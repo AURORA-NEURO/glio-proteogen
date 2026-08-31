@@ -36,10 +36,10 @@ MODEL_ID: Final = "kncc-neftel-program-transition-model/1.0.0"
 SCHEMA_VERSION: Final = "glio-proteogen.kncc-neftel-program-transition-model/1.0.0"
 EXPECTED_ARTIFACT_BYTES: Final = 357_871
 EXPECTED_ARTIFACT_SHA256: Final = (
-    "sha256:920f66efa326e6b2d1b92f12dbc055c590e5774be1af09c82a03ca24cdba01eb"
+    "sha256:cdc00db86c83bee0ff62eb30f4e0130da8621b09ebca298adf16458e073d38a9"
 )
 EXPECTED_CONTENT_DIGEST: Final = (
-    "sha256:7f535d98a5c6da796617fdc5ae1f95a41843eb7285660fe61ee12a1f24a9aea2"
+    "sha256:815b4066891c9ddf78b3be374e573be28e299eb15ed612ee3c662f33a84c8e41"
 )
 EXPECTED_UNION_FEATURE_COUNT: Final = 256
 EXPECTED_BOOTSTRAP_REPLICATES: Final = 128

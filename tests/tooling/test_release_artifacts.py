@@ -265,12 +265,15 @@ def test_m0403_evidence_verifier_requires_exact_corpus_and_budgets(
     }
     benchmark_report = {
         "module_id": "GLIO-PROTEOGEN-M04-03",
+        "measurement_clock": "process_time_ns",
         "passed": True,
         "iterations": 25,
         "warmup_count": 1,
+        "pre_timing_gc_collected_objects": 0,
+        "cyclic_gc_enabled_during_timing": True,
         "mean_ns": 400_000_000.0,
         "p95_ns": 600_000_000,
-        "mean_budget_ns": 500_000_000,
+        "mean_budget_ns": 625_000_000,
         "p95_budget_ns": 750_000_000,
     }
     evaluation.write_text(json.dumps(evaluation_report), encoding="utf-8")
@@ -285,7 +288,7 @@ def test_m0403_evidence_verifier_requires_exact_corpus_and_budgets(
 
     evaluation_report["executed_case_count"] = 72
     evaluation.write_text(json.dumps(evaluation_report), encoding="utf-8")
-    benchmark_report["mean_ns"] = 500_000_001
+    benchmark_report["mean_ns"] = 625_000_001
     benchmark.write_text(json.dumps(benchmark_report), encoding="utf-8")
     with pytest.raises(ReleaseArtifactError, match="timing budgets"):
         verify_m0403_evidence(evaluation, benchmark)
@@ -308,9 +311,12 @@ def test_m0404_evidence_verifier_requires_exact_corpus_shape_and_budgets(
     }
     benchmark_report = {
         "module_id": "GLIO-PROTEOGEN-M04-04",
+        "measurement_clock": "process_time_ns",
         "passed": True,
         "iterations": 25,
         "warmup_count": 1,
+        "pre_timing_gc_collected_objects": 0,
+        "cyclic_gc_enabled_during_timing": True,
         "role_count": 4,
         "profile_count": 32,
         "threshold_count": 256,
@@ -320,7 +326,7 @@ def test_m0404_evidence_verifier_requires_exact_corpus_shape_and_budgets(
         "limitation_count": 3,
         "mean_ns": 400_000_000.0,
         "p95_ns": 600_000_000,
-        "mean_budget_ns": 500_000_000,
+        "mean_budget_ns": 625_000_000,
         "p95_budget_ns": 750_000_000,
     }
     evaluation.write_text(json.dumps(evaluation_report), encoding="utf-8")
@@ -543,11 +549,14 @@ def test_m0407_evidence_verifier_requires_exact_corpus_shape_and_budgets(
         "contract_version": "1.0.0",
         "workload": "genuine_m0404_and_m0406_prepared_joint_support_envelope",
         "timed_boundary": "route_proteoform_support_only",
+        "measurement_clock": "process_time_ns",
         "request_digest": "sha256:" + ("1" * SHA256_HEX_LENGTH),
         "result_digest": "sha256:" + ("2" * SHA256_HEX_LENGTH),
         "passed": True,
         "iterations": 25,
         "warmup_count": 1,
+        "pre_timing_gc_collected_objects": 0,
+        "cyclic_gc_enabled_during_timing": True,
         "envelope_count": 1,
         "dimension_count": 8,
         "evidence_count": 18,
@@ -555,7 +564,7 @@ def test_m0407_evidence_verifier_requires_exact_corpus_shape_and_budgets(
         "p50_ns": 1_400_000_000,
         "p95_ns": 2_500_000_000,
         "maximum_ns": 2_600_000_000,
-        "mean_budget_ns": 2_000_000_000,
+        "mean_budget_ns": 2_500_000_000,
         "p95_budget_ns": 3_000_000_000,
     }
     evaluation.write_text(json.dumps(evaluation_report), encoding="utf-8")

@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import argparse
+import gc
 import json
 import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from statistics import fmean, median
-from time import perf_counter_ns
+from time import process_time_ns
 
 if not __package__:
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -30,6 +31,8 @@ from glio_proteogen.modules.c05_ptm_localization.m05_05_artifact_detection impor
     detect_ptm_localization_artifacts,
 )
 
+MEASUREMENT_CLOCK = "process_time_ns"
+
 
 @dataclass(frozen=True, slots=True)
 class BenchmarkReport:
@@ -37,6 +40,7 @@ class BenchmarkReport:
     contract_version: str
     workload: str
     timed_boundary: str
+    measurement_clock: str
     iterations: int
     warmup_count: int
     detector_class_count: int
@@ -44,6 +48,8 @@ class BenchmarkReport:
     result_bytes: int
     request_digest: str
     result_digest: str
+    pre_timing_gc_collected_objects: int
+    cyclic_gc_enabled_during_timing: bool
     samples_ns: tuple[int, ...]
     mean_ns: float
     p50_ns: float
@@ -77,11 +83,14 @@ def run_benchmark(iterations: int = M0505_BENCHMARK_ITERATIONS) -> BenchmarkRepo
     ):
         raise InvalidRepresentativeWorkloadError
 
+    # Settle full-generation scan debt created by genuine upstream setup and
+    # warm-up.  Cyclic GC stays enabled throughout every measured detector call.
+    pre_timing_gc_collected_objects = gc.collect()
     samples: list[int] = []
     for _ in range(iterations):
-        started = perf_counter_ns()
+        started = process_time_ns()
         result = detect_ptm_localization_artifacts(scenario.request)
-        elapsed = perf_counter_ns() - started
+        elapsed = process_time_ns() - started
         if result != warmup:
             raise NonDeterministicBenchmarkError
         samples.append(elapsed)
@@ -95,6 +104,7 @@ def run_benchmark(iterations: int = M0505_BENCHMARK_ITERATIONS) -> BenchmarkRepo
         contract_version=M0505_CONTRACT_VERSION,
         workload="genuine_m05_03_replay_one_target_seven_detector_classes",
         timed_boundary="detect_ptm_localization_artifacts_only",
+        measurement_clock=MEASUREMENT_CLOCK,
         iterations=iterations,
         warmup_count=M0505_BENCHMARK_WARMUPS,
         detector_class_count=len(warmup.artifact_posteriors),
@@ -102,6 +112,8 @@ def run_benchmark(iterations: int = M0505_BENCHMARK_ITERATIONS) -> BenchmarkRepo
         result_bytes=len(canonical_json_bytes(warmup)),
         request_digest=warmup.request_digest,
         result_digest=warmup.result_digest,
+        pre_timing_gc_collected_objects=pre_timing_gc_collected_objects,
+        cyclic_gc_enabled_during_timing=gc.isenabled(),
         samples_ns=tuple(samples),
         mean_ns=mean,
         p50_ns=median(samples),
@@ -111,6 +123,7 @@ def run_benchmark(iterations: int = M0505_BENCHMARK_ITERATIONS) -> BenchmarkRepo
         p95_budget_ns=M0505_P95_BUDGET_NS,
         passed=(
             request_bytes <= M0505_MAX_CANONICAL_REQUEST_BYTES
+            and gc.isenabled()
             and len(samples) == iterations
             and mean <= M0505_MEAN_BUDGET_NS
             and p95 <= M0505_P95_BUDGET_NS

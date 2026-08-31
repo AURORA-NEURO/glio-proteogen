@@ -200,6 +200,64 @@ describe("KNCC GBM factor-graph fail-closed receipt admission", () => {
     );
   });
 
+  it("reports every locked profile safety, inventory, and child-attestation violation", () => {
+    const profile = cloneObject(factorGraphProfile);
+    profile.relationship = "learned_cross_modal_fusion";
+    profile.reactome_child = null;
+    const kinaseChild = profile.kinase_child as JsonObject;
+    kinaseChild.block = "protein_reactome";
+    kinaseChild.child_profile_id = "latest";
+    for (const field of [
+      "child_profile_digest",
+      "source_digest",
+      "fitted_digest",
+      "bootstrap_digest",
+      "evaluation_digest",
+    ]) kinaseChild[field] = "not-a-digest";
+    for (const field of [
+      "profile_digest",
+      "topology_digest",
+      "source_inventory_digest",
+      "composition_semantic_digest",
+      "demo_request_digest",
+      "demo_semantic_oracle_digest",
+    ]) profile[field] = "not-a-digest";
+    profile.limits = null;
+    profile.counts = null;
+    profile.numpy_version = "latest";
+    profile.demo_id = "unbound-demo";
+    profile.source_attestation_state = "unverified";
+    profile.safety_class = "clinical";
+    profile.claim_ceiling = "causal";
+    profile.research_use_only = false;
+    profile.non_prescriptive = false;
+    profile.independent_parallel_blocks = false;
+    profile.cross_modal_fusion_performed = true;
+    profile.no_numerical_cross_block_edges = false;
+
+    const errors = validateFactorGraphProfile(profile).join("\n");
+    expect(errors).toContain("profile.relationship must equal");
+    expect(errors).toContain("profile.reactome_child must be an object");
+    expect(errors).toContain("profile.kinase_child.block must equal phosphosite_sphinks");
+    expect(errors).toContain("profile.kinase_child.child_profile_id must equal");
+    expect(errors).toContain("profile.kinase_child.child_profile_digest must be a lowercase sha256 digest");
+    expect(errors).toContain("profile.profile_digest must be a lowercase sha256 digest");
+    expect(errors).toContain("profile.limits must be an object");
+    expect(errors).toContain("profile.counts must be an object");
+    expect(errors).toContain("profile.numpy_version must equal the locked 2.5.2 runtime");
+    expect(errors).toContain("profile.demo_id must equal");
+    expect(errors).toContain("profile.source_attestation_state must affirm the exact child snapshots");
+    expect(errors).toContain("profile exceeds or differs from the admitted source-cohort claim ceiling");
+    expect(errors).toContain("profile must preserve the research-only independent no-fusion boundary");
+
+    const inventoryDrift = cloneObject(factorGraphProfile);
+    (inventoryDrift.limits as JsonObject).maximum_result_bytes = 1;
+    (inventoryDrift.counts as JsonObject).kinase_signature_factors = 23;
+    const inventoryErrors = validateFactorGraphProfile(inventoryDrift).join("\n");
+    expect(inventoryErrors).toContain("profile.limits does not match the version-locked factor-graph transport boundary");
+    expect(inventoryErrors).toContain("profile.counts does not match the version-locked factor inventory");
+  });
+
   it("rejects request, child, profile, and authoritative analysis-header mismatches", () => {
     const request = cloneObject(factorGraphDemoRequest);
     const result = cloneObject(factorGraphAnalysisResult);
@@ -225,6 +283,159 @@ describe("KNCC GBM factor-graph fail-closed receipt admission", () => {
     }), result, request, profile)).toContain(
       "X-GLIO-Result-Digest response header must match the admitted payload.",
     );
+  });
+
+  it("rejects malformed outer and independently computed child result envelopes", () => {
+    const outer = cloneObject(factorGraphAnalysisResult);
+    outer.algorithm_id = "latest";
+    outer.algorithm_version = "2.0.0";
+    outer.profile_id = "latest";
+    outer.analysis_id = "9invalid";
+    outer.relationship = "fused";
+    for (const field of ["profile_digest", "topology_digest", "request_digest", "result_digest"]) {
+      outer[field] = "not-a-digest";
+    }
+    outer.research_use_only = false;
+    outer.non_prescriptive = false;
+    outer.independent_parallel_blocks = false;
+    outer.limitations = [""];
+    outer.reactome_result = null;
+    outer.kinase_result = null;
+    outer.provenance = null;
+    const outerErrors = validateFactorGraphResult(outer).join("\n");
+    expect(outerErrors).toContain("result.algorithm_id is invalid");
+    expect(outerErrors).toContain("result.algorithm_version must equal 1.0.0");
+    expect(outerErrors).toContain("result.profile_id must equal");
+    expect(outerErrors).toContain("result.analysis_id must be a valid identifier");
+    expect(outerErrors).toContain("result.relationship must equal");
+    expect(outerErrors).toContain("result.profile_digest must be a lowercase sha256 digest");
+    expect(outerErrors).toContain("result must remain research-only, non-prescriptive, and independently parallel");
+    expect(outerErrors).toContain("result.limitations must contain 6 through 20 non-empty strings");
+    expect(outerErrors).toContain("result.reactome_result must be an object");
+    expect(outerErrors).toContain("result.kinase_result must be an object");
+    expect(outerErrors).toContain("result.provenance must be an object");
+
+    const malformedReactome = cloneObject(factorGraphAnalysisResult);
+    const reactome = malformedReactome.reactome_result as JsonObject;
+    reactome.algorithm_id = "latest";
+    reactome.algorithm_version = "2.0.0";
+    reactome.profile_id = "latest";
+    reactome.profile_digest = "invalid";
+    reactome.request_digest = "invalid";
+    reactome.result_digest = "invalid";
+    reactome.series_id = "9invalid";
+    reactome.assay_compatibility = null;
+    reactome.normalization_reference = null;
+    reactome.provenance = null;
+    reactome.limitations = [];
+    reactome.research_use_only = false;
+    reactome.non_prescriptive = false;
+    reactome.output_semantics = "clinical_prediction";
+    reactome.validation_scope = "external_validation";
+    reactome.time_point_ids = ["duplicate", "duplicate"];
+    reactome.transitions = [null];
+    const reactomeErrors = validateFactorGraphResult(malformedReactome).join("\n");
+    expect(reactomeErrors).toContain("result.reactome_result.algorithm_id must equal");
+    expect(reactomeErrors).toContain("result.reactome_result.algorithm_version must equal 1.0.0");
+    expect(reactomeErrors).toContain("result.reactome_result.series_id must be a valid identifier");
+    expect(reactomeErrors).toContain("result.reactome_result.assay_compatibility must be an object");
+    expect(reactomeErrors).toContain("result.reactome_result.normalization_reference must be an object");
+    expect(reactomeErrors).toContain("result.reactome_result.provenance must be an object");
+    expect(reactomeErrors).toContain("result.reactome_result.limitations must contain 6 through 20 non-empty strings");
+    expect(reactomeErrors).toContain("result.reactome_result must remain research-use-only and non-prescriptive");
+    expect(reactomeErrors).toContain("result.reactome_result.output_semantics exceeds the Reactome concordance-only boundary");
+    expect(reactomeErrors).toContain("result.reactome_result.validation_scope must remain same-cohort and non-external");
+    expect(reactomeErrors).toContain("result.reactome_result.profile_digest must be a lowercase sha256 digest");
+    expect(reactomeErrors).toContain("result.reactome_result.time_point_ids must contain 2 through 5 unique identifiers");
+    expect(reactomeErrors).toContain("result.reactome_result.transitions[0] must be an object");
+
+    const malformedKinase = cloneObject(factorGraphAnalysisResult);
+    const kinase = malformedKinase.kinase_result as JsonObject;
+    kinase.algorithm_id = "latest";
+    kinase.algorithm_version = "2.0.0";
+    kinase.profile_id = "latest";
+    kinase.profile_digest = "invalid";
+    kinase.request_digest = "invalid";
+    kinase.result_digest = "invalid";
+    kinase.series_id = "9invalid";
+    kinase.assay_compatibility = null;
+    kinase.normalization_reference = null;
+    kinase.provenance = null;
+    kinase.limitations = [];
+    kinase.research_use_only = false;
+    kinase.non_prescriptive = false;
+    kinase.output_semantics = "kinase_activity";
+    kinase.infers_biochemical_activity = true;
+    kinase.time_point_ids = ["only-one"];
+    kinase.transitions = [];
+    const kinaseErrors = validateFactorGraphResult(malformedKinase).join("\n");
+    expect(kinaseErrors).toContain("result.kinase_result.algorithm_id must equal");
+    expect(kinaseErrors).toContain("result.kinase_result.output_semantics exceeds the SPHINKS concordance-only boundary");
+    expect(kinaseErrors).toContain("result.kinase_result.infers_biochemical_activity must remain false");
+    expect(kinaseErrors).toContain("result.kinase_result.time_point_ids must contain 2 through 5 unique identifiers");
+  });
+
+  it("closes request, profile, child-provenance, and replay bindings independently", () => {
+    const request = cloneObject(factorGraphDemoRequest);
+    request.profile_id = "request-profile";
+    request.relationship = "request-relationship";
+    const result = cloneObject(factorGraphAnalysisResult);
+    result.profile_id = "result-profile";
+    result.relationship = "result-relationship";
+    const reactome = result.reactome_result as JsonObject;
+    reactome.series_id = "different-series";
+    reactome.profile_id = "different-profile";
+    reactome.assay_compatibility = { platform: "different" };
+    reactome.normalization_reference = { method: "different" };
+    reactome.time_point_ids = ["different-p0", "different-p1"];
+    const requestErrors = validateFactorGraphResultRequestBinding(result, request).join("\n");
+    expect(requestErrors).toContain("result.profile_id must match the submitted request");
+    expect(requestErrors).toContain("result.relationship must match the submitted request");
+    expect(requestErrors).toContain("result.reactome_result.series_id must match the submitted child request");
+    expect(requestErrors).toContain("result.reactome_result.profile_id must match the submitted child request");
+    expect(requestErrors).toContain("result.reactome_result.assay_compatibility must exactly match the submitted child request");
+    expect(requestErrors).toContain("result.reactome_result.normalization_reference must exactly match the submitted child request");
+    expect(requestErrors).toContain("result.reactome_result.time_point_ids must exactly match the submitted child request order");
+
+    const invalidDigestProfile = cloneObject(factorGraphProfile);
+    invalidDigestProfile.profile_digest = "invalid";
+    expect(validateFactorGraphResultProfileBinding(
+      cloneObject(factorGraphAnalysisResult),
+      invalidDigestProfile,
+    )).toContain("loaded profile.profile_digest must be a lowercase sha256 digest.");
+
+    const topologyMismatchResult = cloneObject(factorGraphAnalysisResult);
+    topologyMismatchResult.topology_digest = `sha256:${"e".repeat(64)}`;
+    expect(validateFactorGraphResultProfileBinding(
+      topologyMismatchResult,
+      cloneObject(factorGraphProfile),
+    )).toContain("result.topology_digest must match the admitted loaded profile topology digest.");
+
+    const childProfileMismatch = cloneObject(factorGraphAnalysisResult);
+    const childBinding = ((childProfileMismatch.provenance as JsonObject).reactome_child as JsonObject);
+    childBinding.child_profile_digest = `sha256:${"e".repeat(64)}`;
+    expect(validateFactorGraphResultProfileBinding(
+      childProfileMismatch,
+      cloneObject(factorGraphProfile),
+    )).toContain("result.provenance.reactome_child must match the admitted child profile binding.");
+
+    const verification = cloneObject(factorGraphVerification);
+    verification.recomputed_request_digest = `sha256:${"e".repeat(64)}`;
+    verification.recomputed_result_digest = `sha256:${"e".repeat(64)}`;
+    const driftedResult = cloneObject(factorGraphAnalysisResult);
+    driftedResult.profile_digest = `sha256:${"e".repeat(64)}`;
+    driftedResult.topology_digest = `sha256:${"e".repeat(64)}`;
+    (driftedResult.provenance as JsonObject).source_inventory_digest = `sha256:${"e".repeat(64)}`;
+    const verificationErrors = validateFactorGraphVerification(
+      verification,
+      driftedResult,
+      cloneObject(factorGraphProfile),
+    ).join("\n");
+    expect(verificationErrors).toContain("verification recomputed request digest does not match the admitted result binding");
+    expect(verificationErrors).toContain("verification recomputed result digest does not match the admitted result");
+    expect(verificationErrors).toContain("verification profile match does not close the admitted result/profile binding");
+    expect(verificationErrors).toContain("verification topology match does not close the admitted result/profile binding");
+    expect(verificationErrors).toContain("verification source-inventory match does not close the admitted result/profile binding");
   });
 
   it("binds child results after applying legal normalization-reference defaults", () => {
@@ -452,6 +663,141 @@ describe("KNCC GBM factor topology normalization", () => {
 
     for (const invalid of cases) expect(normalizeFactorGraphTopology(invalid)).toBeNull();
     expect(normalizeFactorGraphTopology(null)).toBeNull();
+  });
+
+  it("rejects every malformed node, edge, and aggregate containment invariant", () => {
+    const cases: Array<[string, (profile: JsonObject) => void]> = [
+      ["unknown topology field", (profile) => {
+        (profile.topology as JsonObject).learned_cross_block_weight = 0;
+      }],
+      ["topology identity", (profile) => {
+        (profile.topology as JsonObject).topology_id = "latest";
+      }],
+      ["containment role", (profile) => {
+        (profile.topology as JsonObject).containment_edge_role = "numerical";
+      }],
+      ["numerical cross-block count", (profile) => {
+        (profile.topology as JsonObject).numerical_cross_block_edge_count = 1;
+      }],
+      ["cross-block edge inventory", (profile) => {
+        (profile.topology as JsonObject).cross_block_edges = [{ edge_id: "forbidden" }];
+      }],
+      ["profile/topology digest disagreement", (profile) => {
+        profile.topology_digest = `sha256:${"a".repeat(64)}`;
+      }],
+      ["non-object node", (profile) => {
+        ((profile.topology as JsonObject).nodes as unknown[])[2] = null;
+      }],
+      ["invalid node identifier", (profile) => {
+        ((profile.topology as JsonObject).nodes as JsonObject[])[2].node_id = "9invalid";
+      }],
+      ["invalid node block", (profile) => {
+        ((profile.topology as JsonObject).nodes as JsonObject[])[2].block = "fused";
+      }],
+      ["invalid node kind", (profile) => {
+        ((profile.topology as JsonObject).nodes as JsonObject[])[2].kind = "joint_factor";
+      }],
+      ["missing biological identifier", (profile) => {
+        ((profile.topology as JsonObject).nodes as JsonObject[])[2].biological_identifier = "";
+      }],
+      ["missing node label", (profile) => {
+        ((profile.topology as JsonObject).nodes as JsonObject[])[2].label = "";
+      }],
+      ["missing child profile", (profile) => {
+        ((profile.topology as JsonObject).nodes as JsonObject[])[2].child_profile_id = "";
+      }],
+      ["invalid learned semantics", (profile) => {
+        ((profile.topology as JsonObject).nodes as JsonObject[])[2].learned_semantics = "cross_modal_fit";
+      }],
+      ["wrong child profile", (profile) => {
+        ((profile.topology as JsonObject).nodes as JsonObject[])[2].child_profile_id = "latest";
+      }],
+      ["kind/block disagreement", (profile) => {
+        const node = ((profile.topology as JsonObject).nodes as JsonObject[])[2];
+        node.block = "phosphosite_sphinks";
+        node.child_profile_id = "kncc-gbm-longitudinal-kinase-transition/1.0.0";
+      }],
+      ["container semantics on a fitted factor", (profile) => {
+        ((profile.topology as JsonObject).nodes as JsonObject[])[2].learned_semantics = "child_result_container_only";
+      }],
+      ["invalid Reactome identifier", (profile) => {
+        const nodes = (profile.topology as JsonObject).nodes as JsonObject[];
+        const node = nodes.find((item) => item.kind === "reactome_pathway_factor");
+        if (!node) throw new Error("fixture must contain a Reactome factor");
+        node.biological_identifier = "R-HSA-0";
+      }],
+      ["invalid kinase identifier", (profile) => {
+        const nodes = (profile.topology as JsonObject).nodes as JsonObject[];
+        const node = nodes.find((item) => item.kind === "kinase_signature_factor");
+        if (!node) throw new Error("fixture must contain a kinase factor");
+        node.biological_identifier = "egfr";
+      }],
+      ["invalid subtype identifier", (profile) => {
+        const nodes = (profile.topology as JsonObject).nodes as JsonObject[];
+        const node = nodes.find((item) => item.kind === "subtype_signature_factor");
+        if (!node) throw new Error("fixture must contain a subtype factor");
+        node.biological_identifier = "MES";
+      }],
+      ["non-object edge", (profile) => {
+        ((profile.topology as JsonObject).containment_edges as unknown[])[0] = false;
+      }],
+      ["unknown edge field", (profile) => {
+        ((profile.topology as JsonObject).containment_edges as JsonObject[])[0].coefficient = 0;
+      }],
+      ["invalid edge identifier", (profile) => {
+        ((profile.topology as JsonObject).containment_edges as JsonObject[])[0].edge_id = "9invalid";
+      }],
+      ["invalid source identifier", (profile) => {
+        ((profile.topology as JsonObject).containment_edges as JsonObject[])[0].source_node_id = "9invalid";
+      }],
+      ["invalid target identifier", (profile) => {
+        ((profile.topology as JsonObject).containment_edges as JsonObject[])[0].target_node_id = "9invalid";
+      }],
+      ["invalid edge relationship", (profile) => {
+        ((profile.topology as JsonObject).containment_edges as JsonObject[])[0].relationship = "activates";
+      }],
+      ["invalid computational role", (profile) => {
+        ((profile.topology as JsonObject).containment_edges as JsonObject[])[0].computational_role = "fitted";
+      }],
+      ["duplicate edge identifier", (profile) => {
+        const edges = (profile.topology as JsonObject).containment_edges as JsonObject[];
+        edges[1].edge_id = edges[0].edge_id;
+      }],
+      ["wrong factor inventory", (profile) => {
+        const nodes = (profile.topology as JsonObject).nodes as JsonObject[];
+        nodes[2].kind = "reactome_pathway_factor";
+        nodes[2].biological_identifier = "R-HSA-177929";
+      }],
+      ["duplicate computation block", (profile) => {
+        const nodes = (profile.topology as JsonObject).nodes as JsonObject[];
+        nodes[1].block = "protein_reactome";
+        nodes[1].child_profile_id = nodes[0].child_profile_id;
+      }],
+      ["unresolved source", (profile) => {
+        ((profile.topology as JsonObject).containment_edges as JsonObject[])[0].source_node_id = "block.missing";
+      }],
+      ["factor used as source", (profile) => {
+        const edges = (profile.topology as JsonObject).containment_edges as JsonObject[];
+        edges[0].source_node_id = edges[1].target_node_id;
+      }],
+      ["computation block used as target", (profile) => {
+        ((profile.topology as JsonObject).containment_edges as JsonObject[])[0].target_node_id = "block.protein_reactome";
+      }],
+      ["duplicate containment target", (profile) => {
+        const edges = (profile.topology as JsonObject).containment_edges as JsonObject[];
+        edges[1].target_node_id = edges[0].target_node_id;
+      }],
+    ];
+
+    for (const [name, mutate] of cases) {
+      const profile = cloneObject(factorGraphProfile);
+      mutate(profile);
+      expect(normalizeFactorGraphTopology(profile), name).toBeNull();
+    }
+
+    const malformedWrapper = cloneObject(factorGraphProfile);
+    malformedWrapper.topology = [];
+    expect(normalizeFactorGraphTopology(malformedWrapper)).toBeNull();
   });
 });
 

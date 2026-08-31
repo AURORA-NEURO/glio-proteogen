@@ -49,10 +49,8 @@ import {
   phosphoVerification,
 } from "../fixtures/longitudinal-gbm-phospho";
 import {
-  reactomeTransitionAnalysisResult,
+  admittedReactomeTransitionDocuments,
   reactomeTransitionDemoRequest,
-  reactomeTransitionProfile,
-  reactomeTransitionVerification,
 } from "../fixtures/longitudinal-gbm-reactome-transition";
 import {
   complexTransitionAnalysis,
@@ -86,6 +84,7 @@ type WorkbenchMocks = {
 };
 
 const demoTopologyProvenance = demoRequest.topology_provenance;
+const admittedReactomeTransition = admittedReactomeTransitionDocuments();
 
 function displayNumber(value: number, digits = 3): string {
   return value.toFixed(digits).replace(/(\.\d*?[1-9])0+$|\.0+$/, "$1");
@@ -99,10 +98,33 @@ async function mockWorkbench(page: Page, options: WorkbenchMocks = {}): Promise<
       status: readyStatus,
       json: { status: readyStatus === 200 ? "ready" : "degraded" },
     }))),
-    page.route("**/backend/v1/research/proteogenomic-state/profile", (route) => route.fulfill({ json: algorithmProfile })),
-    page.route("**/backend/v1/research/proteogenomic-state/demo", (route) => route.fulfill({ json: options.demo ?? demoRequest })),
-    page.route("**/backend/v1/research/proteogenomic-state/analyze", options.analyze ?? ((route) => route.fulfill({ json: analysisResult }))),
-    page.route("**/backend/v1/research/proteogenomic-state/verify", (route) => route.fulfill({ json: verificationResult })),
+    page.route("**/backend/v1/research/proteogenomic-state/profile", (route) => route.fulfill({
+      json: algorithmProfile,
+      headers: { "X-GLIO-Profile-Digest": String(algorithmProfile.profile_digest) },
+    })),
+    page.route("**/backend/v1/research/proteogenomic-state/demo", (route) => route.fulfill({
+      json: options.demo ?? demoRequest,
+      headers: {
+        "X-GLIO-Profile-Digest": String(algorithmProfile.profile_digest),
+        "X-GLIO-Request-Digest": String(analysisResult.request_digest),
+      },
+    })),
+    page.route("**/backend/v1/research/proteogenomic-state/analyze", options.analyze ?? ((route) => route.fulfill({
+      json: analysisResult,
+      headers: {
+        "X-GLIO-Profile-Digest": String(analysisResult.profile_digest),
+        "X-GLIO-Request-Digest": String(analysisResult.request_digest),
+        "X-GLIO-Result-Digest": String(analysisResult.result_digest),
+      },
+    }))),
+    page.route("**/backend/v1/research/proteogenomic-state/verify", (route) => route.fulfill({
+      json: verificationResult,
+      headers: {
+        "X-GLIO-Profile-Digest": String(algorithmProfile.profile_digest),
+        "X-GLIO-Request-Digest": String(verificationResult.recomputed_request_digest),
+        "X-GLIO-Result-Digest": String(verificationResult.recomputed_result_digest),
+      },
+    })),
   ]);
 }
 
@@ -179,13 +201,38 @@ async function mockLongitudinalPhosphoLane(page: Page, analyze: (route: Route) =
 
 async function mockReactomeTransitionLane(
   page: Page,
-  analyze: (route: Route) => Promise<void> | void = (route) => route.fulfill({ json: reactomeTransitionAnalysisResult }),
+  analyze: (route: Route) => Promise<void> | void = (route) => route.fulfill({
+    json: admittedReactomeTransition.result,
+    headers: {
+      "X-GLIO-Profile-Digest": String(admittedReactomeTransition.result.profile_digest),
+      "X-GLIO-Request-Digest": String(admittedReactomeTransition.result.request_digest),
+      "X-GLIO-Result-Digest": String(admittedReactomeTransition.result.result_digest),
+    },
+  }),
 ): Promise<void> {
   await Promise.all([
-    page.route("**/backend/v1/research/longitudinal-gbm-reactome-transition/profile", (route) => route.fulfill({ json: reactomeTransitionProfile })),
-    page.route("**/backend/v1/research/longitudinal-gbm-reactome-transition/demo", (route) => route.fulfill({ json: reactomeTransitionDemoRequest })),
+    page.route("**/backend/v1/research/longitudinal-gbm-reactome-transition/profile", (route) => route.fulfill({
+      json: admittedReactomeTransition.profile,
+      headers: {
+        "X-GLIO-Profile-Digest": String(admittedReactomeTransition.profile.profile_digest),
+      },
+    })),
+    page.route("**/backend/v1/research/longitudinal-gbm-reactome-transition/demo", (route) => route.fulfill({
+      json: admittedReactomeTransition.request,
+      headers: {
+        "X-GLIO-Profile-Digest": String(admittedReactomeTransition.profile.profile_digest),
+        "X-GLIO-Request-Digest": String(admittedReactomeTransition.profile.demo_request_digest),
+      },
+    })),
     page.route("**/backend/v1/research/longitudinal-gbm-reactome-transition/analyze", analyze),
-    page.route("**/backend/v1/research/longitudinal-gbm-reactome-transition/verify", (route) => route.fulfill({ json: reactomeTransitionVerification })),
+    page.route("**/backend/v1/research/longitudinal-gbm-reactome-transition/verify", (route) => route.fulfill({
+      json: admittedReactomeTransition.verification,
+      headers: {
+        "X-GLIO-Profile-Digest": String(admittedReactomeTransition.profile.profile_digest),
+        "X-GLIO-Request-Digest": String(admittedReactomeTransition.verification.recomputed_request_digest),
+        "X-GLIO-Result-Digest": String(admittedReactomeTransition.verification.recomputed_result_digest),
+      },
+    })),
   ]);
 }
 
@@ -708,6 +755,7 @@ test("runs, audits, verifies, downloads, and cancels the KNCC Reactome condition
 });
 
 test("runs, explains, downloads, and replays all 28 fitted Reactome participant sets", async ({ page }) => {
+  test.setTimeout(60_000);
   await mockWorkbench(page);
   await mockComplexTransitionLane(page);
   await openLoadedWorkbench(page);

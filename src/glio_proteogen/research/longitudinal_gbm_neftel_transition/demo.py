@@ -20,7 +20,7 @@ from .contracts import (
 
 DEMO_ID: Final = "synthetic-kncc-neftel-program-transition-v1"
 EXPECTED_DEMO_SEMANTIC_ORACLE_DIGEST: Final = (
-    "sha256:3b1eeeb9bbc5b301353e495281c074630d94a8dfcc09e7b4c9a2b4ec0728374f"
+    "sha256:94464f73704f864d9a6667c43423e8f5efb24fcba8b96f6af728b540a75bbc6c"
 )
 _DEMO_SOURCE_DIGEST: Final = sha256_digest(
     {

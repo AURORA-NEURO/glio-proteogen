@@ -58,18 +58,18 @@
     },
     "demo_id": "synthetic-kncc-neftel-program-transition-v1",
     "demo_request_digest": "sha256:8f83b633902fe36fb8daf93c0a6add1202a64ade776e287f8190e87edaea7da0",
-    "demo_semantic_oracle_digest": "sha256:3b1eeeb9bbc5b301353e495281c074630d94a8dfcc09e7b4c9a2b4ec0728374f",
+    "demo_semantic_oracle_digest": "sha256:94464f73704f864d9a6667c43423e8f5efb24fcba8b96f6af728b540a75bbc6c",
     "digests": {
       "bootstrap_ensemble_digest": "sha256:cea991982fb0e23aa87193cc0c76384908024549c5bf12c2e041cf8d41a697de",
       "bootstrap_seed_namespace_digest": "sha256:6c9e2f8ec61237debe227379b8170bdd68f9ddcb8826848085f14460c7f5398a",
       "centering_scaling_digest": "sha256:18ab0ae83aaf93dee71f388596baeeee4cd54f53384d19295bd8efd83f154fdd",
       "conditional_loading_digest": "sha256:6dd836dc704fb42fac4519ceabd8e307b71fbc12424aafd9961f8872e35c62e6",
-      "engine_semantic_digest": "sha256:bb4a6038389fe6506320f925bbc62223da0cdf28eed1a8cfb69cac118fc8b4e1",
+      "engine_semantic_digest": "sha256:7c5477455e140bce08877796ea44bd38513b6459e921e187b4c722443919f641",
       "equal_membership_design_digest": "sha256:17d22d4b9d76db6937c67c879233b7215d5a5ed4298ebc3d41a99bba831c0269",
       "evaluation_digest": "sha256:14a773347547306420d288620b3344f18b1f1100cc97bb5ab12e0c3f4b19ccad",
-      "fitted_artifact_digest": "sha256:920f66efa326e6b2d1b92f12dbc055c590e5774be1af09c82a03ca24cdba01eb",
-      "fitted_content_digest": "sha256:7f535d98a5c6da796617fdc5ae1f95a41843eb7285660fe61ee12a1f24a9aea2",
-      "fitted_source_catalog_binding_digest": "sha256:9da7bf54256622bdea59d66b9a2a7a492c8d6161b0918f5a0ef998274ec58c26",
+      "fitted_artifact_digest": "sha256:cdc00db86c83bee0ff62eb30f4e0130da8621b09ebca298adf16458e073d38a9",
+      "fitted_content_digest": "sha256:815b4066891c9ddf78b3be374e573be28e299eb15ed612ee3c662f33a84c8e41",
+      "fitted_source_catalog_binding_digest": "sha256:e4c28dda9e94a064b04b1903795b5d1f9198bb86aaac3f3fb787a8d05f6d4fde",
       "fold_policy_digest": "sha256:9d3dc4723ccb259c1fbb81ef459659449ced616f664e809decdc929ff74854b5",
       "gene_order_digest": "sha256:9b2e8a91d99d4d43f62cf63db8af23b404322f4d3eaca11e96a917be66f15b04",
       "global_loading_digest": "sha256:a84008c65aa0df62df825ed454e567819e7e9243802156901e27219c7ea8405d",
@@ -82,8 +82,8 @@
       "program_order_digest": "sha256:969e39b3516a28996b3c16a3e2dc07d7b347849620aed1338e4d082ff517e711",
       "reference_design_digest": "sha256:6ed77f00e1c52f036e7e8037d4a99c9046f3d2e3bb2f6f97e01f39ff30f10891",
       "reference_tensor_digest": "sha256:9227d0e64eaf97feed4bbd0a594611c690dabdbaa22e253e4f22cc48c001a38b",
-      "source_binding_digest": "sha256:9da7bf54256622bdea59d66b9a2a7a492c8d6161b0918f5a0ef998274ec58c26",
-      "source_catalog_artifact_digest": "sha256:f08b7521ffecb3435bb18a113dc10e306df9a4895b7d4daf3235217468be2a5c",
+      "source_binding_digest": "sha256:e4c28dda9e94a064b04b1903795b5d1f9198bb86aaac3f3fb787a8d05f6d4fde",
+      "source_catalog_artifact_digest": "sha256:69254d918c3730d7840e9157f0c9d417905bc67b9b2aa5915a1090ae95524d66",
       "source_catalog_content_digest": "sha256:5f0baa349db65f0ee740a318db6aad334b4ab9fa94b9f9d69158441054c1582f",
       "source_processing_ablation_digest": "sha256:d7a52babb9d71867e76bfd0648fa5b80d6a4e83bd1da75ea9f74a5a81bf5c356",
       "training_recipe_digest": "sha256:444532f3381d01600e7ed6d97e3f6f0e831cf38b5b3493315428189995f10290",
@@ -154,7 +154,7 @@
     "numpy_version": "2.5.2",
     "parent_dependency_semantics": "feature_axis_and_assay_binding_only_no_runtime_delegation",
     "parent_feature_axis_model_id": "kncc-paired-protein-transition/1.0.0",
-    "profile_digest": "sha256:b9f624e7b4fb64edd3cf0d4558727ddc0fd93d5f033d55d4d0af6805dafcdd53",
+    "profile_digest": "sha256:667affee83b0d022c3963148c7d4fa53f83e7ec70eccfd9aab830707a7e2e786",
     "profile_id": "kncc-neftel-program-transition/1.0.0",
     "programs": [
       {
@@ -9580,25 +9580,25 @@
       "reference_id": "synthetic.kncc.neftel.log2.reference.v1"
     },
     "output_semantics": "global_transition_concordance_and_conditional_program_concordance_only",
-    "profile_digest": "sha256:b9f624e7b4fb64edd3cf0d4558727ddc0fd93d5f033d55d4d0af6805dafcdd53",
+    "profile_digest": "sha256:667affee83b0d022c3963148c7d4fa53f83e7ec70eccfd9aab830707a7e2e786",
     "profile_id": "kncc-neftel-program-transition/1.0.0",
     "provenance": {
       "assay_compatibility_digest": "sha256:a1c9a1ceea7d48e210f167c9f93726a150fc8dc1656df75dde7791b154d70cb0",
       "bootstrap_ensemble_digest": "sha256:cea991982fb0e23aa87193cc0c76384908024549c5bf12c2e041cf8d41a697de",
-      "bootstrap_seed": 4046981103001021,
+      "bootstrap_seed": 4076442438977974,
       "bootstrap_seed_namespace_digest": "sha256:6c9e2f8ec61237debe227379b8170bdd68f9ddcb8826848085f14460c7f5398a",
       "caller_evidence_set_digest": "sha256:4f110a2c94a512b76264a3c6f2c3ce482d0ddbc4f7ffc6c3a683013379105c59",
       "centering_scaling_digest": "sha256:18ab0ae83aaf93dee71f388596baeeee4cd54f53384d19295bd8efd83f154fdd",
-      "computational_digest": "sha256:dab4e2071372fdb56f0af4d71c135ff4127c88d6de654ad6fa35313a482aaa6c",
+      "computational_digest": "sha256:74a4fb8f8dc38cbe0f73ce13c5853cefc6d517575ec69f8851dc7a4ff805d3c7",
       "conditional_loading_digest": "sha256:6dd836dc704fb42fac4519ceabd8e307b71fbc12424aafd9961f8872e35c62e6",
-      "demo_semantic_oracle_digest": "sha256:3b1eeeb9bbc5b301353e495281c074630d94a8dfcc09e7b4c9a2b4ec0728374f",
+      "demo_semantic_oracle_digest": "sha256:94464f73704f864d9a6667c43423e8f5efb24fcba8b96f6af728b540a75bbc6c",
       "engine": "kncc-neftel-program-transition/1.0.0",
-      "engine_semantic_digest": "sha256:bb4a6038389fe6506320f925bbc62223da0cdf28eed1a8cfb69cac118fc8b4e1",
+      "engine_semantic_digest": "sha256:7c5477455e140bce08877796ea44bd38513b6459e921e187b4c722443919f641",
       "equal_membership_design_digest": "sha256:17d22d4b9d76db6937c67c879233b7215d5a5ed4298ebc3d41a99bba831c0269",
       "evaluation_digest": "sha256:14a773347547306420d288620b3344f18b1f1100cc97bb5ab12e0c3f4b19ccad",
-      "fitted_artifact_digest": "sha256:920f66efa326e6b2d1b92f12dbc055c590e5774be1af09c82a03ca24cdba01eb",
-      "fitted_content_digest": "sha256:7f535d98a5c6da796617fdc5ae1f95a41843eb7285660fe61ee12a1f24a9aea2",
-      "fitted_source_catalog_binding_digest": "sha256:9da7bf54256622bdea59d66b9a2a7a492c8d6161b0918f5a0ef998274ec58c26",
+      "fitted_artifact_digest": "sha256:cdc00db86c83bee0ff62eb30f4e0130da8621b09ebca298adf16458e073d38a9",
+      "fitted_content_digest": "sha256:815b4066891c9ddf78b3be374e573be28e299eb15ed612ee3c662f33a84c8e41",
+      "fitted_source_catalog_binding_digest": "sha256:e4c28dda9e94a064b04b1903795b5d1f9198bb86aaac3f3fb787a8d05f6d4fde",
       "fold_policy_digest": "sha256:9d3dc4723ccb259c1fbb81ef459659449ced616f664e809decdc929ff74854b5",
       "gene_order_digest": "sha256:9b2e8a91d99d4d43f62cf63db8af23b404322f4d3eaca11e96a917be66f15b04",
       "global_loading_digest": "sha256:a84008c65aa0df62df825ed454e567819e7e9243802156901e27219c7ea8405d",
@@ -9606,10 +9606,10 @@
       "membership_degree_digest": "sha256:ce45797d8d11d53e853989af37db673c152f64fb4cfbfa5c7d25e9ce7f14d17c",
       "neftel_source_program_digest": "sha256:f3fd4171b07c7b0ac7b001d62fffebe0f613c9c3737ce28cdcbc71b0cd3c013b",
       "normalization_reference_digest": "sha256:03f28cb609f3d69efede20c3320e0a90a3edfdc87646b0df614ef240cfca9830",
-      "numerical_seed_digest": "sha256:5bc6d94dbe70444fe73e7dcdd9d9563b5a9df24d6d732c0d3f4666da59969630",
+      "numerical_seed_digest": "sha256:da14d39507b271ecf4282b8a81a964b611f67128fddc1e2af1a710b8377237aa",
       "numpy_version": "2.5.2",
       "patient_order_rule_digest": "sha256:225f76504cc665ec4409790cbfdd5108863f725920a15f6582ae7b4c715d1646",
-      "profile_digest": "sha256:b9f624e7b4fb64edd3cf0d4558727ddc0fd93d5f033d55d4d0af6805dafcdd53",
+      "profile_digest": "sha256:667affee83b0d022c3963148c7d4fa53f83e7ec70eccfd9aab830707a7e2e786",
       "program_inventory_digest": "sha256:b66b542aa08a0be18d1f1588a02eb00e99824891d9cd7820cb4231a37c6981c4",
       "program_membership_digest": "sha256:193f2be224e655a4a5522e73ef01f965a76abb449b6af6ef77d67a36a10c195c",
       "program_order_digest": "sha256:969e39b3516a28996b3c16a3e2dc07d7b347849620aed1338e4d082ff517e711",
@@ -9617,8 +9617,8 @@
       "reference_tensor_digest": "sha256:9227d0e64eaf97feed4bbd0a594611c690dabdbaa22e253e4f22cc48c001a38b",
       "request_digest": "sha256:8f83b633902fe36fb8daf93c0a6add1202a64ade776e287f8190e87edaea7da0",
       "source_attribution": "Kim et al., Integrated proteogenomic characterization of glioblastoma evolution; Neftel et al. Table S2, DOI 10.1016/j.cell.2019.06.024, source digest sha256:208e73ab3d22c494caf85c867d69dc6be38df3fc62ab1f043d7fcc5441066277.",
-      "source_binding_digest": "sha256:9da7bf54256622bdea59d66b9a2a7a492c8d6161b0918f5a0ef998274ec58c26",
-      "source_catalog_artifact_digest": "sha256:f08b7521ffecb3435bb18a113dc10e306df9a4895b7d4daf3235217468be2a5c",
+      "source_binding_digest": "sha256:e4c28dda9e94a064b04b1903795b5d1f9198bb86aaac3f3fb787a8d05f6d4fde",
+      "source_catalog_artifact_digest": "sha256:69254d918c3730d7840e9157f0c9d417905bc67b9b2aa5915a1090ae95524d66",
       "source_catalog_content_digest": "sha256:5f0baa349db65f0ee740a318db6aad334b4ab9fa94b9f9d69158441054c1582f",
       "source_patient_count": 104,
       "source_processing_ablation_digest": "sha256:d7a52babb9d71867e76bfd0648fa5b80d6a4e83bd1da75ea9f74a5a81bf5c356",
@@ -9632,7 +9632,7 @@
     },
     "request_digest": "sha256:8f83b633902fe36fb8daf93c0a6add1202a64ade776e287f8190e87edaea7da0",
     "research_use_only": true,
-    "result_digest": "sha256:2bb1627cc8b9c02bc4c5225f1f1c1264b06bc20e73cb73f665d28947c9af4788",
+    "result_digest": "sha256:740c352dc7ee86aa65a3b81d884a455a8cbcb567d166b2acb1c17362aad0ab61",
     "series_id": "synthetic-kncc-neftel-program-transition-v1",
     "time_point_ids": [
       "synthetic.neftel.baseline",
@@ -9656,13 +9656,13 @@
           "effective_sample_size": 177.01210102,
           "interval_level": 0.9,
           "left_censored_count": 0,
-          "lower_bound": -0.03899354,
+          "lower_bound": -0.02866943,
           "observed_count": 250,
           "output_semantics": "global_transition_concordance",
           "score": 0.0294861,
           "shared_active_gene_count": 250,
           "support": "limited",
-          "upper_bound": 0.09983492
+          "upper_bound": 0.09885339
         },
         "programs": [
           {
@@ -9847,7 +9847,6 @@
             "abstention_reasons": [
               "locked held-marker evaluation did not prefer fitted program loadings to the prespecified equal-membership baseline",
               "the 90% interval does not support a directional or stable class",
-              "fewer than 80% of fitted draws retain the point classification",
               "the full path improves fewer than four of five held-marker folds",
               "median held-marker reconstruction gain is below 1%",
               "one or more structural ablations are not estimable"
@@ -9864,7 +9863,7 @@
             "global_adjustment": 0.03797527,
             "interval_level": 0.9,
             "left_censored_count": 0,
-            "lower_bound": -0.73604212,
+            "lower_bound": -0.77999029,
             "mapped_feature_count": 42,
             "observed_count": 40,
             "output_semantics": "conditional_program_concordance",
@@ -9877,7 +9876,7 @@
             "request_reconstruction_median_relative_gain": 0.00449771,
             "score": -0.45468255,
             "source_member_count": 50,
-            "stability": 0.78125,
+            "stability": 0.84375,
             "support": "limited",
             "top_contributions": [
               {
@@ -10064,17 +10063,17 @@
             "unadjusted_program_coordinate": -0.41670728,
             "uncertainty": {
               "bootstrap_replicates_used": 64,
-              "combined_standard_error": 0.22230812,
-              "fitted_model_standard_error": 0.1941395,
-              "measurement_model_covariance": -0.00084826,
-              "measurement_standard_error": 0.1105964,
+              "combined_standard_error": 0.22134804,
+              "fitted_model_standard_error": 0.17353105,
+              "measurement_model_covariance": 0.0023319,
+              "measurement_standard_error": 0.11847542,
               "reason": null,
               "state": "estimated",
-              "variance_closure_residual": 0.00119571
+              "variance_closure_residual": 0.00018171
             },
             "unique_active_gene_count": 34,
             "unique_coefficient_mass": 0.90410994,
-            "upper_bound": -0.10069782
+            "upper_bound": -0.05108998
           },
           {
             "ablations": {
@@ -10285,7 +10284,7 @@
             "global_adjustment": 0.03437037,
             "interval_level": 0.9,
             "left_censored_count": 0,
-            "lower_bound": -0.82648038,
+            "lower_bound": -0.77925175,
             "mapped_feature_count": 49,
             "observed_count": 45,
             "output_semantics": "conditional_program_concordance",
@@ -10298,7 +10297,7 @@
             "request_reconstruction_median_relative_gain": 0.00762361,
             "score": -0.44601299,
             "source_member_count": 50,
-            "stability": 0.6875,
+            "stability": 0.703125,
             "support": "limited",
             "top_contributions": [
               {
@@ -10485,17 +10484,17 @@
             "unadjusted_program_coordinate": -0.41164262,
             "uncertainty": {
               "bootstrap_replicates_used": 64,
-              "combined_standard_error": 0.24662948,
-              "fitted_model_standard_error": 0.23334214,
-              "measurement_model_covariance": -0.00243405,
-              "measurement_standard_error": 0.10155727,
+              "combined_standard_error": 0.22878122,
+              "fitted_model_standard_error": 0.20855994,
+              "measurement_model_covariance": -0.00022383,
+              "measurement_standard_error": 0.10244558,
               "reason": null,
               "state": "estimated",
-              "variance_closure_residual": 0.00093177
+              "variance_closure_residual": 0.00120384
             },
             "unique_active_gene_count": 38,
             "unique_coefficient_mass": 0.92023599,
-            "upper_bound": 0.06941104
+            "upper_bound": -0.04834105
           },
           {
             "ablations": {
@@ -10689,7 +10688,6 @@
             "abstention_reasons": [
               "locked held-marker evaluation did not prefer fitted program loadings to the prespecified equal-membership baseline",
               "the 90% interval does not support a directional or stable class",
-              "fewer than 80% of fitted draws retain the point classification",
               "the full path improves fewer than four of five held-marker folds",
               "median held-marker reconstruction gain is below 1%",
               "one or more structural ablations are not estimable"
@@ -10706,7 +10704,7 @@
             "global_adjustment": 0.04503848,
             "interval_level": 0.9,
             "left_censored_count": 0,
-            "lower_bound": -0.86975691,
+            "lower_bound": -0.89872962,
             "mapped_feature_count": 37,
             "observed_count": 35,
             "output_semantics": "conditional_program_concordance",
@@ -10719,7 +10717,7 @@
             "request_reconstruction_median_relative_gain": 0.0048114,
             "score": -0.57538778,
             "source_member_count": 39,
-            "stability": 0.796875,
+            "stability": 0.84375,
             "support": "limited",
             "top_contributions": [
               {
@@ -10906,17 +10904,17 @@
             "unadjusted_program_coordinate": -0.5303493,
             "uncertainty": {
               "bootstrap_replicates_used": 64,
-              "combined_standard_error": 0.25496931,
-              "fitted_model_standard_error": 0.23892565,
-              "measurement_model_covariance": -0.00074249,
-              "measurement_standard_error": 0.11307074,
+              "combined_standard_error": 0.24226175,
+              "fitted_model_standard_error": 0.22311608,
+              "measurement_model_covariance": -0.00363862,
+              "measurement_standard_error": 0.12449352,
               "reason": null,
               "state": "estimated",
-              "variance_closure_residual": 0.00337612
+              "variance_closure_residual": 0.00068858
             },
             "unique_active_gene_count": 26,
             "unique_coefficient_mass": 0.75772747,
-            "upper_bound": -0.09079018
+            "upper_bound": -0.17185541
           },
           {
             "ablations": {
@@ -11118,7 +11116,7 @@
             "global_adjustment": 0.05055156,
             "interval_level": 0.9,
             "left_censored_count": 0,
-            "lower_bound": -0.46520899,
+            "lower_bound": -0.47358119,
             "mapped_feature_count": 47,
             "observed_count": 46,
             "output_semantics": "conditional_program_concordance",
@@ -11318,17 +11316,17 @@
             "unadjusted_program_coordinate": -0.13249389,
             "uncertainty": {
               "bootstrap_replicates_used": 64,
-              "combined_standard_error": 0.2291868,
-              "fitted_model_standard_error": 0.20311452,
-              "measurement_model_covariance": 0.00016065,
-              "measurement_standard_error": 0.11112216,
+              "combined_standard_error": 0.22738042,
+              "fitted_model_standard_error": 0.17922149,
+              "measurement_model_covariance": 0.0011394,
+              "measurement_standard_error": 0.13254046,
               "reason": null,
               "state": "estimated",
-              "variance_closure_residual": 0.00139835
+              "variance_closure_residual": 0.00026426
             },
             "unique_active_gene_count": 32,
             "unique_coefficient_mass": 0.80811691,
-            "upper_bound": 0.26279729
+            "upper_bound": 0.2600603
           },
           {
             "ablations": {
@@ -11540,7 +11538,7 @@
             "global_adjustment": 0.05239041,
             "interval_level": 0.9,
             "left_censored_count": 0,
-            "lower_bound": -0.50034234,
+            "lower_bound": -0.66856766,
             "mapped_feature_count": 43,
             "observed_count": 41,
             "output_semantics": "conditional_program_concordance",
@@ -11553,7 +11551,7 @@
             "request_reconstruction_median_relative_gain": -0.00043647,
             "score": -0.09157604,
             "source_member_count": 50,
-            "stability": 0.6875,
+            "stability": 0.640625,
             "support": "limited",
             "top_contributions": [
               {
@@ -11740,17 +11738,17 @@
             "unadjusted_program_coordinate": -0.03918562,
             "uncertainty": {
               "bootstrap_replicates_used": 64,
-              "combined_standard_error": 0.29398106,
-              "fitted_model_standard_error": 0.26078114,
-              "measurement_model_covariance": 0.00083945,
-              "measurement_standard_error": 0.13548003,
+              "combined_standard_error": 0.30074454,
+              "fitted_model_standard_error": 0.26262322,
+              "measurement_model_covariance": -0.00039573,
+              "measurement_standard_error": 0.13323129,
               "reason": null,
               "state": "estimated",
-              "variance_closure_residual": 0.00161567
+              "variance_closure_residual": 0.00451721
             },
             "unique_active_gene_count": 25,
             "unique_coefficient_mass": 0.64386759,
-            "upper_bound": 0.30229512
+            "upper_bound": 0.36580734
           },
           {
             "ablations": {
@@ -11952,7 +11950,7 @@
             "global_adjustment": 0.05502696,
             "interval_level": 0.9,
             "left_censored_count": 0,
-            "lower_bound": -0.53745013,
+            "lower_bound": -0.5450936,
             "mapped_feature_count": 41,
             "observed_count": 36,
             "output_semantics": "conditional_program_concordance",
@@ -11965,7 +11963,7 @@
             "request_reconstruction_median_relative_gain": -0.00716914,
             "score": -0.24778392,
             "source_member_count": 50,
-            "stability": 0.515625,
+            "stability": 0.546875,
             "support": "limited",
             "top_contributions": [
               {
@@ -12152,17 +12150,17 @@
             "unadjusted_program_coordinate": -0.19275697,
             "uncertainty": {
               "bootstrap_replicates_used": 64,
-              "combined_standard_error": 0.24140421,
-              "fitted_model_standard_error": 0.19934411,
-              "measurement_model_covariance": 0.0015775,
-              "measurement_standard_error": 0.12230675,
+              "combined_standard_error": 0.20641357,
+              "fitted_model_standard_error": 0.1721038,
+              "measurement_model_covariance": -0.00139652,
+              "measurement_standard_error": 0.13230403,
               "reason": null,
               "state": "estimated",
-              "variance_closure_residual": 0.00042398
+              "variance_closure_residual": 0.00172447
             },
             "unique_active_gene_count": 26,
             "unique_coefficient_mass": 0.80165666,
-            "upper_bound": 0.20888539
+            "upper_bound": 0.13064469
           },
           {
             "ablations": {
@@ -12338,7 +12336,7 @@
             "global_adjustment": 0.02990913,
             "interval_level": 0.9,
             "left_censored_count": 0,
-            "lower_bound": -1.13169378,
+            "lower_bound": -1.1116247,
             "mapped_feature_count": 26,
             "observed_count": 14,
             "output_semantics": "conditional_program_concordance",
@@ -12538,17 +12536,17 @@
             "unadjusted_program_coordinate": -0.81679566,
             "uncertainty": {
               "bootstrap_replicates_used": 64,
-              "combined_standard_error": 0.20736834,
-              "fitted_model_standard_error": 0.16342656,
-              "measurement_model_covariance": 0.00314828,
-              "measurement_standard_error": 0.10253656,
+              "combined_standard_error": 0.18781437,
+              "fitted_model_standard_error": 0.1279175,
+              "measurement_model_covariance": 0.00101825,
+              "measurement_standard_error": 0.12652323,
               "reason": null,
               "state": "estimated",
-              "variance_closure_residual": 0.00051692
+              "variance_closure_residual": 0.00086672
             },
             "unique_active_gene_count": 14,
             "unique_coefficient_mass": 1.0,
-            "upper_bound": -0.4828073
+            "upper_bound": -0.50525415
           },
           {
             "ablations": {
@@ -12735,7 +12733,7 @@
             "global_adjustment": 0.03710906,
             "interval_level": 0.9,
             "left_censored_count": 0,
-            "lower_bound": -1.62791473,
+            "lower_bound": -1.55701869,
             "mapped_feature_count": 37,
             "observed_count": 25,
             "output_semantics": "conditional_program_concordance",
@@ -12935,17 +12933,17 @@
             "unadjusted_program_coordinate": -1.22063587,
             "uncertainty": {
               "bootstrap_replicates_used": 64,
-              "combined_standard_error": 0.25870056,
-              "fitted_model_standard_error": 0.20228217,
-              "measurement_model_covariance": 0.00525503,
-              "measurement_standard_error": 0.12401093,
+              "combined_standard_error": 0.22825869,
+              "fitted_model_standard_error": 0.16605425,
+              "measurement_model_covariance": 0.0033033,
+              "measurement_standard_error": 0.13344613,
               "reason": null,
               "state": "estimated",
-              "variance_closure_residual": 0.00011914
+              "variance_closure_residual": 0.00011354
             },
             "unique_active_gene_count": 24,
             "unique_coefficient_mass": 0.99804227,
-            "upper_bound": -0.84014977
+            "upper_bound": -0.87949713
           }
         ],
         "to_time_point_id": "synthetic.neftel.followup.a",
@@ -12967,13 +12965,13 @@
           "effective_sample_size": 177.01210102,
           "interval_level": 0.9,
           "left_censored_count": 0,
-          "lower_bound": -0.05870156,
+          "lower_bound": -0.0604303,
           "observed_count": 250,
           "output_semantics": "global_transition_concordance",
           "score": -0.01587484,
           "shared_active_gene_count": 250,
           "support": "limited",
-          "upper_bound": 0.02238547
+          "upper_bound": 0.02221474
         },
         "programs": [
           {
@@ -13174,7 +13172,7 @@
             "global_adjustment": -0.02044527,
             "interval_level": 0.9,
             "left_censored_count": 0,
-            "lower_bound": -0.02988854,
+            "lower_bound": 0.03330212,
             "mapped_feature_count": 42,
             "observed_count": 40,
             "output_semantics": "conditional_program_concordance",
@@ -13374,17 +13372,17 @@
             "unadjusted_program_coordinate": 0.23293151,
             "uncertainty": {
               "bootstrap_replicates_used": 64,
-              "combined_standard_error": 0.17713841,
-              "fitted_model_standard_error": 0.10811661,
-              "measurement_model_covariance": 0.00096403,
-              "measurement_standard_error": 0.12588134,
+              "combined_standard_error": 0.14526765,
+              "fitted_model_standard_error": 0.09671222,
+              "measurement_model_covariance": -0.00183264,
+              "measurement_standard_error": 0.11153817,
               "reason": null,
               "state": "estimated",
-              "variance_closure_residual": 0.00191464
+              "variance_closure_residual": 0.00297395
             },
             "unique_active_gene_count": 34,
             "unique_coefficient_mass": 0.90410994,
-            "upper_bound": 0.56829199
+            "upper_bound": 0.45122799
           },
           {
             "ablations": {
@@ -13595,7 +13593,7 @@
             "global_adjustment": -0.01850444,
             "interval_level": 0.9,
             "left_censored_count": 0,
-            "lower_bound": -0.0972465,
+            "lower_bound": -0.00590124,
             "mapped_feature_count": 49,
             "observed_count": 45,
             "output_semantics": "conditional_program_concordance",
@@ -13795,17 +13793,17 @@
             "unadjusted_program_coordinate": 0.23196273,
             "uncertainty": {
               "bootstrap_replicates_used": 64,
-              "combined_standard_error": 0.19275588,
-              "fitted_model_standard_error": 0.13026335,
-              "measurement_model_covariance": 0.00235348,
-              "measurement_standard_error": 0.11640369,
+              "combined_standard_error": 0.14478924,
+              "fitted_model_standard_error": 0.11664963,
+              "measurement_model_covariance": -0.00210982,
+              "measurement_standard_error": 0.10912622,
               "reason": null,
               "state": "estimated",
-              "variance_closure_residual": 0.00192952
+              "variance_closure_residual": 0.00033211
             },
             "unique_active_gene_count": 38,
             "unique_coefficient_mass": 0.92023599,
-            "upper_bound": 0.55596382
+            "upper_bound": 0.44058473
           },
           {
             "ablations": {
@@ -14014,7 +14012,7 @@
             "global_adjustment": -0.02424798,
             "interval_level": 0.9,
             "left_censored_count": 0,
-            "lower_bound": -0.00561493,
+            "lower_bound": 0.06701216,
             "mapped_feature_count": 37,
             "observed_count": 35,
             "output_semantics": "conditional_program_concordance",
@@ -14027,7 +14025,7 @@
             "request_reconstruction_median_relative_gain": 0.01868087,
             "score": 0.32206198,
             "source_member_count": 39,
-            "stability": 0.546875,
+            "stability": 0.640625,
             "support": "limited",
             "top_contributions": [
               {
@@ -14214,17 +14212,17 @@
             "unadjusted_program_coordinate": 0.297814,
             "uncertainty": {
               "bootstrap_replicates_used": 64,
-              "combined_standard_error": 0.19385604,
-              "fitted_model_standard_error": 0.1329759,
-              "measurement_model_covariance": -0.00044957,
-              "measurement_standard_error": 0.13020273,
+              "combined_standard_error": 0.16200076,
+              "fitted_model_standard_error": 0.12413333,
+              "measurement_model_covariance": -0.00401395,
+              "measurement_standard_error": 0.13211023,
               "reason": null,
               "state": "estimated",
-              "variance_closure_residual": 0.00384396
+              "variance_closure_residual": 0.00140994
             },
             "unique_active_gene_count": 26,
             "unique_coefficient_mass": 0.75772747,
-            "upper_bound": 0.61531673
+            "upper_bound": 0.5534257
           },
           {
             "ablations": {
@@ -14408,7 +14406,6 @@
             "abstention_reasons": [
               "locked held-marker evaluation did not prefer fitted program loadings to the prespecified equal-membership baseline",
               "the 90% interval does not support a directional or stable class",
-              "fewer than 80% of fitted draws retain the point classification",
               "the full path improves fewer than four of five held-marker folds",
               "median held-marker reconstruction gain is below 1%",
               "one or more structural ablations are not estimable",
@@ -14426,7 +14423,7 @@
             "global_adjustment": -0.02721613,
             "interval_level": 0.9,
             "left_censored_count": 0,
-            "lower_bound": -0.19427213,
+            "lower_bound": -0.12180159,
             "mapped_feature_count": 47,
             "observed_count": 46,
             "output_semantics": "conditional_program_concordance",
@@ -14439,7 +14436,7 @@
             "request_reconstruction_median_relative_gain": -0.01030553,
             "score": 0.10321221,
             "source_member_count": 50,
-            "stability": 0.796875,
+            "stability": 0.859375,
             "support": "limited",
             "top_contributions": [
               {
@@ -14626,17 +14623,17 @@
             "unadjusted_program_coordinate": 0.07599607,
             "uncertainty": {
               "bootstrap_replicates_used": 64,
-              "combined_standard_error": 0.18125694,
-              "fitted_model_standard_error": 0.11285855,
-              "measurement_model_covariance": 7.315e-05,
-              "measurement_standard_error": 0.13582419,
+              "combined_standard_error": 0.14563602,
+              "fitted_model_standard_error": 0.09968453,
+              "measurement_model_covariance": -0.00184921,
+              "measurement_standard_error": 0.11447813,
               "reason": null,
               "state": "estimated",
-              "variance_closure_residual": 0.00152251
+              "variance_closure_residual": 0.00186601
             },
             "unique_active_gene_count": 32,
             "unique_coefficient_mass": 0.80811691,
-            "upper_bound": 0.35638388
+            "upper_bound": 0.34937374
           },
           {
             "ablations": {
@@ -14848,7 +14845,7 @@
             "global_adjustment": -0.02820614,
             "interval_level": 0.9,
             "left_censored_count": 0,
-            "lower_bound": -0.15625338,
+            "lower_bound": -0.18342563,
             "mapped_feature_count": 43,
             "observed_count": 41,
             "output_semantics": "conditional_program_concordance",
@@ -15048,17 +15045,17 @@
             "unadjusted_program_coordinate": 0.02622702,
             "uncertainty": {
               "bootstrap_replicates_used": 64,
-              "combined_standard_error": 0.19328607,
-              "fitted_model_standard_error": 0.14434179,
-              "measurement_model_covariance": -0.00237968,
-              "measurement_standard_error": 0.13571897,
+              "combined_standard_error": 0.21097723,
+              "fitted_model_standard_error": 0.14541293,
+              "measurement_model_covariance": -0.00105631,
+              "measurement_standard_error": 0.14111745,
               "reason": null,
               "state": "estimated",
-              "variance_closure_residual": 0.00286468
+              "variance_closure_residual": 0.00556495
             },
             "unique_active_gene_count": 25,
             "unique_coefficient_mass": 0.64386759,
-            "upper_bound": 0.35729592
+            "upper_bound": 0.47148714
           },
           {
             "ablations": {
@@ -15260,7 +15257,7 @@
             "global_adjustment": -0.02962561,
             "interval_level": 0.9,
             "left_censored_count": 0,
-            "lower_bound": -0.1773019,
+            "lower_bound": -0.08919883,
             "mapped_feature_count": 41,
             "observed_count": 36,
             "output_semantics": "conditional_program_concordance",
@@ -15273,7 +15270,7 @@
             "request_reconstruction_median_relative_gain": -0.00714632,
             "score": 0.13889837,
             "source_member_count": 50,
-            "stability": 0.734375,
+            "stability": 0.796875,
             "support": "limited",
             "top_contributions": [
               {
@@ -15460,17 +15457,17 @@
             "unadjusted_program_coordinate": 0.10927276,
             "uncertainty": {
               "bootstrap_replicates_used": 64,
-              "combined_standard_error": 0.19588669,
-              "fitted_model_standard_error": 0.1106949,
-              "measurement_model_covariance": 0.00073739,
-              "measurement_standard_error": 0.15449703,
+              "combined_standard_error": 0.14402688,
+              "fitted_model_standard_error": 0.09569016,
+              "measurement_model_covariance": -0.00201254,
+              "measurement_standard_error": 0.11493224,
               "reason": null,
               "state": "estimated",
-              "variance_closure_residual": 0.00077412
+              "variance_closure_residual": 0.0024028
             },
             "unique_active_gene_count": 26,
             "unique_coefficient_mass": 0.80165666,
-            "upper_bound": 0.42117935
+            "upper_bound": 0.34506773
           },
           {
             "ablations": {
@@ -15632,13 +15629,12 @@
             },
             "abstention_reasons": [
               "locked held-marker evaluation did not prefer fitted program loadings to the prespecified equal-membership baseline",
-              "the 90% interval does not support a directional or stable class",
               "one or more structural ablations are not estimable"
             ],
             "active_feature_count": 14,
             "admitted_active_feature_count": 14,
             "admitted_left_censored_count": 0,
-            "classification": "indeterminate",
+            "classification": "conditional_source_later_timepoint_aligned",
             "coefficient_mass_coverage": 1.0,
             "discordance": 0.08142063,
             "domain_id": "neftel_table_s2",
@@ -15647,7 +15643,7 @@
             "global_adjustment": -0.01610259,
             "interval_level": 0.9,
             "left_censored_count": 0,
-            "lower_bound": 0.19639411,
+            "lower_bound": 0.27168433,
             "mapped_feature_count": 26,
             "observed_count": 14,
             "output_semantics": "conditional_program_concordance",
@@ -15660,7 +15656,7 @@
             "request_reconstruction_median_relative_gain": 0.0348308,
             "score": 0.47288167,
             "source_member_count": 29,
-            "stability": 0.90625,
+            "stability": 0.984375,
             "support": "limited",
             "top_contributions": [
               {
@@ -15847,17 +15843,17 @@
             "unadjusted_program_coordinate": 0.45677909,
             "uncertainty": {
               "bootstrap_replicates_used": 64,
-              "combined_standard_error": 0.16064769,
-              "fitted_model_standard_error": 0.09098463,
-              "measurement_model_covariance": 0.00042002,
-              "measurement_standard_error": 0.11552143,
+              "combined_standard_error": 0.14089807,
+              "fitted_model_standard_error": 0.07132541,
+              "measurement_model_covariance": 0.00036367,
+              "measurement_standard_error": 0.10488298,
               "reason": null,
               "state": "estimated",
-              "variance_closure_residual": 0.00334423
+              "variance_closure_residual": 0.00303717
             },
             "unique_active_gene_count": 14,
             "unique_coefficient_mass": 1.0,
-            "upper_bound": 0.73213398
+            "upper_bound": 0.689411
           },
           {
             "ablations": {
@@ -16044,7 +16040,7 @@
             "global_adjustment": -0.01997891,
             "interval_level": 0.9,
             "left_censored_count": 0,
-            "lower_bound": 0.36111843,
+            "lower_bound": 0.51505185,
             "mapped_feature_count": 37,
             "observed_count": 25,
             "output_semantics": "conditional_program_concordance",
@@ -16244,17 +16240,17 @@
             "unadjusted_program_coordinate": 0.68002385,
             "uncertainty": {
               "bootstrap_replicates_used": 64,
-              "combined_standard_error": 0.20656484,
-              "fitted_model_standard_error": 0.11245422,
-              "measurement_model_covariance": 0.00038602,
-              "measurement_standard_error": 0.15152812,
+              "combined_standard_error": 0.15909152,
+              "fitted_model_standard_error": 0.09237936,
+              "measurement_model_covariance": -6.685e-05,
+              "measurement_standard_error": 0.10737377,
               "reason": null,
               "state": "estimated",
-              "variance_closure_residual": 0.00629027
+              "variance_closure_residual": 0.00538074
             },
             "unique_active_gene_count": 24,
             "unique_coefficient_mass": 0.99804227,
-            "upper_bound": 1.0238162
+            "upper_bound": 0.93609737
           }
         ],
         "to_time_point_id": "synthetic.neftel.followup.b",
@@ -16276,13 +16272,13 @@
           "effective_sample_size": 177.01210102,
           "interval_level": 0.9,
           "left_censored_count": 0,
-          "lower_bound": -0.02635267,
+          "lower_bound": -0.0277344,
           "observed_count": 250,
           "output_semantics": "global_transition_concordance",
           "score": 0.00150174,
           "shared_active_gene_count": 250,
           "support": "limited",
-          "upper_bound": 0.02551484
+          "upper_bound": 0.03345632
         },
         "programs": [
           {
@@ -16482,7 +16478,7 @@
             "global_adjustment": 0.0019341,
             "interval_level": 0.9,
             "left_censored_count": 0,
-            "lower_bound": -0.17885008,
+            "lower_bound": -0.21746099,
             "mapped_feature_count": 42,
             "observed_count": 40,
             "output_semantics": "conditional_program_concordance",
@@ -16495,7 +16491,7 @@
             "request_reconstruction_median_relative_gain": 0.00814047,
             "score": -0.04071394,
             "source_member_count": 50,
-            "stability": 0.984375,
+            "stability": 0.953125,
             "support": "limited",
             "top_contributions": [
               {
@@ -16682,17 +16678,17 @@
             "unadjusted_program_coordinate": -0.03877984,
             "uncertainty": {
               "bootstrap_replicates_used": 64,
-              "combined_standard_error": 0.09716512,
-              "fitted_model_standard_error": 0.01747666,
-              "measurement_model_covariance": 3.8e-05,
-              "measurement_standard_error": 0.09312743,
+              "combined_standard_error": 0.12130298,
+              "fitted_model_standard_error": 0.01559983,
+              "measurement_model_covariance": 0.00046787,
+              "measurement_standard_error": 0.10759381,
               "reason": null,
               "state": "estimated",
-              "variance_closure_residual": 0.00038691
+              "variance_closure_residual": 0.00195888
             },
             "unique_active_gene_count": 34,
             "unique_coefficient_mass": 0.90410994,
-            "upper_bound": 0.11272897
+            "upper_bound": 0.15507643
           },
           {
             "ablations": {
@@ -16900,7 +16896,7 @@
             "global_adjustment": 0.0017505,
             "interval_level": 0.9,
             "left_censored_count": 0,
-            "lower_bound": -0.19900619,
+            "lower_bound": -0.19305206,
             "mapped_feature_count": 49,
             "observed_count": 45,
             "output_semantics": "conditional_program_concordance",
@@ -16913,7 +16909,7 @@
             "request_reconstruction_median_relative_gain": 0.02508207,
             "score": -0.04084146,
             "source_member_count": 50,
-            "stability": 0.96875,
+            "stability": 0.953125,
             "support": "limited",
             "top_contributions": [
               {
@@ -17100,17 +17096,17 @@
             "unadjusted_program_coordinate": -0.03909096,
             "uncertainty": {
               "bootstrap_replicates_used": 64,
-              "combined_standard_error": 0.11413763,
-              "fitted_model_standard_error": 0.02000589,
-              "measurement_model_covariance": 0.00031777,
-              "measurement_standard_error": 0.11134417,
+              "combined_standard_error": 0.11728623,
+              "fitted_model_standard_error": 0.01756986,
+              "measurement_model_covariance": 0.00029818,
+              "measurement_standard_error": 0.10841046,
               "reason": null,
               "state": "estimated",
-              "variance_closure_residual": 0.00040591
+              "variance_closure_residual": 0.00109816
             },
             "unique_active_gene_count": 38,
             "unique_coefficient_mass": 0.92023599,
-            "upper_bound": 0.18238895
+            "upper_bound": 0.17491234
           },
           {
             "ablations": {
@@ -17319,7 +17315,7 @@
             "global_adjustment": 0.00229383,
             "interval_level": 0.9,
             "left_censored_count": 0,
-            "lower_bound": -0.2231306,
+            "lower_bound": -0.2373066,
             "mapped_feature_count": 37,
             "observed_count": 35,
             "output_semantics": "conditional_program_concordance",
@@ -17332,7 +17328,7 @@
             "request_reconstruction_median_relative_gain": -0.00082679,
             "score": -0.0556309,
             "source_member_count": 39,
-            "stability": 0.953125,
+            "stability": 0.96875,
             "support": "limited",
             "top_contributions": [
               {
@@ -17519,17 +17515,17 @@
             "unadjusted_program_coordinate": -0.05333707,
             "uncertainty": {
               "bootstrap_replicates_used": 64,
-              "combined_standard_error": 0.11441905,
-              "fitted_model_standard_error": 0.02298588,
-              "measurement_model_covariance": 8.542e-05,
-              "measurement_standard_error": 0.11532848,
+              "combined_standard_error": 0.13333322,
+              "fitted_model_standard_error": 0.0219059,
+              "measurement_model_covariance": 0.0003647,
+              "measurement_standard_error": 0.12250468,
               "reason": null,
               "state": "estimated",
-              "variance_closure_residual": 0.00090813
+              "variance_closure_residual": 0.00156109
             },
             "unique_active_gene_count": 26,
             "unique_coefficient_mass": 0.75772747,
-            "upper_bound": 0.15365463
+            "upper_bound": 0.16783887
           },
           {
             "ablations": {
@@ -17729,7 +17725,7 @@
             "global_adjustment": 0.00257461,
             "interval_level": 0.9,
             "left_censored_count": 0,
-            "lower_bound": -0.1598811,
+            "lower_bound": -0.16793946,
             "mapped_feature_count": 47,
             "observed_count": 46,
             "output_semantics": "conditional_program_concordance",
@@ -17742,7 +17738,7 @@
             "request_reconstruction_median_relative_gain": -0.00183097,
             "score": -0.0157928,
             "source_member_count": 50,
-            "stability": 1.0,
+            "stability": 0.953125,
             "support": "limited",
             "top_contributions": [
               {
@@ -17929,17 +17925,17 @@
             "unadjusted_program_coordinate": -0.01321819,
             "uncertainty": {
               "bootstrap_replicates_used": 64,
-              "combined_standard_error": 0.11002878,
-              "fitted_model_standard_error": 0.0203703,
-              "measurement_model_covariance": -5.331e-05,
-              "measurement_standard_error": 0.11219996,
+              "combined_standard_error": 0.12391179,
+              "fitted_model_standard_error": 0.0188055,
+              "measurement_model_covariance": 0.00030051,
+              "measurement_standard_error": 0.10792701,
               "reason": null,
               "state": "estimated",
-              "variance_closure_residual": 0.00079082
+              "variance_closure_residual": 0.00275123
             },
             "unique_active_gene_count": 32,
             "unique_coefficient_mass": 0.80811691,
-            "upper_bound": 0.18883339
+            "upper_bound": 0.19309514
           },
           {
             "ablations": {
@@ -18132,7 +18128,6 @@
             },
             "abstention_reasons": [
               "locked held-marker evaluation did not prefer fitted program loadings to the prespecified equal-membership baseline",
-              "the 90% interval does not support a directional or stable class",
               "the full path improves fewer than four of five held-marker folds",
               "median held-marker reconstruction gain is below 1%",
               "one or more structural ablations are not estimable",
@@ -18141,7 +18136,7 @@
             "active_feature_count": 41,
             "admitted_active_feature_count": 41,
             "admitted_left_censored_count": 0,
-            "classification": "indeterminate",
+            "classification": "conditionally_stable",
             "coefficient_mass_coverage": 0.9833364,
             "discordance": 0.63407502,
             "domain_id": "neftel_table_s2",
@@ -18150,7 +18145,7 @@
             "global_adjustment": 0.00266827,
             "interval_level": 0.9,
             "left_censored_count": 0,
-            "lower_bound": -0.25180699,
+            "lower_bound": -0.19608554,
             "mapped_feature_count": 43,
             "observed_count": 41,
             "output_semantics": "conditional_program_concordance",
@@ -18163,7 +18158,7 @@
             "request_reconstruction_median_relative_gain": -0.00462472,
             "score": -0.0067718,
             "source_member_count": 50,
-            "stability": 0.890625,
+            "stability": 0.96875,
             "support": "limited",
             "top_contributions": [
               {
@@ -18350,17 +18345,17 @@
             "unadjusted_program_coordinate": -0.00410353,
             "uncertainty": {
               "bootstrap_replicates_used": 64,
-              "combined_standard_error": 0.13529947,
-              "fitted_model_standard_error": 0.02760415,
-              "measurement_model_covariance": -0.00026896,
-              "measurement_standard_error": 0.12963695,
+              "combined_standard_error": 0.1408476,
+              "fitted_model_standard_error": 0.02819864,
+              "measurement_model_covariance": -0.0001021,
+              "measurement_standard_error": 0.12777722,
               "reason": null,
               "state": "estimated",
-              "variance_closure_residual": 0.00127614
+              "variance_closure_residual": 0.00292006
             },
             "unique_active_gene_count": 25,
             "unique_coefficient_mass": 0.64386759,
-            "upper_bound": 0.23630832
+            "upper_bound": 0.24371711
           },
           {
             "ablations": {
@@ -18559,7 +18554,7 @@
             "global_adjustment": 0.00280255,
             "interval_level": 0.9,
             "left_censored_count": 0,
-            "lower_bound": -0.19324666,
+            "lower_bound": -0.21759747,
             "mapped_feature_count": 41,
             "observed_count": 36,
             "output_semantics": "conditional_program_concordance",
@@ -18572,7 +18567,7 @@
             "request_reconstruction_median_relative_gain": 0.00270007,
             "score": -0.03741835,
             "source_member_count": 50,
-            "stability": 0.984375,
+            "stability": 0.96875,
             "support": "limited",
             "top_contributions": [
               {
@@ -18759,17 +18754,17 @@
             "unadjusted_program_coordinate": -0.0346158,
             "uncertainty": {
               "bootstrap_replicates_used": 64,
-              "combined_standard_error": 0.11472385,
-              "fitted_model_standard_error": 0.0205568,
-              "measurement_model_covariance": 2.09e-05,
-              "measurement_standard_error": 0.11198591,
+              "combined_standard_error": 0.12981098,
+              "fitted_model_standard_error": 0.01790921,
+              "measurement_model_covariance": 0.00033173,
+              "measurement_standard_error": 0.12143405,
               "reason": null,
               "state": "estimated",
-              "variance_closure_residual": 0.00015633
+              "variance_closure_residual": 0.00112046
             },
             "unique_active_gene_count": 26,
             "unique_coefficient_mass": 0.80165666,
-            "upper_bound": 0.15961113
+            "upper_bound": 0.19036128
           },
           {
             "ablations": {
@@ -18931,13 +18926,14 @@
             },
             "abstention_reasons": [
               "locked held-marker evaluation did not prefer fitted program loadings to the prespecified equal-membership baseline",
+              "the 90% interval does not support a directional or stable class",
               "the full path improves fewer than four of five held-marker folds",
               "one or more structural ablations are not estimable"
             ],
             "active_feature_count": 14,
             "admitted_active_feature_count": 14,
             "admitted_left_censored_count": 0,
-            "classification": "conditionally_stable",
+            "classification": "indeterminate",
             "coefficient_mass_coverage": 1.0,
             "discordance": 0.08654463,
             "domain_id": "neftel_table_s2",
@@ -18946,7 +18942,7 @@
             "global_adjustment": 0.00152329,
             "interval_level": 0.9,
             "left_censored_count": 0,
-            "lower_bound": -0.20648286,
+            "lower_bound": -0.25248847,
             "mapped_feature_count": 26,
             "observed_count": 14,
             "output_semantics": "conditional_program_concordance",
@@ -18959,7 +18955,7 @@
             "request_reconstruction_median_relative_gain": 0.01337956,
             "score": -0.06752474,
             "source_member_count": 29,
-            "stability": 0.953125,
+            "stability": 0.921875,
             "support": "limited",
             "top_contributions": [
               {
@@ -19146,17 +19142,17 @@
             "unadjusted_program_coordinate": -0.06600146,
             "uncertainty": {
               "bootstrap_replicates_used": 64,
-              "combined_standard_error": 0.09546745,
-              "fitted_model_standard_error": 0.015123,
-              "measurement_model_covariance": -9.819e-05,
-              "measurement_standard_error": 0.09562292,
+              "combined_standard_error": 0.11350035,
+              "fitted_model_standard_error": 0.01263055,
+              "measurement_model_covariance": 0.00048034,
+              "measurement_standard_error": 0.10286649,
               "reason": null,
               "state": "estimated",
-              "variance_closure_residual": 6.203e-05
+              "variance_closure_residual": 0.00118061
             },
             "unique_active_gene_count": 14,
             "unique_coefficient_mass": 1.0,
-            "upper_bound": 0.07200695
+            "upper_bound": 0.0954966
           },
           {
             "ablations": {
@@ -19345,7 +19341,7 @@
             "global_adjustment": 0.00188998,
             "interval_level": 0.9,
             "left_censored_count": 0,
-            "lower_bound": -0.27475492,
+            "lower_bound": -0.28510657,
             "mapped_feature_count": 37,
             "observed_count": 25,
             "output_semantics": "conditional_program_concordance",
@@ -19358,7 +19354,7 @@
             "request_reconstruction_median_relative_gain": 0.05634845,
             "score": -0.10876192,
             "source_member_count": 45,
-            "stability": 0.921875,
+            "stability": 0.890625,
             "support": "limited",
             "top_contributions": [
               {
@@ -19545,17 +19541,17 @@
             "unadjusted_program_coordinate": -0.10687194,
             "uncertainty": {
               "bootstrap_replicates_used": 64,
-              "combined_standard_error": 0.12968364,
-              "fitted_model_standard_error": 0.01894808,
-              "measurement_model_covariance": -9.572e-05,
-              "measurement_standard_error": 0.12175094,
+              "combined_standard_error": 0.13145066,
+              "fitted_model_standard_error": 0.01616698,
+              "measurement_model_covariance": 0.0004234,
+              "measurement_standard_error": 0.11582983,
               "reason": null,
               "state": "estimated",
-              "variance_closure_residual": 0.00182697
+              "variance_closure_residual": 0.00275455
             },
             "unique_active_gene_count": 24,
             "unique_coefficient_mass": 0.99804227,
-            "upper_bound": 0.13994804
+            "upper_bound": 0.12076542
           }
         ],
         "to_time_point_id": "synthetic.neftel.followup.c",
@@ -19574,7 +19570,7 @@
     "program_semantic_match": true,
     "provenance_match": true,
     "recomputed_request_digest": "sha256:8f83b633902fe36fb8daf93c0a6add1202a64ade776e287f8190e87edaea7da0",
-    "recomputed_result_digest": "sha256:2bb1627cc8b9c02bc4c5225f1f1c1264b06bc20e73cb73f665d28947c9af4788",
+    "recomputed_result_digest": "sha256:740c352dc7ee86aa65a3b81d884a455a8cbcb567d166b2acb1c17362aad0ab61",
     "request_digest_match": true,
     "result_digest_match": true,
     "semantic_match": true,

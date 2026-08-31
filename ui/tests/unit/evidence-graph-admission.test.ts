@@ -231,4 +231,245 @@ describe("ECGI fail-closed UI receipt admission", () => {
       ]),
     );
   });
+
+  it("rejects every malformed profile and demo binding family", () => {
+    const profileMutations: Array<(value: JsonObject) => void> = [
+      (value) => { value.extra = true; },
+      (value) => { value.algorithm_id = "foreign"; },
+      (value) => { value.algorithm_version = "2.0.0"; },
+      (value) => { value.profile_id = "foreign"; },
+      (value) => { value.numpy_version = "latest"; },
+      (value) => { value.claim_ceiling = "supported"; },
+      (value) => { value.safety_class = "clinical"; },
+      (value) => { value.interpretation = "prescriptive"; },
+      (value) => { value.demo_graph_digest = "bad"; },
+      (value) => { value.demo_topology_provenance_digest = "bad"; },
+      (value) => { value.profile_digest = "bad"; },
+      (value) => { value.constants = null; },
+      (value) => { value.limits = null; },
+      (value) => { value.relation_weights = null; },
+    ];
+    for (const mutate of profileMutations) {
+      const value = copy(profile);
+      mutate(value);
+      expect(validateEcgiProfile(value).length).toBeGreaterThan(0);
+    }
+    const noDigest = copy(profile);
+    delete noDigest.profile_digest;
+    expect(ecgiProfileDigest(noDigest)).toBeNull();
+
+    const invalidHeader = headers({ "X-GLIO-Profile-Digest": "SHA256:BAD" });
+    expect(validateEcgiProfileHeaders(invalidHeader, profile)).toContain(
+      "X-GLIO-Profile-Digest response header must be a lowercase sha256 digest.",
+    );
+
+    const wrongProfile = copy(request);
+    wrongProfile.profile_id = "foreign";
+    expect(validateEcgiDemo(wrongProfile, requestHeaders, profile).length).toBeGreaterThan(0);
+    const wrongTopology = copy(request);
+    (wrongTopology.edges as JsonObject[])[0].weight = 0.5;
+    expect(validateEcgiDemo(wrongTopology, requestHeaders, profile)).toContain(
+      "demo graph topology does not match profile.demo_graph_digest.",
+    );
+    const noProvenance = copy(request);
+    delete noProvenance.topology_provenance;
+    expect(validateEcgiDemo(noProvenance, requestHeaders, profile)).toContain(
+      "demo.topology_provenance is required for profile binding.",
+    );
+    const changedProvenance = copy(request);
+    (changedProvenance.topology_provenance as JsonObject).curation_note = "changed";
+    expect(validateEcgiDemo(changedProvenance, requestHeaders, profile)).toContain(
+      "demo topology provenance does not match profile.demo_topology_provenance_digest.",
+    );
+  });
+
+  it("rejects the complete solver, state, kinase, and external-comparison error surface", () => {
+    const firstPass = (value: JsonObject): JsonObject =>
+      ((value.solver as JsonObject).first_pass as JsonObject);
+    const firstNode = (value: JsonObject): JsonObject =>
+      ((value.node_states as JsonObject[])[0]);
+    const firstKinase = (value: JsonObject): JsonObject =>
+      ((value.kinase_states as JsonObject[])[0]);
+    const comparison = (value: JsonObject): JsonObject =>
+      (value.external_kinase_comparison as JsonObject);
+    const match = (value: JsonObject): JsonObject =>
+      ((comparison(value).matches as JsonObject[])[0]);
+    const mutations: Array<(value: JsonObject) => void> = [
+      (value) => { value.extra = true; },
+      (value) => { value.algorithm_id = "foreign"; },
+      (value) => { value.algorithm_version = "2.0.0"; },
+      (value) => { value.profile_id = "foreign"; },
+      (value) => { value.profile_digest = "bad"; },
+      (value) => { value.request_digest = "bad"; },
+      (value) => { value.result_digest = "bad"; },
+      (value) => { value.research_use_only = false; },
+      (value) => { value.non_prescriptive = false; },
+      (value) => { value.sample_id = ""; },
+      (value) => { value.limitations = null; },
+      (value) => { value.limitations = []; },
+      (value) => { value.limitations = Array.from({ length: 17 }, () => "limit"); },
+      (value) => { value.limitations = [""]; },
+      (value) => { value.solver = null; },
+      (value) => { (value.solver as JsonObject).extra = true; },
+      (value) => { (value.solver as JsonObject).first_pass = null; },
+      (value) => { firstPass(value).extra = true; },
+      (value) => { firstPass(value).pass_name = "kinase_feedback"; },
+      (value) => { firstPass(value).solver_kind = "weighted_average"; },
+      (value) => { firstPass(value).objective_trace_semantics = "unpaired"; },
+      (value) => { firstPass(value).convergence_measure = "damped_update"; },
+      (value) => { firstPass(value).converged = "yes"; },
+      (value) => { firstPass(value).iterations = -1; },
+      (value) => { firstPass(value).iterations = 2_001; },
+      (value) => { firstPass(value).final_objective = "bad"; },
+      (value) => { firstPass(value).max_update = -1; },
+      (value) => { firstPass(value).objective_trace = null; },
+      (value) => { firstPass(value).objective_trace = []; },
+      (value) => { firstPass(value).objective_trace = Array.from({ length: 2_002 }, () => 0); },
+      (value) => { firstPass(value).objective_trace = ["bad"]; },
+      (value) => { firstPass(value).trace_digest = `sha256:${"a".repeat(64)}`; },
+      (value) => { firstPass(value).trace_digest = "bad"; },
+      (value) => { value.node_states = null; },
+      (value) => { value.node_states = Array.from({ length: 257 }, () => firstNode(value)); },
+      (value) => { (value.node_states as unknown[])[0] = null; },
+      (value) => { firstNode(value).extra = true; },
+      (value) => { firstNode(value).node_id = ""; },
+      (value) => { firstNode(value).kind = "unknown"; },
+      (value) => { firstNode(value).classification = "unknown"; },
+      (value) => { firstNode(value).evidence_count = -1; },
+      (value) => { firstNode(value).observed_count = 4_097; },
+      (value) => { firstNode(value).censored_count = 0.5; },
+      (value) => { firstNode(value).stability = 2; },
+      (value) => { firstNode(value).discordance = -1; },
+      (value) => { firstNode(value).top_drivers = null; },
+      (value) => { firstNode(value).top_drivers = Array.from({ length: 6 }, () => null); },
+      (value) => { (firstNode(value).top_drivers as unknown[])[0] = null; },
+      (value) => { ((firstNode(value).top_drivers as JsonObject[])[0]).extra = true; },
+      (value) => { ((firstNode(value).top_drivers as JsonObject[])[0]).driver_id = ""; },
+      (value) => { ((firstNode(value).top_drivers as JsonObject[])[0]).driver_type = "unknown"; },
+      (value) => { ((firstNode(value).top_drivers as JsonObject[])[0]).signed_contribution = "bad"; },
+      (value) => { ((firstNode(value).top_drivers as JsonObject[])[0]).strength = -1; },
+      (value) => { firstNode(value).ablation_effects = null; },
+      (value) => { firstNode(value).ablation_effects = Array.from({ length: 17 }, () => null); },
+      (value) => { (firstNode(value).ablation_effects as unknown[])[0] = null; },
+      (value) => { ((firstNode(value).ablation_effects as JsonObject[])[0]).extra = true; },
+      (value) => { ((firstNode(value).ablation_effects as JsonObject[])[0]).kind = "unknown"; },
+      (value) => { ((firstNode(value).ablation_effects as JsonObject[])[0]).omitted = ""; },
+      (value) => { ((firstNode(value).ablation_effects as JsonObject[])[0]).activity_delta = "bad"; },
+      (value) => { firstNode(value).activity = null; },
+      (value) => { firstNode(value).lower_bound = 2; },
+      (value) => { firstNode(value).upper_bound = -2; },
+      (value) => { firstNode(value).classification = "not_estimable"; },
+      (value) => { firstNode(value).abstention_reason = "unexpected"; },
+      (value) => { value.kinase_states = null; },
+      (value) => { value.kinase_states = Array.from({ length: 129 }, () => firstKinase(value)); },
+      (value) => { firstKinase(value).kind = "protein"; },
+      (value) => { firstKinase(value).activity = 0; },
+      (value) => { firstKinase(value).classification = "neutral"; },
+      (value) => { firstKinase(value).abstention_reason = ""; },
+      (value) => { firstKinase(value).mapped_substrates = -1; },
+      (value) => { firstKinase(value).rank_statistic = 2; },
+      (value) => { firstKinase(value).enrichment_score = "bad"; },
+      (value) => { firstKinase(value).null_standard_deviation = 0; },
+      (value) => { firstKinase(value).p_value = 2; },
+      (value) => { firstKinase(value).q_value = -1; },
+      (value) => { firstKinase(value).mapped_substrates = 2; },
+      (value) => { firstKinase(value).rank_statistic = null; },
+      (value) => { firstKinase(value).node_id = firstNode(value).node_id; },
+      (value) => { value.external_kinase_comparison = "bad"; },
+      (value) => { comparison(value).extra = true; },
+      (value) => { comparison(value).profile_id = ""; },
+      (value) => { comparison(value).source_digest = "bad"; },
+      (value) => { comparison(value).matches = null; },
+      (value) => { comparison(value).matches = Array.from({ length: 129 }, () => null); },
+      (value) => { (comparison(value).matches as unknown[])[0] = null; },
+      (value) => { match(value).extra = true; },
+      (value) => { match(value).kinase_id = ""; },
+      (value) => { match(value).local_activity = "bad"; },
+      (value) => { match(value).external_activity = "bad"; },
+      (value) => { match(value).activity_difference = "bad"; },
+      (value) => { match(value).interval_overlap = "yes"; },
+      (value) => { match(value).direction_agreement = "yes"; },
+      (value) => { comparison(value).unmatched_local_ids = null; },
+      (value) => { comparison(value).unmatched_local_ids = [""]; },
+      (value) => { comparison(value).external_ids_with_abstained_local_estimates = null; },
+      (value) => { comparison(value).external_ids_with_abstained_local_estimates = [""]; },
+      (value) => { comparison(value).rank_correlation = 2; },
+      (value) => { comparison(value).note = ""; },
+    ];
+    for (const mutate of mutations) {
+      const value = copy(result);
+      mutate(value);
+      expect(validateEcgiResult(value).length).toBeGreaterThan(0);
+    }
+
+    const noComparison = copy(result);
+    noComparison.external_kinase_comparison = null;
+    resealResult(noComparison);
+    expect(validateEcgiResult(noComparison)).toEqual([]);
+  }, 20_000);
+
+  it("rejects result provenance and cross-receipt binding mutations", () => {
+    const provenanceMutations: Array<(value: JsonObject) => void> = [
+      (value) => { value.provenance = null; },
+      (value) => { (value.provenance as JsonObject).extra = true; },
+      (value) => { (value.provenance as JsonObject).engine = "foreign"; },
+      (value) => { (value.provenance as JsonObject).profile_digest = "bad"; },
+      (value) => { (value.provenance as JsonObject).request_digest = "bad"; },
+      (value) => { (value.provenance as JsonObject).computational_digest = "bad"; },
+      (value) => { (value.provenance as JsonObject).demo_graph_digest = "bad"; },
+    ];
+    for (const mutate of provenanceMutations) {
+      const value = copy(result);
+      mutate(value);
+      expect(validateEcgiResult(value).length).toBeGreaterThan(0);
+    }
+
+    const invalidRequest = copy(request);
+    invalidRequest.nodes = null;
+    expect(validateEcgiResultRequestBinding(result, invalidRequest)).toContain(
+      "The executed request cannot be canonically digested.",
+    );
+    const foreignRequest = copy(request);
+    foreignRequest.sample_id = "foreign.sample";
+    expect(validateEcgiResultRequestBinding(result, foreignRequest).length).toBeGreaterThan(0);
+    const foreignTopology = copy(result);
+    ((foreignTopology.provenance as JsonObject).topology as JsonObject).curation_note = "foreign";
+    expect(validateEcgiResultRequestBinding(foreignTopology, request)).toContain(
+      "result.provenance.topology does not match the executed request.",
+    );
+    const foreignProfile = copy(profile);
+    foreignProfile.profile_id = "foreign";
+    foreignProfile.profile_digest = `sha256:${"a".repeat(64)}`;
+    foreignProfile.demo_graph_digest = `sha256:${"b".repeat(64)}`;
+    expect(validateEcgiResultProfileBinding(result, foreignProfile)).toHaveLength(3);
+  });
+
+  it("rejects every replay field type and receipt-binding contradiction", () => {
+    const mutations: Array<(value: JsonObject) => void> = [
+      (value) => { value.extra = true; },
+      (value) => { value.verified = "yes"; },
+      (value) => { value.request_digest_match = "yes"; },
+      (value) => { value.profile_digest_match = "yes"; },
+      (value) => { value.result_digest_match = "yes"; },
+      (value) => { value.solver_trace_match = "yes"; },
+      (value) => { value.semantic_match = "yes"; },
+      (value) => { value.provided_result_digest = "bad"; },
+      (value) => { value.recomputed_result_digest = "bad"; },
+      (value) => { value.recomputed_request_digest = "bad"; },
+      (value) => { value.message = ""; },
+      (value) => { value.provided_result_digest = `sha256:${"a".repeat(64)}`; },
+      (value) => { value.recomputed_request_digest = `sha256:${"a".repeat(64)}`; },
+      (value) => { value.recomputed_result_digest = `sha256:${"a".repeat(64)}`; },
+    ];
+    for (const mutate of mutations) {
+      const value = copy(verification);
+      mutate(value);
+      expect(validateEcgiVerification(value, result, request, profile).length).toBeGreaterThan(0);
+    }
+    const foreignProfile = copy(profile);
+    foreignProfile.profile_digest = `sha256:${"a".repeat(64)}`;
+    expect(validateEcgiVerification(verification, result, request, foreignProfile)).toContain(
+      "the admitted result and profile are not digest-bound.",
+    );
+  });
 });
