@@ -911,9 +911,23 @@ jobs:
       - name: Select one deterministic test-file shard
         shell: bash
         run: |
+          # These cases rebuild a governed prerequisite chain per test; source
+          # size materially underestimates their runtime under branch coverage.
+          runtime_weighted_files=(
+            tests/modules/c04_proteoform_isoform/test_m04_07_lifecycle_admission.py
+            tests/modules/c04_proteoform_isoform/test_m04_07_lifecycle_capabilities.py
+            tests/modules/c04_proteoform_isoform/test_m04_07_lifecycle_execution.py
+          )
+          for path in "${runtime_weighted_files[@]}"; do
+            test -f "$path"
+          done
           mapfile -t ranked_files < <(
             git ls-files tests \
               | grep -E '(^|/)test_.*\.py$|(^|/).*_test\.py$' \
+              | grep -Fvx \
+                  -e "${runtime_weighted_files[0]}" \
+                  -e "${runtime_weighted_files[1]}" \
+                  -e "${runtime_weighted_files[2]}" \
               | while IFS= read -r path; do
                   printf '%012d %s\n' "$(wc -c < "$path")" "$path"
                 done \
@@ -921,6 +935,11 @@ jobs:
               | cut -d ' ' -f 2-
           )
           selected_files=()
+          case "$SHARD_INDEX" in
+            0) selected_files+=("${runtime_weighted_files[0]}") ;;
+            4) selected_files+=("${runtime_weighted_files[1]}") ;;
+            8) selected_files+=("${runtime_weighted_files[2]}") ;;
+          esac
           for position in "${!ranked_files[@]}"; do
             if (( position % SHARD_COUNT == SHARD_INDEX )); then
               selected_files+=("${ranked_files[$position]}")
@@ -932,11 +951,14 @@ jobs:
         shell: bash
         run: |
           mapfile -t selected_files < "test-shard-${SHARD_INDEX}.manifest.txt"
+          # Bind collection to the checked-out source tree: tooling tests create
+          # disposable packages named glio_proteogen that must never enter the
+          # combined repository coverage database.
           uv run pytest "${selected_files[@]}" \
             -o addopts='' \
             --strict-config \
             --strict-markers \
-            --cov=glio_proteogen \
+            --cov=src/glio_proteogen \
             --cov-report= \
             --cov-fail-under=0 \
             --junitxml="module-tests-${SHARD_INDEX}.junit.xml"

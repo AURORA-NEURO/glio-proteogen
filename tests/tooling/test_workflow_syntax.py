@@ -65,11 +65,19 @@ def test_ci_partitions_tests_once_and_fans_in_evidence() -> None:
     assert 'SHARD_COUNT: "12"' in test_shards
     assert 'COVERAGE_FILE: ".coverage.${{ matrix.shard }}"' in test_shards
     assert "git ls-files tests \\" in test_shards
+    assert "runtime_weighted_files=(" in test_shards
+    assert "test_m04_07_lifecycle_admission.py" in test_shards
+    assert "test_m04_07_lifecycle_capabilities.py" in test_shards
+    assert "test_m04_07_lifecycle_execution.py" in test_shards
+    assert '0) selected_files+=("${runtime_weighted_files[0]}")' in test_shards
+    assert '4) selected_files+=("${runtime_weighted_files[1]}")' in test_shards
+    assert '8) selected_files+=("${runtime_weighted_files[2]}")' in test_shards
     assert "LC_ALL=C sort -k1,1nr -k2,2" in test_shards
     assert "position % SHARD_COUNT == SHARD_INDEX" in test_shards
     assert "printf '%s\\n' \"${selected_files[@]}\"" in test_shards
     assert "-o addopts=''" in test_shards
-    assert "--cov=glio_proteogen" in test_shards
+    assert "--cov=src/glio_proteogen" in test_shards
+    assert "--cov=glio_proteogen " not in test_shards
     assert "--cov-report=" in test_shards
     assert "--cov-fail-under=0" in test_shards
     assert '--junitxml="module-tests-${SHARD_INDEX}.junit.xml"' in test_shards

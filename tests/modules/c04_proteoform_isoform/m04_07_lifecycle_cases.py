@@ -1,4 +1,4 @@
-"""Focused M04-07 engine, receipt, service, and plugin lifecycle checks."""
+"""Shared M04-07 engine, receipt, service, and plugin lifecycle cases."""
 
 from __future__ import annotations
 
