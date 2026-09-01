@@ -1,27 +1,29 @@
 """Strict, deterministic M06-04 estimator boundary.
 
-The dossier names a probabilistic/advanced estimator, but does not authorize a
-model registry, weights, calibration set, or posterior semantics. This
-boundary implements a declaration-only proxy for one locked mechanism-guided
-configuration and abstains for every other family or unsupported representation.
+The compatibility optimizer preserves the original declaration-only behavior.
+The opt-in ``locked_glioma_abundance_irls_v1`` path fits observed scalar or
+interval protein-abundance values with robust Huber IRLS, feature-matched
+Normal/log-normal/empirical priors, assay precision, and hard domain bounds.
 It never opens caller artifacts or treats a caller-declared probability as
 calibrated evidence.
 """
 
 # The transport preparation path intentionally enumerates hostile input shapes.
-# ruff: noqa: C901, PLR0911, PLR0912, TRY301
+# ruff: noqa: C901, PLR0911, PLR0912, PLR0913, PLR0915, TRY301
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
+from dataclasses import dataclass
 from datetime import date, datetime
 from enum import Enum
-from math import isfinite
+from math import exp, isfinite, sqrt
 from typing import Final, cast
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
-from glio_proteogen.contracts.m06_01.v1 import FormalStateMissingness
+from glio_proteogen.contracts.m06_01.v1 import FormalStateFeatureValue, FormalStateMissingness
 from glio_proteogen.contracts.m06_04 import (
     M0604_CONTRACT_VERSION,
     M0604_EVIDENCE_CLAIM,
@@ -59,6 +61,7 @@ from glio_proteogen.kernel.strict_json import strict_json_loads
 _REQUEST_ADAPTER: Final = TypeAdapter(EstimateProteinAbundanceProbabilisticRequest)
 _ZERO_DIGEST: Final = "sha256:" + ("0" * 64)
 M0604_PROXY_OPTIMIZER: Final = "deterministic_proxy_v1"
+M0604_GLIOMA_IRLS_OPTIMIZER: Final = "locked_glioma_abundance_irls_v1"
 _AUTHORIZATION_MESSAGE: Final = "M06-04 probabilistic request is not authorized"
 _INPUT_MESSAGE: Final = "M06-04 request failed strict validation"
 _MAX_PLAIN_DEPTH: Final = 64
@@ -74,6 +77,24 @@ _EXPECTED_CONTROL_STATES: Final = {
     "support": UpstreamDecisionState.ACCEPTED.value,
     "intended_use": UpstreamDecisionState.ACCEPTED.value,
 }
+_HUBER_K: Final = 1.5
+_POSTERIOR_Z90: Final = 1.6448536269514722
+_IRLS_TOLERANCE: Final = 1e-7
+_MAX_IRLS_ITERATIONS: Final = 256
+_MIN_PRIOR_PARAMETERS: Final = 2
+_VALUE_CONSTRAINT = re.compile(
+    r"(?:abundance|protein|value)?\s*(>=|<=|==|>)\s*"
+    r"(-?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)",
+    re.IGNORECASE,
+)
+
+
+@dataclass(frozen=True, slots=True)
+class _AbundanceFit:
+    estimate: PosteriorEstimate
+    iterations: int
+    objective: float
+    convergence_gap: float
 
 
 class ProbabilisticEstimatorAuthorizationError(PermissionError):
@@ -403,6 +424,197 @@ def _estimates(
     return tuple(estimates)
 
 
+def _prior_for_feature(
+    request: EstimateProteinAbundanceProbabilisticRequest,
+    feature_id: str,
+) -> tuple[float, float, str]:
+    """Reduce a declared prior family to a feature-specific Normal prior."""
+
+    feature_tokens = {
+        token
+        for token in re.split(r"[^a-z0-9]+", feature_id.casefold())
+        if token and token not in {"protein", "abundance", "feature"}
+    }
+    candidates: list[tuple[float, float, float, str, bool]] = []
+    for prior in request.configuration.priors:
+        parameters = tuple(float(item) for item in prior.parameters)
+        if prior.kind.value == "normal" and len(parameters) >= _MIN_PRIOR_PARAMETERS:
+            mean, scale = parameters[0], abs(parameters[1])
+        elif prior.kind.value == "log_normal" and len(parameters) >= _MIN_PRIOR_PARAMETERS:
+            try:
+                log_mean, log_scale = parameters[0], abs(parameters[1])
+                mean = exp(log_mean + 0.5 * log_scale * log_scale)
+                scale = sqrt(
+                    max(
+                        1e-12,
+                        (exp(log_scale * log_scale) - 1.0)
+                        * exp(2.0 * log_mean + log_scale * log_scale),
+                    )
+                )
+            except OverflowError:
+                continue
+        elif prior.kind.value == "empirical" and parameters:
+            ordered = sorted(parameters)
+            midpoint = len(ordered) // 2
+            mean = (
+                ordered[midpoint]
+                if len(ordered) % 2
+                else (ordered[midpoint - 1] + ordered[midpoint]) / 2.0
+            )
+            scale = max(0.05, sqrt(sum((item - mean) ** 2 for item in ordered) / len(ordered)))
+        else:
+            continue
+        if not (isfinite(mean) and isfinite(scale) and scale > 0.0):
+            continue
+        prior_tokens = {
+            token for token in re.split(r"[^a-z0-9]+", prior.prior_id.casefold()) if token
+        }
+        matched = bool(feature_tokens & prior_tokens)
+        candidates.append((mean, scale, 4.0 if matched else 1.0, prior.prior_id, matched))
+    if not candidates:
+        return 0.0, 1.0, "unit-scale protein-abundance prior"
+    selected = [item for item in candidates if item[4]] or candidates
+    precision = sum(item[2] / (item[1] * item[1]) for item in selected)
+    mean = sum(item[2] * item[0] / (item[1] * item[1]) for item in selected) / precision
+    scale = sqrt(1.0 / precision)
+    rationale = "; ".join(f"prior {item[3]}" for item in selected)
+    return mean, scale, rationale
+
+
+def _abundance_bounds(
+    request: EstimateProteinAbundanceProbabilisticRequest,
+    feature_id: str,
+) -> tuple[float | None, float | None] | None:
+    definition = next(
+        item for item in request.state_schema.features if item.feature_id == feature_id
+    )
+    lower, upper = definition.domain_lower, definition.domain_upper
+    for constraint in request.configuration.constraints:
+        if not constraint.hard:
+            continue
+        match = _VALUE_CONSTRAINT.search(constraint.expression)
+        if match is None:
+            continue
+        operator, raw = match.groups()
+        value = float(raw)
+        if not isfinite(value):
+            return None
+        if operator in {">=", ">"}:
+            lower = (
+                max(lower, value + (1e-9 if operator == ">" else 0.0))
+                if lower is not None
+                else value
+            )
+        elif operator == "<=":
+            upper = min(upper, value) if upper is not None else value
+        else:
+            lower, upper = value, value
+    if lower is not None and upper is not None and lower > upper:
+        return None
+    return lower, upper
+
+
+def _fit_abundance(
+    value: FormalStateFeatureValue,
+    request: EstimateProteinAbundanceProbabilisticRequest,
+) -> _AbundanceFit | None:
+    feature_id = value.feature_id
+    bounds = _abundance_bounds(request, feature_id)
+    if bounds is None:
+        return None
+    if value.state is not FormalStateMissingness.OBSERVED:
+        return None
+    scalar = value.scalar_value
+    interval_lower = value.interval_lower
+    interval_upper = value.interval_upper
+    if scalar is not None:
+        observed, assay_sd = scalar, 0.25
+    elif interval_lower is not None and interval_upper is not None:
+        observed = (interval_lower + interval_upper) / 2.0
+        assay_sd = max(0.01, (interval_upper - interval_lower) / (2.0 * _POSTERIOR_Z90))
+    else:
+        return None
+    if not isfinite(observed):
+        return None
+    prior_mean, prior_sd, _prior_rationale = _prior_for_feature(request, feature_id)
+    prior_precision = 1.0 / max(1e-8, prior_sd * prior_sd)
+    assay_precision = 1.0 / (assay_sd * assay_sd)
+    estimate = (prior_precision * prior_mean + assay_precision * observed) / (
+        prior_precision + assay_precision
+    )
+    if bounds[0] is not None:
+        estimate = max(bounds[0], estimate)
+    if bounds[1] is not None:
+        estimate = min(bounds[1], estimate)
+    robust_weight = 1.0
+    gap = float("inf")
+    objective = float("inf")
+    iterations = 0
+    for iteration in range(min(request.configuration.max_iterations, _MAX_IRLS_ITERATIONS)):
+        iterations = iteration + 1
+        residual = (observed - estimate) / assay_sd
+        robust_weight = min(1.0, _HUBER_K / max(1.0, abs(residual)))
+        precision = prior_precision + robust_weight * assay_precision
+        candidate = (
+            prior_precision * prior_mean + robust_weight * assay_precision * observed
+        ) / precision
+        if bounds[0] is not None:
+            candidate = max(bounds[0], candidate)
+        if bounds[1] is not None:
+            candidate = min(bounds[1], candidate)
+        gap = abs(candidate - estimate)
+        estimate = 0.65 * candidate + 0.35 * estimate
+        standardized = abs(observed - estimate) / assay_sd
+        data_loss = (
+            0.5 * standardized * standardized
+            if standardized <= _HUBER_K
+            else _HUBER_K * standardized - 0.5 * _HUBER_K * _HUBER_K
+        )
+        objective = 0.5 * (estimate - prior_mean) ** 2 / (prior_sd * prior_sd) + data_loss
+        if gap <= _IRLS_TOLERANCE:
+            break
+    if not all(isfinite(item) for item in (estimate, objective, gap)):
+        return None
+    posterior_sd = sqrt(1.0 / (prior_precision + robust_weight * assay_precision))
+    lower = estimate - _POSTERIOR_Z90 * posterior_sd
+    upper = estimate + _POSTERIOR_Z90 * posterior_sd
+    if bounds[0] is not None:
+        lower = max(bounds[0], lower)
+    if bounds[1] is not None:
+        upper = min(bounds[1], upper)
+    posterior_mass = 0.9
+    return _AbundanceFit(
+        estimate=PosteriorEstimate(
+            feature_id=feature_id,
+            kind=PosteriorEstimateKind.INTERVAL,
+            unit=value.unit,
+            estimate_value=round(estimate, 8),
+            lower_bound=round(lower, 8),
+            upper_bound=round(upper, 8),
+            posterior_mass=posterior_mass,
+            evidence=value.evidence,
+        ),
+        iterations=iterations,
+        objective=round(objective, 8),
+        convergence_gap=round(gap, 8),
+    )
+
+
+def _glioma_estimates(
+    request: EstimateProteinAbundanceProbabilisticRequest,
+) -> tuple[tuple[PosteriorEstimate, ...], int, float, float] | None:
+    fits = tuple(_fit_abundance(value, request) for value in request.feature_values)
+    if any(fit is None for fit in fits):
+        return None
+    typed = tuple(fit for fit in fits if fit is not None)
+    return (
+        tuple(fit.estimate for fit in typed),
+        max(fit.iterations for fit in typed),
+        sum(fit.objective for fit in typed) / len(typed),
+        max(fit.convergence_gap for fit in typed),
+    )
+
+
 def _support(status: ProbabilisticResultStatus, reason: str) -> SupportDecision:
     if status is ProbabilisticResultStatus.ESTIMATED:
         return SupportDecision(
@@ -424,19 +636,20 @@ def _diagnostic(
     request: EstimateProteinAbundanceProbabilisticRequest,
     status: ProbabilisticResultStatus,
     reason: str,
+    *,
+    iteration_count: int = 0,
+    objective_value: float = 0.0,
+    convergence_gap: float = 0.0,
 ) -> OptimizationDiagnostic:
     if status is ProbabilisticResultStatus.ESTIMATED:
         return OptimizationDiagnostic(
             diagnostic_id="diagnostic.m0604.proxy",
             status=OptimizationDiagnosticStatus.CONVERGED,
             objective=request.configuration.objective,
-            iteration_count=0,
-            objective_value=0.0,
-            convergence_gap=0.0,
-            message=(
-                "Declaration-only deterministic proxy completed; no trained model or "
-                "calibrated probability was executed."
-            ),
+            iteration_count=iteration_count,
+            objective_value=objective_value,
+            convergence_gap=convergence_gap,
+            message=reason,
         )
     return OptimizationDiagnostic(
         diagnostic_id="diagnostic.m0604.abstain",
@@ -448,7 +661,7 @@ def _diagnostic(
 
 
 class M0604ProbabilisticEstimatorEngine:
-    """Execute the provisional proxy or return a typed safe abstention."""
+    """Execute the compatibility proxy or locked glioma abundance posterior."""
 
     __slots__ = ()
 
@@ -464,20 +677,45 @@ class M0604ProbabilisticEstimatorEngine:
             "M06-04 execution boundary."
         )
         estimates: tuple[PosteriorEstimate, ...] | None = None
+        diagnostic_iterations = 0
+        diagnostic_objective = 0.0
+        diagnostic_gap = 0.0
         if (
             canonical.configuration.estimator_family
             is ProbabilisticEstimatorFamily.MECHANISM_GUIDED
-            and canonical.configuration.optimizer == M0604_PROXY_OPTIMIZER
+            and canonical.configuration.optimizer
+            in {M0604_PROXY_OPTIMIZER, M0604_GLIOMA_IRLS_OPTIMIZER}
         ):
-            estimates = _estimates(canonical)
-            if estimates is not None:
-                reason = "Observed values are outside the numeric declaration-only proxy domain."
+            if canonical.configuration.optimizer == M0604_GLIOMA_IRLS_OPTIMIZER:
+                fitted = _glioma_estimates(canonical)
+                if fitted is not None:
+                    estimates, iterations, objective, gap = fitted
+                    diagnostic_iterations = iterations
+                    diagnostic_objective = objective
+                    diagnostic_gap = gap
+                    reason = (
+                        "Locked glioma protein-abundance Huber IRLS posterior converged "
+                        "under feature priors, assay precision, and hard constraints."
+                    )
+                else:
+                    reason = "Observed values are outside the locked abundance posterior domain."
+            else:
+                estimates = _estimates(canonical)
+                if estimates is not None:
+                    reason = "Observed values accepted by the compatibility declaration proxy."
         status = (
             ProbabilisticResultStatus.ESTIMATED
             if estimates
             else ProbabilisticResultStatus.ABSTAINED
         )
-        diagnostic = _diagnostic(canonical, status, reason)
+        diagnostic = _diagnostic(
+            canonical,
+            status,
+            reason,
+            iteration_count=diagnostic_iterations,
+            objective_value=diagnostic_objective,
+            convergence_gap=diagnostic_gap,
+        )
         candidate = EstimateProteinAbundanceProbabilisticResult.model_construct(
             result_id=f"result.m0604.{request_hash.removeprefix('sha256:')}",
             result_version=M0604_CONTRACT_VERSION,

@@ -34,6 +34,7 @@ from glio_proteogen.kernel.models import (
     UpstreamDecisionState,
 )
 from glio_proteogen.modules.c06_protein_abundance.m06_04_probabilistic_advanced_estimator import (
+    M0604_GLIOMA_IRLS_OPTIMIZER,
     M0604_PROXY_OPTIMIZER,
     M0604ProbabilisticEstimatorEngine,
     ProbabilisticEstimatorAuthorizationError,
@@ -186,6 +187,22 @@ def test_mechanism_guided_proxy_emits_typed_result_and_provenance() -> None:
     assert result.emits_parent is False
     assert len(result.provenance.control_decisions) == _CONTROL_COUNT
     assert result.result_digest.startswith("sha256:")
+
+
+def test_locked_glioma_irls_fits_abundance_with_prior_shrinkage() -> None:
+    result = M0604ProbabilisticEstimatorEngine().estimate(
+        _request(optimizer=M0604_GLIOMA_IRLS_OPTIMIZER)
+    )
+
+    posterior = result.estimates[0]
+    assert result.status.value == "estimated"
+    assert posterior.kind.value == "interval"
+    assert posterior.estimate_value is not None
+    assert _PROXY_VALUE > posterior.estimate_value > 0.0
+    assert posterior.lower_bound <= posterior.estimate_value <= posterior.upper_bound
+    assert posterior.posterior_mass == pytest.approx(0.9)
+    assert result.diagnostics[0].iteration_count > 0
+    assert "Huber IRLS" in result.diagnostics[0].message
 
 
 def test_typed_and_json_replay_are_identical() -> None:
