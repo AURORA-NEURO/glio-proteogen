@@ -54,7 +54,7 @@ def run_benchmark() -> dict[str, Any]:
         "p95_budget_pass": p95 <= M0606_P95_BUDGET_NS,
         "deterministic_result_digest": outputs[0].result_digest,
         "all_digests_equal": len({item.result_digest for item in outputs}) == 1,
-        "all_abstained": all(item.status.value == "abstained" for item in outputs),
+        "all_decomposed": all(item.status.value == "decomposed" for item in outputs),
     }
 
 

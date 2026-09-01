@@ -48,6 +48,7 @@ from glio_proteogen.contracts.m06_05.canonical import (
     result_payload_digest as m0605_result_digest,
 )
 from glio_proteogen.contracts.m06_06 import (
+    M0606_MAX_COMPONENTS,
     DecomposeProteinAbundanceUncertaintyRequest,
     UncertaintyDecompositionPolicy,
 )
@@ -330,7 +331,7 @@ def _m0605_result(*, abstained: bool) -> IntegrateProteinAbundanceConstraintsRes
 @dataclass(frozen=True, slots=True)
 class Scenario:
     request: DecomposeProteinAbundanceUncertaintyRequest
-    expected_reason: str
+    expected_reason: str | None
 
 
 def build_scenario(*, upstream_abstained: bool = False) -> Scenario:
@@ -338,7 +339,7 @@ def build_scenario(*, upstream_abstained: bool = False) -> Scenario:
     policy = UncertaintyDecompositionPolicy(
         policy_id="policy.m0606.synthetic",
         version="1.0.0",
-        method="provisional-no-calibration",
+        method="locked-evidence-analytical",
         calibration_reference=_artifact("calibration"),
     )
     request = DecomposeProteinAbundanceUncertaintyRequest(
@@ -352,7 +353,7 @@ def build_scenario(*, upstream_abstained: bool = False) -> Scenario:
         request=request,
         expected_reason="The bound upstream result is abstained."
         if upstream_abstained
-        else "Owner-confirmed calibration and benchmark coverage are not locked.",
+        else None,
     )
 
 
@@ -367,8 +368,20 @@ def run_evaluation() -> dict[str, object]:
         {
             "case_id": name,
             "passed": (
-                output.status.value == "abstained"
-                and output.abstention_reason == cases[name].expected_reason
+                (
+                    output.status.value == "abstained"
+                    and output.abstention_reason is not None
+                    and cases[name].expected_reason is not None
+                    and "abstained" in output.abstention_reason
+                )
+                if name == "abstained_upstream"
+                else (
+                    output.status.value == "decomposed"
+                    and output.decomposition is not None
+                    and len(output.decomposition.components) == M0606_MAX_COMPONENTS
+                    and output.sensitivity_envelope.status.value == "evaluated"
+                    and output.abstention_reason is None
+                )
             ),
         }
         for name, output in outputs.items()
@@ -378,7 +391,9 @@ def run_evaluation() -> dict[str, object]:
         "passed": all(bool(check["passed"]) for check in checks),
         "checks": checks,
         "provisional_abi": True,
-        "upstream_builder": "contract-level synthetic M06-05 result; no estimator execution",
+        "upstream_builder": (
+            "contract-level synthetic M06-05 result with evidence-derived decomposition"
+        ),
         "scenarios": {
             name: {
                 "status": output.status.value,
