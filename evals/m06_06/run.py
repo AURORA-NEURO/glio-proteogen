@@ -334,12 +334,16 @@ class Scenario:
     expected_reason: str | None
 
 
-def build_scenario(*, upstream_abstained: bool = False) -> Scenario:
+def build_scenario(
+    *,
+    upstream_abstained: bool = False,
+    analytical: bool = False,
+) -> Scenario:
     upstream = _m0605_result(abstained=upstream_abstained)
     policy = UncertaintyDecompositionPolicy(
         policy_id="policy.m0606.synthetic",
         version="1.0.0",
-        method="locked-evidence-analytical",
+        method=("locked-evidence-analytical" if analytical else "provisional-no-calibration"),
         calibration_reference=_artifact("calibration"),
     )
     request = DecomposeProteinAbundanceUncertaintyRequest(
@@ -353,15 +357,19 @@ def build_scenario(*, upstream_abstained: bool = False) -> Scenario:
         request=request,
         expected_reason="The bound upstream result is abstained."
         if upstream_abstained
-        else None,
+        else (
+            None
+            if analytical
+            else "Owner-confirmed calibration and benchmark coverage are not locked."
+        ),
     )
 
 
 def run_evaluation() -> dict[str, object]:
     service = M0606Service()
     cases = {
-        "integrated_upstream": build_scenario(),
-        "abstained_upstream": build_scenario(upstream_abstained=True),
+        "integrated_upstream": build_scenario(analytical=True),
+        "abstained_upstream": build_scenario(upstream_abstained=True, analytical=True),
     }
     outputs = {name: service.execute(case.request) for name, case in cases.items()}
     checks = [

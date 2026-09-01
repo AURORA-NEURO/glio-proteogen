@@ -27,7 +27,7 @@ from glio_proteogen.modules.c06_protein_abundance.m06_06_uncertainty_decompositi
 
 
 def run_benchmark() -> dict[str, Any]:
-    request = build_scenario().request
+    request = build_scenario(analytical=True).request
     for _ in range(M0606_BENCHMARK_WARMUPS):
         decompose_protein_abundance_uncertainty(request)
     samples: list[int] = []

@@ -329,7 +329,14 @@ def _unsupported_reason(
         return "the bound M06-05 constraint integration is not supported"
     if any(
         marker in method
-        for marker in ("unsupported", "not_evaluable", "missing", "uncalibrated", "unlocked")
+        for marker in (
+            "unsupported",
+            "not_evaluable",
+            "missing",
+            "uncalibrated",
+            "unlocked",
+            "provisional-no-calibration",
+        )
     ):
         return "declared uncertainty policy is outside the supported analytical domain"
     if not upstream.estimates:
