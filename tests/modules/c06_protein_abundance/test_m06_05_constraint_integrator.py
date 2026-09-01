@@ -51,6 +51,7 @@ from glio_proteogen.modules.c06_protein_abundance.m06_05_mechanism_constraint_in
 
 _SOFT_WEIGHT = 0.5
 _OBSERVED_VALUE = 1.5
+_LOW_ABUNDANCE = 0.2
 
 
 def _reference(
@@ -110,8 +111,11 @@ def _request(
         version="1.0.0",
         value_kind=FormalStateFeatureValueKind.SCALAR,
         unit="normalized-abundance",
-        allowed_missingness=(FormalStateMissingness.OBSERVED, FormalStateMissingness.MISSING,
-                             FormalStateMissingness.UNSUPPORTED),
+        allowed_missingness=(
+            FormalStateMissingness.OBSERVED,
+            FormalStateMissingness.MISSING,
+            FormalStateMissingness.UNSUPPORTED,
+        ),
         domain_lower=0.0,
     )
     schema = FormalProteinStateSchema(
@@ -171,6 +175,22 @@ def test_integrator_is_deterministic_and_reports_constraint_satisfaction() -> No
     assert first.canonical_bytes == second.canonical_bytes
     assert first.result.result_digest == second.result.result_digest
     assert first.result.emits_parent is False
+
+
+def test_violated_soft_constraint_gets_auditable_proximal_projection() -> None:
+    request = _request().model_copy(
+        update={
+            "feature_values": (
+                _request().feature_values[0].model_copy(update={"scalar_value": _LOW_ABUNDANCE}),
+            )
+        }
+    )
+    result = M0605MechanismConstraintEngine().integrate(request).result
+
+    assert result.status is ConstraintIntegrationStatus.INTEGRATED
+    projected = result.estimates[0].estimate_value
+    assert _LOW_ABUNDANCE < projected < 1.0
+    assert result.ablations[0].effect_delta > 0.0
 
 
 def test_hard_violation_abstains_without_estimate() -> None:

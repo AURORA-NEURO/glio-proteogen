@@ -174,10 +174,13 @@ def _provenance(request: IntegrateProteinAbundanceConstraintsRequest) -> Provena
 def _evidence(
     request: IntegrateProteinAbundanceConstraintsRequest,
 ) -> tuple[EvidenceReference, ...]:
-    return tuple(
-        EvidenceReference(reference=item, role="evidence", claim=M0605_EVIDENCE_CLAIM)
-        for item in request.source_artifacts
-    ) + request.constraint_set.evidence
+    return (
+        tuple(
+            EvidenceReference(reference=item, role="evidence", claim=M0605_EVIDENCE_CLAIM)
+            for item in request.source_artifacts
+        )
+        + request.constraint_set.evidence
+    )
 
 
 def _uncertainty() -> UncertaintyProfile:
@@ -278,13 +281,64 @@ def _estimate(value: FormalStateFeatureValue) -> ConstraintAwareEstimate | None:
     )
 
 
+def _soft_constraint_projection(
+    request: IntegrateProteinAbundanceConstraintsRequest,
+) -> tuple[dict[str, float], dict[str, float]]:
+    """Apply one deterministic proximal step for violated soft numeric constraints.
+
+    The raw feature value remains visible in constraint evaluations.  The
+    integrated estimate receives only a weighted move toward a violated target,
+    making the effect auditable and preventing a soft mechanism declaration
+    from silently behaving like a hard clamp.
+    """
+
+    values = {
+        item.feature_id: numeric
+        for item in request.feature_values
+        if (numeric := _numeric_value(item)) is not None and item.scalar_value is not None
+    }
+    effects: dict[str, float] = {}
+    definitions = {item.feature_id: item for item in request.state_schema.features}
+    for constraint in request.constraint_set.constraints:
+        if constraint.hardness is not MechanismConstraintHardness.SOFT:
+            continue
+        match = _EXPRESSION.fullmatch(constraint.expression)
+        if match is None:
+            continue
+        feature_id = match.group("feature")
+        current = values.get(feature_id)
+        if current is None:
+            continue
+        target = float(match.group("target"))
+        operator = match.group("operator")
+        gap = target - current
+        violated = (
+            (operator in {">=", ">"} and gap > 0.0)
+            or (operator in {"<=", "<"} and gap < 0.0)
+            or (operator == "==" and abs(gap) > 0.0)
+        )
+        if not violated:
+            continue
+        weight = constraint.weight or 0.0
+        step = (weight / (1.0 + weight)) * gap
+        proposed = current + step
+        definition = definitions.get(feature_id)
+        if definition is not None:
+            if definition.domain_lower is not None:
+                proposed = max(definition.domain_lower, proposed)
+            if definition.domain_upper is not None:
+                proposed = min(definition.domain_upper, proposed)
+        values[feature_id] = proposed
+        effects[constraint.constraint_id] = abs(proposed - current)
+    return values, effects
+
+
 def _build_result(
     request: IntegrateProteinAbundanceConstraintsRequest,
 ) -> IntegrateProteinAbundanceConstraintsResult:
     values = {item.feature_id: item for item in request.feature_values}
     evaluations = tuple(
-        _evaluate(constraint, values)
-        for constraint in request.constraint_set.constraints
+        _evaluate(constraint, values) for constraint in request.constraint_set.constraints
     )
     hard_non_evaluable = any(
         constraint.hardness is MechanismConstraintHardness.HARD
@@ -301,10 +355,18 @@ def _build_result(
     non_observed = any(
         item.state is not FormalStateMissingness.OBSERVED for item in request.feature_values
     )
+    projected_values, projection_effects = _soft_constraint_projection(request)
     estimates = tuple(
         estimate
         for value in request.feature_values
-        if (estimate := _estimate(value)) is not None
+        if (
+            estimate := _estimate(
+                value.model_copy(update={"scalar_value": projected_values[value.feature_id]})
+                if value.feature_id in projected_values
+                else value
+            )
+        )
+        is not None
     )
     status = ConstraintIntegrationStatus.INTEGRATED
     reason: str | None = None
@@ -324,21 +386,13 @@ def _build_result(
     ablations = tuple(
         ConstraintAblationRecord(
             constraint_id=constraint.constraint_id,
-            with_constraint_effect=(
-                (
-                    constraint.weight if constraint.weight is not None else 0.0
-                )
-                if evaluation.outcome is ConstraintEvaluationOutcome.SATISFIED
-                else 0.0
-            ),
+            with_constraint_effect=(constraint.weight if constraint.weight is not None else 0.0)
+            if evaluation.outcome is ConstraintEvaluationOutcome.SATISFIED
+            else projection_effects.get(constraint.constraint_id, 0.0),
             without_constraint_effect=0.0,
-            effect_delta=(
-                (
-                    constraint.weight if constraint.weight is not None else 0.0
-                )
-                if evaluation.outcome is ConstraintEvaluationOutcome.SATISFIED
-                else 0.0
-            ),
+            effect_delta=(constraint.weight if constraint.weight is not None else 0.0)
+            if evaluation.outcome is ConstraintEvaluationOutcome.SATISFIED
+            else projection_effects.get(constraint.constraint_id, 0.0),
         )
         for constraint, evaluation in zip(
             request.constraint_set.constraints,
