@@ -27,11 +27,17 @@ objective, priors, constraints, optimizer, seed, iteration limit, and model refe
 caller-declared control decisions. Strict Pydantic contracts reject extras, coercion, duplicate
 IDs, non-finite posterior/diagnostic values, malformed posterior shapes, and digest drift.
 
-The reference runtime derives bounded deterministic fixture values from content-addressed hashes;
-it does not claim those hashes are training data or a scientific model. Supported declarations
-produce interval posteriors, a converged diagnostic, explicit seven-dimension uncertainty, and
-provenance. Missing, unsupported, OOD, conflicted, review-required, or non-convergent declarations
-produce no posterior and a typed safe abstention. Soft constraints remain visible as diagnostics.
+The runtime fits each requested complex feature with a bounded Huber-IRLS update. Normal,
+log-normal, and empirical prior families are reduced to a transparent precision-weighted prior;
+feature-matched priors receive extra precision so a heterogeneous complex can express an essential
+subunit or bottleneck. Producers may encode a reduced assay summary in an artifact identifier
+(for example `activity:0.72:sd:0.08`); bare content-addressed references contribute only prior
+information and are never converted into pseudo-random measurements. Hard numeric stoichiometry
+bounds are intersected with the unit-interval activity domain, while soft constraints remain
+visible diagnostics. Supported declarations produce analytic 90% posterior intervals, objective
+and convergence diagnostics, explicit seven-dimension uncertainty, and provenance. Missing,
+unsupported, OOD, conflicted, review-required, contradictory, or non-convergent declarations
+produce no posterior and a typed safe abstention.
 
 ## Interfaces and evidence
 
