@@ -51,6 +51,8 @@ _DIGEST = "sha256:" + ("1" * 64)
 _DIGEST_2 = "sha256:" + ("2" * 64)
 _EXPECTED_ESTIMATES = 2
 _EXPECTED_DIAGNOSTICS = 2
+_EXPECTED_POSTERIOR_MASS = 0.9
+_EGFR_ACTIVITY_THRESHOLD = 0.8
 
 
 def _artifact(name: str, media_type: str = "application/json") -> ArtifactReference:
@@ -177,10 +179,12 @@ def test_encoded_assay_summaries_drive_robust_activity_posterior() -> None:
     high, low = result.estimates
     assert high.estimate_value > low.estimate_value
     assert high.upper_bound <= 1.0
-    assert high.posterior_mass is not None and 0.0 < high.posterior_mass <= 0.9
+    assert high.posterior_mass is not None
+    assert 0.0 < high.posterior_mass <= _EXPECTED_POSTERIOR_MASS
     diagnostic = result.diagnostics[0]
     assert diagnostic.iteration_count > 0
-    assert diagnostic.objective_value is not None and isfinite(diagnostic.objective_value)
+    assert diagnostic.objective_value is not None
+    assert isfinite(diagnostic.objective_value)
     assert "Huber IRLS" in result.support_decision.rationale
 
 
@@ -209,7 +213,7 @@ def test_feature_matched_prior_and_contradictory_bounds_are_explicit() -> None:
         }
     )
     estimate = M0904ProbabilisticEstimator().estimate(request).estimates[0]
-    assert estimate.estimate_value > 0.8
+    assert estimate.estimate_value > _EGFR_ACTIVITY_THRESHOLD
 
     contradictory = _request("activity >= 0.8", "activity <= 0.2")
     result = M0904ProbabilisticEstimator().estimate(contradictory)
