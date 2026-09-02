@@ -15,6 +15,7 @@ from glio_proteogen.contracts.m10_04 import (
     PosteriorEstimateKind,
     ProbabilisticEstimatorConfiguration,
     ProbabilisticEstimatorFamily,
+    ProbabilisticObservation,
     ProbabilisticPrior,
     ProbabilisticPriorKind,
     ProbabilisticResultStatus,
@@ -53,6 +54,92 @@ def test_estimator_publishes_safe_abstention_with_complete_controls() -> None:
     assert len(result.provenance.control_decisions) == 7
     assert {item.role for item in result.evidence} == {"evidence"}
     assert result.emits_parent is False
+
+
+def test_measured_observation_publishes_robust_posterior() -> None:
+    request = build_request().model_copy(
+        update={
+            "observations": (
+                ProbabilisticObservation(
+                    feature_id="prior.discordance",
+                    value=0.8,
+                    standard_error=0.2,
+                    quality_weight=0.9,
+                ),
+            )
+        }
+    )
+    service = M1004Service()
+    result = service.execute(request)
+    assert result.status is ProbabilisticResultStatus.ESTIMATED
+    assert len(result.estimates) == 1
+    estimate = result.estimates[0]
+    assert estimate.kind is PosteriorEstimateKind.INTERVAL
+    assert estimate.lower_bound <= estimate.estimate_value <= estimate.upper_bound
+    assert result.diagnostics[0].status is OptimizationDiagnosticStatus.CONVERGED
+    assert result.support_decision.status is SupportStatus.SUPPORTED
+    assert result.human_review_required is False
+    assert service.verify(result).model_dump_json() == result.model_dump_json()
+
+
+def test_measured_observation_requires_declared_prior() -> None:
+    with pytest.raises(ValidationError, match="unresolved prior"):
+        M1004Service().execute(
+            build_request().model_copy(
+                update={
+                    "observations": (
+                        ProbabilisticObservation(
+                            feature_id="prior.unknown",
+                            value=0.8,
+                            standard_error=0.2,
+                        ),
+                    )
+                }
+            )
+        )
+
+
+def test_non_normal_prior_abstains_without_negative_inference() -> None:
+    request = build_request().model_copy(
+        update={
+            "configuration": build_request().configuration.model_copy(
+                update={
+                    "priors": (
+                        build_request().configuration.priors[0].model_copy(
+                            update={"kind": ProbabilisticPriorKind.LOG_NORMAL}
+                        ),
+                    )
+                }
+            ),
+            "observations": (
+                ProbabilisticObservation(
+                    feature_id="prior.discordance", value=0.8, standard_error=0.2
+                ),
+            ),
+        }
+    )
+    result = M1004Service().execute(request)
+    assert result.status is ProbabilisticResultStatus.ABSTAINED
+    assert result.estimates == ()
+    assert result.support_decision.status is SupportStatus.REVIEW_REQUIRED
+
+
+def test_observation_rejects_nonfinite_and_counter_evidence() -> None:
+    with pytest.raises(ValidationError):
+        ProbabilisticObservation(feature_id="feature.nan", value=float("nan"), standard_error=1.0)
+    with pytest.raises(ValidationError):
+        ProbabilisticObservation(
+            feature_id="feature.role",
+            value=0.0,
+            standard_error=1.0,
+            evidence=(
+                EvidenceReference(
+                    reference=build_request().source_artifacts[0],
+                    role="counter_evidence",
+                    claim="wrong role",
+                ),
+            ),
+        )
 
 
 def test_verify_can_skip_replay_but_still_checks_digest() -> None:

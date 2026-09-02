@@ -25,11 +25,15 @@ parent protein–RNA discordance claim in this provisional lane.
 ## Deterministic safety behavior
 
 All seven caller controls are preflighted before strict model validation. Any
-unresolved state fails closed. Until training, the preregistered objective,
-baseline comparison, calibration, and transport evidence are owner-locked, the
-runtime returns an explicit abstention with a `not_evaluable` optimization
-diagnostic, seven `not_estimable` uncertainty dimensions, evidence references,
-limitations, and required human review.
+unresolved state fails closed. Metadata-only requests retain the historical
+explicit abstention with a `not_evaluable` optimization diagnostic, seven
+`not_estimable` uncertainty dimensions, evidence references, limitations, and
+required human review. Requests that include bounded measured observations
+resolved to finite Normal priors now execute a deterministic robust Normal
+posterior fit: quality/error precision, Huber IRLS outlier resistance, damped
+updates, 95% posterior intervals, objective trace diagnostics, and exact replay.
+Unsupported prior families or unresolved observation IDs abstain rather than
+being silently coerced into a score.
 
 Requests and result payloads use canonical SHA-256 digests. Verification checks
 the request digest, result payload digest, and exact request replay. The plugin
@@ -42,4 +46,5 @@ The fixture manifest binds the exact dossier digest and line slice. Contract,
 runtime, API/CLI, adversarial, evaluator, benchmark, coverage, and package
 receipts are under `release-evidence/m10_04`. The provisional benchmark uses a
 2-second mean and 3-second p95 budget until the owner supplies a frozen
-performance contract. No posterior estimate is promoted by this lane.
+performance contract. Measured posteriors remain research-use-only and do not
+promote a parent clinical or treatment claim.
