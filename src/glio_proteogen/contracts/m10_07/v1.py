@@ -48,6 +48,8 @@ M1007_SAFETY_CLASS: Final = "S2"
 M1007_GATE: Final = "G3"
 M1007_PROVISIONAL_ABI: Final = True
 M1007_MAX_PREDICTION_SET: Final = 256
+M1007_MIN_CALIBRATION_OBSERVATIONS: Final = 8
+M1007_MAX_CALIBRATION_OBSERVATIONS: Final = 256
 M1007_MAX_DIAGNOSTICS: Final = 256
 M1007_MAX_EVIDENCE: Final = 64
 M1007_MAX_SCOPES: Final = 128
@@ -106,6 +108,25 @@ class CalibrationScope(FrozenModel):
     disease_class: NonEmptyStr
     subgroup: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1007_MAX_EVIDENCE)
+
+
+class CalibrationObservation(FrozenModel):
+    """One labeled glioma calibration residual used by conformal scoring."""
+
+    observation_id: Identifier
+    score: float = Field(ge=0.0, le=1.0)
+    observed_label: Literal["discordant", "concordant"]
+    subgroup: NonEmptyStr
+    evidence: tuple[EvidenceReference, ...] = Field(
+        min_length=1,
+        max_length=M1007_MAX_EVIDENCE,
+    )
+
+    @model_validator(mode="after")
+    def observation_is_closed(self) -> CalibrationObservation:
+        if any(item.role != "evidence" for item in self.evidence):
+            raise ValueError("calibration observation evidence must use the evidence role")
+        return self
 
 
 class CalibrationConfiguration(FrozenModel):
@@ -198,6 +219,12 @@ class CalibrateProteinRnaDiscordanceSelectivePredictionRequest(FrozenModel):
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M1007_MAX_EVIDENCE
     )
+    calibration_observations: tuple[CalibrationObservation, ...] = Field(
+        default=(),
+        max_length=M1007_MAX_CALIBRATION_OBSERVATIONS,
+    )
+    query_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    query_subgroup: NonEmptyStr | None = None
     supersedes_result_digest: Sha256Digest | None = None
 
     @model_validator(mode="after")
@@ -206,6 +233,22 @@ class CalibrateProteinRnaDiscordanceSelectivePredictionRequest(FrozenModel):
     ) -> CalibrateProteinRnaDiscordanceSelectivePredictionRequest:
         if self.uncertainty_result.media_type != M1007_UNCERTAINTY_MEDIA_TYPE:
             raise ValueError("calibration request must bind the provisional M10-06 result")
+        observation_ids = tuple(item.observation_id for item in self.calibration_observations)
+        if len(observation_ids) != len(set(observation_ids)):
+            raise ValueError("calibration observation identifiers must be unique")
+        if self.calibration_observations and self.query_score is None:
+            raise ValueError("measured calibration requires a query score")
+        if (
+            self.calibration_observations
+            and len(self.calibration_observations) < M1007_MIN_CALIBRATION_OBSERVATIONS
+        ):
+            raise ValueError(
+                "measured calibration requires at least eight labeled observations"
+            )
+        if self.query_score is not None and self.query_subgroup is None:
+            raise ValueError("a measured query score requires a query subgroup")
+        if self.query_score is None and self.query_subgroup is not None:
+            raise ValueError("query subgroup cannot be supplied without a query score")
         return self
 
 
@@ -294,10 +337,16 @@ def expected_evidence(
         request.configuration.benchmark_artifact,
         *request.source_artifacts,
     )
-    return tuple(
+    references = tuple(
         EvidenceReference(reference=item, role="evidence", claim=M1007_EVIDENCE_CLAIM)
         for item in artifacts
     )
+    observations = tuple(
+        evidence
+        for observation in request.calibration_observations
+        for evidence in observation.evidence
+    )
+    return tuple(dict.fromkeys(references + observations))
 
 
 def expected_input_digests(
@@ -312,6 +361,11 @@ def expected_input_digests(
                 request.configuration.calibration_artifact.digest,
                 request.configuration.benchmark_artifact.digest,
                 *(item.digest for item in request.source_artifacts),
+                *(
+                    evidence.reference.digest
+                    for observation in request.calibration_observations
+                    for evidence in observation.evidence
+                ),
             }
         )
     )
@@ -427,6 +481,7 @@ __all__ = [
     "M1007_CONTRACT_VERSION",
     "M1007_EVIDENCE_CLAIM",
     "M1007_GATE",
+    "M1007_MAX_CALIBRATION_OBSERVATIONS",
     "M1007_MAX_CANONICAL_REQUEST_BYTES",
     "M1007_MAX_CANONICAL_RESULT_BYTES",
     "M1007_MAX_COVERAGE",
@@ -435,6 +490,7 @@ __all__ = [
     "M1007_MAX_PREDICTION_SET",
     "M1007_MAX_SCOPES",
     "M1007_MEAN_BUDGET_NS",
+    "M1007_MIN_CALIBRATION_OBSERVATIONS",
     "M1007_MIN_COVERAGE",
     "M1007_MODULE_ID",
     "M1007_NOMINAL_COVERAGE",
@@ -454,6 +510,7 @@ __all__ = [
     "CalibrationDiagnosticStatus",
     "CalibrationFindingCode",
     "CalibrationMethod",
+    "CalibrationObservation",
     "CalibrationReplayReason",
     "CalibrationScope",
     "CalibrationStatus",

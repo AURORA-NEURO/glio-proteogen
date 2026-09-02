@@ -12,6 +12,7 @@ from glio_proteogen.contracts.m10_07 import (
     CalibrationConfiguration,
     CalibrationFindingCode,
     CalibrationMethod,
+    CalibrationObservation,
     CalibrationScope,
     CalibrationStatus,
     PredictionSet,
@@ -22,6 +23,7 @@ from glio_proteogen.kernel.models import (
     ConsentReference,
     ConsentState,
     ContextReferences,
+    EvidenceReference,
     ExecutionContext,
     IdentityLineageReference,
     IdentityLineageState,
@@ -41,6 +43,8 @@ _DIGEST = "sha256:" + ("a" * 64)
 _MEDIA = "application/vnd.glio-proteogen.fixture+json"
 _CONTROL_COUNT = 7
 _SCHEMA_COUNT = 7
+_CALIBRATION_SPLIT = 10
+_MIN_CONFIDENCE = 0.1
 
 
 def _artifact(name: str, media_type: str = _MEDIA) -> ArtifactReference:
@@ -121,6 +125,36 @@ def _request(
     )
 
 
+def _measured_request(
+    *, query_score: float = 0.62, observations: int = 20
+) -> CalibrateProteinRnaDiscordanceSelectivePredictionRequest:
+    request = _request()
+    evidence = EvidenceReference(
+        reference=_artifact("calibration-observations"),
+        role="evidence",
+        claim="Synthetic glioma calibration observation.",
+    )
+    records = tuple(
+        CalibrationObservation(
+            observation_id=f"observation.{index}",
+            score=round(0.1 + index * 0.04, 4),
+            observed_label=(
+                "discordant" if index >= _CALIBRATION_SPLIT else "concordant"
+            ),
+            subgroup="adult_glioma",
+            evidence=(evidence,),
+        )
+        for index in range(observations)
+    )
+    return request.model_copy(
+        update={
+            "calibration_observations": records,
+            "query_score": query_score,
+            "query_subgroup": "adult_glioma",
+        }
+    )
+
+
 def test_supported_runtime_is_scoped_calibrated_and_replayable() -> None:
     service = M1007Service()
     first = service.execute(_request())
@@ -128,6 +162,7 @@ def test_supported_runtime_is_scoped_calibrated_and_replayable() -> None:
 
     assert first.result.status is CalibrationStatus.CALIBRATED
     assert first.result.estimate is not None
+    assert first.result.prediction_set is not None
     assert first.result.prediction_set == PredictionSet(
         labels=("discordant", "concordant"),
         nominal_coverage=0.9,
@@ -138,6 +173,97 @@ def test_supported_runtime_is_scoped_calibrated_and_replayable() -> None:
     assert first.canonical_bytes == second.canonical_bytes
     replay = service.verify(first.result, first.canonical_bytes)
     assert replay.verified is True
+
+
+def test_measured_runtime_uses_conformal_rank_enrichment() -> None:
+    built = M1007CalibrationEngine().execute(_measured_request())
+    assert built.result.status is CalibrationStatus.CALIBRATED
+    assert built.result.estimate is not None
+    assert built.result.estimate.predicted_discordance == "discordant"
+    assert built.result.estimate.calibrated_confidence >= _MIN_CONFIDENCE
+    assert built.result.prediction_set is not None
+    assert "discordant" in built.result.prediction_set.labels
+    assert any(
+        diagnostic.metric_name == "leave_one_out_coverage"
+        and diagnostic.metric_value is not None
+        for diagnostic in built.result.diagnostics
+    )
+    assert M1007CalibrationEngine().verify(built.result, built.canonical_bytes).verified is True
+
+
+def test_measured_runtime_abstains_for_out_of_domain_query() -> None:
+    built = M1007CalibrationEngine().execute(_measured_request(query_score=0.99))
+    assert built.result.status is CalibrationStatus.ABSTAINED
+    assert CalibrationFindingCode.OOD_UNSUPPORTED in built.result.findings
+
+
+def test_measured_runtime_abstains_when_leave_one_out_coverage_is_outside_gate() -> None:
+    built = M1007CalibrationEngine().execute(
+        _measured_request(query_score=0.25, observations=8)
+    )
+    assert built.result.status is CalibrationStatus.ABSTAINED
+    assert CalibrationFindingCode.CALIBRATION_NOT_LOCKED in built.result.findings
+
+
+def test_measured_runtime_abstains_for_subgroup_disparity(monkeypatch) -> None:
+    request = _measured_request()
+    observations = tuple(
+        observation.model_copy(
+            update={
+                "subgroup": "adult_glioma" if index < _CALIBRATION_SPLIT else "recurrent_glioma",
+                "observed_label": (
+                    observation.observed_label
+                    if index < _CALIBRATION_SPLIT
+                    else "concordant"
+                ),
+            }
+        )
+        for index, observation in enumerate(request.calibration_observations)
+    )
+    monkeypatch.setattr(
+        "glio_proteogen.modules.c10_pathway_proteotype.m10_07_calibration_selective_prediction.engine._SUBGROUP_DISPARITY_LIMIT",
+        0.05,
+    )
+    built = M1007CalibrationEngine().execute(
+        request.model_copy(update={"calibration_observations": observations})
+    )
+    assert built.result.status is CalibrationStatus.ABSTAINED
+    assert CalibrationFindingCode.SUBGROUP_DISPARITY in built.result.findings
+
+
+def test_measured_contract_requires_a_query_and_calibration_minimum() -> None:
+    request = _request()
+    observation = CalibrationObservation(
+        observation_id="observation.one",
+        score=0.4,
+        observed_label="concordant",
+        subgroup="adult_glioma",
+        evidence=(
+            EvidenceReference(
+                reference=_artifact("calibration-one"),
+                role="evidence",
+                claim="Synthetic calibration observation.",
+            ),
+        ),
+    )
+    with pytest.raises(ValidationError, match="at least eight"):
+        type(request).model_validate(
+            request.model_dump(mode="python")
+            | {"calibration_observations": (observation,), "query_score": 0.4},
+            strict=True,
+        )
+    with pytest.raises(ValidationError, match="query subgroup"):
+        type(request).model_validate(
+            request.model_dump(mode="python")
+            | {
+                "calibration_observations": tuple(
+                    _measured_request().calibration_observations
+                ),
+                "query_score": 0.4,
+                "query_subgroup": None,
+            },
+            strict=True,
+        )
 
 
 def test_bound_replay_rejects_semantic_mutation() -> None:
