@@ -54,6 +54,9 @@ M1006_MAX_COMPONENTS: Final = 7
 M1006_MAX_EVIDENCE: Final = 64
 M1006_MAX_FINDINGS: Final = 64
 M1006_MIN_COMPONENTS: Final = 7
+M1006_MIN_REPLICATES: Final = 8
+M1006_MAX_REPLICATES: Final = 256
+M1006_BOOTSTRAP_REPLICATES: Final = 64
 M1006_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M1006_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
 M1006_NOMINAL_COVERAGE: Final = 0.9
@@ -86,6 +89,42 @@ class UncertaintyDecompositionStatus(StrEnum):
     ABSTAINED = "abstained"
 
 
+class UncertaintyObservation(FrozenModel):
+    """Measured, bounded uncertainty scores from repeated glioma evidence runs.
+
+    Scores are normalized uncertainty propensities in ``[0, 1]`` (for example,
+    replicate-level residual instability from proteome/transcriptome fitting).
+    Coverage hits are held separately so missing calibration evidence cannot be
+    silently interpreted as a failed interval.
+    """
+
+    observation_id: Identifier
+    dimension: UncertaintyDimension
+    scores: tuple[float, ...] = Field(
+        min_length=M1006_MIN_REPLICATES,
+        max_length=M1006_MAX_REPLICATES,
+    )
+    coverage_hits: tuple[bool, ...] = Field(
+        min_length=M1006_MIN_REPLICATES,
+        max_length=M1006_MAX_REPLICATES,
+    )
+    quality_weight: float = Field(gt=0.0, le=1.0)
+    evidence: tuple[EvidenceReference, ...] = Field(
+        min_length=1,
+        max_length=M1006_MAX_EVIDENCE,
+    )
+
+    @model_validator(mode="after")
+    def observations_are_finite_and_aligned(self) -> UncertaintyObservation:
+        if len(self.scores) != len(self.coverage_hits):
+            raise ValueError("uncertainty scores and coverage hits must be aligned")
+        if any(not math.isfinite(value) or not 0.0 <= value <= 1.0 for value in self.scores):
+            raise ValueError("uncertainty scores must be finite values in [0, 1]")
+        if any(item.role != "evidence" for item in self.evidence):
+            raise ValueError("uncertainty observation evidence must use the evidence role")
+        return self
+
+
 class UncertaintyFindingCode(StrEnum):
     UPSTREAM_UNSUPPORTED = "upstream_unsupported"
     CALIBRATION_NOT_LOCKED = "calibration_not_locked"
@@ -99,10 +138,30 @@ class UncertaintyComponent(FrozenModel):
     dimension: UncertaintyDimension
     estimate: UncertaintyEstimate
     rationale: NonEmptyStr
+    lower_bound: float | None = Field(default=None, ge=0.0, le=1.0)
+    upper_bound: float | None = Field(default=None, ge=0.0, le=1.0)
+    replicate_count: int | None = Field(default=None, ge=1, le=M1006_MAX_REPLICATES)
+    stability: float | None = Field(default=None, ge=0.0, le=1.0)
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1006_MAX_EVIDENCE)
 
     @model_validator(mode="after")
     def evidence_roles_are_explicit(self) -> UncertaintyComponent:
+        values = (self.lower_bound, self.upper_bound, self.stability)
+        if any(value is not None and not math.isfinite(value) for value in values):
+            raise ValueError("uncertainty component bounds and stability must be finite")
+        if (self.lower_bound is None) != (self.upper_bound is None):
+            raise ValueError("uncertainty component bounds must be provided together")
+        if (
+            self.lower_bound is not None
+            and self.upper_bound is not None
+            and self.lower_bound > self.upper_bound
+        ):
+            raise ValueError("uncertainty component bounds are not ordered")
+        if self.estimate.state is not EstimateState.ESTIMATED and any(
+            value is not None
+            for value in (self.lower_bound, self.upper_bound, self.replicate_count, self.stability)
+        ):
+            raise ValueError("non-estimated uncertainty cannot carry measured diagnostics")
         if any(item.role != "evidence" for item in self.evidence):
             raise ValueError("uncertainty component evidence must use the evidence role")
         return self
@@ -225,6 +284,10 @@ class DecomposeProteinRnaDiscordanceUncertaintyRequest(FrozenModel):
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M1006_MAX_EVIDENCE
     )
+    uncertainty_observations: tuple[UncertaintyObservation, ...] = Field(
+        default=(),
+        max_length=M1006_MAX_COMPONENTS,
+    )
     supersedes_result_digest: Sha256Digest | None = None
 
     @model_validator(mode="after")
@@ -236,6 +299,12 @@ class DecomposeProteinRnaDiscordanceUncertaintyRequest(FrozenModel):
         artifact_ids = tuple(item.artifact_id for item in self.source_artifacts)
         if len(artifact_ids) != len(set(artifact_ids)):
             raise ValueError("source artifacts must have unique identifiers")
+        observation_ids = tuple(item.observation_id for item in self.uncertainty_observations)
+        if len(observation_ids) != len(set(observation_ids)):
+            raise ValueError("uncertainty observations must have unique identifiers")
+        dimensions = tuple(item.dimension for item in self.uncertainty_observations)
+        if len(dimensions) != len(set(dimensions)):
+            raise ValueError("uncertainty dimensions must have one observation each")
         return self
 
 
@@ -393,6 +462,11 @@ def expected_provenance(
             request.integrator_result.digest,
             request.policy.calibration_reference.digest,
             *(artifact.digest for artifact in request.source_artifacts),
+            *(
+                evidence.reference.digest
+                for observation in request.uncertainty_observations
+                for evidence in observation.evidence
+            ),
         ),
         configuration_digest=request.policy.calibration_reference.digest,
         consent_decision_id=refs.consent.decision_id,
@@ -404,6 +478,7 @@ def expected_provenance(
 
 
 __all__ = [
+    "M1006_BOOTSTRAP_REPLICATES",
     "M1006_CONTRACT_VERSION",
     "M1006_EVIDENCE_CLAIM",
     "M1006_GATE",
@@ -414,8 +489,10 @@ __all__ = [
     "M1006_MAX_COVERAGE",
     "M1006_MAX_EVIDENCE",
     "M1006_MAX_FINDINGS",
+    "M1006_MAX_REPLICATES",
     "M1006_MIN_COMPONENTS",
     "M1006_MIN_COVERAGE",
+    "M1006_MIN_REPLICATES",
     "M1006_MODULE_ID",
     "M1006_NOMINAL_COVERAGE",
     "M1006_OPERATION",
@@ -435,6 +512,7 @@ __all__ = [
     "UncertaintyDimension",
     "UncertaintyFinding",
     "UncertaintyFindingCode",
+    "UncertaintyObservation",
     "expected_provenance",
     "expected_uncertainty",
 ]
