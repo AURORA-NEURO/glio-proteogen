@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from hashlib import sha256
+from math import fsum, sqrt
 from typing import Final
 
 from pydantic import TypeAdapter, ValidationError
@@ -23,10 +24,12 @@ from glio_proteogen.contracts.m09_02 import (
     M0902_MODULE_ID,
     ComplexActivityRepresentationResult,
     ConstructComplexActivityRepresentationRequest,
+    FeatureSpecification,
     LeakageCheck,
     LeakageCheckStatus,
     RepresentationConstructionStatus,
     RepresentationFeature,
+    RepresentationTransformationKind,
     canonical_request_digest,
     result_payload_digest,
 )
@@ -222,17 +225,39 @@ def _seed(feature_id: str, request: ConstructComplexActivityRepresentationReques
 
 
 def _values(
-    feature_id: str,
-    dimension: int,
+    specification: FeatureSpecification,
     request: ConstructComplexActivityRepresentationRequest,
 ) -> tuple[float, ...]:
+    if specification.source_values:
+        values = [float(value) for value in specification.source_values]
+        for transformation in specification.lineage.transformations:
+            if transformation.kind in {
+                RepresentationTransformationKind.SCALING,
+                RepresentationTransformationKind.NORMALIZATION,
+            }:
+                center = fsum(values) / len(values)
+                variance = fsum((value - center) ** 2 for value in values) / len(values)
+                scale = sqrt(max(variance, 1e-12))
+                values = [(value - center) / scale for value in values]
+            elif transformation.kind is RepresentationTransformationKind.RESIDUAL:
+                center = fsum(values) / len(values)
+                values = [value - center for value in values]
+            elif transformation.kind in {
+                RepresentationTransformationKind.MASKING,
+                RepresentationTransformationKind.COVARIATE,
+            }:
+                values = list(values)
+        return tuple(round(value, 8) for value in values)
+
+    feature_id = specification.feature_id
+    dimension = specification.dimension
     seed = _seed(feature_id, request)
-    values: list[float] = []
+    hash_values: list[float] = []
     for position in range(dimension):
         block = sha256(seed + f"|{position}".encode("ascii")).digest()
         raw = int.from_bytes(block[:8], "big") / float(2**64)
-        values.append(round(raw, 8))
-    return tuple(values)
+        hash_values.append(round(raw, 8))
+    return tuple(hash_values)
 
 
 def _evidence(
@@ -308,7 +333,7 @@ def _build_result(
     features: list[RepresentationFeature] = []
     if reason is None:
         for specification in request.feature_specs:
-            values = _values(specification.feature_id, specification.dimension, request)
+            values = _values(specification, request)
             mask = tuple(True for _ in values)
             features.append(
                 RepresentationFeature(

@@ -131,6 +131,16 @@ def test_constructor_is_deterministic_and_replay_bound() -> None:
     assert engine.verify(first.result, first.canonical_bytes)
 
 
+def test_declared_complex_measurements_are_normalized_instead_of_hashed() -> None:
+    request = _request()
+    specification = request.feature_specs[0].model_copy(update={"source_values": (1.0, 2.0)})
+    request = request.model_copy(update={"feature_specs": (specification,)})
+
+    result = m0902.M0902RepresentationConstructor().construct(request).result
+
+    assert result.features[0].values == (-1.0, 1.0)
+
+
 def test_request_bound_replay_rejects_resigned_feature_mutation() -> None:
     request = _request()
     engine = m0902.M0902RepresentationConstructor()
