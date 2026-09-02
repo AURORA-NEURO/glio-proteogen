@@ -85,6 +85,14 @@ separate algorithms and receipts, not scientifically independent evidence:
   same-cohort transition concordance, not single-cell state, cellular fraction,
   recurrence prediction, tumor evolution, or clinical evidence.
 
+The provisional M11-05 longitudinal module now also has an additive typed
+proteomic-effect lane. It fits subject-level recurrence trajectories with
+quality/standard-error weighted Huber IRLS, preserves left-censored and
+unsupported states, and detects molecular change points from robust loss
+reduction rather than caller relabeling. The legacy opaque-reference path is
+unchanged and remains provisional; this lane is an evolutionary evidence
+signal, not a validated tumor-evolution or treatment-response predictor.
+
 The additional `glio-ecgi-kncc-gbm-transition/1.0.0` factor-graph surface is not
 a thirteenth independent fitted model. It runs the exact PDC000514 Reactome and
 PDC000515 SPHINKS signature-transition child engines numerically independently
@@ -223,7 +231,8 @@ M07-04 M07-05
 M08-03 M08-04 M08-05
 M09-03 M09-04 M09-05 M09-06
 M10-03 M10-07
-M11-05 M11-06
+M11-05 (legacy opaque path)
+M11-06
 M12-05
 M13-03 M13-05 M13-06
 M14-03 M14-05
@@ -237,7 +246,10 @@ Examples include SHA-256 bytes used as a complex or pathway score, fixed
 posterior intervals, caller-declared state returned with posterior mass `1.0`,
 and M10-03's `sin(index + 1) * 0.1` fixture with fixed `0.95` support and a
 fixed-width interval. M11-06 hashes an upstream digest and declared perturbation
-into a response with a fixed uncertainty envelope.
+into a response with a fixed uncertainty envelope. M11-05 is listed only for
+its backward-compatible opaque path; typed effect requests use the robust
+trajectory implementation described above and are not counted as a fixed
+posterior estimator.
 
 The strict 22 are a floor for counterfeit estimators, not the whole scientific
 debt inventory. Twelve further engines are transparently labelled

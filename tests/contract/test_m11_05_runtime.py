@@ -18,6 +18,7 @@ from glio_proteogen.contracts.m11_05 import (
     ChangePointStatus,
     EvolutionModelConfiguration,
     EvolutionModelFamily,
+    LongitudinalObservationState,
     ModelVariantPeptideLongitudinalEvolutionRequest,
     TimePointObservation,
     TrajectoryDimension,
@@ -72,6 +73,10 @@ _HTTP_UNPROCESSABLE = 422
 _HTTP_FORBIDDEN = 403
 _HTTP_BAD_REQUEST = 400
 _CLI_USAGE_ERROR = 2
+_EXPECTED_MEASURED_STATES = 2
+_EXPECTED_MEASURED_CHANGE_POINT = 2
+_EXPECTED_MEASURED_POSTERIOR = 0.8
+_EXPECTED_MEASUREMENTS_PER_STATE = 2
 
 
 def _digest(letter: str) -> str:
@@ -197,6 +202,77 @@ def test_supported_runtime_replays_and_detects_change_point() -> None:
     assert result.change_points[0].status.value == "detected"
     assert result.human_review_required is True
     assert service.verify(result).model_dump(mode="json") == result.model_dump(mode="json")
+
+
+def test_typed_effect_lane_detects_molecular_shift_without_label_change() -> None:
+    """A proteomic effect transition must not depend on caller relabeling."""
+
+    request = _request()
+    effects = (-1.0, -0.9, 1.2, 1.1)
+    observations = [
+        item.model_copy(
+            update={
+                "territory": "primary",
+                "treatment_era": "baseline",
+                "measurement_state": LongitudinalObservationState.OBSERVED,
+                "effect": effect,
+                "standard_error": 0.1,
+            }
+        )
+        for item, effect in zip(request.observations, effects[:3], strict=True)
+    ]
+    observations.append(
+        request.observations[-1].model_copy(
+            update={
+                "observation_id": "observation.4",
+                "sequence": 3,
+                "observed_at": datetime(2026, 4, 1, tzinfo=UTC),
+                "territory": "primary",
+                "treatment_era": "baseline",
+                "measurement_state": LongitudinalObservationState.OBSERVED,
+                "effect": effects[3],
+                "standard_error": 0.1,
+            }
+        )
+    )
+    measured = request.model_copy(update={"observations": tuple(observations)})
+    result = M1105LongitudinalEngine().infer(measured)
+    assert result.status is TrajectoryStatus.MODELED
+    assert len(result.trajectory) == _EXPECTED_MEASURED_STATES
+    assert len(result.change_points) == 1
+    assert result.change_points[0].sequence == _EXPECTED_MEASURED_CHANGE_POINT
+    assert result.change_points[0].posterior_probability > _EXPECTED_MEASURED_POSTERIOR
+    assert all("trend=" in state.label for state in result.trajectory)
+    assert all(
+        state.measurement_count == _EXPECTED_MEASUREMENTS_PER_STATE
+        for state in result.trajectory
+    )
+    assert all(
+        state.effect_lower is not None
+        and state.effect_estimate is not None
+        and state.effect_upper is not None
+        and state.effect_lower <= state.effect_estimate <= state.effect_upper
+        for state in result.trajectory
+    )
+    assert M1105LongitudinalEngine().verify(result).model_dump(mode="json") == result.model_dump(
+        mode="json"
+    )
+
+
+def test_typed_missing_history_abstains_without_negative_imputation() -> None:
+    request = _request()
+    observations = tuple(
+        item.model_copy(update={"measurement_state": LongitudinalObservationState.MISSING})
+        for item in request.observations
+    )
+    result = M1105LongitudinalEngine().infer(
+        request.model_copy(update={"observations": observations})
+    )
+    assert result.status is TrajectoryStatus.ABSTAINED
+    assert not result.trajectory
+    assert not result.change_points
+    assert result.abstention_reason is not None
+    assert result.support_decision.status is SupportStatus.UNSUPPORTED
 
 
 def test_denied_control_fails_before_payload_traversal() -> None:
