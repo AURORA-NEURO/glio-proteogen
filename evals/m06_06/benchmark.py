@@ -28,6 +28,7 @@ from glio_proteogen.modules.c06_protein_abundance.m06_06_uncertainty_decompositi
 
 def run_benchmark() -> dict[str, Any]:
     request = build_scenario(analytical=True).request
+    abstention_probe = decompose_protein_abundance_uncertainty(build_scenario().request)
     for _ in range(M0606_BENCHMARK_WARMUPS):
         decompose_protein_abundance_uncertainty(request)
     samples: list[int] = []
@@ -55,6 +56,7 @@ def run_benchmark() -> dict[str, Any]:
         "deterministic_result_digest": outputs[0].result_digest,
         "all_digests_equal": len({item.result_digest for item in outputs}) == 1,
         "all_decomposed": all(item.status.value == "decomposed" for item in outputs),
+        "all_abstained": abstention_probe.status.value == "abstained",
     }
 
 
