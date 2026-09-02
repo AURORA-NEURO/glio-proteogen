@@ -204,6 +204,71 @@ def test_runtime_publishes_reconstructable_evidence_bundle() -> None:
     assert service.verify(result) == result
 
 
+@pytest.mark.parametrize("gate", ["assumptions", "counter_evidence", "reconstruction_steps"])
+def test_publication_requires_each_evidence_family(gate: str) -> None:
+    base = complete_request()
+    updates = {gate: ()}
+    result = M0608Service().execute(base.model_copy(update=updates))
+    assert result.status is EvidencePublicationStatus.ABSTAINED
+    assert result.bundle is None
+    assert result.human_review_required
+
+
+def test_publication_requires_evidence_on_each_declared_record() -> None:
+    base = complete_request()
+    variants = (
+        base.model_copy(
+            update={
+                "assumptions": (
+                    base.assumptions[0].model_copy(update={"evidence": ()}),
+                )
+            }
+        ),
+        base.model_copy(
+            update={
+                "counter_evidence": (
+                    base.counter_evidence[0].model_copy(update={"evidence": ()}),
+                )
+            }
+        ),
+        base.model_copy(
+            update={
+                "reconstruction_steps": (
+                    base.reconstruction_steps[0].model_copy(update={"evidence": ()}),
+                )
+            }
+        ),
+    )
+    for candidate in variants:
+        result = M0608Service().execute(candidate)
+        assert result.status is EvidencePublicationStatus.ABSTAINED
+        assert result.bundle is None
+
+
+def test_publication_requires_upstream_binding_and_digest_chain() -> None:
+    base = complete_request()
+    step = base.reconstruction_steps[0]
+    wrong_first = base.model_copy(
+        update={
+            "reconstruction_steps": (
+                step.model_copy(update={"input_digests": (base.source_artifacts[0].digest,)}),
+            )
+        }
+    )
+    second = ReconstructionStep(
+        sequence=2,
+        operation="finalize_bundle",
+        input_digests=(base.source_artifacts[0].digest,),
+        output_digest=_artifact("final", "4").digest,
+        evidence=step.evidence,
+    )
+    broken_chain = base.model_copy(update={"reconstruction_steps": (step, second)})
+    for candidate in (wrong_first, broken_chain):
+        result = M0608Service().execute(candidate)
+        assert result.status is EvidencePublicationStatus.ABSTAINED
+        assert result.bundle is None
+
+
 def test_replay_verification_is_transitive_and_deterministic() -> None:
     service = M0608Service()
     first = service.execute(request())
