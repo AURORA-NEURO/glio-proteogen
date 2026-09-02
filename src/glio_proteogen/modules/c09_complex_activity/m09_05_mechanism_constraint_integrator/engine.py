@@ -10,9 +10,12 @@ ablation effect.
 
 from __future__ import annotations
 
+import re
+from collections import defaultdict
 from dataclasses import dataclass
 from hashlib import sha256
-from typing import Final
+from math import fsum, isfinite, sqrt
+from typing import Final, cast
 
 from pydantic import TypeAdapter, ValidationError
 
@@ -22,7 +25,9 @@ from glio_proteogen.contracts.m09_05 import (
     ConstraintAwareEstimate,
     ConstraintEstimateKind,
     ConstraintEvaluationStatus,
+    ConstraintEvidenceObservation,
     ConstraintIntegratorStatus,
+    ConstraintObservationState,
     ConstraintReplayReason,
     ConstraintSatisfactionReport,
     ConstraintSeverity,
@@ -52,6 +57,11 @@ from glio_proteogen.kernel.models import (
 _REQUEST_ADAPTER: Final = TypeAdapter(IntegrateComplexActivityConstraintsRequest)
 _RESULT_ADAPTER: Final = TypeAdapter(IntegrateComplexActivityConstraintsResult)
 _ZERO_DIGEST: Final = "sha256:" + ("0" * 64)
+_CONVERGENCE_TOLERANCE: Final = 1e-10
+_NUMERIC_CONSTRAINT: Final = re.compile(
+    r"^\s*(?P<feature>[A-Za-z0-9_.:/-]+)\s*(?P<operator>>=|<=|==|=|~)\s*"
+    r"(?P<target>[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)\s*$"
+)
 
 
 class M0905AuthorizationError(PermissionError):
@@ -165,7 +175,9 @@ def _provenance(request: IntegrateComplexActivityConstraintsRequest) -> Provenan
     )
 
 
-def _uncertainty() -> UncertaintyProfile:
+def _uncertainty(
+    observations: tuple[ConstraintEvidenceObservation, ...] = (),
+) -> UncertaintyProfile:
     not_estimable = UncertaintyEstimate(
         state=EstimateState.NOT_ESTIMABLE,
         rationale=(
@@ -173,17 +185,50 @@ def _uncertainty() -> UncertaintyProfile:
             "all seven required dimensions remain explicit rather than implied."
         ),
     )
+    usable = tuple(
+        item
+        for item in observations
+        if item.state
+        in {ConstraintObservationState.OBSERVED, ConstraintObservationState.LEFT_CENSORED}
+        and item.quality_weight > 0.0
+    )
+    if not usable:
+        return UncertaintyProfile(
+            measurement=not_estimable,
+            sampling=not_estimable,
+            parameter=not_estimable,
+            model_form=not_estimable,
+            identification=not_estimable,
+            support=not_estimable,
+            transport=not_estimable,
+            sensitivity_notes=(
+                "All seven uncertainty dimensions remain not estimable without supported "
+                "member measurements.",
+            ),
+        )
+    mean_se = fsum(item.standard_error or 0.0 for item in usable) / len(usable)
+    mean_quality = fsum(item.quality_weight for item in usable) / len(usable)
+    measured = UncertaintyEstimate(
+        state=EstimateState.ESTIMATED,
+        probability=round(min(1.0, mean_se / (1.0 + mean_se)), 8),
+        rationale="member standard errors are propagated through the robust activity fit",
+    )
+    supported = UncertaintyEstimate(
+        state=EstimateState.ESTIMATED,
+        probability=round(1.0 - mean_quality, 8),
+        rationale="support risk is one minus the mean member quality weight",
+    )
     return UncertaintyProfile(
-        measurement=not_estimable,
+        measurement=measured,
         sampling=not_estimable,
         parameter=not_estimable,
         model_form=not_estimable,
         identification=not_estimable,
-        support=not_estimable,
+        support=supported,
         transport=not_estimable,
         sensitivity_notes=(
-            "Measurement, sampling, parameter, model-form, identification, support, "
-            "and transport uncertainty are not estimable pending owner lock.",
+            "Sampling, parameter, model-form, identification, and transport uncertainty "
+            "remain not estimable pending owner lock.",
         ),
     )
 
@@ -193,8 +238,8 @@ def _limitations() -> tuple[Limitation, ...]:
         Limitation(
             code="provisional_abi",
             statement=(
-                "Ontology catalogue, estimator, ceilings, media types, and endpoint ABI "
-                "remain provisional pending owner confirmation."
+                "Ontology catalogue, ceilings, media types, and endpoint ABI remain provisional "
+                "pending owner confirmation; member observations use the additive ABI."
             ),
         ),
         Limitation(
@@ -212,6 +257,126 @@ def _limitations() -> tuple[Limitation, ...]:
             ),
         ),
     )
+
+
+def _parse_numeric_constraint(expression: str) -> tuple[str, str, float] | None:
+    match = _NUMERIC_CONSTRAINT.match(expression)
+    if match is None:
+        return None
+    target = float(match.group("target"))
+    return (
+        (match.group("feature"), match.group("operator"), target)
+        if isfinite(target)
+        else None
+    )
+
+
+def _constraint_is_violated(value: float, operator: str, target: float, tolerance: float) -> bool:
+    if operator == ">=":
+        return value < target - tolerance
+    if operator == "<=":
+        return value > target + tolerance
+    return abs(value - target) > tolerance
+
+
+def _constraint_violation(value: float, operator: str, target: float, tolerance: float) -> float:
+    if operator == ">=":
+        distance = max(0.0, target - value)
+    elif operator == "<=":
+        distance = max(0.0, value - target)
+    else:
+        distance = abs(value - target)
+    return min(1.0, distance / max(tolerance, 1e-6))
+
+
+def _measurement_value(observation: ConstraintEvidenceObservation) -> tuple[float, float]:
+    standard_error = cast("float", observation.standard_error)
+    if observation.state is ConstraintObservationState.OBSERVED:
+        return cast("float", observation.value), standard_error
+    return cast("float", observation.censoring_limit) - 0.5 * standard_error, standard_error
+
+
+def _fit_observations(  # noqa: C901
+    request: IntegrateComplexActivityConstraintsRequest,
+) -> dict[str, tuple[float, float, float, float]]:
+    """Fit complex-member measurements with robust IRLS and soft bounds."""
+
+    grouped: dict[str, list[ConstraintEvidenceObservation]] = defaultdict(list)
+    for observation in request.observations:
+        if observation.state in {
+            ConstraintObservationState.OBSERVED,
+            ConstraintObservationState.LEFT_CENSORED,
+        } and observation.quality_weight > 0.0:
+            grouped[observation.feature_id].append(observation)
+    fitted: dict[str, tuple[float, float, float, float]] = {}
+    for feature_id in sorted(grouped):
+        items = tuple(grouped[feature_id])
+        measurements = tuple(_measurement_value(item) for item in items)
+        values = tuple(item[0] for item in measurements)
+        errors = tuple(item[1] for item in measurements)
+        weights = tuple(
+            item.quality_weight / max(error**2, 1e-12)
+            for item, error in zip(items, errors, strict=True)
+        )
+        estimate = fsum(
+            weight * value for weight, value in zip(weights, values, strict=True)
+        ) / fsum(weights)
+        related = tuple(
+            parsed
+            for constraint in request.policy.constraints
+            if (parsed := _parse_numeric_constraint(constraint.expression)) is not None
+            and parsed[0] == feature_id
+            and constraint.severity is ConstraintSeverity.SOFT
+        )
+        for _ in range(12):
+            robust = []
+            for weight, value, error in zip(weights, values, errors, strict=True):
+                residual = abs(estimate - value)
+                cutoff = 1.5 * error
+                robust.append(weight if residual <= cutoff else weight * cutoff / residual)
+            data_weight = fsum(robust)
+            proposal = fsum(
+                weight * value for weight, value in zip(robust, values, strict=True)
+            ) / max(data_weight, 1e-12)
+            for _, operator, target in related:
+                tolerance = request.policy.conflict_tolerance
+                if _constraint_is_violated(proposal, operator, target, tolerance):
+                    penalty = 1.0 / max(tolerance, 1e-3) ** 2
+                    proposal = (data_weight * proposal + penalty * target) / (
+                        data_weight + penalty
+                    )
+            limits = tuple(
+                item.censoring_limit
+                for item in items
+                if item.state is ConstraintObservationState.LEFT_CENSORED
+                and item.censoring_limit is not None
+            )
+            if limits:
+                proposal = min(proposal, *limits)
+            next_estimate = 0.5 * estimate + 0.5 * proposal
+            if abs(next_estimate - estimate) <= _CONVERGENCE_TOLERANCE:
+                estimate = next_estimate
+                break
+            estimate = next_estimate
+        posterior_error = sqrt(1.0 / max(fsum(weights), 1e-12))
+        lower = estimate - 1.645 * posterior_error
+        upper = estimate + 1.645 * posterior_error
+        limits = tuple(
+            item.censoring_limit
+            for item in items
+            if item.state is ConstraintObservationState.LEFT_CENSORED
+            and item.censoring_limit is not None
+        )
+        if limits:
+            upper = min(upper, *limits)
+        estimate = min(max(estimate, lower), upper)
+        fitted[feature_id] = (
+            round(estimate, 8),
+            round(min(lower, estimate), 8),
+            round(max(upper, estimate), 8),
+            round(fsum(item.quality_weight for item in items) / len(items), 8),
+        )
+    return fitted
 
 
 def _numeric_value(
@@ -234,7 +399,8 @@ def _numeric_value(
 def _evaluate(
     expression: str,
     severity: ConstraintSeverity,
-    value: float,
+    value: float | None,
+    tolerance: float,
 ) -> tuple[ConstraintEvaluationStatus, float | None, float | None, str]:
     normalized = expression.casefold()
     if "not_evaluable" in normalized or "unsupported" in normalized:
@@ -245,8 +411,12 @@ def _evaluate(
             "constraint support is insufficient for a safe evaluation",
         )
     if "force_violation" in normalized or "violate" in normalized:
-        violation = round(value, 8)
-        ablation = round(-value if severity is ConstraintSeverity.SOFT else 0.0, 8)
+        violation = None if value is None else round(min(1.0, abs(value)), 8)
+        ablation = (
+            None
+            if severity is not ConstraintSeverity.SOFT or violation is None
+            else round(-violation, 8)
+        )
         return (
             ConstraintEvaluationStatus.VIOLATED,
             violation,
@@ -257,6 +427,30 @@ def _evaluate(
                 else "hard constraint violation requires abstention"
             ),
         )
+    parsed = _parse_numeric_constraint(expression)
+    if parsed is not None:
+        if value is None:
+            return (
+                ConstraintEvaluationStatus.NOT_EVALUABLE,
+                None,
+                None,
+                "numeric constraint has no supported member observation",
+            )
+        _, operator, target = parsed
+        if _constraint_is_violated(value, operator, target, tolerance):
+            violation = round(_constraint_violation(value, operator, target, tolerance), 8)
+            return (
+                ConstraintEvaluationStatus.VIOLATED,
+                violation,
+                round(-violation if severity is ConstraintSeverity.SOFT else 0.0, 8)
+                if severity is ConstraintSeverity.SOFT
+                else None,
+                (
+                    "soft conflict is retained for review and ablation"
+                    if severity is ConstraintSeverity.SOFT
+                    else "hard constraint violation requires abstention"
+                ),
+            )
     return (
         ConstraintEvaluationStatus.SATISFIED,
         None,
@@ -268,13 +462,23 @@ def _evaluate(
 def _build_result(
     request: IntegrateComplexActivityConstraintsRequest,
 ) -> IntegrateComplexActivityConstraintsResult:
+    fitted = _fit_observations(request) if request.observations else {}
+    observed_values = {feature_id: item[0] for feature_id, item in fitted.items()}
     reports: list[ConstraintSatisfactionReport] = []
     estimates: list[ConstraintAwareEstimate] = []
     reasons: list[str] = []
     for constraint in request.policy.constraints:
-        value = _numeric_value(constraint.constraint_id, request)
+        parsed = _parse_numeric_constraint(constraint.expression)
+        value = (
+            observed_values.get(parsed[0])
+            if parsed is not None
+            else _numeric_value(constraint.constraint_id, request)
+        )
         status, violation, ablation, message = _evaluate(
-            constraint.expression, constraint.severity, value
+            constraint.expression,
+            constraint.severity,
+            value,
+            request.policy.conflict_tolerance,
         )
         reports.append(
             ConstraintSatisfactionReport(
@@ -294,26 +498,48 @@ def _build_result(
             and constraint.severity is ConstraintSeverity.HARD
         ):
             reasons.append(f"hard constraint {constraint.constraint_id} is violated")
+    if request.observations and not fitted:
+        reasons.append("no observed or left-censored member evidence has positive quality weight")
 
     if not reasons:
-        applied = tuple(item.constraint_id for item in request.policy.constraints)
+        estimate_values = fitted or {
+            feature_id: (
+                _numeric_value(feature_id, request),
+                max(0.0, _numeric_value(feature_id, request) - 0.1),
+                min(1.0, _numeric_value(feature_id, request) + 0.1),
+                1.0,
+            )
+            for feature_id in sorted(item.artifact_id for item in request.source_artifacts)
+        }
         evidence = tuple(
             EvidenceReference(reference=item, role="evidence", claim=M0905_EVIDENCE_CLAIM)
             for item in request.source_artifacts
         )
-        for feature_id in sorted(item.artifact_id for item in request.source_artifacts):
-            value = _numeric_value(feature_id, request)
+        for feature_id in sorted(estimate_values):
+            value, lower, upper, support_score = estimate_values[feature_id]
+            applied = tuple(
+                constraint.constraint_id
+                for constraint in request.policy.constraints
+                if (parsed := _parse_numeric_constraint(constraint.expression)) is None
+                or parsed[0] == feature_id
+            ) or tuple(item.constraint_id for item in request.policy.constraints)
+            feature_evidence = tuple(
+                item
+                for observation in request.observations
+                if observation.feature_id == feature_id
+                for item in observation.evidence
+            )
             estimates.append(
                 ConstraintAwareEstimate(
                     feature_id=feature_id,
                     kind=ConstraintEstimateKind.INTERVAL,
-                    unit="provisional-normalized-complex-activity",
+                    unit="normalized-complex-member-activity",
                     estimate_value=value,
-                    lower_bound=round(max(0.0, value - 0.1), 8),
-                    upper_bound=round(min(1.0, value + 0.1), 8),
-                    support_score=1.0,
+                    lower_bound=lower,
+                    upper_bound=upper,
+                    support_score=support_score,
                     applied_constraint_ids=applied,
-                    evidence=evidence,
+                    evidence=(evidence + feature_evidence)[:64],
                 )
             )
     integration_status = (
@@ -345,7 +571,7 @@ def _build_result(
         satisfaction_report=tuple(reports),
         abstention_reason=abstention_reason,
         support_decision=support,
-        uncertainty=_uncertainty(),
+        uncertainty=_uncertainty(request.observations),
         provenance=_provenance(request),
         evidence=evidence,
         limitations=_limitations(),
