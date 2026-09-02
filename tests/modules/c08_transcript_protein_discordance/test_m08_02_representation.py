@@ -162,6 +162,31 @@ def test_representation_is_deterministic_and_lineage_complete() -> None:
     assert first.canonical_bytes == second.canonical_bytes
 
 
+def test_observed_values_use_declared_scaling_transform() -> None:
+    request = _request()
+    spec = request.feature_specs[0].model_copy(update={"source_values": (1.0, 2.0)})
+    candidate = request.model_copy(
+        update={"feature_specs": (spec, request.feature_specs[1])}
+    )
+    built = m0802.M0802RepresentationEngine().construct(candidate)
+    assert built.result.status.value == "constructed"
+    assert built.result.features[0].values == (-1.0, 1.0)
+
+
+def test_observed_values_bind_the_declared_dimension_and_finiteness() -> None:
+    spec = _request().feature_specs[0]
+    with pytest.raises(ValueError, match="dimension"):
+        type(spec).model_validate(
+            spec.model_dump(mode="python") | {"source_values": (1.0,)},
+            strict=True,
+        )
+    with pytest.raises(ValueError, match="finite"):
+        type(spec).model_validate(
+            spec.model_dump(mode="python") | {"source_values": (float("nan"), 1.0)},
+            strict=True,
+        )
+
+
 def test_replay_accepts_canonical_and_rejects_tamper() -> None:
     engine = m0802.M0802RepresentationEngine()
     built = engine.construct(_request())

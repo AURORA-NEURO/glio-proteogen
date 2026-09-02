@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from hashlib import sha256
+from math import fsum, sqrt
 from typing import Final
 
 from pydantic import TypeAdapter, ValidationError
@@ -20,6 +21,7 @@ from glio_proteogen.contracts.m08_02 import (
     RepresentationConstructionStatus,
     RepresentationFeature,
     RepresentationReplayReason,
+    RepresentationTransformationKind,
     TranscriptProteinRepresentationResult,
     canonical_request_digest,
     result_payload_digest,
@@ -228,7 +230,35 @@ def _feature_values(
     spec: FeatureSpecification,
     request: ConstructTranscriptProteinRepresentationRequest,
 ) -> tuple[float, ...]:
-    """Derive stable placeholder values without pretending to estimate biology."""
+    """Transform observed values, retaining a legacy digest-only compatibility path."""
+
+    if spec.source_values:
+        observed_values = [float(value) for value in spec.source_values]
+        for transformation in spec.lineage.transformations:
+            if transformation.kind in {
+                RepresentationTransformationKind.SCALING,
+                RepresentationTransformationKind.NORMALIZATION,
+            }:
+                center = fsum(observed_values) / len(observed_values)
+                variance = fsum(
+                    (value - center) ** 2 for value in observed_values
+                ) / len(observed_values)
+                scale = sqrt(max(variance, 1e-12))
+                observed_values = [
+                    (value - center) / scale for value in observed_values
+                ]
+            elif transformation.kind is RepresentationTransformationKind.RESIDUAL:
+                center = fsum(observed_values) / len(observed_values)
+                observed_values = [value - center for value in observed_values]
+            elif transformation.kind is RepresentationTransformationKind.MASKING:
+                # Values are finite by contract; masking is represented by the
+                # feature's explicit mask field and does not alter observations.
+                observed_values = list(observed_values)
+            elif transformation.kind is RepresentationTransformationKind.COVARIATE:
+                # Covariates are carried in lineage and are not folded into the
+                # measured transcript/protein vector without an explicit model.
+                observed_values = list(observed_values)
+        return tuple(round(value, 8) for value in observed_values)
 
     seed = "|".join(
         (
