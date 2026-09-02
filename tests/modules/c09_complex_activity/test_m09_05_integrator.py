@@ -200,6 +200,52 @@ def test_soft_numeric_complex_constraint_reports_ablation() -> None:
     assert result.estimates[0].estimate_value > 0.2
 
 
+def test_missing_and_unsupported_members_are_not_negative_activity() -> None:
+    request = _request("feature.1 >= 0.8").model_copy(
+        update={
+            "observations": (
+                ConstraintEvidenceObservation(
+                    feature_id="feature.1",
+                    state=ConstraintObservationState.UNSUPPORTED,
+                ),
+                ConstraintEvidenceObservation(
+                    feature_id="feature.2",
+                    state=ConstraintObservationState.MISSING,
+                ),
+            )
+        }
+    )
+    result = M0905ConstraintIntegrator().integrate(request).result
+
+    assert result.status is ConstraintIntegratorStatus.ABSTAINED
+    assert not result.estimates
+    assert result.satisfaction_report[0].status is ConstraintEvaluationStatus.NOT_EVALUABLE
+    assert "no observed" in (result.abstention_reason or "")
+
+
+def test_hard_numeric_complex_constraint_abstains() -> None:
+    request = _request("feature.1 >= 0.8").model_copy(
+        update={
+            "observations": (
+                ConstraintEvidenceObservation(
+                    feature_id="feature.1",
+                    value=0.2,
+                    standard_error=0.1,
+                ),
+                ConstraintEvidenceObservation(
+                    feature_id="feature.2",
+                    value=0.0,
+                    standard_error=0.1,
+                ),
+            )
+        }
+    )
+    result = M0905ConstraintIntegrator().integrate(request).result
+
+    assert result.status is ConstraintIntegratorStatus.ABSTAINED
+    assert result.satisfaction_report[0].status is ConstraintEvaluationStatus.VIOLATED
+
+
 def test_request_bound_replay_rejects_resigned_constraint_mutation() -> None:
     request = _request("hold")
     engine = M0905ConstraintIntegrator()
