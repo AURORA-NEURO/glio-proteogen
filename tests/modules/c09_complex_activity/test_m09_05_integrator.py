@@ -197,6 +197,7 @@ def test_soft_numeric_complex_constraint_reports_ablation() -> None:
     report = result.satisfaction_report[0]
     assert report.status is ConstraintEvaluationStatus.VIOLATED
     assert report.ablation_effect is not None
+    assert result.estimates[0].estimate_value is not None
     assert result.estimates[0].estimate_value > 0.2
 
 
