@@ -151,6 +151,36 @@ def request() -> PublishProteinAbundanceEvidenceRequest:
     )
 
 
+def complete_request() -> PublishProteinAbundanceEvidenceRequest:
+    """Return a request with explicit evidence and a linked reconstruction chain."""
+
+    base = request()
+    source = base.source_artifacts[0]
+    positive = EvidenceReference(
+        reference=source,
+        role="evidence",
+        claim="approved normalization evidence",
+    )
+    counter = EvidenceReference(
+        reference=source,
+        role="counter_evidence",
+        claim="batch-effect counter-evidence",
+    )
+    return base.model_copy(
+        update={
+            "assumptions": (
+                base.assumptions[0].model_copy(update={"evidence": (positive,)}),
+            ),
+            "counter_evidence": (
+                base.counter_evidence[0].model_copy(update={"evidence": (counter,)}),
+            ),
+            "reconstruction_steps": (
+                base.reconstruction_steps[0].model_copy(update={"evidence": (positive,)}),
+            ),
+        }
+    )
+
+
 def test_runtime_abstains_without_masquerading_as_negative() -> None:
     result = M0608Service().execute(request())
     assert result.status is EvidencePublicationStatus.ABSTAINED
@@ -160,6 +190,18 @@ def test_runtime_abstains_without_masquerading_as_negative() -> None:
     assert result.evidence
     assert result.human_review_required
     assert verify_result_digest(result)
+
+
+def test_runtime_publishes_reconstructable_evidence_bundle() -> None:
+    service = M0608Service()
+    result = service.execute(complete_request())
+    assert result.status is EvidencePublicationStatus.PUBLISHED
+    assert result.bundle is not None
+    assert result.explanation is not None
+    assert result.support_decision.status is SupportStatus.SUPPORTED
+    assert result.human_review_required is False
+    assert result.findings == ()
+    assert service.verify(result) == result
 
 
 def test_replay_verification_is_transitive_and_deterministic() -> None:
