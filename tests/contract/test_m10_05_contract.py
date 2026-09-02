@@ -1,5 +1,8 @@
 """Focused contract/schema smoke for provisional M10-05."""
 
+# Constraint values are intentionally literal fixtures.
+# ruff: noqa: PLR2004
+
 import pytest
 
 from glio_proteogen.contracts.m10_05 import (
@@ -8,6 +11,8 @@ from glio_proteogen.contracts.m10_05 import (
     ConstraintAblation,
     ConstraintHardness,
     ConstraintKind,
+    FeatureObservation,
+    FeatureObservationState,
     MechanismConstraint,
     contract_json_schemas,
 )
@@ -44,3 +49,33 @@ def test_hard_soft_constraint_semantics_and_ablation_delta() -> None:
         effect_delta=0.3,
     )
     assert ablation.effect_delta == pytest.approx(0.3)
+
+
+def test_feature_observation_closes_missing_and_censored_shapes() -> None:
+    observed = FeatureObservation(
+        feature_id="feature.x",
+        state=FeatureObservationState.OBSERVED,
+        value=0.25,
+        standard_error=0.05,
+    )
+    censored = FeatureObservation(
+        feature_id="feature.y",
+        state=FeatureObservationState.LEFT_CENSORED,
+        censoring_limit=0.1,
+    )
+    missing = FeatureObservation(feature_id="feature.z", state=FeatureObservationState.MISSING)
+    assert observed.value == 0.25
+    assert censored.censoring_limit == 0.1
+    assert missing.value is None
+    with pytest.raises(ValueError, match="observed feature"):
+        FeatureObservation(
+            feature_id="feature.bad",
+            state=FeatureObservationState.OBSERVED,
+            value=None,
+        )
+    with pytest.raises(ValueError, match="missing or unsupported"):
+        FeatureObservation(
+            feature_id="feature.bad",
+            state=FeatureObservationState.UNSUPPORTED,
+            value=1.0,
+        )

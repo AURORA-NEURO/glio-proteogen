@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
+from math import exp
 from typing import Final
 
 from pydantic import BaseModel, TypeAdapter
@@ -17,6 +19,8 @@ from glio_proteogen.contracts.m10_05 import (
     ConstraintEvaluationOutcome,
     ConstraintHardness,
     ConstraintIntegrationStatus,
+    FeatureObservation,
+    FeatureObservationState,
     IntegrateProteinRnaConstraintsRequest,
     ProteinRnaConstraintIntegrationResult,
     expected_provenance,
@@ -38,6 +42,12 @@ _RESULT_ADAPTER: Final = TypeAdapter(ProteinRnaConstraintIntegrationResult)
 _ZERO_DIGEST: Final = "sha256:" + ("0" * 64)
 _TRUE_EXPRESSIONS: Final = frozenset({"true", "always_true", "satisfied", "x >= 0", "1 == 1"})
 _FALSE_EXPRESSIONS: Final = frozenset({"false", "always_false", "violated", "x < 0", "0 == 1"})
+_NUMERIC_EXPRESSION = re.compile(
+    r"^(?P<feature>[a-zA-Z][a-zA-Z0-9._:-]{0,127})\s*"
+    r"(?P<operator>==|>=|<=|>|<)\s*"
+    r"(?P<threshold>-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)$"
+)
+_MINIMUM_SCALE: Final = 1e-6
 
 
 class M1005ConstraintAuthorizationError(PermissionError):
@@ -114,6 +124,11 @@ def _evidence(request: IntegrateProteinRnaConstraintsRequest) -> tuple[EvidenceR
         if request.constraint_set.evidence
         else request.representation_result,
         *context_artifacts,
+        *(
+            item.reference
+            for observation in request.feature_observations
+            for item in observation.evidence
+        ),
     )
     return tuple(
         EvidenceReference(reference=artifact, role="evidence", claim=M1005_EVIDENCE_CLAIM)
@@ -128,6 +143,73 @@ def _evaluate_expression(expression: str) -> ConstraintEvaluationOutcome:
     if normalized in _FALSE_EXPRESSIONS:
         return ConstraintEvaluationOutcome.VIOLATED
     return ConstraintEvaluationOutcome.NOT_EVALUABLE
+
+
+def _numeric_constraint_result(  # noqa: PLR0911
+    expression: str,
+    feature_ids: tuple[str, ...],
+    observations: Mapping[str, FeatureObservation],
+) -> tuple[ConstraintEvaluationOutcome, float, float] | None:
+    """Evaluate a numeric comparison with an uncertainty-scaled residual.
+
+    Censored observations are used only when their upper bound proves an upper
+    constraint. Missing and unsupported values remain not evaluable, never negative.
+    """
+
+    match = _NUMERIC_EXPRESSION.fullmatch(expression.strip())
+    if match is None or match.group("feature") not in feature_ids:
+        return None
+    observation = observations.get(match.group("feature"))
+    if observation is None:
+        return ConstraintEvaluationOutcome.NOT_EVALUABLE, 1.0, 0.0
+    threshold = float(match.group("threshold"))
+    operator = match.group("operator")
+    if observation.state is FeatureObservationState.LEFT_CENSORED:
+        limit = observation.censoring_limit
+        if limit is None:
+            return ConstraintEvaluationOutcome.NOT_EVALUABLE, 1.0, 0.0
+        if operator in {"<=", "<"} and limit <= threshold:
+            return ConstraintEvaluationOutcome.SATISFIED, 0.0, 1.0
+        return ConstraintEvaluationOutcome.NOT_EVALUABLE, 1.0, 0.0
+    if observation.state is not FeatureObservationState.OBSERVED or observation.value is None:
+        return ConstraintEvaluationOutcome.NOT_EVALUABLE, 1.0, 0.0
+    value = observation.value
+    violation = {
+        "==": abs(value - threshold),
+        ">=": max(0.0, threshold - value),
+        "<=": max(0.0, value - threshold),
+        ">": max(0.0, threshold - value),
+        "<": max(0.0, value - threshold),
+    }[operator]
+    scale = max(observation.standard_error or 0.1, _MINIMUM_SCALE)
+    residual = violation / scale
+    strength = exp(-0.5 * residual * residual)
+    outcome = (
+        ConstraintEvaluationOutcome.SATISFIED
+        if violation <= _MINIMUM_SCALE
+        else ConstraintEvaluationOutcome.VIOLATED
+    )
+    return outcome, residual, strength
+
+
+def _evaluate_constraint(
+    expression: str,
+    feature_ids: tuple[str, ...],
+    observations: Mapping[str, FeatureObservation],
+) -> tuple[ConstraintEvaluationOutcome, float, float]:
+    """Evaluate compatibility expressions or measured numeric constraints."""
+
+    closed = _evaluate_expression(expression)
+    if closed is not ConstraintEvaluationOutcome.NOT_EVALUABLE:
+        return (
+            closed,
+            0.0 if closed is ConstraintEvaluationOutcome.SATISFIED else 1.0,
+            1.0 if closed is ConstraintEvaluationOutcome.SATISFIED else 0.0,
+        )
+    numeric = _numeric_constraint_result(expression, feature_ids, observations)
+    if numeric is not None:
+        return numeric
+    return ConstraintEvaluationOutcome.NOT_EVALUABLE, 1.0, 0.0
 
 
 def _support(status: SupportStatus, reason: str) -> SupportDecision:
@@ -150,8 +232,9 @@ def _limitations(*, integrated: bool, soft_conflict: bool) -> tuple[Limitation, 
         Limitation(
             code="caller_declared_expression_language",
             statement=(
-                "Only the closed true/false expression vocabulary is evaluated; all other "
-                "expressions abstain rather than being interpreted heuristically."
+                "Closed true/false expressions and bounded numeric feature comparisons use "
+                "declared measurements; all other expressions abstain rather than being "
+                "interpreted heuristically."
             ),
         ),
     ]
@@ -197,8 +280,13 @@ class M1005ConstraintEngine:
         soft_conflict = False
         weighted_score = 0.0
         total_weight = 0.0
+        observations = {item.feature_id: item for item in request.feature_observations}
         for constraint in request.constraint_set.constraints:
-            outcome = _evaluate_expression(constraint.expression)
+            outcome, residual, strength = _evaluate_constraint(
+                constraint.expression,
+                constraint.feature_ids,
+                observations,
+            )
             if outcome is ConstraintEvaluationOutcome.VIOLATED:
                 if constraint.hardness is ConstraintHardness.HARD:
                     hard_violated = True
@@ -209,9 +297,8 @@ class M1005ConstraintEngine:
             if constraint.hardness is ConstraintHardness.SOFT:
                 weight = constraint.weight or 0.0
                 total_weight += weight
-                if outcome is ConstraintEvaluationOutcome.SATISFIED:
-                    weighted_score += weight
-                effect = weight if outcome is ConstraintEvaluationOutcome.SATISFIED else 0.0
+                weighted_score += weight * strength
+                effect = weight * strength
                 ablations.append(
                     ConstraintAblation(
                         constraint_id=constraint.constraint_id,
@@ -225,14 +312,14 @@ class M1005ConstraintEngine:
                 ConstraintEvaluation(
                     constraint_id=constraint.constraint_id,
                     outcome=outcome,
-                    residual=(0.0 if outcome is ConstraintEvaluationOutcome.SATISFIED else 1.0),
+                    residual=residual,
                     effect_size=(
                         constraint.weight if constraint.hardness is ConstraintHardness.SOFT else 1.0
                     ),
                     message=(
-                        "closed expression satisfied"
+                        "constraint satisfied with declared feature evidence"
                         if outcome is ConstraintEvaluationOutcome.SATISFIED
-                        else "closed expression was not satisfied or evaluable"
+                        else "constraint was violated or not evaluable from declared evidence"
                     ),
                     evidence=constraint.evidence,
                 )
