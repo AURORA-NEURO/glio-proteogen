@@ -16,6 +16,8 @@ from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import ArtifactReference
 
 _SCHEMA_COUNT = 8
+_DEFAULT_BOOTSTRAP_REPLICATES = 64
+_MAX_BOOTSTRAP_REPLICATES = 256
 
 
 def _artifact(label: str) -> ArtifactReference:
@@ -41,6 +43,12 @@ def test_m1303_schemas_are_strict_and_explicitly_provisional() -> None:
     assert metadata["topologyInvariantsRequired"]
     assert metadata["unitInvariantsRequired"]
     assert metadata["safeAbstentionRequired"]
+    assert metadata["typedGliomaEvidenceModel"] is True
+    assert metadata["opaqueRequestsAbstain"] is True
+    assert metadata["robustEstimator"] == "damped_huber_irls_coordinate_descent"
+    assert metadata["bootstrapReplicatesDefault"] == _DEFAULT_BOOTSTRAP_REPLICATES
+    assert metadata["bootstrapReplicatesMaximum"] == _MAX_BOOTSTRAP_REPLICATES
+    assert "RTK_PI3K_AKT_MTOR" in metadata["signedPathwayGraph"]
 
 
 def test_m1303_feature_requires_matching_lineage_and_one_value_shape() -> None:

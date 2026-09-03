@@ -76,6 +76,16 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "outputMediaType": M1303_OUTPUT_MEDIA_TYPE,
         "upstreamInputMediaType": "application/vnd.glio-proteogen.m13-02+json",
         "sourceEvidenceRequired": True,
+        "typedGliomaEvidenceModel": True,
+        "typedObservationStates": ["observed", "left_censored", "missing", "unsupported"],
+        "opaqueRequestsAbstain": True,
+        "signedPathwayGraph": (
+            "RTK_PI3K_AKT_MTOR|P53_CELL_CYCLE|IDH_HIF1A|"
+            "MESENCHYMAL_PROGRAM|PROLIFERATION"
+        ),
+        "robustEstimator": "damped_huber_irls_coordinate_descent",
+        "bootstrapReplicatesDefault": 64,
+        "bootstrapReplicatesMaximum": 256,
         "pathwayActivityRequired": True,
         "topologyInvariantsRequired": True,
         "unitInvariantsRequired": True,

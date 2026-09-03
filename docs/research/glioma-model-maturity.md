@@ -315,6 +315,24 @@ replicate requests activate this glioma-specific research model, while legacy
 opaque requests safely abstain instead of receiving a digest-derived score. The
 lane is therefore a reviewable replacement surface, not a governed clinical API.
 
+## Completed M13-03 typed mechanistic evidence lane
+
+The additive M13-03 research runtime now consumes typed glioma observations for
+proteins, phosphosites, pathways, and complexes. It solves a fixed signed
+RTK/PI3K/AKT/mTOR, p53/cell-cycle, IDH/HIF1A, proliferation, and mesenchymal
+graph with damped Huber IRLS coordinate descent, one-sided left-censoring loss,
+ridge stabilization, convergence diagnostics, and deterministic digest-seeded
+bootstrap intervals. Pathway activity is propagated through the graph rather
+than computed as independent digest or weighted-average formulas; replicated
+observations yield non-degenerate uncertainty and order-invariant receipts.
+
+Missing and unsupported observations are ignored as evidence, while insufficient
+typed support and legacy opaque requests abstain instead of fabricating a score.
+The response reports evidence coverage, signed regulatory balance, topology
+support, and measurement/topology limitations. It does not estimate kinetics,
+spatial state, kinase ownership, prognosis, treatment response, or causality, and
+the research lane is not a governed clinical API.
+
 ## Negative cross-assay feasibility result
 
 An exact development-only join found all 88 PDC000515 pairs in PDC000514, but
