@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 from evals.m01_04.run import build_scenario_request
 
+from benchmarks._module_validation import run_pytest_benchmark
 from glio_proteogen.modules.c01_preanalytic.m01_04_quality_metrics import (
     compute_quality_profile,
 )
@@ -40,3 +41,14 @@ def test_representative_public_engine_latency(benchmark: BenchmarkFixture) -> No
     statistics = benchmark_stats.stats
     assert statistics is not None
     assert statistics.mean <= MEAN_BUDGET_SECONDS
+
+
+def run_benchmark(iterations: int = 10) -> dict[str, object]:
+    """Run the locked representative quality-profile workload."""
+
+    return run_pytest_benchmark(
+        module_id="GLIO-PROTEOGEN-M01-04",
+        workload=test_representative_public_engine_latency,
+        iterations=iterations,
+        mean_budget_seconds=MEAN_BUDGET_SECONDS,
+    )

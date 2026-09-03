@@ -2,6 +2,8 @@ name: evidence
 
 on:
   push:
+    branches:
+      - main
   pull_request:
 
 permissions:
@@ -25,12 +27,461 @@ jobs:
           cache-dependency-glob: uv.lock
       - run: uv python install 3.12
       - run: uv sync --locked --all-groups
+      - name: Validate workflow YAML syntax and strict mapping keys
+        run: |
+          ruby -e 'require "yaml"; ARGV.each { |path| YAML.parse_file(path) }' .github/workflows/*.yml
+          uv run python tools/validate_workflows.py
       - run: uv run ruff check .
       - run: uv run mypy src
       - run: uv run vulture src/glio_proteogen evals tools --min-confidence 80
       - run: uv run python tools/verify_project_status.py
       - run: uv run python -m tools.scan_secrets
       - run: uv run pip-audit
+
+  ui-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24.14.0"
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - run: npm ci
+      - run: npm audit --audit-level=high
+      - run: npm run typecheck
+      - run: npm run test:coverage
+      - run: npm run build
+      - run: npx --no-install playwright install --with-deps chromium
+      - run: npm run test:e2e
+
+  research-state-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      BLIS_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      NUMEXPR_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      VECLIB_MAXIMUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv python install 3.12
+      - run: uv sync --locked --all-groups
+      - name: Check research-state source and benchmark evidence
+        run: |
+          uv run ruff check \
+            src/glio_proteogen/research/proteogenomic_state \
+            src/glio_proteogen/adapters/research_state.py \
+            benchmarks/research_proteogenomic_state.py \
+            tests/research/test_proteogenomic_state_*.py \
+            tests/integration/test_research_state_interfaces.py \
+            tests/integration/test_research_state_adapter_adversarial.py \
+            tests/integration/test_research_state_adapter_coverage.py \
+            tests/integration/test_research_state_runtime_guards.py \
+            tests/benchmarks/test_research_proteogenomic_state_performance.py
+          uv run mypy \
+            src/glio_proteogen/research/proteogenomic_state \
+            src/glio_proteogen/adapters/research_state.py
+      - name: Run exact research-state branch coverage gate
+        shell: bash
+        run: |
+          uv run coverage erase
+          uv run coverage run --branch -m pytest -q -o addopts='' \
+            tests/research/test_proteogenomic_state_contracts.py \
+            tests/research/test_proteogenomic_state_core.py \
+            tests/research/test_proteogenomic_state_coverage.py \
+            tests/research/test_proteogenomic_state_oracles.py \
+            tests/research/test_proteogenomic_state_properties.py \
+            tests/integration/test_research_state_interfaces.py \
+            tests/integration/test_research_state_adapter_adversarial.py \
+            tests/integration/test_research_state_adapter_coverage.py \
+            tests/integration/test_research_state_runtime_guards.py \
+            tests/benchmarks/test_research_proteogenomic_state_performance.py
+          uv run coverage report --fail-under=100 \
+            --include='src/glio_proteogen/research/proteogenomic_state/*.py'
+          uv run coverage report --fail-under=100 \
+            --include='src/glio_proteogen/adapters/research_state.py'
+      - name: Enforce ECGI performance and peak-memory thresholds
+        run: >-
+          uv run python -m benchmarks.research_proteogenomic_state
+          --output research-state-performance.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: ${{ always() }}
+        with:
+          name: research-state-performance-evidence
+          path: research-state-performance.json
+          if-no-files-found: ignore
+
+  kncc-gbm-factor-graph-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv python install 3.12
+      - run: uv sync --locked --all-groups
+      - name: Check the KNCC GBM factor-graph package and adapter
+        run: |
+          uv run ruff check \
+            src/glio_proteogen/research/kncc_gbm_factor_graph \
+            src/glio_proteogen/adapters/gbm_factor_graph.py \
+            tests/research/test_kncc_gbm_factor_graph_contracts.py \
+            tests/research/test_kncc_gbm_factor_graph_service.py \
+            tests/research/test_kncc_gbm_factor_graph_branch_coverage.py \
+            tests/research/test_kncc_gbm_factor_graph_service_coverage.py \
+            tests/integration/test_gbm_factor_graph_adapter.py \
+            tests/integration/test_gbm_factor_graph_adapter_coverage.py
+          uv run mypy --strict \
+            src/glio_proteogen/research/kncc_gbm_factor_graph \
+            src/glio_proteogen/adapters/gbm_factor_graph.py
+          uv run vulture \
+            src/glio_proteogen/research/kncc_gbm_factor_graph \
+            src/glio_proteogen/adapters/gbm_factor_graph.py \
+            --min-confidence 80
+      - name: Enforce exact factor-graph package and adapter branch coverage
+        run: |
+          uv run coverage erase
+          uv run coverage run --branch \
+            --source=glio_proteogen.research.kncc_gbm_factor_graph,glio_proteogen.adapters.gbm_factor_graph \
+            -m pytest -q -o addopts='' \
+            tests/research/test_kncc_gbm_factor_graph_contracts.py \
+            tests/research/test_kncc_gbm_factor_graph_service.py \
+            tests/research/test_kncc_gbm_factor_graph_branch_coverage.py \
+            tests/research/test_kncc_gbm_factor_graph_service_coverage.py \
+            tests/integration/test_gbm_factor_graph_adapter.py \
+            tests/integration/test_gbm_factor_graph_adapter_coverage.py
+          uv run coverage report --fail-under=100 \
+            --include='src/glio_proteogen/research/kncc_gbm_factor_graph/*.py'
+          uv run coverage report --fail-under=100 \
+            --include='src/glio_proteogen/adapters/gbm_factor_graph.py'
+
+  gbm-master-kinase-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv python install 3.12
+      - run: uv sync --locked --all-groups
+      - name: Check the source-locked GBM master-kinase lane
+        run: |
+          uv run ruff check \
+            src/glio_proteogen/research/gbm_master_kinases \
+            src/glio_proteogen/adapters/gbm_master_kinases.py \
+            tools/import_sphinks_master_kinases.py \
+            tests/research/test_gbm_master_kinase_*.py \
+            tests/integration/test_gbm_master_kinases_adapter.py \
+            tests/integration/test_gbm_master_kinases_cli.py
+          uv run mypy \
+            src/glio_proteogen/research/gbm_master_kinases \
+            src/glio_proteogen/adapters/gbm_master_kinases.py \
+            tools/import_sphinks_master_kinases.py
+      - name: Enforce exact master-kinase core and adapter branch coverage
+        run: |
+          uv run coverage erase
+          uv run coverage run --branch \
+            --source=glio_proteogen.research.gbm_master_kinases,glio_proteogen.adapters.gbm_master_kinases \
+            -m pytest -q -o addopts='' \
+            tests/research/test_gbm_master_kinase_catalog.py \
+            tests/research/test_gbm_master_kinase_contracts.py \
+            tests/research/test_gbm_master_kinase_engine.py \
+            tests/research/test_gbm_master_kinase_branch_guards.py \
+            tests/integration/test_gbm_master_kinases_adapter.py \
+            tests/integration/test_gbm_master_kinases_cli.py
+          uv run coverage report --fail-under=100 \
+            --include='src/glio_proteogen/research/gbm_master_kinases/*.py'
+          uv run coverage report --fail-under=100 \
+            --include='src/glio_proteogen/adapters/gbm_master_kinases.py'
+
+  longitudinal-gbm-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv python install 3.12
+      - run: uv sync --locked --all-groups
+      - name: Check the source-locked KNCC longitudinal GBM lanes
+        run: |
+          uv run ruff check \
+            src/glio_proteogen/research/longitudinal_gbm \
+            src/glio_proteogen/research/longitudinal_gbm_phospho \
+            src/glio_proteogen/research/longitudinal_gbm_kinase_transition \
+            src/glio_proteogen/adapters/longitudinal_gbm.py \
+            src/glio_proteogen/adapters/longitudinal_gbm_kinase_transition.py \
+            tools/import_kncc_longitudinal_gbm.py \
+            tools/import_kncc_longitudinal_phospho.py \
+            tools/import_kncc_longitudinal_kinase_transition.py \
+            tools/capture_pdc000514_source_manifest.py \
+            tools/capture_pdc000515_source_manifest.py \
+            tests/research/test_kncc_longitudinal_importer.py \
+            tests/research/test_kncc_longitudinal_phospho_importer.py \
+            tests/research/test_kncc_longitudinal_kinase_transition_importer.py \
+            tests/research/test_longitudinal_gbm_*.py \
+            tests/api/test_longitudinal_gbm_kinase_transition_api.py \
+            tests/integration/test_longitudinal_gbm_adapter.py
+          uv run mypy --strict \
+            src/glio_proteogen/research/longitudinal_gbm \
+            src/glio_proteogen/research/longitudinal_gbm_phospho \
+            src/glio_proteogen/research/longitudinal_gbm_kinase_transition \
+            src/glio_proteogen/adapters/longitudinal_gbm.py \
+            src/glio_proteogen/adapters/longitudinal_gbm_kinase_transition.py \
+            tools/import_kncc_longitudinal_gbm.py \
+            tools/import_kncc_longitudinal_phospho.py \
+            tools/import_kncc_longitudinal_kinase_transition.py \
+            tools/capture_pdc000514_source_manifest.py \
+            tools/capture_pdc000515_source_manifest.py
+          uv run vulture \
+            src/glio_proteogen/research/longitudinal_gbm \
+            src/glio_proteogen/research/longitudinal_gbm_phospho \
+            src/glio_proteogen/research/longitudinal_gbm_kinase_transition \
+            src/glio_proteogen/adapters/longitudinal_gbm.py \
+            src/glio_proteogen/adapters/longitudinal_gbm_kinase_transition.py \
+            tools/import_kncc_longitudinal_gbm.py \
+            tools/import_kncc_longitudinal_phospho.py \
+            tools/import_kncc_longitudinal_kinase_transition.py \
+            tools/capture_pdc000514_source_manifest.py \
+            tools/capture_pdc000515_source_manifest.py \
+            --min-confidence 80
+      - name: Enforce exact longitudinal core and adapter branch coverage
+        run: |
+          uv run coverage erase
+          uv run coverage run --branch \
+            --source=glio_proteogen.research.longitudinal_gbm,glio_proteogen.adapters.longitudinal_gbm \
+            -m pytest -q -o addopts='' \
+            tests/research/test_longitudinal_gbm_catalog_profile.py \
+            tests/research/test_longitudinal_gbm_contracts.py \
+            tests/research/test_longitudinal_gbm_engine.py \
+            tests/research/test_longitudinal_gbm_service.py \
+            tests/research/test_m15_longitudinal_recurrence_facade.py \
+            tests/integration/test_m15_longitudinal_recurrence_facade.py \
+            tests/integration/test_longitudinal_gbm_adapter.py
+          uv run coverage report --fail-under=100 \
+            --include='src/glio_proteogen/research/longitudinal_gbm/*.py'
+          uv run coverage report --fail-under=100 \
+            --include='src/glio_proteogen/adapters/longitudinal_gbm.py'
+      - name: Replay the privacy-safe source artifact test suite
+        run: |
+          uv run pytest -q -o addopts='' \
+            tests/research/test_kncc_longitudinal_importer.py \
+            tests/research/test_kncc_longitudinal_phospho_importer.py \
+            tests/research/test_kncc_longitudinal_kinase_transition_importer.py \
+            tests/research/test_longitudinal_gbm_kinase_transition.py \
+            tests/api/test_longitudinal_gbm_kinase_transition_api.py
+
+  longitudinal-gbm-complex-transition-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv python install 3.12
+      - run: uv sync --locked --all-groups
+      - name: Check the fitted longitudinal GBM complex-transition lane
+        run: |
+          uv run ruff check \
+            src/glio_proteogen/research/longitudinal_gbm_complex_transition \
+            src/glio_proteogen/adapters/longitudinal_gbm_complex_transition.py \
+            tools/generate_longitudinal_gbm_complex_transition_ui_fixture.py \
+            tools/import_kncc_reactome_complex_transition_source.py \
+            tools/import_kncc_reactome_complex_transition_model.py \
+            tests/research/test_kncc_complex_transition_catalog_solver_branches.py \
+            tests/research/test_kncc_complex_transition_contract_profile_branches.py \
+            tests/research/test_kncc_complex_transition_contracts.py \
+            tests/research/test_kncc_complex_transition_engine_coverage.py \
+            tests/research/test_kncc_complex_transition_engine.py \
+            tests/research/test_kncc_complex_transition_fitted_catalog.py \
+            tests/research/test_kncc_complex_transition_solver.py \
+            tests/research/test_kncc_reactome_complex_transition_fitter.py \
+            tests/research/test_kncc_reactome_complex_transition_source_guards.py \
+            tests/research/test_kncc_reactome_complex_transition_source.py \
+            tests/research/test_m09_complex_transition_facade.py \
+            tests/integration/test_m09_complex_transition_facade.py \
+            tests/integration/test_longitudinal_gbm_complex_transition_adapter.py
+          uv run mypy --strict \
+            src/glio_proteogen/research/longitudinal_gbm_complex_transition \
+            src/glio_proteogen/adapters/longitudinal_gbm_complex_transition.py \
+            tools/generate_longitudinal_gbm_complex_transition_ui_fixture.py \
+            tools/import_kncc_reactome_complex_transition_source.py \
+            tools/import_kncc_reactome_complex_transition_model.py
+          uv run vulture \
+            src/glio_proteogen/research/longitudinal_gbm_complex_transition \
+            src/glio_proteogen/adapters/longitudinal_gbm_complex_transition.py \
+            tools/generate_longitudinal_gbm_complex_transition_ui_fixture.py \
+            tools/import_kncc_reactome_complex_transition_source.py \
+            tools/import_kncc_reactome_complex_transition_model.py \
+            --min-confidence 80
+      - name: Enforce source and fitter guards with exact branch coverage
+        run: |
+          uv run coverage erase
+          uv run coverage run --branch \
+            --source=glio_proteogen.research.longitudinal_gbm_complex_transition,glio_proteogen.adapters.longitudinal_gbm_complex_transition \
+            -m pytest -q -o addopts='' \
+            tests/research/test_kncc_complex_transition_catalog_solver_branches.py \
+            tests/research/test_kncc_complex_transition_contract_profile_branches.py \
+            tests/research/test_kncc_complex_transition_contracts.py \
+            tests/research/test_kncc_complex_transition_engine_coverage.py \
+            tests/research/test_kncc_complex_transition_engine.py \
+            tests/research/test_kncc_complex_transition_fitted_catalog.py \
+            tests/research/test_kncc_complex_transition_solver.py \
+            tests/research/test_kncc_reactome_complex_transition_fitter.py \
+            tests/research/test_kncc_reactome_complex_transition_source_guards.py \
+            tests/research/test_kncc_reactome_complex_transition_source.py \
+            tests/research/test_m09_complex_transition_facade.py \
+            tests/integration/test_m09_complex_transition_facade.py \
+            tests/integration/test_longitudinal_gbm_complex_transition_adapter.py
+          uv run coverage report --fail-under=100 \
+            --include='src/glio_proteogen/research/longitudinal_gbm_complex_transition/*.py'
+          uv run coverage report --fail-under=100 \
+            --include='src/glio_proteogen/adapters/longitudinal_gbm_complex_transition.py'
+          uv run python tools/generate_longitudinal_gbm_complex_transition_ui_fixture.py --check
+
+  longitudinal-gbm-neftel-transition-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv python install 3.12
+      - run: uv sync --locked --all-groups
+      - name: Check the fitted longitudinal GBM Neftel-transition lane
+        run: |
+          uv run ruff check \
+            src/glio_proteogen/research/longitudinal_gbm_neftel_transition \
+            src/glio_proteogen/adapters/longitudinal_gbm_neftel_transition.py \
+            tools/generate_longitudinal_gbm_neftel_transition_ui_fixture.py \
+            tools/import_kncc_neftel_program_transition_model.py \
+            tests/research/test_kncc_neftel_program_transition_importer.py \
+            tests/research/test_kncc_neftel_program_transition_runtime.py \
+            tests/research/test_kncc_neftel_transition_contract_branches.py \
+            tests/research/test_kncc_neftel_transition_censor_ablation_oracles.py \
+            tests/research/test_kncc_neftel_transition_engine_branches.py \
+            tests/research/test_kncc_neftel_transition_fitted_adversarial.py \
+            tests/research/test_kncc_neftel_transition_profile_catalog_branches.py \
+            tests/research/test_kncc_neftel_transition_scientific_oracles.py \
+            tests/integration/test_longitudinal_gbm_neftel_transition_adapter.py \
+            tests/deployment/test_operation_catalog.py
+          uv run ruff format --check \
+            src/glio_proteogen/research/longitudinal_gbm_neftel_transition \
+            src/glio_proteogen/adapters/longitudinal_gbm_neftel_transition.py \
+            tools/generate_longitudinal_gbm_neftel_transition_ui_fixture.py \
+            tools/import_kncc_neftel_program_transition_model.py \
+            tests/research/test_kncc_neftel_program_transition_importer.py \
+            tests/research/test_kncc_neftel_program_transition_runtime.py \
+            tests/research/test_kncc_neftel_transition_contract_branches.py \
+            tests/research/test_kncc_neftel_transition_censor_ablation_oracles.py \
+            tests/research/test_kncc_neftel_transition_engine_branches.py \
+            tests/research/test_kncc_neftel_transition_fitted_adversarial.py \
+            tests/research/test_kncc_neftel_transition_profile_catalog_branches.py \
+            tests/research/test_kncc_neftel_transition_scientific_oracles.py \
+            tests/integration/test_longitudinal_gbm_neftel_transition_adapter.py
+          uv run mypy --strict \
+            src/glio_proteogen/research/longitudinal_gbm_neftel_transition \
+            src/glio_proteogen/adapters/longitudinal_gbm_neftel_transition.py \
+            tools/generate_longitudinal_gbm_neftel_transition_ui_fixture.py \
+            tools/import_kncc_neftel_program_transition_model.py
+          uv run vulture \
+            src/glio_proteogen/research/longitudinal_gbm_neftel_transition \
+            src/glio_proteogen/adapters/longitudinal_gbm_neftel_transition.py \
+            tools/generate_longitudinal_gbm_neftel_transition_ui_fixture.py \
+            tools/import_kncc_neftel_program_transition_model.py \
+            --min-confidence 80
+      - name: Enforce Neftel importer, runtime, scientific, adapter, and catalog guards
+        run: |
+          uv run coverage erase
+          uv run coverage run --branch \
+            --source=glio_proteogen.research.longitudinal_gbm_neftel_transition,glio_proteogen.adapters.longitudinal_gbm_neftel_transition \
+            -m pytest -q -o addopts='' \
+            tests/research/test_kncc_neftel_program_transition_importer.py \
+            tests/research/test_kncc_neftel_program_transition_runtime.py \
+            tests/research/test_kncc_neftel_transition_contract_branches.py \
+            tests/research/test_kncc_neftel_transition_censor_ablation_oracles.py \
+            tests/research/test_kncc_neftel_transition_engine_branches.py \
+            tests/research/test_kncc_neftel_transition_fitted_adversarial.py \
+            tests/research/test_kncc_neftel_transition_profile_catalog_branches.py \
+            tests/research/test_kncc_neftel_transition_scientific_oracles.py \
+            tests/integration/test_longitudinal_gbm_neftel_transition_adapter.py \
+            tests/deployment/test_operation_catalog.py::test_v2_catalog_discovers_research_and_unlimited_governed_operations \
+            tests/deployment/test_operation_catalog.py::test_repository_validation_executes_every_typed_demo_identity
+          uv run coverage report --fail-under=100 \
+            --include='src/glio_proteogen/research/longitudinal_gbm_neftel_transition/*.py'
+          uv run coverage report --fail-under=100 \
+            --include='src/glio_proteogen/adapters/longitudinal_gbm_neftel_transition.py'
+          uv run python tools/generate_longitudinal_gbm_neftel_transition_ui_fixture.py --check
+
+  module-evaluator-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv python install 3.12
+      - run: uv sync --locked --all-groups
+      - name: Execute one deterministic module validation shard
+        run: >-
+          uv run python tools/verify_module_validation.py
+          --run-evaluators
+          --run-benchmarks
+          --evaluator-timeout-seconds 300
+          --benchmark-timeout-seconds 300
+          --shard-index "${{ matrix.shard }}"
+          --shard-count 8
+          --format json
+          --output "module-validation-${{ matrix.shard }}.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: ${{ always() }}
+        with:
+          name: module-validation-${{ matrix.shard }}
+          path: module-validation-${{ matrix.shard }}.json
+          if-no-files-found: error
 
   model-quality:
     runs-on: ubuntu-latest
@@ -48,7 +499,7 @@ jobs:
       - name: Run targeted model tests with branch coverage
         shell: bash
         run: |
-          model_tests="$(rg --files tests | rg 'test_.*(m15_05|m1505|m23_01|m2301|m23_02|m2302|m23_03|m2303|m23_04|m2304|m23_05|m2305|m23_07|m2307|m23_08|m2308|m24_02|m2402|m24_03|m2403|m24_04|m2404|m24_05|m2405|m24_06|m2406|m24_07|m2407|m24_08|m2408|m25_01|m2501|m25_02|m2502|m25_03|m2503|m25_04|m2504|m25_05|m2505|m25_06|m2506|m25_07|m2507|m25_08|m2508|m2601|m26_01|m26_02|m2602|m2603|m2604|m2605|m2606|m2607|m2608|m27_02|m2702|m27_03|m2703|m2704|m2705|m2706|m27_07|m2707|m2708|m28_04|m2804)')"
+          model_tests="$(git ls-files tests | grep -E 'test_.*(m15_05|m1505|m23_01|m2301|m23_02|m2302|m23_03|m2303|m23_04|m2304|m23_05|m2305|m23_07|m2307|m23_08|m2308|m24_02|m2402|m24_03|m2403|m24_04|m2404|m24_05|m2405|m24_06|m2406|m24_07|m2407|m24_08|m2408|m25_01|m2501|m25_02|m2502|m25_03|m2503|m25_04|m2504|m25_05|m2505|m25_06|m2506|m25_07|m2507|m25_08|m2508|m2601|m26_01|m26_02|m2602|m2603|m2604|m2605|m2606|m2607|m2608|m27_02|m2702|m27_03|m2703|m2704|m2705|m2706|m27_07|m2707|m2708|m28_04|m2804)')"
           uv run coverage erase
           uv run coverage run --branch -m pytest -q -o addopts='' \
             $model_tests \
@@ -100,7 +551,8 @@ jobs:
           uv run coverage run --branch -m pytest -q -o addopts='' \
             tests/deployment/test_asgi.py \
             tests/deployment/test_container_config.py \
-            tests/deployment/test_container_manifest.py
+            tests/deployment/test_container_manifest.py \
+            tests/deployment/test_operation_catalog.py
       - name: Enforce deployment branch coverage
         run: uv run coverage report --fail-under=100 --include=src/glio_proteogen/deployment.py
 
@@ -112,7 +564,41 @@ jobs:
         with:
           persist-credentials: false
       - name: Build the production image
-        run: docker build --tag glio-proteogen:ci .
+        run: >-
+          docker build
+          --build-arg VCS_REF="$GITHUB_SHA"
+          --build-arg SOURCE_DATE_EPOCH=315532800
+          --tag glio-proteogen:ci .
+      - name: Emit backend SBOM and reproducibility evidence
+        run: |
+          docker run --rm --entrypoint python glio-proteogen:ci -c \
+            "import importlib.metadata as m,json; packages=sorted(({'name': d.metadata['Name'], 'version': d.version} for d in m.distributions()), key=lambda item: (item['name'].lower(), item['version'])); print(json.dumps(packages, sort_keys=True, separators=(',', ':')))" \
+            > backend-python-packages.json
+          jq '{bomFormat:"CycloneDX",specVersion:"1.5",version:1,metadata:{component:{type:"application",name:"glio-proteogen"}},components:map({type:"library",name:.name,version:.version})}' \
+            backend-python-packages.json > backend-sbom.cdx.json
+          docker image inspect glio-proteogen:ci > backend-image-inspect.json
+          find src -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum \
+            > backend-build-inputs.sha256
+          sha256sum Dockerfile docker-entrypoint.sh pyproject.toml uv.lock README.md \
+            backend-sbom.cdx.json >> backend-build-inputs.sha256
+          docker image inspect glio-proteogen:ci \
+            --format '{{json .RootFS.Layers}}' > backend-rootfs-layers.json
+          jq -n \
+            --arg image_id "$(docker image inspect glio-proteogen:ci --format '{{.Id}}')" \
+            --arg vcs_ref "$GITHUB_SHA" \
+            --arg source_date_epoch "315532800" \
+            --arg build_inputs_sha256 "$(sha256sum backend-build-inputs.sha256 | cut -d' ' -f1)" \
+            '{schema:"glio-container-reproducibility/1.0.0",image_id:$image_id,vcs_ref:$vcs_ref,source_date_epoch:$source_date_epoch,build_inputs_manifest_sha256:$build_inputs_sha256}' \
+            > backend-reproducibility.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: backend-container-evidence
+          path: |
+            backend-sbom.cdx.json
+            backend-image-inspect.json
+            backend-build-inputs.sha256
+            backend-rootfs-layers.json
+            backend-reproducibility.json
       - name: Start the production image
         run: |
           docker run --detach --name glio-proteogen-ci --publish 8000:8000 \
@@ -147,6 +633,104 @@ jobs:
         run: |
           docker rm --force glio-proteogen-ci
           docker volume rm --force glio-proteogen-ci-data
+
+  compose-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs:
+      - container-smoke
+      - ui-quality
+    env:
+      GLIO_PROTEOGEN_VCS_REF: ${{ github.sha }}
+      SOURCE_DATE_EPOCH: "315532800"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Validate the linked service manifest
+        run: docker compose config --quiet
+      - name: Start the linked workbench and API
+        run: docker compose up --build --detach --wait --wait-timeout 240
+      - name: Exercise analysis and replay through the browser-facing proxy
+        run: |
+          curl --fail --silent http://127.0.0.1:3000/healthz
+          curl --fail --silent http://127.0.0.1:8000/livez
+          curl --fail --silent http://127.0.0.1:8000/readyz
+          curl --fail --silent http://127.0.0.1:3773/ --output /dev/null
+          curl --fail --silent \
+            --cookie-jar auth-cookies.txt \
+            --dump-header registration-headers.txt \
+            --header 'content-type: application/json' \
+            --data '{"email":"compose-smoke@example.invalid","password":"compose-smoke-password"}' \
+            http://127.0.0.1:3000/api/auth/register \
+            --output registration-result.json
+          jq -e \
+            '.account.email == "compose-smoke@example.invalid" and .pairingAvailable == true and (.pairing.credential | length >= 8) and (.pairing.pairingUrl | startswith("http://127.0.0.1:3773/pair#token="))' \
+            registration-result.json
+          grep -Eiq '^set-cookie: glio_session=.*Path=/api;.*HttpOnly;.*SameSite=Lax' registration-headers.txt
+          curl --fail --silent \
+            --cookie auth-cookies.txt \
+            http://127.0.0.1:3000/api/auth/me \
+            --output account-result.json
+          jq -e '.account.email == "compose-smoke@example.invalid"' account-result.json
+          curl --fail --silent \
+            --cookie auth-cookies.txt \
+            --request POST \
+            http://127.0.0.1:3000/api/pairing/token \
+            --output pairing-result.json
+          jq -e --slurpfile registration registration-result.json \
+            '.pairing.credential != $registration[0].pairing.credential' \
+            pairing-result.json
+          test "$(date --date="$(jq --raw-output '.pairing.expiresAt' pairing-result.json)" +%s)" -gt "$(date +%s)"
+          test "$(curl --silent --output unauthenticated-pairing.json --write-out '%{http_code}' --request POST http://127.0.0.1:3000/api/pairing/token)" = 401
+          docker compose exec -T ui test -f /data/glio-auth/auth.sqlite3
+          docker compose exec -T t3-code test -d /data/t3/userdata
+          curl --fail --silent \
+            --cookie auth-cookies.txt \
+            --trace-ascii proxy-request.trace \
+            http://127.0.0.1:3000/backend/v1/research/proteogenomic-state/demo \
+            --output demo-request.json
+          ! grep -Eiq 'Cookie:.*glio_session' proxy-request.trace
+          curl --fail --silent \
+            --header 'content-type: application/json' \
+            --data-binary @demo-request.json \
+            http://127.0.0.1:3000/backend/v1/research/proteogenomic-state/analyze \
+            --output analysis-result.json
+          jq -n \
+            --slurpfile request demo-request.json \
+            --slurpfile result analysis-result.json \
+            '{request:$request[0],result:$result[0]}' > replay-request.json
+          curl --fail --silent \
+            --header 'content-type: application/json' \
+            --data-binary @replay-request.json \
+            http://127.0.0.1:3000/backend/v1/research/proteogenomic-state/verify \
+            --output replay-result.json
+          jq -e \
+            '.verified == true and .request_digest_match == true and .profile_digest_match == true and .solver_trace_match == true and .result_digest_match == true and .semantic_match == true' \
+            replay-result.json
+          curl --fail --silent --cookie auth-cookies.txt --request POST http://127.0.0.1:3000/api/auth/logout --output logout-result.json
+          jq -e '.ok == true' logout-result.json
+          test "$(curl --silent --cookie auth-cookies.txt --output signed-out.json --write-out '%{http_code}' http://127.0.0.1:3000/api/auth/me)" = 401
+      - name: Confirm container isolation
+        run: |
+          api_container="$(docker compose ps --quiet glio-proteogen)"
+          t3_container="$(docker compose ps --quiet t3-code)"
+          ui_container="$(docker compose ps --quiet ui)"
+          test "$(docker compose exec -T glio-proteogen id -u)" != 0
+          test "$(docker compose exec -T t3-code id -u)" != 0
+          test "$(docker compose exec -T ui id -u)" != 0
+          test "$(docker inspect --format '{{.HostConfig.ReadonlyRootfs}}' "$api_container")" = true
+          test "$(docker inspect --format '{{.HostConfig.ReadonlyRootfs}}' "$t3_container")" = true
+          test "$(docker inspect --format '{{.HostConfig.ReadonlyRootfs}}' "$ui_container")" = true
+          if docker compose exec -T glio-proteogen touch /rootfs-write-probe; then exit 1; fi
+          if docker compose exec -T t3-code touch /rootfs-write-probe; then exit 1; fi
+          if docker compose exec -T ui touch /rootfs-write-probe; then exit 1; fi
+      - name: Show service logs on failure
+        if: failure()
+        run: docker compose logs --no-color
+      - name: Remove the linked deployment
+        if: always()
+        run: docker compose down --volumes --remove-orphans
 
   windows-m04-03-interface:
     runs-on: windows-latest
@@ -301,12 +885,18 @@ jobs:
           uv run pytest -o addopts="" --strict-config --strict-markers --no-cov
           tests/integration/test_m05_04_interfaces.py
 
-  test-and-eval:
+  test-shards:
     runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
     env:
       SOURCE_DATE_EPOCH: "315532800"
-    # M04-07 focused tests plus its locked evaluator measured over 32 minutes locally.
-    timeout-minutes: 90
+      SHARD_COUNT: "12"
+      SHARD_INDEX: "${{ matrix.shard }}"
+      COVERAGE_FILE: ".coverage.${{ matrix.shard }}"
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -318,7 +908,162 @@ jobs:
       - run: uv python install 3.12
       - run: uv sync --locked --all-groups
       - run: uv build --out-dir dist
-      - run: uv run pytest tests
+      - name: Select one deterministic test-file shard
+        shell: bash
+        run: |
+          # These cases rebuild a governed prerequisite chain per test; source
+          # size materially underestimates their runtime under branch coverage.
+          runtime_weighted_files=(
+            tests/modules/c04_proteoform_isoform/test_m04_07_lifecycle_admission.py
+            tests/modules/c04_proteoform_isoform/test_m04_07_lifecycle_capabilities.py
+            tests/modules/c04_proteoform_isoform/test_m04_07_lifecycle_execution.py
+          )
+          for path in "${runtime_weighted_files[@]}"; do
+            test -f "$path"
+          done
+          mapfile -t ranked_files < <(
+            git ls-files tests \
+              | grep -E '(^|/)test_.*\.py$|(^|/).*_test\.py$' \
+              | grep -Fvx \
+                  -e "${runtime_weighted_files[0]}" \
+                  -e "${runtime_weighted_files[1]}" \
+                  -e "${runtime_weighted_files[2]}" \
+              | while IFS= read -r path; do
+                  printf '%012d %s\n' "$(wc -c < "$path")" "$path"
+                done \
+              | LC_ALL=C sort -k1,1nr -k2,2 \
+              | cut -d ' ' -f 2-
+          )
+          selected_files=()
+          case "$SHARD_INDEX" in
+            0) selected_files+=("${runtime_weighted_files[0]}") ;;
+            4) selected_files+=("${runtime_weighted_files[1]}") ;;
+            8) selected_files+=("${runtime_weighted_files[2]}") ;;
+          esac
+          for position in "${!ranked_files[@]}"; do
+            if (( position % SHARD_COUNT == SHARD_INDEX )); then
+              selected_files+=("${ranked_files[$position]}")
+            fi
+          done
+          test "${#selected_files[@]}" -gt 0
+          printf '%s\n' "${selected_files[@]}" > "test-shard-${SHARD_INDEX}.manifest.txt"
+      - name: Execute one complete test and branch-coverage shard
+        shell: bash
+        run: |
+          mapfile -t selected_files < "test-shard-${SHARD_INDEX}.manifest.txt"
+          # Bind collection to the checked-out source tree: tooling tests create
+          # disposable packages named glio_proteogen that must never enter the
+          # combined repository coverage database.
+          uv run pytest "${selected_files[@]}" \
+            -o addopts='' \
+            --strict-config \
+            --strict-markers \
+            --cov=src/glio_proteogen \
+            --cov-report= \
+            --cov-fail-under=0 \
+            --junitxml="module-tests-${SHARD_INDEX}.junit.xml"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: ${{ always() }}
+        with:
+          name: test-shard-${{ matrix.shard }}
+          path: |
+            test-shard-${{ matrix.shard }}.manifest.txt
+            module-tests-${{ matrix.shard }}.junit.xml
+            .coverage.${{ matrix.shard }}
+          include-hidden-files: true
+          if-no-files-found: error
+
+  test-and-eval:
+    runs-on: ubuntu-latest
+    needs: test-shards
+    if: ${{ always() }}
+    timeout-minutes: 30
+    env:
+      SOURCE_DATE_EPOCH: "315532800"
+      SHARD_COUNT: "12"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv python install 3.12
+      - run: uv sync --locked --all-groups
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: test-shard-*
+          path: test-shards
+      - name: Verify exact-once test-file partitioning
+        shell: bash
+        run: |
+          mapfile -d '' manifests < <(
+            find test-shards -type f -name 'test-shard-*.manifest.txt' -print0 \
+              | LC_ALL=C sort -z
+          )
+          test "${#manifests[@]}" -eq "$SHARD_COUNT"
+          cat "${manifests[@]}" | LC_ALL=C sort > actual-test-files.txt
+          git ls-files tests \
+            | grep -E '(^|/)test_.*\.py$|(^|/).*_test\.py$' \
+            | LC_ALL=C sort > expected-test-files.txt
+          diff -u expected-test-files.txt actual-test-files.txt
+      - name: Combine branch coverage and enforce the global gate
+        run: |
+          uv run coverage combine --keep test-shards/test-shard-*
+          uv run coverage xml -o coverage.xml
+          uv run coverage report --fail-under=95
+      - name: Bind every module to fresh test and coverage evidence
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          mapfile -d '' junit_reports < <(
+            find test-shards -type f -name 'module-tests-*.junit.xml' -print0 \
+              | LC_ALL=C sort -z
+          )
+          test "${#junit_reports[@]}" -eq "$SHARD_COUNT"
+          junit_arguments=()
+          for report in "${junit_reports[@]}"; do
+            junit_arguments+=(--junit-xml "$report")
+          done
+          uv run python tools/verify_module_validation.py \
+            "${junit_arguments[@]}" \
+            --coverage-report coverage.xml \
+            --format json \
+            --output module-test-coverage-validation.json
+      - name: Require every test shard to pass
+        if: ${{ always() }}
+        env:
+          TEST_SHARDS_RESULT: "${{ needs['test-shards'].result }}"
+        run: test "$TEST_SHARDS_RESULT" = success
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: ${{ always() }}
+        with:
+          name: module-test-coverage-validation
+          path: |
+            test-shards/**/module-tests-*.junit.xml
+            test-shards/**/test-shard-*.manifest.txt
+            coverage.xml
+            module-test-coverage-validation.json
+          if-no-files-found: error
+
+  evaluator-receipts:
+    runs-on: ubuntu-latest
+    env:
+      SOURCE_DATE_EPOCH: "315532800"
+    # Evaluator receipts are independent of the global coverage report and can run
+    # concurrently instead of consuming the required test-and-eval timeout budget.
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv python install 3.12
+      - run: uv sync --locked --all-groups
       - run: uv run python -m evals.m01_01.run --output m01_01-eval.json
       - run: uv run python -m evals.m01_02.run --output m01_02-eval.json
       - run: uv run python -m evals.m01_03.run --output m01_03-eval.json
@@ -358,7 +1103,8 @@ jobs:
       - run: uv run python -m evals.m05_08.run --output m05_08-eval.json
       - name: Execute research-only proteomics evaluator and verifier
         run: |
-          uv run python -m evals.research_proteomics.run > research-proteomics-eval.json
+          uv run python tools/emit_research_pipeline_evidence.py \
+            --output research-proteomics-eval.json
           uv run python tools/verify_research_pipeline.py \
             research-proteomics-eval.json --allow-metadata-only
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -521,6 +1267,9 @@ jobs:
         with:
           name: m04-07-eval
           path: m04_07-eval.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
           name: m05-02-eval
           path: m05_02-eval.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -546,7 +1295,7 @@ jobs:
 
   microbenchmarks:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -754,6 +1503,9 @@ jobs:
         with:
           name: m04-07-benchmark
           path: m04_07-benchmark.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
           name: m05-02-benchmark
           path: m05_02-benchmark.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -806,13 +1558,37 @@ jobs:
           uv pip check --python "$build_python"
           uv build --python "$build_python" --no-build-isolation --offline --out-dir dist-one
           uv build --python "$build_python" --no-build-isolation --offline --out-dir dist-two
+          test "$(find dist-one -maxdepth 1 -type f -name '*.whl' | wc -l)" -eq 1
+          test "$(find dist-one -maxdepth 1 -type f -name '*.tar.gz' | wc -l)" -eq 1
+          test "$(find dist-two -maxdepth 1 -type f -name '*.whl' | wc -l)" -eq 1
+          test "$(find dist-two -maxdepth 1 -type f -name '*.tar.gz' | wc -l)" -eq 1
           sha256sum dist-one/* | sed 's#dist-one/##' > dist-one.sha256
           sha256sum dist-two/* | sed 's#dist-two/##' > dist-two.sha256
           diff --unified dist-one.sha256 dist-two.sha256
+          wheel="$(find "$GITHUB_WORKSPACE/dist-one" -maxdepth 1 -type f -name '*.whl')"
+          sdist="$(find "$GITHUB_WORKSPACE/dist-one" -maxdepth 1 -type f -name '*.tar.gz')"
+          replay_wheel="$(find "$GITHUB_WORKSPACE/dist-two" -maxdepth 1 -type f -name '*.whl')"
+          replay_sdist="$(find "$GITHUB_WORKSPACE/dist-two" -maxdepth 1 -type f -name '*.tar.gz')"
+          candidate_receipt="$RUNNER_TEMP/current-candidate-receipt.json"
+          uv run python tools/current_candidate_receipt.py generate \
+            --wheel "$wheel" \
+            --sdist "$sdist" \
+            --replay-wheel "$replay_wheel" \
+            --replay-sdist "$replay_sdist" \
+            --source-commit "$GITHUB_SHA" \
+            --output "$candidate_receipt"
+          uv run python tools/current_candidate_receipt.py verify \
+            "$candidate_receipt" \
+            --wheel "$wheel" \
+            --sdist "$sdist" \
+            --replay-wheel "$replay_wheel" \
+            --replay-sdist "$replay_sdist" \
+            --source-commit "$GITHUB_SHA"
+          echo "PACKAGE_REPLAY_WHEEL=$wheel" >> "$GITHUB_ENV"
+          echo "PACKAGE_REPLAY_SDIST=$sdist" >> "$GITHUB_ENV"
+          echo "PACKAGE_REPLAY_CANDIDATE_RECEIPT=$candidate_receipt" >> "$GITHUB_ENV"
       - name: Replay from the built wheel in a clean environment
         run: |
-          test "$(find dist-one -maxdepth 1 -type f -name '*.whl' | wc -l)" -eq 1
-          wheel="$(find "$GITHUB_WORKSPACE/dist-one" -maxdepth 1 -type f -name '*.whl')"
           requirements="$RUNNER_TEMP/runtime-requirements.txt"
           runtime_environment="$RUNNER_TEMP/package-replay"
           runtime_python="$runtime_environment/bin/python"
@@ -823,20 +1599,23 @@ jobs:
             --require-hashes \
             --no-deps \
             --requirement "$requirements"
-          uv pip install --python "$runtime_python" --no-deps "$wheel"
+          uv pip install --python "$runtime_python" --no-deps "$PACKAGE_REPLAY_WHEEL"
           uv pip check --python "$runtime_python"
           (
             cd "$RUNNER_TEMP"
             "$runtime_python" -I \
               "$GITHUB_WORKSPACE/tools/verify_release_artifacts.py" \
               installed-wheel \
-              "$wheel"
+              "$PACKAGE_REPLAY_WHEEL"
           )
-          sdist="$(find "$GITHUB_WORKSPACE/dist-one" -maxdepth 1 -type f -name '*.tar.gz')"
           "$runtime_python" -I \
             "$GITHUB_WORKSPACE/tools/verify_research_pipeline.py" \
             docs/evidence/research-foundation/evaluation.json \
-            "$wheel" "$sdist"
+            "$PACKAGE_REPLAY_WHEEL" "$PACKAGE_REPLAY_SDIST" \
+            --candidate-receipt "$PACKAGE_REPLAY_CANDIDATE_RECEIPT" \
+            --expected-source-commit "$GITHUB_SHA"
           "$runtime_python" -I \
             "$GITHUB_WORKSPACE/tools/verify_research_public_proteomics.py" \
-            "$wheel" "$sdist"
+            "$PACKAGE_REPLAY_WHEEL" "$PACKAGE_REPLAY_SDIST" \
+            --candidate-receipt "$PACKAGE_REPLAY_CANDIDATE_RECEIPT" \
+            --expected-source-commit "$GITHUB_SHA"

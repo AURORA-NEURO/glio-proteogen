@@ -10,7 +10,43 @@ permissions:
   contents: read
 
 jobs:
+  module-evaluator-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv python install 3.12
+      - run: uv sync --locked --all-groups
+      - name: Execute one deterministic release validation shard
+        run: >-
+          uv run python tools/verify_module_validation.py
+          --run-evaluators
+          --run-benchmarks
+          --evaluator-timeout-seconds 300
+          --benchmark-timeout-seconds 300
+          --shard-index "${{ matrix.shard }}"
+          --shard-count 8
+          --format json
+          --output "release-module-validation-${{ matrix.shard }}.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: ${{ always() }}
+        with:
+          name: release-module-validation-${{ matrix.shard }}
+          path: release-module-validation-${{ matrix.shard }}.json
+          if-no-files-found: error
+
   build-test-and-attest-candidate:
+    needs: module-evaluator-validation
     runs-on: ubuntu-latest
     # M04-07 focused tests plus its locked evaluator measured over 32 minutes before
     # the remaining release audit, benchmark, build, SBOM, and attestation steps.
@@ -44,6 +80,13 @@ jobs:
           uv build --out-dir dist
           uv run pytest tests \
             --junitxml=evidence/tests.junit.xml --cov-report=xml:evidence/coverage.xml
+      - name: Bind every module to fresh test and coverage evidence
+        run: >-
+          uv run python tools/verify_module_validation.py
+          --junit-xml evidence/tests.junit.xml
+          --coverage-report evidence/coverage.xml
+          --format json
+          --output evidence/module-test-coverage-validation.json
       - name: Execute module evaluations and benchmarks
         run: |
           uv run python -m evals.m01_01.run --output evidence/m01-01-eval.json
@@ -127,7 +170,8 @@ jobs:
           uv run python -m evals.m05_06.benchmark --output evidence/m05-06-benchmark.json
           uv run python -m evals.m05_04.benchmark --output evidence/m05-04-benchmark.json
           uv run python -m evals.m05_08.benchmark --iterations 10 --output evidence/m05-08-benchmark.json
-          uv run python -m evals.research_proteomics.run > evidence/research-proteomics-eval.json
+          uv run python tools/emit_research_pipeline_evidence.py \
+            --output evidence/research-proteomics-eval.json
           uv run python -m evals.m26_08.benchmark > evidence/m26-08-benchmark.json
           uv run python tools/verify_release_artifacts.py m04-03-evidence \
             evidence/m04-03-eval.json evidence/m04-03-benchmark.json
@@ -149,11 +193,6 @@ jobs:
           uv run python tools/verify_release_artifacts.py m05-04-evidence \
             evidence/m05-04-eval.json evidence/m05-04-benchmark.json \
             tests/fixtures/m05_04/scenarios.json
-          uv run python tools/verify_m2608_release.py \
-            evidence/m26-08-eval.json evidence/m26-08-benchmark.json \
-            release-evidence/m26_08/package.json tests/fixtures/m26_08/scenarios.json \
-            --wheel "$(find release-build-one -maxdepth 1 -type f -name '*.whl' -print -quit)" \
-            --sdist "$(find release-build-one -maxdepth 1 -type f -name '*.tar.gz' -print -quit)"
       - name: Audit the full locked development environment
         run: |
           uv run pip-audit --local --format json --progress-spinner off --output evidence/full-environment-dependency-audit.json
@@ -197,13 +236,44 @@ jobs:
           uv build --python "$build_python" --no-build-isolation --offline --out-dir release-build-two
           test "$(find release-build-one -maxdepth 1 -type f -name '*.whl' | wc -l)" -eq 1
           test "$(find release-build-one -maxdepth 1 -type f -name '*.tar.gz' | wc -l)" -eq 1
+          test "$(find release-build-two -maxdepth 1 -type f -name '*.whl' | wc -l)" -eq 1
+          test "$(find release-build-two -maxdepth 1 -type f -name '*.tar.gz' | wc -l)" -eq 1
           (cd release-build-one && sha256sum * | sort) > "$RUNNER_TEMP/distribution-one.sha256"
           (cd release-build-two && sha256sum * | sort) > "$RUNNER_TEMP/distribution-two.sha256"
           diff --unified "$RUNNER_TEMP/distribution-one.sha256" "$RUNNER_TEMP/distribution-two.sha256"
           cp release-build-one/* evidence/distribution/
           cp "$RUNNER_TEMP/distribution-one.sha256" evidence/distribution-reproducibility.sha256
           wheel="$(find "$GITHUB_WORKSPACE/evidence/distribution" -maxdepth 1 -type f -name '*.whl')"
+          sdist="$(find "$GITHUB_WORKSPACE/evidence/distribution" -maxdepth 1 -type f -name '*.tar.gz')"
           echo "RELEASE_WHEEL=$wheel" >> "$GITHUB_ENV"
+          echo "RELEASE_SDIST=$sdist" >> "$GITHUB_ENV"
+      - name: Generate and verify the current candidate receipt
+        run: |
+          replay_wheel="$(find "$GITHUB_WORKSPACE/release-build-two" -maxdepth 1 -type f -name '*.whl')"
+          replay_sdist="$(find "$GITHUB_WORKSPACE/release-build-two" -maxdepth 1 -type f -name '*.tar.gz')"
+          candidate_receipt="$GITHUB_WORKSPACE/evidence/current-candidate-receipt.json"
+          uv run python tools/current_candidate_receipt.py generate \
+            --wheel "$RELEASE_WHEEL" \
+            --sdist "$RELEASE_SDIST" \
+            --replay-wheel "$replay_wheel" \
+            --replay-sdist "$replay_sdist" \
+            --source-commit "$GITHUB_SHA" \
+            --output "$candidate_receipt"
+          uv run python tools/current_candidate_receipt.py verify \
+            "$candidate_receipt" \
+            --wheel "$RELEASE_WHEEL" \
+            --sdist "$RELEASE_SDIST" \
+            --replay-wheel "$replay_wheel" \
+            --replay-sdist "$replay_sdist" \
+            --source-commit "$GITHUB_SHA"
+          uv run python tools/verify_m2608_release.py \
+            evidence/m26-08-eval.json evidence/m26-08-benchmark.json \
+            release-evidence/m26_08/package.json tests/fixtures/m26_08/scenarios.json \
+            --wheel "$RELEASE_WHEEL" \
+            --sdist "$RELEASE_SDIST" \
+            --candidate-receipt "$candidate_receipt" \
+            --expected-source-commit "$GITHUB_SHA"
+          echo "RELEASE_CANDIDATE_RECEIPT=$candidate_receipt" >> "$GITHUB_ENV"
       - name: Install and test the exact candidate wheel
         run: |
           runtime_environment="$RUNNER_TEMP/glio-proteogen-runtime"
@@ -229,14 +299,17 @@ jobs:
               "${tag_arguments[@]}" \
               --report "$GITHUB_WORKSPACE/evidence/installed-wheel-verification.json"
           )
-          research_sdist="$(find "$GITHUB_WORKSPACE/evidence/distribution" -maxdepth 1 -type f -name '*.tar.gz' -print -quit)"
           "$runtime_python" -I \
             "$GITHUB_WORKSPACE/tools/verify_research_pipeline.py" \
             "$GITHUB_WORKSPACE/evidence/research-proteomics-eval.json" \
-            "$RELEASE_WHEEL" "$research_sdist"
+            "$RELEASE_WHEEL" "$RELEASE_SDIST" \
+            --candidate-receipt "$RELEASE_CANDIDATE_RECEIPT" \
+            --expected-source-commit "$GITHUB_SHA"
           "$runtime_python" -I \
             "$GITHUB_WORKSPACE/tools/verify_research_public_proteomics.py" \
-            "$RELEASE_WHEEL" "$research_sdist"
+            "$RELEASE_WHEEL" "$RELEASE_SDIST" \
+            --candidate-receipt "$RELEASE_CANDIDATE_RECEIPT" \
+            --expected-source-commit "$GITHUB_SHA"
           echo "RELEASE_RUNTIME_PYTHON=$runtime_python" >> "$GITHUB_ENV"
       - name: Generate reproducible runtime SBOM from the wheel environment
         run: |

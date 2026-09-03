@@ -1,4 +1,4 @@
-# ruff: noqa: PLR2004, T201, TRY003
+# ruff: noqa: E402, PLR0913, PLR2004, T201, TRY003
 """Verify the locked, research-only proteomics evaluator and package surface.
 
 This verifier deliberately checks computation identity and package reachability,
@@ -59,19 +59,26 @@ _EXPECTED_SOURCE_DATE_EPOCH = 315532800
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from evals.research_proteomics.cohort import (  # noqa: E402
+from evals.research_proteomics.cohort import (
     run_evaluator as run_cohort_evaluator,
 )
-from evals.research_proteomics.fdr_quant_group_invariants import (  # noqa: E402
+from evals.research_proteomics.fdr_quant_group_invariants import (
     run_fdr_quant_group_invariants_evaluator,
 )
-from evals.research_proteomics.mzidentml_provenance import (  # noqa: E402
+from evals.research_proteomics.mzidentml_provenance import (
     run_mzidentml_provenance_evaluator,
 )
-from evals.research_proteomics.precursor_policy import (  # noqa: E402
+from evals.research_proteomics.precursor_policy import (
     run_precursor_policy_evaluator,
 )
-from evals.research_proteomics.run import run_benchmark, run_evaluator  # noqa: E402
+from evals.research_proteomics.run import run_benchmark, run_evaluator
+
+from tools.current_candidate_receipt import (
+    artifact_receipt,
+)
+from tools.current_candidate_receipt import (
+    verify_receipt as verify_candidate_receipt,
+)
 
 
 class VerificationError(ValueError):
@@ -356,6 +363,8 @@ def verify(
     package_evidence: Path = _EVIDENCE / "package.json",
     *,
     allow_metadata_only: bool = False,
+    candidate_receipt: Path | None = None,
+    expected_source_commit: str | None = None,
 ) -> None:
     """Verify evaluator evidence and package reachability.
 
@@ -366,11 +375,23 @@ def verify(
     fixture_sha256 = _verify_evaluation(evaluation)
     if (wheel is None) != (sdist is None):
         raise VerificationError("wheel and sdist must be supplied together")
+    _verify_package_receipt(package_evidence, None, None, fixture_sha256)
     if wheel is not None and sdist is not None:
         _require_installed_research_runtime()
-        _verify_package_receipt(package_evidence, wheel, sdist, fixture_sha256)
+        if candidate_receipt is None:
+            _verify_package_receipt(package_evidence, wheel, sdist, fixture_sha256)
+        else:
+            receipt = verify_candidate_receipt(
+                candidate_receipt,
+                wheel,
+                sdist,
+                expected_source_commit=expected_source_commit,
+            )
+            _verify_package(wheel, artifact_receipt(receipt, "wheel"))
+            _verify_package(sdist, artifact_receipt(receipt, "sdist"))
     elif allow_metadata_only:
-        _verify_package_receipt(package_evidence, None, None, fixture_sha256)
+        if candidate_receipt is not None:
+            raise VerificationError("candidate receipt requires wheel and sdist artifacts")
     else:
         raise VerificationError("wheel and sdist are required for package verification")
 
@@ -381,6 +402,8 @@ def main() -> int:
     parser.add_argument("wheel", type=Path, nargs="?")
     parser.add_argument("sdist", type=Path, nargs="?")
     parser.add_argument("--package-evidence", type=Path, default=_EVIDENCE / "package.json")
+    parser.add_argument("--candidate-receipt", type=Path)
+    parser.add_argument("--expected-source-commit")
     parser.add_argument(
         "--allow-metadata-only",
         action="store_true",
@@ -394,6 +417,8 @@ def main() -> int:
             args.sdist,
             args.package_evidence,
             allow_metadata_only=args.allow_metadata_only,
+            candidate_receipt=args.candidate_receipt,
+            expected_source_commit=args.expected_source_commit,
         )
     except (OSError, KeyError, TypeError, ValueError, tarfile.TarError) as error:
         print(f"research pipeline verification failed: {error}", file=sys.stderr)

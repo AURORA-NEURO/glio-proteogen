@@ -56,6 +56,12 @@ class RequestSizeLimitMiddleware:
         path = scope.get("path", "")
         for prefix, (request_max_bytes, result_max_bytes) in self._route_limits:
             if path == prefix or path.startswith(f"{prefix}/"):
+                # An exact route declaration can distinguish a replay request
+                # envelope from that operation's independently bounded result.
+                # Family declarations retain the legacy behavior where a
+                # nested ``/verify`` consumes the family's result envelope.
+                if path == prefix:
+                    return request_max_bytes
                 if result_max_bytes is not None and path.endswith("/verify"):
                     return result_max_bytes
                 return request_max_bytes
@@ -102,7 +108,11 @@ class RequestSizeLimitMiddleware:
 
     @staticmethod
     async def _respond(scope: Scope, send: Send, status_code: int, detail: str) -> None:
-        response = JSONResponse(status_code=status_code, content={"detail": detail})
+        response = JSONResponse(
+            status_code=status_code,
+            content={"detail": detail},
+            headers={"Cache-Control": "no-store"},
+        )
         await response(scope, _empty_receive, send)
 
 

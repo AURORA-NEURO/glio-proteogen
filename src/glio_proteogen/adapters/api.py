@@ -18,8 +18,161 @@ from glio_proteogen.adapters import m1905 as m1905_adapter
 from glio_proteogen.adapters import m2002 as m2002_adapter
 from glio_proteogen.adapters import m2003 as m2003_adapter
 from glio_proteogen.adapters import m2004 as m2004_adapter
+from glio_proteogen.adapters.gbm_factor_graph import (
+    GBM_FACTOR_GRAPH_REPLAY_MAX_BYTES,
+    GBM_FACTOR_GRAPH_REQUEST_MAX_BYTES,
+    GBM_FACTOR_GRAPH_RESULT_MAX_BYTES,
+    GBM_FACTOR_GRAPH_ROUTE_PREFIX,
+    install_gbm_factor_graph_openapi,
+    mount_gbm_factor_graph,
+)
+from glio_proteogen.adapters.gbm_functional_proteotype import (
+    GBM_FUNCTIONAL_PROTEOTYPE_REPLAY_MAX_BYTES,
+    GBM_FUNCTIONAL_PROTEOTYPE_REQUEST_MAX_BYTES,
+    GBM_FUNCTIONAL_PROTEOTYPE_RESULT_MAX_BYTES,
+    GBM_FUNCTIONAL_PROTEOTYPE_ROUTE_PREFIX,
+    install_gbm_functional_proteotype_openapi,
+)
+from glio_proteogen.adapters.gbm_functional_proteotype import (
+    router as gbm_functional_proteotype_router,
+)
+from glio_proteogen.adapters.gbm_master_kinases import (
+    GBM_MASTER_KINASES_REPLAY_MAX_BYTES,
+    GBM_MASTER_KINASES_REQUEST_MAX_BYTES,
+    GBM_MASTER_KINASES_RESULT_MAX_BYTES,
+    GBM_MASTER_KINASES_ROUTE_PREFIX,
+    install_gbm_master_kinases_openapi,
+)
+from glio_proteogen.adapters.gbm_master_kinases import (
+    router as gbm_master_kinases_router,
+)
+from glio_proteogen.adapters.gbm_rna_purity import (
+    GBM_RNA_PURITY_REPLAY_MAX_BYTES,
+    GBM_RNA_PURITY_REQUEST_MAX_BYTES,
+    GBM_RNA_PURITY_RESULT_MAX_BYTES,
+    GBM_RNA_PURITY_ROUTE_PREFIX,
+    install_gbm_rna_purity_openapi,
+)
+from glio_proteogen.adapters.gbm_rna_purity import router as gbm_rna_purity_router
+from glio_proteogen.adapters.glioma_models import (
+    GBM_AXES_REPLAY_MAX_BYTES,
+    GBM_AXES_REQUEST_MAX_BYTES,
+    GBM_AXES_RESULT_MAX_BYTES,
+    GBM_AXES_ROUTE_PREFIX,
+    install_glioma_models_openapi,
+)
+from glio_proteogen.adapters.glioma_models import router as glioma_models_router
 from glio_proteogen.adapters.limits import MAX_REQUEST_BYTES, RequestSizeLimitMiddleware
+from glio_proteogen.adapters.longitudinal_gbm import (
+    LONGITUDINAL_GBM_REPLAY_MAX_BYTES,
+    LONGITUDINAL_GBM_REQUEST_MAX_BYTES,
+    LONGITUDINAL_GBM_RESULT_MAX_BYTES,
+    LONGITUDINAL_GBM_ROUTE_PREFIX,
+    M15_LONGITUDINAL_RECURRENCE_ROUTE_PREFIX,
+    install_longitudinal_gbm_openapi,
+    m15_router,
+)
+from glio_proteogen.adapters.longitudinal_gbm import router as longitudinal_gbm_router
+from glio_proteogen.adapters.longitudinal_gbm_complex_transition import (
+    LONGITUDINAL_GBM_COMPLEX_TRANSITION_REPLAY_MAX_BYTES,
+    LONGITUDINAL_GBM_COMPLEX_TRANSITION_REQUEST_MAX_BYTES,
+    LONGITUDINAL_GBM_COMPLEX_TRANSITION_RESULT_MAX_BYTES,
+    LONGITUDINAL_GBM_COMPLEX_TRANSITION_ROUTE_PREFIX,
+    M09_COMPLEX_TRANSITION_REPLAY_MAX_BYTES,
+    M09_COMPLEX_TRANSITION_REQUEST_MAX_BYTES,
+    M09_COMPLEX_TRANSITION_RESULT_MAX_BYTES,
+    M09_COMPLEX_TRANSITION_ROUTE_PREFIX,
+    install_longitudinal_gbm_complex_transition_openapi,
+    mount_longitudinal_gbm_complex_transition,
+)
+from glio_proteogen.adapters.longitudinal_gbm_kinase_transition import (
+    LONGITUDINAL_GBM_KINASE_TRANSITION_REPLAY_MAX_BYTES,
+    LONGITUDINAL_GBM_KINASE_TRANSITION_REQUEST_MAX_BYTES,
+    LONGITUDINAL_GBM_KINASE_TRANSITION_RESULT_MAX_BYTES,
+    LONGITUDINAL_GBM_KINASE_TRANSITION_ROUTE_PREFIX,
+    install_longitudinal_gbm_kinase_transition_openapi,
+)
+from glio_proteogen.adapters.longitudinal_gbm_kinase_transition import (
+    router as longitudinal_gbm_kinase_transition_router,
+)
+from glio_proteogen.adapters.longitudinal_gbm_neftel_transition import (
+    LONGITUDINAL_GBM_NEFTEL_TRANSITION_REPLAY_MAX_BYTES,
+    LONGITUDINAL_GBM_NEFTEL_TRANSITION_REQUEST_MAX_BYTES,
+    LONGITUDINAL_GBM_NEFTEL_TRANSITION_RESULT_MAX_BYTES,
+    LONGITUDINAL_GBM_NEFTEL_TRANSITION_ROUTE_PREFIX,
+    install_longitudinal_gbm_neftel_transition_openapi,
+    mount_longitudinal_gbm_neftel_transition,
+)
+from glio_proteogen.adapters.longitudinal_gbm_phospho import (
+    LONGITUDINAL_GBM_PHOSPHO_REPLAY_MAX_BYTES,
+    LONGITUDINAL_GBM_PHOSPHO_REQUEST_MAX_BYTES,
+    LONGITUDINAL_GBM_PHOSPHO_RESULT_MAX_BYTES,
+    LONGITUDINAL_GBM_PHOSPHO_ROUTE_PREFIX,
+    install_longitudinal_gbm_phospho_openapi,
+)
+from glio_proteogen.adapters.longitudinal_gbm_phospho import (
+    router as longitudinal_gbm_phospho_router,
+)
+from glio_proteogen.adapters.longitudinal_gbm_reactome_transition import (
+    LONGITUDINAL_GBM_REACTOME_TRANSITION_REPLAY_MAX_BYTES,
+    LONGITUDINAL_GBM_REACTOME_TRANSITION_REQUEST_MAX_BYTES,
+    LONGITUDINAL_GBM_REACTOME_TRANSITION_RESULT_MAX_BYTES,
+    LONGITUDINAL_GBM_REACTOME_TRANSITION_ROUTE_PREFIX,
+    install_longitudinal_gbm_reactome_transition_openapi,
+    mount_longitudinal_gbm_reactome_transition,
+)
+from glio_proteogen.adapters.m10_functional_proteotype_facade import (
+    M10_FUNCTIONAL_PROTEOTYPE_REPLAY_MAX_BYTES,
+    M10_FUNCTIONAL_PROTEOTYPE_REQUEST_MAX_BYTES,
+    M10_FUNCTIONAL_PROTEOTYPE_RESULT_MAX_BYTES,
+    M10_FUNCTIONAL_PROTEOTYPE_ROUTE_PREFIX,
+    install_m10_functional_proteotype_openapi,
+)
+from glio_proteogen.adapters.m10_functional_proteotype_facade import (
+    router as m10_functional_proteotype_router,
+)
+from glio_proteogen.adapters.m11_protein_native_subtype_facade import (
+    M11_PROTEIN_NATIVE_SUBTYPE_REPLAY_MAX_BYTES,
+    M11_PROTEIN_NATIVE_SUBTYPE_REQUEST_MAX_BYTES,
+    M11_PROTEIN_NATIVE_SUBTYPE_RESULT_MAX_BYTES,
+    M11_PROTEIN_NATIVE_SUBTYPE_ROUTE_PREFIX,
+    install_m11_protein_native_subtype_openapi,
+)
+from glio_proteogen.adapters.m11_protein_native_subtype_facade import (
+    router as m11_protein_native_subtype_router,
+)
+from glio_proteogen.adapters.m14_microenvironment_protein_programs_facade import (
+    M14_MICROENVIRONMENT_PROTEIN_PROGRAMS_REPLAY_MAX_BYTES,
+    M14_MICROENVIRONMENT_PROTEIN_PROGRAMS_REQUEST_MAX_BYTES,
+    M14_MICROENVIRONMENT_PROTEIN_PROGRAMS_RESULT_MAX_BYTES,
+    M14_MICROENVIRONMENT_PROTEIN_PROGRAMS_ROUTE_PREFIX,
+    install_m14_microenvironment_protein_programs_openapi,
+)
+from glio_proteogen.adapters.m14_microenvironment_protein_programs_facade import (
+    router as m14_microenvironment_protein_programs_router,
+)
+from glio_proteogen.adapters.neftel_programs import (
+    NEFTEL_PROGRAMS_REPLAY_MAX_BYTES,
+    NEFTEL_PROGRAMS_REQUEST_MAX_BYTES,
+    NEFTEL_PROGRAMS_RESULT_MAX_BYTES,
+    NEFTEL_PROGRAMS_ROUTE_PREFIX,
+    install_neftel_programs_openapi,
+)
+from glio_proteogen.adapters.neftel_programs import router as neftel_programs_router
 from glio_proteogen.adapters.openapi import install_request_body_openapi
+from glio_proteogen.adapters.research_readiness import (
+    RESEARCH_READINESS_REGISTRY_LANE_ID,
+    ResearchReadinessError,
+    ensure_research_profiles_ready,
+)
+from glio_proteogen.adapters.research_state import (
+    RESEARCH_STATE_REPLAY_MAX_BYTES,
+    RESEARCH_STATE_REQUEST_MAX_BYTES,
+    RESEARCH_STATE_RESULT_MAX_BYTES,
+    RESEARCH_STATE_ROUTE_PREFIX,
+    install_research_state_openapi,
+)
+from glio_proteogen.adapters.research_state import router as research_state_router
 from glio_proteogen.contracts.m01_01.schema import (
     ContractName as M0101ContractName,
 )
@@ -608,6 +761,14 @@ from glio_proteogen.contracts.m18_08.v1 import (
     BiomarkerPanelTranslationMonitoringResult,
     MonitorBiomarkerPanelTranslationHealthRequest,
 )
+from glio_proteogen.contracts.m19_01 import (
+    M1901_MAX_CANONICAL_REQUEST_BYTES,
+    M1901_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m19_02 import (
+    M1902_MAX_CANONICAL_REQUEST_BYTES,
+    M1902_MAX_CANONICAL_RESULT_BYTES,
+)
 from glio_proteogen.contracts.m19_03.schema import (
     ContractName as M1903ContractName,
 )
@@ -616,6 +777,7 @@ from glio_proteogen.contracts.m19_03.schema import (
 )
 from glio_proteogen.contracts.m19_03.v1 import (
     M1903_MAX_CANONICAL_REQUEST_BYTES,
+    M1903_MAX_CANONICAL_RESULT_BYTES,
     FuseProteotypeEvidenceRequest,
     ProteotypeIntegratedEvidenceResult,
 )
@@ -627,8 +789,13 @@ from glio_proteogen.contracts.m19_04.schema import (
 )
 from glio_proteogen.contracts.m19_04.v1 import (
     M1904_MAX_CANONICAL_REQUEST_BYTES,
+    M1904_MAX_CANONICAL_RESULT_BYTES,
     AdaptProteotypeIntendedUseRequest,
     ProteotypeIntendedUseAdapterResult,
+)
+from glio_proteogen.contracts.m19_05 import (
+    M1905_MAX_CANONICAL_REQUEST_BYTES,
+    M1905_MAX_CANONICAL_RESULT_BYTES,
 )
 from glio_proteogen.contracts.m19_06.schema import (
     ContractName as M1906ContractName,
@@ -638,6 +805,7 @@ from glio_proteogen.contracts.m19_06.schema import (
 )
 from glio_proteogen.contracts.m19_06.v1 import (
     M1906_MAX_CANONICAL_REQUEST_BYTES,
+    M1906_MAX_CANONICAL_RESULT_BYTES,
     AdjudicateProteotypeQueueRequest,
     ProteotypeAdjudicationResult,
 )
@@ -663,6 +831,18 @@ from glio_proteogen.contracts.m20_01.v1 import (
     M2001_MAX_CANONICAL_RESULT_BYTES,
     ProteinSubtypeUpstreamResolutionResult,
     ResolveProteinSubtypeUpstreamContractsRequest,
+)
+from glio_proteogen.contracts.m20_02 import (
+    M2002_MAX_CANONICAL_REQUEST_BYTES,
+    M2002_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m20_03 import (
+    M2003_MAX_CANONICAL_REQUEST_BYTES,
+    M2003_MAX_CANONICAL_RESULT_BYTES,
+)
+from glio_proteogen.contracts.m20_04 import (
+    M2004_MAX_CANONICAL_REQUEST_BYTES,
+    M2004_MAX_CANONICAL_RESULT_BYTES,
 )
 from glio_proteogen.contracts.m23_01 import (
     M2301_MAX_CANONICAL_REQUEST_BYTES,
@@ -1244,6 +1424,134 @@ from ..modules.c27_complex_activity.m27_07_change_control import api as m2707_ap
 from ..modules.c27_complex_activity.m27_08_retirement import api as m2708_api
 
 _MODEL_ROUTE_LIMITS: Final[dict[str, tuple[int, int | None]]] = {
+    f"{M09_COMPLEX_TRANSITION_ROUTE_PREFIX}/verify": (
+        M09_COMPLEX_TRANSITION_REPLAY_MAX_BYTES,
+        M09_COMPLEX_TRANSITION_RESULT_MAX_BYTES,
+    ),
+    M09_COMPLEX_TRANSITION_ROUTE_PREFIX: (
+        M09_COMPLEX_TRANSITION_REQUEST_MAX_BYTES,
+        M09_COMPLEX_TRANSITION_RESULT_MAX_BYTES,
+    ),
+    f"{GBM_RNA_PURITY_ROUTE_PREFIX}/verify": (
+        GBM_RNA_PURITY_REPLAY_MAX_BYTES,
+        GBM_RNA_PURITY_RESULT_MAX_BYTES,
+    ),
+    GBM_RNA_PURITY_ROUTE_PREFIX: (
+        GBM_RNA_PURITY_REQUEST_MAX_BYTES,
+        GBM_RNA_PURITY_RESULT_MAX_BYTES,
+    ),
+    f"{GBM_FUNCTIONAL_PROTEOTYPE_ROUTE_PREFIX}/verify": (
+        GBM_FUNCTIONAL_PROTEOTYPE_REPLAY_MAX_BYTES,
+        GBM_FUNCTIONAL_PROTEOTYPE_RESULT_MAX_BYTES,
+    ),
+    GBM_FUNCTIONAL_PROTEOTYPE_ROUTE_PREFIX: (
+        GBM_FUNCTIONAL_PROTEOTYPE_REQUEST_MAX_BYTES,
+        GBM_FUNCTIONAL_PROTEOTYPE_RESULT_MAX_BYTES,
+    ),
+    f"{M10_FUNCTIONAL_PROTEOTYPE_ROUTE_PREFIX}/verify": (
+        M10_FUNCTIONAL_PROTEOTYPE_REPLAY_MAX_BYTES,
+        M10_FUNCTIONAL_PROTEOTYPE_RESULT_MAX_BYTES,
+    ),
+    M10_FUNCTIONAL_PROTEOTYPE_ROUTE_PREFIX: (
+        M10_FUNCTIONAL_PROTEOTYPE_REQUEST_MAX_BYTES,
+        M10_FUNCTIONAL_PROTEOTYPE_RESULT_MAX_BYTES,
+    ),
+    f"{M14_MICROENVIRONMENT_PROTEIN_PROGRAMS_ROUTE_PREFIX}/verify": (
+        M14_MICROENVIRONMENT_PROTEIN_PROGRAMS_REPLAY_MAX_BYTES,
+        M14_MICROENVIRONMENT_PROTEIN_PROGRAMS_RESULT_MAX_BYTES,
+    ),
+    M14_MICROENVIRONMENT_PROTEIN_PROGRAMS_ROUTE_PREFIX: (
+        M14_MICROENVIRONMENT_PROTEIN_PROGRAMS_REQUEST_MAX_BYTES,
+        M14_MICROENVIRONMENT_PROTEIN_PROGRAMS_RESULT_MAX_BYTES,
+    ),
+    f"{M11_PROTEIN_NATIVE_SUBTYPE_ROUTE_PREFIX}/verify": (
+        M11_PROTEIN_NATIVE_SUBTYPE_REPLAY_MAX_BYTES,
+        M11_PROTEIN_NATIVE_SUBTYPE_RESULT_MAX_BYTES,
+    ),
+    M11_PROTEIN_NATIVE_SUBTYPE_ROUTE_PREFIX: (
+        M11_PROTEIN_NATIVE_SUBTYPE_REQUEST_MAX_BYTES,
+        M11_PROTEIN_NATIVE_SUBTYPE_RESULT_MAX_BYTES,
+    ),
+    f"{LONGITUDINAL_GBM_KINASE_TRANSITION_ROUTE_PREFIX}/verify": (
+        LONGITUDINAL_GBM_KINASE_TRANSITION_REPLAY_MAX_BYTES,
+        LONGITUDINAL_GBM_KINASE_TRANSITION_RESULT_MAX_BYTES,
+    ),
+    LONGITUDINAL_GBM_KINASE_TRANSITION_ROUTE_PREFIX: (
+        LONGITUDINAL_GBM_KINASE_TRANSITION_REQUEST_MAX_BYTES,
+        LONGITUDINAL_GBM_KINASE_TRANSITION_RESULT_MAX_BYTES,
+    ),
+    f"{LONGITUDINAL_GBM_NEFTEL_TRANSITION_ROUTE_PREFIX}/verify": (
+        LONGITUDINAL_GBM_NEFTEL_TRANSITION_REPLAY_MAX_BYTES,
+        LONGITUDINAL_GBM_NEFTEL_TRANSITION_RESULT_MAX_BYTES,
+    ),
+    LONGITUDINAL_GBM_NEFTEL_TRANSITION_ROUTE_PREFIX: (
+        LONGITUDINAL_GBM_NEFTEL_TRANSITION_REQUEST_MAX_BYTES,
+        LONGITUDINAL_GBM_NEFTEL_TRANSITION_RESULT_MAX_BYTES,
+    ),
+    f"{LONGITUDINAL_GBM_PHOSPHO_ROUTE_PREFIX}/verify": (
+        LONGITUDINAL_GBM_PHOSPHO_REPLAY_MAX_BYTES,
+        LONGITUDINAL_GBM_PHOSPHO_RESULT_MAX_BYTES,
+    ),
+    LONGITUDINAL_GBM_PHOSPHO_ROUTE_PREFIX: (
+        LONGITUDINAL_GBM_PHOSPHO_REQUEST_MAX_BYTES,
+        LONGITUDINAL_GBM_PHOSPHO_RESULT_MAX_BYTES,
+    ),
+    f"{LONGITUDINAL_GBM_ROUTE_PREFIX}/verify": (
+        LONGITUDINAL_GBM_REPLAY_MAX_BYTES,
+        LONGITUDINAL_GBM_RESULT_MAX_BYTES,
+    ),
+    f"{M15_LONGITUDINAL_RECURRENCE_ROUTE_PREFIX}/verify": (
+        LONGITUDINAL_GBM_REPLAY_MAX_BYTES,
+        LONGITUDINAL_GBM_RESULT_MAX_BYTES,
+    ),
+    M15_LONGITUDINAL_RECURRENCE_ROUTE_PREFIX: (
+        LONGITUDINAL_GBM_REQUEST_MAX_BYTES,
+        LONGITUDINAL_GBM_RESULT_MAX_BYTES,
+    ),
+    f"{LONGITUDINAL_GBM_REACTOME_TRANSITION_ROUTE_PREFIX}/verify": (
+        LONGITUDINAL_GBM_REACTOME_TRANSITION_REPLAY_MAX_BYTES,
+        LONGITUDINAL_GBM_REACTOME_TRANSITION_RESULT_MAX_BYTES,
+    ),
+    LONGITUDINAL_GBM_REACTOME_TRANSITION_ROUTE_PREFIX: (
+        LONGITUDINAL_GBM_REACTOME_TRANSITION_REQUEST_MAX_BYTES,
+        LONGITUDINAL_GBM_REACTOME_TRANSITION_RESULT_MAX_BYTES,
+    ),
+    LONGITUDINAL_GBM_ROUTE_PREFIX: (
+        LONGITUDINAL_GBM_REQUEST_MAX_BYTES,
+        LONGITUDINAL_GBM_RESULT_MAX_BYTES,
+    ),
+    f"{GBM_MASTER_KINASES_ROUTE_PREFIX}/verify": (
+        GBM_MASTER_KINASES_REPLAY_MAX_BYTES,
+        GBM_MASTER_KINASES_REPLAY_MAX_BYTES,
+    ),
+    GBM_MASTER_KINASES_ROUTE_PREFIX: (
+        GBM_MASTER_KINASES_REQUEST_MAX_BYTES,
+        GBM_MASTER_KINASES_RESULT_MAX_BYTES,
+    ),
+    f"{GBM_AXES_ROUTE_PREFIX}/verify": (
+        GBM_AXES_REPLAY_MAX_BYTES,
+        GBM_AXES_REPLAY_MAX_BYTES,
+    ),
+    GBM_AXES_ROUTE_PREFIX: (
+        GBM_AXES_REQUEST_MAX_BYTES,
+        GBM_AXES_RESULT_MAX_BYTES,
+    ),
+    f"{NEFTEL_PROGRAMS_ROUTE_PREFIX}/verify": (
+        NEFTEL_PROGRAMS_REPLAY_MAX_BYTES,
+        NEFTEL_PROGRAMS_REPLAY_MAX_BYTES,
+    ),
+    NEFTEL_PROGRAMS_ROUTE_PREFIX: (
+        NEFTEL_PROGRAMS_REQUEST_MAX_BYTES,
+        NEFTEL_PROGRAMS_RESULT_MAX_BYTES,
+    ),
+    f"{RESEARCH_STATE_ROUTE_PREFIX}/verify": (
+        RESEARCH_STATE_REPLAY_MAX_BYTES,
+        RESEARCH_STATE_REPLAY_MAX_BYTES,
+    ),
+    RESEARCH_STATE_ROUTE_PREFIX: (
+        RESEARCH_STATE_REQUEST_MAX_BYTES,
+        RESEARCH_STATE_RESULT_MAX_BYTES,
+    ),
     "/v1/modules/M01-02": (MAX_REQUEST_BYTES, None),
     "/v1/modules/M03-02": (MAX_REQUEST_BYTES, None),
     "/v1/modules/M03-05": (
@@ -1423,6 +1731,75 @@ _MODEL_ROUTE_LIMITS: Final[dict[str, tuple[int, int | None]]] = {
     "/v1/modules/M28-04": (
         M2804_MAX_CANONICAL_REQUEST_BYTES,
         M2804_MAX_CANONICAL_RESULT_BYTES,
+    ),
+}
+
+# These families predate the v1 deployment catalog, so adding them to
+# ``_MODEL_ROUTE_LIMITS`` would change that compatibility surface.  They still
+# need exact transport ceilings in the central application: otherwise the
+# largest mounted module widens every unmatched request, and replay endpoints
+# are advertised with a limit larger than their strict parser accepts.
+_CENTRAL_ROUTE_LIMITS: Final[dict[str, tuple[int, int | None]]] = {
+    **_MODEL_ROUTE_LIMITS,
+    f"{LONGITUDINAL_GBM_COMPLEX_TRANSITION_ROUTE_PREFIX}/verify": (
+        LONGITUDINAL_GBM_COMPLEX_TRANSITION_REPLAY_MAX_BYTES,
+        LONGITUDINAL_GBM_COMPLEX_TRANSITION_RESULT_MAX_BYTES,
+    ),
+    LONGITUDINAL_GBM_COMPLEX_TRANSITION_ROUTE_PREFIX: (
+        LONGITUDINAL_GBM_COMPLEX_TRANSITION_REQUEST_MAX_BYTES,
+        LONGITUDINAL_GBM_COMPLEX_TRANSITION_RESULT_MAX_BYTES,
+    ),
+    f"{GBM_FACTOR_GRAPH_ROUTE_PREFIX}/verify": (
+        GBM_FACTOR_GRAPH_REPLAY_MAX_BYTES,
+        GBM_FACTOR_GRAPH_RESULT_MAX_BYTES,
+    ),
+    GBM_FACTOR_GRAPH_ROUTE_PREFIX: (
+        GBM_FACTOR_GRAPH_REQUEST_MAX_BYTES,
+        GBM_FACTOR_GRAPH_RESULT_MAX_BYTES,
+    ),
+    "/v1/modules/M03-04": (
+        M0304_MAX_CANONICAL_REQUEST_BYTES,
+        M0304_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M19-01": (
+        M1901_MAX_CANONICAL_REQUEST_BYTES,
+        M1901_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M19-02": (
+        M1902_MAX_CANONICAL_REQUEST_BYTES,
+        M1902_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M19-03": (
+        M1903_MAX_CANONICAL_REQUEST_BYTES,
+        M1903_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M19-04": (
+        M1904_MAX_CANONICAL_REQUEST_BYTES,
+        M1904_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M19-05": (
+        M1905_MAX_CANONICAL_REQUEST_BYTES,
+        M1905_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M19-06": (
+        M1906_MAX_CANONICAL_REQUEST_BYTES,
+        M1906_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M20-01": (
+        M2001_MAX_CANONICAL_REQUEST_BYTES,
+        M2001_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M20-02": (
+        M2002_MAX_CANONICAL_REQUEST_BYTES,
+        M2002_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M20-03": (
+        M2003_MAX_CANONICAL_REQUEST_BYTES,
+        M2003_MAX_CANONICAL_RESULT_BYTES,
+    ),
+    "/v1/modules/M20-04": (
+        M2004_MAX_CANONICAL_REQUEST_BYTES,
+        M2004_MAX_CANONICAL_RESULT_BYTES,
     ),
 }
 
@@ -3080,48 +3457,9 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     )
     app.add_middleware(
         RequestSizeLimitMiddleware,
-        max_bytes=max(
-            MAX_REQUEST_BYTES,
-            M2604_MAX_CANONICAL_REQUEST_BYTES,
-            M2608_MAX_CANONICAL_REQUEST_BYTES,
-            M2704_MAX_CANONICAL_REQUEST_BYTES,
-            M2301_MAX_CANONICAL_REQUEST_BYTES,
-            M2304_MAX_CANONICAL_REQUEST_BYTES,
-            M2308_MAX_CANONICAL_REQUEST_BYTES,
-            M2501_MAX_CANONICAL_REQUEST_BYTES,
-            M2504_MAX_CANONICAL_REQUEST_BYTES,
-            M2508_MAX_CANONICAL_REQUEST_BYTES,
-            M2707_MAX_CANONICAL_REQUEST_BYTES,
-            M2708_MAX_CANONICAL_REQUEST_BYTES,
-            M2804_MAX_CANONICAL_REQUEST_BYTES,
-        ),
-        result_max_bytes=max(
-            M0305_MAX_CANONICAL_RESULT_BYTES,
-            M0601_MAX_CANONICAL_RESULT_BYTES,
-            M2604_MAX_CANONICAL_RESULT_BYTES,
-            M2608_MAX_CANONICAL_RESULT_BYTES,
-            M2704_MAX_CANONICAL_RESULT_BYTES,
-            M2301_MAX_CANONICAL_RESULT_BYTES,
-            M2302_MAX_CANONICAL_RESULT_BYTES,
-            M2303_MAX_CANONICAL_RESULT_BYTES,
-            M2304_MAX_CANONICAL_RESULT_BYTES,
-            M2305_MAX_CANONICAL_RESULT_BYTES,
-            M2307_MAX_CANONICAL_RESULT_BYTES,
-            M2308_MAX_CANONICAL_RESULT_BYTES,
-            M2404_MAX_CANONICAL_RESULT_BYTES,
-            M2407_MAX_CANONICAL_RESULT_BYTES,
-            M2501_MAX_CANONICAL_RESULT_BYTES,
-            M2502_MAX_CANONICAL_RESULT_BYTES,
-            M2503_MAX_CANONICAL_RESULT_BYTES,
-            M2504_MAX_CANONICAL_RESULT_BYTES,
-            M2505_MAX_CANONICAL_RESULT_BYTES,
-            M2507_MAX_CANONICAL_RESULT_BYTES,
-            M2508_MAX_CANONICAL_RESULT_BYTES,
-            M2707_MAX_CANONICAL_RESULT_BYTES,
-            M2708_MAX_CANONICAL_RESULT_BYTES,
-            M2804_MAX_CANONICAL_RESULT_BYTES,
-        ),
-        route_limits=_MODEL_ROUTE_LIMITS,
+        max_bytes=MAX_REQUEST_BYTES,
+        result_max_bytes=None,
+        route_limits=_CENTRAL_ROUTE_LIMITS,
     )
     for adapter in (
         m1901_adapter,
@@ -3174,6 +3512,24 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         m2804_api.create_app(),
     ):
         app.include_router(model_app.router)
+
+    app.include_router(research_state_router)
+    app.include_router(gbm_functional_proteotype_router)
+    app.include_router(glioma_models_router)
+    app.include_router(neftel_programs_router)
+    app.include_router(gbm_master_kinases_router)
+    app.include_router(gbm_rna_purity_router)
+    app.include_router(longitudinal_gbm_router)
+    app.include_router(m15_router)
+    app.include_router(longitudinal_gbm_phospho_router)
+    app.include_router(longitudinal_gbm_kinase_transition_router)
+    mount_longitudinal_gbm_neftel_transition(app)
+    mount_longitudinal_gbm_reactome_transition(app)
+    mount_longitudinal_gbm_complex_transition(app)
+    mount_gbm_factor_graph(app)
+    app.include_router(m10_functional_proteotype_router)
+    app.include_router(m11_protein_native_subtype_router)
+    app.include_router(m14_microenvironment_protein_programs_router)
 
     @app.exception_handler(ProtocolNotFoundError)
     def not_found_handler(_request: Request, error: ProtocolNotFoundError) -> JSONResponse:
@@ -3322,6 +3678,18 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
 
     @app.get("/readyz", response_model=ChainVerification, tags=["operations"])
     def readiness() -> ChainVerification:
+        try:
+            ensure_research_profiles_ready()
+        except ResearchReadinessError as error:
+            raise HTTPException(
+                status_code=503,
+                detail=f"research lane is not ready: {error.lane_id}",
+            ) from None
+        except Exception:  # noqa: BLE001 - readiness must fail closed with a stable lane ID.
+            raise HTTPException(
+                status_code=503,
+                detail=f"research lane is not ready: {RESEARCH_READINESS_REGISTRY_LANE_ID}",
+            ) from None
         _require_valid_identity_chain(identity_service.verify_event_chain())
         return _require_valid_chain(service.verify_event_chain())
 
@@ -4363,6 +4731,14 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         "/v1/modules/M01-03/inspect",
         response_model=ValidatedRawInputDescriptor,
         tags=["M01-03"],
+        openapi_extra={
+            "requestBody": {
+                "required": True,
+                "content": {
+                    "application/octet-stream": {"schema": {"type": "string", "format": "binary"}}
+                },
+            }
+        },
     )
     async def inspect_raw_input(
         request: Request,
@@ -4596,75 +4972,43 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     def central_m1901_schema(name: str) -> JSONResponse:
         return m1901_adapter.schema(name)
 
-    @app.post("/v1/modules/M19-01/resolve", tags=["M19-01"])
-    async def central_m1901_resolve(request: Request) -> JSONResponse:
-        return await m1901_adapter.resolve(request)
-
-    @app.post("/v1/modules/M19-01/verify", tags=["M19-01"])
-    async def central_m1901_verify(request: Request) -> JSONResponse:
-        return await m1901_adapter.verify(request)
-
     @app.get("/v1/modules/M19-02/schema/{name}", tags=["M19-02"])
     def central_m1902_schema(name: str) -> JSONResponse:
         return m1902_adapter.schema(name)
-
-    @app.post("/v1/modules/M19-02/align", tags=["M19-02"])
-    async def central_m1902_align(request: Request) -> JSONResponse:
-        return await m1902_adapter.align(request)
-
-    @app.post("/v1/modules/M19-02/verify", tags=["M19-02"])
-    async def central_m1902_verify(request: Request) -> JSONResponse:
-        return await m1902_adapter.verify(request)
 
     @app.get("/v1/modules/M19-05/schema/{name}", tags=["M19-05"])
     def central_m1905_schema(name: str) -> JSONResponse:
         return m1905_adapter.schema(name)
 
-    @app.post("/v1/modules/M19-05/present", tags=["M19-05"])
-    async def central_m1905_present(request: Request) -> JSONResponse:
-        return await m1905_adapter.present(request)
-
-    @app.post("/v1/modules/M19-05/verify", tags=["M19-05"])
-    async def central_m1905_verify(request: Request) -> JSONResponse:
-        return await m1905_adapter.verify(request)
-
     @app.get("/v1/modules/M20-02/schema/{name}", tags=["M20-02"])
     def central_m2002_schema(name: str) -> JSONResponse:
         return m2002_adapter.schema(name)
-
-    @app.post("/v1/modules/M20-02/reconcile", tags=["M20-02"])
-    async def central_m2002_reconcile(request: Request) -> JSONResponse:
-        return await m2002_adapter.reconcile(request)
-
-    @app.post("/v1/modules/M20-02/verify", tags=["M20-02"])
-    async def central_m2002_verify(request: Request) -> JSONResponse:
-        return await m2002_adapter.verify(request)
 
     @app.get("/v1/modules/M20-03/schema/{name}", tags=["M20-03"])
     def central_m2003_schema(name: str) -> JSONResponse:
         return m2003_adapter.schema(name)
 
-    @app.post("/v1/modules/M20-03/fuse", tags=["M20-03"])
-    async def central_m2003_fuse(request: Request) -> JSONResponse:
-        return await m2003_adapter.fuse(request)
-
-    @app.post("/v1/modules/M20-03/verify", tags=["M20-03"])
-    async def central_m2003_verify(request: Request) -> JSONResponse:
-        return await m2003_adapter.verify(request)
-
     @app.get("/v1/modules/M20-04/schema/{name}", tags=["M20-04"])
     def central_m2004_schema(name: str) -> JSONResponse:
         return m2004_adapter.schema(name)
 
-    @app.post("/v1/modules/M20-04/adapt", tags=["M20-04"])
-    async def central_m2004_adapt(request: Request) -> JSONResponse:
-        return await m2004_adapter.adapt(request)
-
-    @app.post("/v1/modules/M20-04/verify", tags=["M20-04"])
-    async def central_m2004_verify(request: Request) -> JSONResponse:
-        return await m2004_adapter.verify(request)
-
     install_request_body_openapi(app)
+    install_research_state_openapi(app)
+    install_gbm_functional_proteotype_openapi(app)
+    install_glioma_models_openapi(app)
+    install_neftel_programs_openapi(app)
+    install_gbm_master_kinases_openapi(app)
+    install_gbm_rna_purity_openapi(app)
+    install_longitudinal_gbm_openapi(app)
+    install_longitudinal_gbm_phospho_openapi(app)
+    install_longitudinal_gbm_kinase_transition_openapi(app)
+    install_longitudinal_gbm_neftel_transition_openapi(app)
+    install_longitudinal_gbm_reactome_transition_openapi(app)
+    install_longitudinal_gbm_complex_transition_openapi(app)
+    install_gbm_factor_graph_openapi(app)
+    install_m10_functional_proteotype_openapi(app)
+    install_m11_protein_native_subtype_openapi(app)
+    install_m14_microenvironment_protein_programs_openapi(app)
     return app
 
 

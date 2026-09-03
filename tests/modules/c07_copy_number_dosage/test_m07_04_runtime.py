@@ -7,6 +7,7 @@ from evals.m07_04.run import request
 from pydantic import ValidationError
 
 from glio_proteogen.contracts.m07_04 import (
+    EstimatorConstraint,
     EstimatorObservation,
     ProbabilisticEstimatorFamily,
     canonical_request_digest,
@@ -122,3 +123,54 @@ def test_observation_shape_and_digest_boundaries() -> None:
     invalid["observations"][0]["source_artifact_digest"] = "sha256:" + ("9" * 64)
     with pytest.raises(ProbabilisticEstimatorInputError):
         M0704Service().execute(invalid)
+
+
+def test_gbm_marker_prior_changes_posterior_and_is_explained() -> None:
+    """Recurrent GBM loci use the locked marker prior, not an exchangeable proxy."""
+
+    baseline = M0704Service().execute(request())
+    marker_observation = (
+        request().observations[0].model_copy(update={"feature_id": "EGFR.copy-number"})
+    )
+    marker_request = request().model_copy(update={"observations": (marker_observation,)})
+    marker = M0704Service().execute(marker_request)
+
+    assert marker.status.value == "estimated"
+    assert marker.estimates[0].estimate_value > baseline.estimates[0].estimate_value
+    assert "GBM EGFR amplification prior" in marker.diagnostics[0].message
+    assert marker.diagnostics[0].iteration_count > 0
+    assert marker.diagnostics[0].objective_value is not None
+
+
+def test_hard_copy_number_constraint_is_applied_without_negative_coercion() -> None:
+    base = request()
+    constraint = EstimatorConstraint(
+        constraint_id="constraint.cdkn2a.minimum",
+        expression="CDKN2A.copy-number >= 1",
+        hard=True,
+        evidence=(),
+    )
+    observation = base.observations[0].model_copy(
+        update={"feature_id": "CDKN2A.copy-number", "scalar_value": 0.2}
+    )
+    configuration = base.configuration.model_copy(update={"constraints": (constraint,)})
+    constrained = base.model_copy(
+        update={"configuration": configuration, "observations": (observation,)}
+    )
+    result = M0704Service().execute(constrained)
+
+    assert result.status.value == "estimated"
+    assert result.estimates[0].estimate_value >= 1.0
+    assert result.estimates[0].posterior_mass is not None
+
+
+def test_interval_observation_emits_posterior_interval_and_mass() -> None:
+    result = M0704Service().execute(request())
+
+    interval = result.estimates[1]
+    assert interval.kind.value == "interval"
+    assert interval.lower_bound is not None
+    assert interval.upper_bound is not None
+    assert interval.lower_bound <= interval.estimate_value <= interval.upper_bound
+    assert interval.posterior_mass is not None
+    assert 0.0 <= interval.posterior_mass <= 1.0

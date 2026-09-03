@@ -10,6 +10,7 @@ explicitly provisional.
 from __future__ import annotations
 
 from enum import StrEnum
+from math import isfinite
 from typing import Final, Literal
 
 from pydantic import Field, model_validator
@@ -55,6 +56,7 @@ M1005_MAX_CONSTRAINTS: Final = 512
 M1005_MAX_EVALUATIONS: Final = M1005_MAX_CONSTRAINTS
 M1005_MAX_ABLATIONS: Final = M1005_MAX_CONSTRAINTS
 M1005_MAX_EVIDENCE: Final = 64
+M1005_MAX_FEATURE_OBSERVATIONS: Final = M1005_MAX_FEATURES
 M1005_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M1005_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
 _M1005_ABLATION_TOLERANCE: Final = 1e-12
@@ -109,6 +111,44 @@ class MechanismConstraint(FrozenModel):
             raise ValueError("soft constraints require an explicit weight")
         if len(self.feature_ids) != len(set(self.feature_ids)):
             raise ValueError("constraint feature ids must be unique")
+        return self
+
+
+class FeatureObservationState(StrEnum):
+    """Evidence state for one measured feature used by numeric constraints."""
+
+    OBSERVED = "observed"
+    LEFT_CENSORED = "left_censored"
+    MISSING = "missing"
+    UNSUPPORTED = "unsupported"
+
+
+class FeatureObservation(FrozenModel):
+    """Typed feature value with assay error and explicit missingness semantics."""
+
+    feature_id: Identifier
+    state: FeatureObservationState
+    value: float | None = None
+    standard_error: float | None = Field(default=None, gt=0.0)
+    quality_weight: float = Field(default=1.0, ge=0.0, le=1.0)
+    censoring_limit: float | None = None
+    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1005_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def observation_shape_is_closed(self) -> FeatureObservation:
+        numeric = (self.value, self.standard_error, self.quality_weight, self.censoring_limit)
+        if any(number is not None and not isfinite(number) for number in numeric):
+            raise ValueError("feature observations must contain finite numbers")
+        if self.state is FeatureObservationState.OBSERVED:
+            if self.value is None or self.censoring_limit is not None:
+                raise ValueError("observed feature requires a value and no censoring limit")
+        elif self.state is FeatureObservationState.LEFT_CENSORED:
+            if self.value is not None or self.censoring_limit is None:
+                raise ValueError("left-censored feature requires only a censoring limit")
+        elif self.value is not None or self.censoring_limit is not None:
+            raise ValueError("missing or unsupported feature cannot carry a numeric value")
+        if any(item.role != "evidence" for item in self.evidence):
+            raise ValueError("feature observation evidence must use the evidence role")
         return self
 
 
@@ -184,6 +224,9 @@ class IntegrateProteinRnaConstraintsRequest(FrozenModel):
     feature_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M1005_MAX_EVIDENCE
     )
+    feature_observations: tuple[FeatureObservation, ...] = Field(
+        default=(), max_length=M1005_MAX_FEATURE_OBSERVATIONS
+    )
     supersedes_result_digest: Sha256Digest | None = None
 
     @model_validator(mode="after")
@@ -202,6 +245,9 @@ class IntegrateProteinRnaConstraintsRequest(FrozenModel):
         )
         if len(keys) != len(set(keys)):
             raise ValueError("input artifact references must be unique")
+        observation_ids = tuple(item.feature_id for item in self.feature_observations)
+        if len(observation_ids) != len(set(observation_ids)):
+            raise ValueError("feature observation ids must be unique")
         return self
 
 
@@ -423,6 +469,7 @@ __all__ = [
     "M1005_MAX_EVALUATIONS",
     "M1005_MAX_EVIDENCE",
     "M1005_MAX_FEATURES",
+    "M1005_MAX_FEATURE_OBSERVATIONS",
     "M1005_MODULE_ID",
     "M1005_OPERATION",
     "M1005_OUTPUT_MEDIA_TYPE",
@@ -437,6 +484,8 @@ __all__ = [
     "ConstraintHardness",
     "ConstraintIntegrationStatus",
     "ConstraintKind",
+    "FeatureObservation",
+    "FeatureObservationState",
     "IntegrateProteinRnaConstraintsRequest",
     "MechanismConstraint",
     "MechanismConstraintSet",

@@ -37,13 +37,15 @@ retrieval or redistribution.
 
 ## Package integrity evidence
 
-`docs/evidence/research_public_proteomics/package.json` is an artifact-bound
-receipt for the public-proteomics surface. It records two byte-identical
+`docs/evidence/research_public_proteomics/package.json` is an immutable
+historical receipt for the public-proteomics surface. It records two byte-identical
 `SOURCE_DATE_EPOCH=315532800` builds, exact wheel and sdist SHA-256 values,
 and the complete sorted archive-member inventory for each artifact. The
-standard-library verifier checks the receipt against both candidate files,
-rejects duplicate or missing members, and is invoked by the release-evidence
-workflow after the candidate wheel is installed into its isolated runtime.
+standard-library verifier checks its internal claims and rejects duplicate or
+missing members. For each new release, the workflow builds twice and passes the
+separate `evidence/current-candidate-receipt.json` to the verifier after the
+candidate wheel is installed into its isolated runtime. That explicit receipt,
+not the historical artifact hashes, binds both current candidate files.
 The receipt records the public-proteomics gate. The additive research pipeline additionally has
 a locked evaluator for target/decoy competition, shared-peptide ambiguity, group-level FDR, and
 replay-bound quantification. Its invariant evaluator rejects accession/decoy flag mismatches,

@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime
 from http import HTTPStatus
+from math import isfinite
 
 import pytest
 from fastapi.testclient import TestClient
@@ -50,6 +51,8 @@ _DIGEST = "sha256:" + ("1" * 64)
 _DIGEST_2 = "sha256:" + ("2" * 64)
 _EXPECTED_ESTIMATES = 2
 _EXPECTED_DIAGNOSTICS = 2
+_EXPECTED_POSTERIOR_MASS = 0.9
+_EGFR_ACTIVITY_THRESHOLD = 0.8
 
 
 def _artifact(name: str, media_type: str = "application/json") -> ArtifactReference:
@@ -160,6 +163,63 @@ def test_supported_estimate_is_deterministic_and_replayable() -> None:
     assert first.result.estimates[0].lower_bound <= first.result.estimates[0].estimate_value
     assert first.canonical_bytes == second.canonical_bytes
     assert engine.verify(first.result, first.canonical_bytes).verified
+
+
+def test_encoded_assay_summaries_drive_robust_activity_posterior() -> None:
+    request = _request("stable_support").model_copy(
+        update={
+            "source_artifacts": (
+                _artifact("complex.activity:0.92:sd:0.05"),
+                _artifact("complex.activity:0.18:sd:0.05"),
+            )
+        }
+    )
+    result = M0904ProbabilisticEstimator().estimate(request)
+
+    high, low = result.estimates
+    assert high.estimate_value > low.estimate_value
+    assert high.upper_bound <= 1.0
+    assert high.posterior_mass is not None
+    assert 0.0 < high.posterior_mass <= _EXPECTED_POSTERIOR_MASS
+    diagnostic = result.diagnostics[0]
+    assert diagnostic.iteration_count > 0
+    assert diagnostic.objective_value is not None
+    assert isfinite(diagnostic.objective_value)
+    assert "Huber IRLS" in result.support_decision.rationale
+
+
+def test_feature_matched_prior_and_contradictory_bounds_are_explicit() -> None:
+    request = _request("activity >= 0.0").model_copy(
+        update={
+            "source_artifacts": (_artifact("complex.egfr"),),
+            "configuration": _request("activity >= 0.0").configuration.model_copy(
+                update={
+                    "priors": (
+                        ProbabilisticPrior(
+                            prior_id="prior.egfr",
+                            version="1.0.0",
+                            kind=ProbabilisticPriorKind.NORMAL,
+                            parameters=(0.9, 0.05),
+                        ),
+                        ProbabilisticPrior(
+                            prior_id="prior.background",
+                            version="1.0.0",
+                            kind=ProbabilisticPriorKind.NORMAL,
+                            parameters=(0.1, 0.05),
+                        ),
+                    )
+                }
+            ),
+        }
+    )
+    estimate = M0904ProbabilisticEstimator().estimate(request).estimates[0]
+    assert estimate.estimate_value > _EGFR_ACTIVITY_THRESHOLD
+
+    contradictory = _request("activity >= 0.8", "activity <= 0.2")
+    result = M0904ProbabilisticEstimator().estimate(contradictory)
+    assert result.status is ProbabilisticResultStatus.ABSTAINED
+    assert result.support_decision.status is SupportStatus.REVIEW_REQUIRED
+    assert "contradictory" in (result.abstention_reason or "")
 
 
 def test_unsupported_and_ood_markers_abstain_without_estimates() -> None:

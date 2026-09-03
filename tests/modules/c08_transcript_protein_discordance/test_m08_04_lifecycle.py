@@ -34,6 +34,7 @@ from glio_proteogen.modules.c08_transcript_protein_discordance import (
 )
 
 _EXPECTED_ESTIMATES = 2
+_POSTERIOR_MIDPOINT = 0.5
 
 
 def _artifact(name: str, media_type: str = "application/json") -> ArtifactReference:
@@ -157,6 +158,42 @@ def test_architecture_matrix_estimates_and_replays(
     assert service.replay(request, result) == result
 
 
+def test_irls_posterior_tracks_signed_discordance_and_reliability() -> None:
+    positive = (
+        ProbabilisticFeatureObservation(
+            feature_id="discordance.rna-high",
+            state=ProbabilisticFeatureState.OBSERVED,
+            unit="ratio",
+            value=2.0,
+            isoform_id="isoform.a",
+            weight=2.0,
+        ),
+        ProbabilisticFeatureObservation(
+            feature_id="discordance.protein-high",
+            state=ProbabilisticFeatureState.OBSERVED,
+            unit="ratio",
+            value=1.5,
+            isoform_id="isoform.b",
+            weight=1.0,
+        ),
+    )
+    negative = tuple(
+        item.model_copy(update={"value": -abs(item.value or 0.0)}) for item in positive
+    )
+    engine = m0804_runtime.M0804Service()
+    positive_result = engine.execute(_request(features=positive))
+    negative_result = engine.execute(_request(features=negative))
+
+    positive_score = positive_result.estimates[0].estimate_value
+    negative_score = negative_result.estimates[0].estimate_value
+    assert positive_score is not None
+    assert negative_score is not None
+    assert positive_score > _POSTERIOR_MIDPOINT
+    assert negative_score < positive_score
+    assert positive_result.diagnostics[-1].iteration_count > 0
+    assert positive_result.diagnostics[-1].convergence_gap is not None
+
+
 def test_missing_and_out_of_domain_features_abstain() -> None:
     missing = ProbabilisticFeatureObservation(
         feature_id="discordance.missing",
@@ -200,9 +237,9 @@ def test_plugin_typed_json_parity_and_tamper_rejection() -> None:
     request = _request()
     typed_token = plugin.validate(request)
     json_token = plugin.validate(request.model_dump_json())
-    assert plugin.run(typed_token).model_dump(mode="json") == plugin.run(
-        json_token
-    ).model_dump(mode="json")
+    assert plugin.run(typed_token).model_dump(mode="json") == plugin.run(json_token).model_dump(
+        mode="json"
+    )
     result = service.execute(request)
     tampered = result.model_copy(update={"result_digest": sha256_digest("tampered")})
     with pytest.raises(ValueError, match="digest"):

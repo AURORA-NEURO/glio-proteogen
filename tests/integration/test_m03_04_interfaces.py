@@ -55,6 +55,7 @@ SCHEMA_NAMES: Final = (
 )
 HTTP_OK: Final = 200
 HTTP_FORBIDDEN: Final = 403
+HTTP_PAYLOAD_TOO_LARGE: Final = 413
 HTTP_UNSUPPORTED_MEDIA_TYPE: Final = 415
 HTTP_UNPROCESSABLE_CONTENT: Final = 422
 CLI_USAGE_ERROR: Final = 2
@@ -456,8 +457,9 @@ def test_api_and_cli_distinguish_exact_two_mib_from_first_byte_past_limit(
     assert len(oversized) == M0304_MAX_CANONICAL_REQUEST_BYTES + 1
     assert exact_api.status_code == HTTP_UNPROCESSABLE_CONTENT
     assert exact_api.json()["detail"][0]["type"] == "json_invalid_syntax"
-    assert oversized_api.status_code == HTTP_UNPROCESSABLE_CONTENT
-    assert oversized_api.json()["detail"][0]["type"] == "json_too_large"
+    assert oversized_api.status_code == HTTP_PAYLOAD_TOO_LARGE
+    assert oversized_api.json() == {"detail": "request body exceeds the byte limit"}
+    assert oversized_api.headers["cache-control"] == "no-store"
     assert exact_cli.exit_code == CLI_USAGE_ERROR
     assert "json_invalid_syntax" in exact_cli.output
     assert oversized_cli.exit_code == CLI_USAGE_ERROR

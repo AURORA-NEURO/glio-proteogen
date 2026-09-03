@@ -7,6 +7,7 @@
     "deterministic_replay": true,
     "duplicate_json_rejected": true,
     "incomplete_abstention": true,
+    "measured_discordance_summary": true,
     "tampered_digest_rejected": true,
     "unaccepted_controls_fail_closed": true,
     "wrong_upstream_media_rejected": true

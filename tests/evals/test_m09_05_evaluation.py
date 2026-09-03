@@ -13,6 +13,8 @@ def test_m09_05_evaluator_matrix_passes() -> None:
     assert report.replay_verified
     assert report.tamper_rejected
     assert report.soft_ablation_visible
+    assert report.measured_status == "estimated"
+    assert report.measured_value_used
 
 
 def test_m09_05_benchmark_is_within_provisional_budget() -> None:

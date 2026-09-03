@@ -2,10 +2,14 @@ services:
   glio-proteogen:
     build:
       context: .
+      args:
+        VCS_REF: ${GLIO_PROTEOGEN_VCS_REF:-local}
+        SOURCE_DATE_EPOCH: ${SOURCE_DATE_EPOCH:-315532800}
     image: glio-proteogen:local
+    init: true
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
       GLIO_PROTEOGEN_DATABASE_PATH: /data/glio-proteogen/events.sqlite3
       GLIO_PROTEOGEN_ENVIRONMENT: production
@@ -16,6 +20,8 @@ services:
       - /tmp
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.environ.get('GLIO_PROTEOGEN_PORT', '8000') + '/readyz', timeout=3)\""]
       interval: 30s
@@ -23,5 +29,80 @@ services:
       retries: 3
       start_period: 20s
 
+  t3-code:
+    build:
+      context: ./ui/t3
+    image: glio-proteogen-t3:0.0.35
+    init: true
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3773:3773"
+    environment:
+      T3_CODE_PUBLIC_URL: ${T3_CODE_PUBLIC_URL:-http://127.0.0.1:3773}
+    volumes:
+      - glio-proteogen-t3-state:/data/t3
+      - .:/workspace:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:3774/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  ui:
+    build:
+      context: ./ui
+      args:
+        GLIO_API_URL: http://glio-proteogen:8000
+    image: glio-proteogen-ui:local
+    init: true
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      GLIO_API_URL: http://glio-proteogen:8000
+      GLIO_AUTH_DATABASE_PATH: /data/glio-auth/auth.sqlite3
+      T3_CODE_URL: ${T3_CODE_PUBLIC_URL:-http://127.0.0.1:3773}
+      T3_PAIRING_BROKER_URL: http://t3-code:3774/pairing
+      NODE_ENV: production
+    volumes:
+      - glio-proteogen-ui-auth:/data/glio-auth
+    depends_on:
+      glio-proteogen:
+        condition: service_healthy
+      t3-code:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/.next/cache
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:3000/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
 volumes:
   glio-proteogen-data:
+  glio-proteogen-t3-state:
+  glio-proteogen-ui-auth:

@@ -28,6 +28,7 @@ P95_BUDGET_NS: Final = 750_000_000
 class BenchmarkReport:
     """Reproducible timing summary for the locked fixture."""
 
+    module_id: str
     iterations: int
     samples_ns: tuple[int, ...]
     mean_ns: int
@@ -35,6 +36,7 @@ class BenchmarkReport:
     p95_ns: int
     mean_budget_ns: int = MEAN_BUDGET_NS
     p95_budget_ns: int = P95_BUDGET_NS
+    budget_passed: bool = True
 
     @property
     def passed(self) -> bool:
@@ -56,11 +58,16 @@ def run_benchmark(iterations: int = 10) -> BenchmarkReport:
     ordered = sorted(samples)
     p95_index = min(len(ordered) - 1, max(0, (len(ordered) * 95 + 99) // 100 - 1))
     return BenchmarkReport(
+        module_id="GLIO-PROTEOGEN-M25-03",
         iterations=iterations,
         samples_ns=tuple(samples),
         mean_ns=int(statistics.fmean(samples)),
         median_ns=int(statistics.median(samples)),
         p95_ns=ordered[p95_index],
+        budget_passed=(
+            statistics.fmean(samples) <= MEAN_BUDGET_NS
+            and ordered[p95_index] <= P95_BUDGET_NS
+        ),
     )
 
 

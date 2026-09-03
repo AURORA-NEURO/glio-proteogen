@@ -400,7 +400,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
     report = run_evaluation()
-    sys.stdout.write((json.dumps(report, sort_keys=True) if args.json else str(report)) + "\n")
+    # Preserve the flag while making the default fresh-process interface
+    # unambiguously machine readable.
+    del args
+    sys.stdout.write(json.dumps(report, sort_keys=True) + "\n")
     return 0 if report["passed"] else 1
 
 

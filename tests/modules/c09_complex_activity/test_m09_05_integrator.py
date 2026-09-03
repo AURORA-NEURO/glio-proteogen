@@ -14,8 +14,10 @@ from glio_proteogen.contracts.m09_05 import (
     ConstraintAwareEstimate,
     ConstraintEstimateKind,
     ConstraintEvaluationStatus,
+    ConstraintEvidenceObservation,
     ConstraintIntegratorPolicy,
     ConstraintIntegratorStatus,
+    ConstraintObservationState,
     ConstraintReplayReason,
     ConstraintSatisfactionReport,
     ConstraintSeverity,
@@ -30,6 +32,7 @@ from glio_proteogen.kernel.models import (
     ConsentReference,
     ConsentState,
     ContextReferences,
+    EstimateState,
     ExecutionContext,
     IdentityLineageReference,
     IdentityLineageState,
@@ -133,6 +136,115 @@ def test_supported_integration_is_deterministic_and_replayable() -> None:
     assert first.result.satisfaction_report[0].status is ConstraintEvaluationStatus.SATISFIED
     assert first.canonical_bytes == second.canonical_bytes
     assert engine.verify(first.result, first.canonical_bytes).verified
+
+
+def test_measured_complex_members_drive_intervals_and_censoring() -> None:
+    request = _request("conservation_hold").model_copy(
+        update={
+            "observations": (
+                ConstraintEvidenceObservation(
+                    feature_id="feature.1",
+                    value=0.7,
+                    standard_error=0.1,
+                    quality_weight=0.9,
+                ),
+                ConstraintEvidenceObservation(
+                    feature_id="feature.2",
+                    state=ConstraintObservationState.LEFT_CENSORED,
+                    standard_error=0.1,
+                    censoring_limit=0.4,
+                    quality_weight=0.8,
+                ),
+            )
+        }
+    )
+    result = M0905ConstraintIntegrator().integrate(request).result
+    estimates = {item.feature_id: item for item in result.estimates}
+
+    assert estimates["feature.1"].estimate_value == 0.7
+    assert estimates["feature.2"].upper_bound == 0.4
+    assert result.uncertainty.measurement.state is EstimateState.ESTIMATED
+
+
+def test_soft_numeric_complex_constraint_reports_ablation() -> None:
+    request = _request("conservation_hold")
+    constraint = request.policy.constraints[0].model_copy(
+        update={
+            "expression": "feature.1 >= 0.8",
+            "severity": ConstraintSeverity.SOFT,
+        }
+    )
+    request = request.model_copy(
+        update={
+            "policy": request.policy.model_copy(update={"constraints": (constraint,)}),
+            "observations": (
+                ConstraintEvidenceObservation(
+                    feature_id="feature.1",
+                    value=0.2,
+                    standard_error=0.1,
+                ),
+                ConstraintEvidenceObservation(
+                    feature_id="feature.2",
+                    value=0.0,
+                    standard_error=0.1,
+                ),
+            ),
+        }
+    )
+    result = M0905ConstraintIntegrator().integrate(request).result
+
+    assert result.status is ConstraintIntegratorStatus.ESTIMATED
+    report = result.satisfaction_report[0]
+    assert report.status is ConstraintEvaluationStatus.VIOLATED
+    assert report.ablation_effect is not None
+    assert result.estimates[0].estimate_value is not None
+    assert result.estimates[0].estimate_value > 0.2
+
+
+def test_missing_and_unsupported_members_are_not_negative_activity() -> None:
+    request = _request("feature.1 >= 0.8").model_copy(
+        update={
+            "observations": (
+                ConstraintEvidenceObservation(
+                    feature_id="feature.1",
+                    state=ConstraintObservationState.UNSUPPORTED,
+                ),
+                ConstraintEvidenceObservation(
+                    feature_id="feature.2",
+                    state=ConstraintObservationState.MISSING,
+                ),
+            )
+        }
+    )
+    result = M0905ConstraintIntegrator().integrate(request).result
+
+    assert result.status is ConstraintIntegratorStatus.ABSTAINED
+    assert not result.estimates
+    assert result.satisfaction_report[0].status is ConstraintEvaluationStatus.NOT_EVALUABLE
+    assert "no observed" in (result.abstention_reason or "")
+
+
+def test_hard_numeric_complex_constraint_abstains() -> None:
+    request = _request("feature.1 >= 0.8").model_copy(
+        update={
+            "observations": (
+                ConstraintEvidenceObservation(
+                    feature_id="feature.1",
+                    value=0.2,
+                    standard_error=0.1,
+                ),
+                ConstraintEvidenceObservation(
+                    feature_id="feature.2",
+                    value=0.0,
+                    standard_error=0.1,
+                ),
+            )
+        }
+    )
+    result = M0905ConstraintIntegrator().integrate(request).result
+
+    assert result.status is ConstraintIntegratorStatus.ABSTAINED
+    assert result.satisfaction_report[0].status is ConstraintEvaluationStatus.VIOLATED
 
 
 def test_request_bound_replay_rejects_resigned_constraint_mutation() -> None:

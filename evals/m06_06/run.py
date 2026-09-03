@@ -48,6 +48,7 @@ from glio_proteogen.contracts.m06_05.canonical import (
     result_payload_digest as m0605_result_digest,
 )
 from glio_proteogen.contracts.m06_06 import (
+    M0606_MAX_COMPONENTS,
     DecomposeProteinAbundanceUncertaintyRequest,
     UncertaintyDecompositionPolicy,
 )
@@ -330,15 +331,19 @@ def _m0605_result(*, abstained: bool) -> IntegrateProteinAbundanceConstraintsRes
 @dataclass(frozen=True, slots=True)
 class Scenario:
     request: DecomposeProteinAbundanceUncertaintyRequest
-    expected_reason: str
+    expected_reason: str | None
 
 
-def build_scenario(*, upstream_abstained: bool = False) -> Scenario:
+def build_scenario(
+    *,
+    upstream_abstained: bool = False,
+    analytical: bool = False,
+) -> Scenario:
     upstream = _m0605_result(abstained=upstream_abstained)
     policy = UncertaintyDecompositionPolicy(
         policy_id="policy.m0606.synthetic",
         version="1.0.0",
-        method="provisional-no-calibration",
+        method=("locked-evidence-analytical" if analytical else "provisional-no-calibration"),
         calibration_reference=_artifact("calibration"),
     )
     request = DecomposeProteinAbundanceUncertaintyRequest(
@@ -352,21 +357,51 @@ def build_scenario(*, upstream_abstained: bool = False) -> Scenario:
         request=request,
         expected_reason="The bound upstream result is abstained."
         if upstream_abstained
-        else "Owner-confirmed calibration and benchmark coverage are not locked.",
+        else (
+            None
+            if analytical
+            else "Owner-confirmed calibration and benchmark coverage are not locked."
+        ),
     )
 
 
 def run_evaluation() -> dict[str, object]:
     service = M0606Service()
     cases = {
-        "integrated_upstream": build_scenario(),
-        "abstained_upstream": build_scenario(upstream_abstained=True),
+        "integrated_upstream": build_scenario(analytical=True),
+        "abstained_upstream": build_scenario(upstream_abstained=True, analytical=True),
     }
     outputs = {name: service.execute(case.request) for name, case in cases.items()}
+    checks = [
+        {
+            "case_id": name,
+            "passed": (
+                (
+                    output.status.value == "abstained"
+                    and output.abstention_reason is not None
+                    and cases[name].expected_reason is not None
+                    and "abstained" in output.abstention_reason
+                )
+                if name == "abstained_upstream"
+                else (
+                    output.status.value == "decomposed"
+                    and output.decomposition is not None
+                    and len(output.decomposition.components) == M0606_MAX_COMPONENTS
+                    and output.sensitivity_envelope.status.value == "evaluated"
+                    and output.abstention_reason is None
+                )
+            ),
+        }
+        for name, output in outputs.items()
+    ]
     return {
-        "module": "GLIO-PROTEOGEN-M06-06",
+        "module_id": "GLIO-PROTEOGEN-M06-06",
+        "passed": all(bool(check["passed"]) for check in checks),
+        "checks": checks,
         "provisional_abi": True,
-        "upstream_builder": "contract-level synthetic M06-05 result; no estimator execution",
+        "upstream_builder": (
+            "contract-level synthetic M06-05 result with evidence-derived decomposition"
+        ),
         "scenarios": {
             name: {
                 "status": output.status.value,
@@ -380,15 +415,15 @@ def run_evaluation() -> dict[str, object]:
     }
 
 
-def main() -> None:
+def main() -> int:
     parser = argparse.ArgumentParser(description="Run the M06-06 provisional evaluator.")
     parser.add_argument("--json", action="store_true", help="Emit canonical JSON.")
     args = parser.parse_args()
     payload = run_evaluation()
-    sys.stdout.write(
-        (json.dumps(payload, indent=2, sort_keys=True) if args.json else str(payload)) + "\n"
-    )
+    del args
+    sys.stdout.write(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    return 0 if payload["passed"] else 1
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

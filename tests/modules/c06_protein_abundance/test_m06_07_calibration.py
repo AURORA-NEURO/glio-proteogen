@@ -449,6 +449,36 @@ def test_upstream_abstention_and_bad_coverage_abstain_safely() -> None:
         assert built.result.human_review_required is True
 
 
+def test_glioma_transport_risk_drives_selective_abstention() -> None:
+    """A high transport component cannot be hidden by a passing stratum gate."""
+
+    request = _request()
+    upstream = request.uncertainty_result
+    assert upstream.decomposition is not None
+    components = tuple(
+        component.model_copy(
+            update={
+                "estimate": component.estimate.model_copy(
+                    update={"probability": 0.95}
+                )
+            }
+        )
+        if component.dimension.value == "transport"
+        else component
+        for component in upstream.decomposition.components
+    )
+    decomposition = upstream.decomposition.model_copy(update={"components": components})
+    mutated_upstream = upstream.model_copy(update={"decomposition": decomposition})
+    mutated_upstream = mutated_upstream.model_copy(
+        update={"result_digest": uncertainty_result_digest(mutated_upstream)}
+    )
+    mutated_request = request.model_copy(update={"uncertainty_result": mutated_upstream})
+    metrics = m0607_engine._selective_metrics(mutated_request, "protein.abundance", 0.02)
+    result = M0607CalibrationEngine().calibrate(mutated_request)
+    assert result.result.status.value == "abstained"
+    assert metrics[2] is OutOfDistributionStatus.OOD
+
+
 def test_service_wrapper_and_strict_boundary() -> None:
     request = _request()
     service = M0607Service()

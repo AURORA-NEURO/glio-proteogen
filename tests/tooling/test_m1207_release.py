@@ -15,8 +15,9 @@ def test_m1207_release_evidence_verifies_without_artifact_directory() -> None:
     verify_release()
 
 
+@pytest.mark.historical_artifact
 def test_m1207_release_evidence_verifies_built_artifacts() -> None:
-    verify_release(Path(r"C:\Users\murar\AppData\Local\Temp\gpa-m1207-dist-clean"))
+    verify_release(Path(__file__).parents[2] / "dist-m12-07")
 
 
 def test_m1207_release_verifier_rejects_missing_artifact_directory(tmp_path: Path) -> None:

@@ -31,20 +31,26 @@ def run_evaluation() -> dict[str, Any]:
     plugin = M2703Plugin()
     token = plugin.validate(request().model_dump_json())
     plugin_result = plugin.run(token)
-    return {
+    checks = {
         "supported_executed": supported.status is PipelineStatus.EXECUTED,
         "supported_replay": replay.result_digest == supported.result_digest,
         "rejected_abstained": rejected.status is PipelineStatus.ABSTAINED,
         "rejected_no_package": rejected.result_package is None,
         "plugin_parity": plugin_result.model_dump(mode="json") == supported.model_dump(mode="json"),
-        "scenario_count": 5,
+    }
+    return {
+        "module_id": "GLIO-PROTEOGEN-M27-03",
+        "passed": all(checks.values()),
+        "checks": checks,
+        **checks,
+        "scenario_count": len(checks),
     }
 
 
 def main() -> int:
     report = run_evaluation()
     sys.stdout.write(json.dumps(report, sort_keys=True) + "\n")
-    return 0 if all(value for key, value in report.items() if key != "scenario_count") else 1
+    return 0 if report["passed"] else 1
 
 
 if __name__ == "__main__":

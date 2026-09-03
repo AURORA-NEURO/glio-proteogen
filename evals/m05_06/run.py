@@ -234,10 +234,11 @@ def main(argv: list[str] | None = None) -> int:
     rendered = json.dumps(report, sort_keys=True) + "\n"
     if args.output is not None:
         args.output.write_text(rendered, encoding="utf-8")
-    elif args.json:
-        print(rendered, end="")  # noqa: T201
     else:
-        print(report)  # noqa: T201
+        # Evaluator stdout is always a canonical JSON receipt.  ``--json`` is
+        # retained as a compatible no-op for existing callers.
+        del args.json
+        print(rendered, end="")  # noqa: T201
     return 0 if report["passed"] else 1
 
 

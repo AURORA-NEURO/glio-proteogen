@@ -8,6 +8,7 @@ or model catalogue.  Every symbol below is provisional scaffolding.
 from __future__ import annotations
 
 from enum import StrEnum
+from math import isfinite
 from typing import Final, Literal
 
 from pydantic import Field, model_validator
@@ -51,6 +52,7 @@ M1004_MAX_DIAGNOSTICS: Final = 512
 M1004_MAX_PRIORS: Final = 128
 M1004_MAX_CONSTRAINTS: Final = 128
 M1004_MAX_EVIDENCE: Final = 32
+M1004_MAX_OBSERVATIONS: Final = 512
 M1004_MIN_DIAGNOSTICS: Final = 1
 M1004_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M1004_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
@@ -115,6 +117,32 @@ class EstimatorConstraint(FrozenModel):
     def evidence_roles_are_explicit(self) -> EstimatorConstraint:
         if any(item.role != "evidence" for item in self.evidence):
             raise ValueError("constraint evidence must use the evidence role")
+        return self
+
+
+class ProbabilisticObservation(FrozenModel):
+    """One measured protein/RNA discordance value with assay uncertainty.
+
+    The provisional ABI historically accepted only opaque artifact references.  This
+    bounded observation lane keeps those requests compatible while allowing the
+    estimator to consume actual, caller-declared measurements when available.
+    """
+
+    feature_id: Identifier
+    value: float
+    standard_error: float = Field(gt=0.0)
+    quality_weight: float = Field(default=1.0, ge=0.0, le=1.0)
+    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1004_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def observation_is_finite_and_attributed(self) -> ProbabilisticObservation:
+        if not all(
+            isfinite(number)
+            for number in (self.value, self.standard_error, self.quality_weight)
+        ):
+            raise ValueError("probabilistic observations must contain finite numbers")
+        if any(item.role != "evidence" for item in self.evidence):
+            raise ValueError("observation evidence must use the evidence role")
         return self
 
 
@@ -214,6 +242,9 @@ class EstimateProteinRnaDiscordanceProbabilisticRequest(FrozenModel):
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M1004_MAX_EVIDENCE
     )
+    observations: tuple[ProbabilisticObservation, ...] = Field(
+        default=(), max_length=M1004_MAX_OBSERVATIONS
+    )
     supersedes_result_digest: Sha256Digest | None = None
 
     @model_validator(mode="after")
@@ -225,6 +256,12 @@ class EstimateProteinRnaDiscordanceProbabilisticRequest(FrozenModel):
         artifact_ids = tuple(item.artifact_id for item in self.source_artifacts)
         if len(artifact_ids) != len(set(artifact_ids)):
             raise ValueError("source artifacts must have unique identifiers")
+        observed_ids = tuple(item.feature_id for item in self.observations)
+        if len(observed_ids) != len(set(observed_ids)):
+            raise ValueError("probabilistic observation feature ids must be unique")
+        prior_ids = {item.prior_id for item in self.configuration.priors}
+        if any(item.feature_id not in prior_ids for item in self.observations):
+            raise ValueError("probabilistic observation references an unresolved prior")
         return self
 
 
@@ -395,6 +432,7 @@ __all__ = [
     "M1004_MAX_DIAGNOSTICS",
     "M1004_MAX_ESTIMATES",
     "M1004_MAX_EVIDENCE",
+    "M1004_MAX_OBSERVATIONS",
     "M1004_MAX_PRIORS",
     "M1004_MIN_DIAGNOSTICS",
     "M1004_MODULE_ID",
@@ -412,6 +450,7 @@ __all__ = [
     "PosteriorEstimateKind",
     "ProbabilisticEstimatorConfiguration",
     "ProbabilisticEstimatorFamily",
+    "ProbabilisticObservation",
     "ProbabilisticPrior",
     "ProbabilisticPriorKind",
     "ProbabilisticResultStatus",

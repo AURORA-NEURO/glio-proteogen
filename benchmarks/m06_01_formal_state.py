@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 from evals.m06_01.run import build_scenario_request
 
+from benchmarks._module_validation import run_pytest_benchmark
 from glio_proteogen.contracts.m06_01 import FormalStateValidationStatus
 from glio_proteogen.modules.c06_protein_abundance.m06_01_formal_state_schema import (
     validate_formal_protein_state,
@@ -58,3 +59,14 @@ def test_abstained_formal_state_latency(benchmark: BenchmarkFixture) -> None:
     statistics = benchmark_stats.stats
     assert statistics is not None
     assert statistics.mean <= MEAN_BUDGET_SECONDS
+
+
+def run_benchmark(iterations: int = 10) -> dict[str, object]:
+    """Run the locked valid formal-state workload."""
+
+    return run_pytest_benchmark(
+        module_id="GLIO-PROTEOGEN-M06-01",
+        workload=test_valid_formal_state_latency,
+        iterations=iterations,
+        mean_budget_seconds=MEAN_BUDGET_SECONDS,
+    )

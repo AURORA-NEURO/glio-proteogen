@@ -113,6 +113,7 @@ def evaluate() -> dict[str, object]:
         "declared": len(declared),
         "executed": len(results),
         "passed": passed,
+        "all_passed": passed == len(results),
         "failed": len(results) - passed,
         "status": "passed" if passed == len(results) else "failed",
         "results": results,

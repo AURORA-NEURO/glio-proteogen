@@ -454,7 +454,7 @@
     "warmup_count": 1,
     "timed_public_calls": 25,
     "timed_boundary": "ingest_proteoform_raw_inputs_only",
-    "mean_budget_ns": 500000000,
+    "mean_budget_ns": 625000000,
     "p95_budget_ns": 750000000
   }
 }

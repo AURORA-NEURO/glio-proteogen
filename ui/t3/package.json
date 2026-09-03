@@ -1,0 +1,9 @@
+{
+  "name": "glio-proteogen-t3-runtime",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "dependencies": {
+    "t3": "0.0.35"
+  }
+}

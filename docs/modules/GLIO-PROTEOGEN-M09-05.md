@@ -28,14 +28,16 @@ support, and intended-use controls. Strict Pydantic contracts reject extras, coe
 constraint or source identifiers, malformed estimate shapes, non-finite values, policy/report
 mismatches, and digest drift.
 
-The runtime evaluates every policy constraint without fetching external content. `force_violation`
-and `unsupported` expressions are deterministic fixture controls, not scientific claims. Hard
+The runtime evaluates every policy constraint without fetching external content. Producers may
+bind finite complex-member measurements with standard errors, quality weights, and left-censoring;
+these are fit with robust Huber IRLS and damped soft mechanistic bounds. `force_violation` and
+`unsupported` expressions remain deterministic fixture controls, not scientific claims. Hard
 violations and unevaluable constraints abstain with no estimates. Soft conflicts remain visible in
 the satisfaction report with a quantified ablation effect, so no hidden prior dominates the
-result. Successful estimates carry interval bounds, support score, applied constraint IDs,
-evidence references, seven explicit not-estimable uncertainty dimensions, provenance/control
-records, and limitations. Results are canonical JSON and replay verification checks both content
-bytes and result digest.
+result. Metadata-only requests retain a clearly labelled digest-derived compatibility path.
+Successful estimates carry interval bounds, support score, applied constraint IDs, evidence
+references, explicit uncertainty dimensions, provenance/control records, and limitations. Results
+are canonical JSON and replay verification checks both content bytes and result digest.
 
 ## Interfaces and evidence
 

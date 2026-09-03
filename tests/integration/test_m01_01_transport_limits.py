@@ -218,6 +218,40 @@ def test_verify_path_still_rejects_body_above_result_ceiling() -> None:
     )
 
 
+def test_exact_verify_route_can_declare_distinct_request_and_result_limits() -> None:
+    downstream_called = False
+    messages: list[Message] = []
+
+    async def downstream(_scope: Scope, _receive: Receive, _send: Send) -> None:
+        nonlocal downstream_called
+        downstream_called = True
+
+    async def receive() -> Message:
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    async def send(message: Message) -> None:
+        messages.append(message)
+
+    middleware = RequestSizeLimitMiddleware(
+        cast("AsgiApp", downstream),
+        max_bytes=8,
+        route_limits={"/v1/research/lane/verify": (32, 16)},
+    )
+    asyncio.run(
+        middleware(
+            _http_scope(
+                headers=[(b"content-length", b"24")],
+                path="/v1/research/lane/verify",
+            ),
+            receive,
+            send,
+        )
+    )
+
+    assert downstream_called is True
+    assert messages == []
+
+
 def test_cli_reader_accepts_exact_limit_and_rejects_first_excess_byte(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],

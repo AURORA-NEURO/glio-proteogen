@@ -1,6 +1,6 @@
 """Verify reproducible M26-08 evaluator, benchmark and package evidence."""
 
-# ruff: noqa: FBT003, PLR2004, T201, TC003, TRY003
+# ruff: noqa: E402, FBT003, PLR2004, T201, TC003, TRY003
 
 from __future__ import annotations
 
@@ -11,6 +11,17 @@ from argparse import ArgumentParser
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Final, cast
+
+_ROOT = Path(__file__).resolve().parents[1]
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+
+from tools.current_candidate_receipt import (
+    CandidateReceiptError,
+)
+from tools.current_candidate_receipt import (
+    verify_receipt as verify_candidate_receipt,
+)
 
 MODULE_ID: Final = "GLIO-PROTEOGEN-M26-08"
 DOSSIER_SHA256: Final = "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
@@ -181,18 +192,43 @@ def verify_release(  # noqa: PLR0913
     *,
     wheel: Path | None = None,
     sdist: Path | None = None,
+    candidate_receipt: Path | None = None,
+    expected_source_commit: str | None = None,
 ) -> dict[str, object]:
     """Verify all M26-08 release evidence and return a compact report."""
 
     verify_evaluation(evaluation, fixture)
     verify_benchmark(benchmark)
-    verify_package(package, wheel=wheel, sdist=sdist)
+    verify_package(
+        package,
+        wheel=None if candidate_receipt is not None else wheel,
+        sdist=None if candidate_receipt is not None else sdist,
+    )
+    if candidate_receipt is not None:
+        if wheel is None or sdist is None:
+            raise M2608ReleaseVerificationError(
+                "current candidate verification requires wheel and sdist artifacts"
+            )
+        try:
+            verify_candidate_receipt(
+                candidate_receipt,
+                wheel,
+                sdist,
+                expected_source_commit=expected_source_commit,
+            )
+        except CandidateReceiptError as error:
+            raise M2608ReleaseVerificationError(
+                "current candidate receipt does not match M26-08 artifacts"
+            ) from error
     return {
         "module_id": MODULE_ID,
         "authority": {"dossier_sha256": DOSSIER_SHA256, "slice": DOSSIER_SLICE},
         "evaluation": str(evaluation),
         "benchmark": str(benchmark),
         "package": str(package),
+        "candidate_receipt": (
+            str(candidate_receipt) if candidate_receipt is not None else None
+        ),
         "fixture": str(fixture),
         "passed": True,
     }
@@ -208,6 +244,8 @@ def main(arguments: Sequence[str] | None = None) -> int:
     parser.add_argument("fixture", type=Path)
     parser.add_argument("--wheel", type=Path)
     parser.add_argument("--sdist", type=Path)
+    parser.add_argument("--candidate-receipt", type=Path)
+    parser.add_argument("--expected-source-commit")
     try:
         parsed = parser.parse_args(arguments)
     except SystemExit as error:
@@ -220,6 +258,8 @@ def main(arguments: Sequence[str] | None = None) -> int:
             parsed.fixture,
             wheel=parsed.wheel,
             sdist=parsed.sdist,
+            candidate_receipt=parsed.candidate_receipt,
+            expected_source_commit=parsed.expected_source_commit,
         )
     except M2608ReleaseVerificationError as error:
         print(f"M26-08 release verification failed: {error}", file=sys.stderr)

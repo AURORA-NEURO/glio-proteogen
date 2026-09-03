@@ -20,6 +20,7 @@ from glio_proteogen.contracts.m10_07 import (
     CalibrationConfiguration,
     CalibrationFindingCode,
     CalibrationMethod,
+    CalibrationObservation,
     CalibrationScope,
     CalibrationStatus,
     expected_evidence,
@@ -30,6 +31,7 @@ from glio_proteogen.kernel.models import (
     ConsentReference,
     ConsentState,
     ContextReferences,
+    EvidenceReference,
     ExecutionContext,
     IdentityLineageReference,
     IdentityLineageState,
@@ -47,6 +49,7 @@ MEDIA: Final = "application/vnd.glio-proteogen.fixture+json"
 DIGEST: Final = "sha256:" + ("a" * 64)
 NOMINAL_COVERAGE: Final = 0.9
 UNCERTAINTY_DIMENSION_COUNT: Final = 7
+CALIBRATION_SPLIT: Final = 10
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,7 +106,11 @@ def _context() -> ExecutionContext:
 
 
 def build_request(
-    *, support_threshold: float = 0.0, ood_threshold: float = 1.0, source_media: str = MEDIA
+    *,
+    support_threshold: float = 0.0,
+    ood_threshold: float = 1.0,
+    source_media: str = MEDIA,
+    measured: bool = False,
 ) -> CalibrateProteinRnaDiscordanceSelectivePredictionRequest:
     """Build one deterministic caller-declared request for evaluation and benchmarking."""
 
@@ -122,12 +129,33 @@ def build_request(
         ),
         benchmark_artifact=_artifact("benchmark", "application/vnd.glio-proteogen.benchmark+json"),
     )
+    source_artifact = _artifact("source", source_media)
+    observation_evidence = EvidenceReference(
+        reference=_artifact("calibration-observations"),
+        role="evidence",
+        claim="Synthetic glioma protein-RNA discordance calibration label.",
+    )
+    observations = tuple(
+        CalibrationObservation(
+            observation_id=f"eval.observation.{index}",
+            score=round(0.1 + index * 0.04, 4),
+            observed_label=(
+                "discordant" if index >= CALIBRATION_SPLIT else "concordant"
+            ),
+            subgroup="adult_glioma",
+            evidence=(observation_evidence,),
+        )
+        for index in range(20)
+    ) if measured else ()
     return CalibrateProteinRnaDiscordanceSelectivePredictionRequest(
         request_id="eval.request.m10-07",
         context=_context(),
         uncertainty_result=_artifact("uncertainty", "application/vnd.glio-proteogen.m10-06+json"),
         configuration=configuration,
-        source_artifacts=(_artifact("source", source_media),),
+        source_artifacts=(source_artifact,),
+        calibration_observations=observations,
+        query_score=0.62 if measured else None,
+        query_subgroup="adult_glioma" if measured else None,
     )
 
 
@@ -203,6 +231,22 @@ def run_evaluation(
         "deterministic_bytes",
         passed=built.canonical_bytes == repeated.canonical_bytes,
         detail=built.result.result_digest,
+    )
+    measured = service.execute(build_request(measured=True))
+    add(
+        "measured_conformal_calibration",
+        passed=(
+            measured.result.status is CalibrationStatus.CALIBRATED
+            and measured.result.estimate is not None
+            and measured.result.prediction_set is not None
+            and measured.result.estimate.predicted_discordance == "discordant"
+            and any(
+                item.metric_name == "leave_one_out_coverage"
+                and item.status is not None
+                for item in measured.result.diagnostics
+            )
+        ),
+        detail="labeled glioma observations drive conformal p-values and coverage diagnostics",
     )
     return {
         "module_id": MODULE_ID,

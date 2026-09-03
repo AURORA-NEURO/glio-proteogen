@@ -15,9 +15,17 @@ if __package__ in {None, ""}:
 
 from tests.modules.c09_complex_activity.test_m09_05_integrator import _request
 
+from glio_proteogen.contracts.m09_05 import (
+    ConstraintEvidenceObservation,
+    ConstraintObservationState,
+)
 from glio_proteogen.modules.c09_complex_activity.m09_05_mechanism_constraint_integrator import (
     M0905ConstraintIntegrator,
 )
+
+_MEASURED_VALUE = 0.7
+_MEASURED_STANDARD_ERROR = 0.1
+_CENSORING_LIMIT = 0.4
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,6 +42,8 @@ class EvaluationReport:
     tamper_rejected: bool
     deterministic: bool
     soft_ablation_visible: bool
+    measured_status: str
+    measured_value_used: bool
     passed: bool
 
 
@@ -44,6 +54,25 @@ def evaluate() -> EvaluationReport:
     hard = engine.integrate(_request("force_violation"))
     soft = engine.integrate(_request("soft force_violation"))
     unsupported = engine.integrate(_request("unsupported ontology"))
+    measured = engine.integrate(
+        _request("conservation_hold").model_copy(
+            update={
+                "observations": (
+                    ConstraintEvidenceObservation(
+                        feature_id="feature.1",
+                        value=_MEASURED_VALUE,
+                        standard_error=_MEASURED_STANDARD_ERROR,
+                    ),
+                    ConstraintEvidenceObservation(
+                        feature_id="feature.2",
+                        state=ConstraintObservationState.LEFT_CENSORED,
+                        standard_error=_MEASURED_STANDARD_ERROR,
+                        censoring_limit=_CENSORING_LIMIT,
+                    ),
+                )
+            }
+        )
+    )
     replay = engine.verify(supported.result, supported.canonical_bytes)
     tampered = engine.verify(supported.result, supported.canonical_bytes + b" ")
     soft_report = soft.result.satisfaction_report[0]
@@ -58,6 +87,9 @@ def evaluate() -> EvaluationReport:
         and not tampered.verified
         and supported.canonical_bytes == repeat.canonical_bytes
         and soft_report.ablation_effect is not None
+        and measured.result.status.value == "estimated"
+        and measured.result.estimates[0].estimate_value == _MEASURED_VALUE
+        and measured.result.estimates[1].upper_bound == _CENSORING_LIMIT
     )
     return EvaluationReport(
         module_id="GLIO-PROTEOGEN-M09-05",
@@ -72,6 +104,11 @@ def evaluate() -> EvaluationReport:
         tamper_rejected=not tampered.verified,
         deterministic=supported.canonical_bytes == repeat.canonical_bytes,
         soft_ablation_visible=soft_report.ablation_effect is not None,
+        measured_status=measured.result.status.value,
+        measured_value_used=(
+            bool(measured.result.estimates)
+            and measured.result.estimates[0].estimate_value == _MEASURED_VALUE
+        ),
         passed=passed,
     )
 

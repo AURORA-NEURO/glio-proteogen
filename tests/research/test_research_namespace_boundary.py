@@ -9,7 +9,7 @@ from typing import cast
 _ROOT = Path(__file__).resolve().parents[2]
 _GOVERNED_ROOTS = (
     _ROOT / "src" / "glio_proteogen" / "modules",
-    _ROOT / "src" / "glio_proteogen" / "adapters",
+    _ROOT / "src" / "glio_proteogen" / "contracts",
 )
 
 
@@ -35,7 +35,7 @@ def _research_imports(path: Path) -> list[tuple[str, int]]:
     return found
 
 
-def test_governed_modules_and_adapters_do_not_import_research_namespace() -> None:
+def test_governed_modules_and_contracts_do_not_import_research_namespace() -> None:
     offenders = [
         hit
         for root in _GOVERNED_ROOTS

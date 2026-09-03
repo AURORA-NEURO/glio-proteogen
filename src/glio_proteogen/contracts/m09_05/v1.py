@@ -8,6 +8,7 @@ or constraint ceilings.  Every symbol here is provisional scaffolding.
 from __future__ import annotations
 
 from enum import StrEnum
+from math import isfinite
 from typing import Final, Literal
 
 from pydantic import Field, model_validator
@@ -81,6 +82,15 @@ class ConstraintIntegratorStatus(StrEnum):
     ABSTAINED = "abstained"
 
 
+class ConstraintObservationState(StrEnum):
+    """State of one complex-member abundance observation."""
+
+    OBSERVED = "observed"
+    LEFT_CENSORED = "left_censored"
+    MISSING = "missing"
+    UNSUPPORTED = "unsupported"
+
+
 class ConstraintReplayReason(StrEnum):
     """Closed replay-verification outcomes for canonical result bytes."""
 
@@ -105,6 +115,52 @@ class MechanismConstraint(FrozenModel):
     severity: ConstraintSeverity
     reference: ArtifactReference
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0905_MAX_EVIDENCE)
+
+
+class ConstraintEvidenceObservation(FrozenModel):
+    """Measured member abundance used by the complex constraint fit."""
+
+    feature_id: Identifier
+    state: ConstraintObservationState = ConstraintObservationState.OBSERVED
+    value: float | None = None
+    standard_error: float | None = Field(default=None, gt=0.0)
+    quality_weight: float = Field(default=1.0, ge=0.0, le=1.0)
+    censoring_limit: float | None = None
+    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0905_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def observation_shape_is_closed(self) -> ConstraintEvidenceObservation:
+        for name, number in (
+            ("value", self.value),
+            ("standard_error", self.standard_error),
+            ("quality_weight", self.quality_weight),
+            ("censoring_limit", self.censoring_limit),
+        ):
+            if number is not None and not isfinite(number):
+                raise ValueError(f"{name} must be finite")
+        if self.state is ConstraintObservationState.OBSERVED:
+            if (
+                self.value is None
+                or self.standard_error is None
+                or self.censoring_limit is not None
+            ):
+                raise ValueError("observed evidence requires value and standard error")
+        elif self.state is ConstraintObservationState.LEFT_CENSORED:
+            if (
+                self.censoring_limit is None
+                or self.standard_error is None
+                or self.value is not None
+            ):
+                raise ValueError(
+                    "left-censored evidence requires a censoring limit and standard error"
+                )
+        elif (
+            self.value is not None
+            or self.standard_error is not None
+            or self.censoring_limit is not None
+        ):
+            raise ValueError("missing or unsupported evidence cannot carry numeric values")
+        return self
 
 
 class ConstraintIntegratorPolicy(FrozenModel):
@@ -207,6 +263,9 @@ class IntegrateComplexActivityConstraintsRequest(FrozenModel):
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M0905_MAX_EVIDENCE
     )
+    observations: tuple[ConstraintEvidenceObservation, ...] = Field(
+        default=(), max_length=M0905_MAX_ESTIMATES
+    )
     supersedes_result_digest: Sha256Digest | None = None
 
     @model_validator(mode="after")
@@ -216,6 +275,11 @@ class IntegrateComplexActivityConstraintsRequest(FrozenModel):
         artifact_ids = tuple(item.artifact_id for item in self.source_artifacts)
         if len(artifact_ids) != len(set(artifact_ids)):
             raise ValueError("source artifact identifiers must be unique")
+        observation_ids = tuple(item.feature_id for item in self.observations)
+        if len(observation_ids) != len(set(observation_ids)):
+            raise ValueError("observation feature ids must be unique")
+        if any(item.feature_id not in set(artifact_ids) for item in self.observations):
+            raise ValueError("observations must bind a declared source artifact")
         return self
 
 
@@ -320,8 +384,10 @@ __all__ = [
     "ConstraintAwareEstimate",
     "ConstraintEstimateKind",
     "ConstraintEvaluationStatus",
+    "ConstraintEvidenceObservation",
     "ConstraintIntegratorPolicy",
     "ConstraintIntegratorStatus",
+    "ConstraintObservationState",
     "ConstraintReplayReason",
     "ConstraintSatisfactionReport",
     "ConstraintSeverity",

@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 from evals.m01_08.run import build_scenario
 
+from benchmarks._module_validation import run_pytest_benchmark
 from glio_proteogen.contracts.m01_08 import ReleaseDisposition
 from glio_proteogen.modules.c01_preanalytic.m01_08_release_packaging import (
     build_release_package,
@@ -41,3 +42,14 @@ def test_representative_public_packager_latency(benchmark: BenchmarkFixture) -> 
     statistics = benchmark_stats.stats
     assert statistics is not None
     assert statistics.mean <= MEAN_BUDGET_SECONDS
+
+
+def run_benchmark(iterations: int = 10) -> dict[str, object]:
+    """Run the locked representative release-packaging workload."""
+
+    return run_pytest_benchmark(
+        module_id="GLIO-PROTEOGEN-M01-08",
+        workload=test_representative_public_packager_latency,
+        iterations=iterations,
+        mean_budget_seconds=MEAN_BUDGET_SECONDS,
+    )

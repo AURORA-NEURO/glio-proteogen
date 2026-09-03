@@ -11,12 +11,16 @@ from pydantic import TypeAdapter, ValidationError
 from glio_proteogen.contracts.m10_07 import (
     M1007_CONTRACT_VERSION,
     M1007_MAX_CANONICAL_RESULT_BYTES,
+    M1007_MAX_COVERAGE,
+    M1007_MIN_COVERAGE,
     M1007_MODULE_ID,
+    M1007_NOMINAL_COVERAGE,
     CalibratedEstimate,
     CalibrateProteinRnaDiscordanceSelectivePredictionRequest,
     CalibrationDiagnostic,
     CalibrationDiagnosticStatus,
     CalibrationFindingCode,
+    CalibrationObservation,
     CalibrationStatus,
     PredictionSet,
     ProteinRnaDiscordanceSelectivePredictionResult,
@@ -44,6 +48,13 @@ from glio_proteogen.kernel.strict_json import StrictJsonError, strict_json_loads
 _REQUEST_ADAPTER: Final = TypeAdapter(CalibrateProteinRnaDiscordanceSelectivePredictionRequest)
 _RESULT_ADAPTER: Final = TypeAdapter(ProteinRnaDiscordanceSelectivePredictionResult)
 _ZERO_DIGEST: Final = "sha256:" + ("0" * 64)
+_CONFORMAL_ALPHA: Final = 1.0 - M1007_NOMINAL_COVERAGE
+_SUBGROUP_DISPARITY_LIMIT: Final = 0.2
+_DISCORDANCE_DECISION_THRESHOLD: Final = 0.5
+
+
+def _predicted_label(score: float) -> str:
+    return "discordant" if score >= _DISCORDANCE_DECISION_THRESHOLD else "concordant"
 
 
 class M1007AuthorizationError(PermissionError):
@@ -152,6 +163,11 @@ def _provenance(
                 request.configuration.benchmark_artifact.digest,
             }
             | {item.digest for item in request.source_artifacts}
+            | {
+                evidence.reference.digest
+                for observation in request.calibration_observations
+                for evidence in observation.evidence
+            }
         )
     )
     return ProvenanceRecord(
@@ -207,9 +223,168 @@ def _replay_reason(
 
 
 def _score(request: CalibrateProteinRnaDiscordanceSelectivePredictionRequest, digest: str) -> float:
+    if request.query_score is not None:
+        return request.query_score
     scope = request.configuration.scopes[0]
     seed = f"{digest}|{scope.site}|{scope.platform}|{scope.disease_class}|{scope.subgroup}"
     return round(int.from_bytes(sha256(seed.encode()).digest()[:8], "big") / 2**64, 8)
+
+
+def _nonconformity(score: float, label: str, observed_label: str) -> float:
+    """Return the probability-score nonconformity for one candidate label."""
+
+    if observed_label == "discordant":
+        return 1.0 - score if label == "discordant" else score
+    return score if label == "discordant" else 1.0 - score
+
+
+def _conformal_p_value(
+    observations: tuple[CalibrationObservation, ...],
+    query_score: float,
+    label: str,
+    *,
+    excluded_index: int | None = None,
+) -> float:
+    reference = tuple(
+        observation
+        for index, observation in enumerate(observations)
+        if index != excluded_index
+    )
+    query_nonconformity = _nonconformity(query_score, label, label)
+    at_least_as_extreme = sum(
+        _nonconformity(observation.score, label, observation.observed_label)
+        >= query_nonconformity
+        for observation in reference
+    )
+    return (1.0 + at_least_as_extreme) / (len(reference) + 1.0)
+
+
+@dataclass(frozen=True, slots=True)
+class _MeasuredCalibration:
+    predicted_label: str
+    confidence: float
+    prediction_labels: tuple[str, ...]
+    diagnostics: tuple[CalibrationDiagnostic, ...]
+    finding: CalibrationFindingCode | None
+    reason: str | None
+
+
+def _measured_calibration(
+    request: CalibrateProteinRnaDiscordanceSelectivePredictionRequest,
+    score: float,
+    evidence: tuple[EvidenceReference, ...],
+) -> _MeasuredCalibration:
+    observations = request.calibration_observations
+    labels = ("discordant", "concordant")
+    p_values = {
+        label: _conformal_p_value(observations, score, label) for label in labels
+    }
+    prediction_labels = tuple(label for label in labels if p_values[label] >= _CONFORMAL_ALPHA)
+    leave_one_out_hits = tuple(
+        _conformal_p_value(
+            observations,
+            observation.score,
+            observation.observed_label,
+            excluded_index=index,
+        )
+        >= _CONFORMAL_ALPHA
+        for index, observation in enumerate(observations)
+    )
+    coverage = sum(leave_one_out_hits) / len(leave_one_out_hits)
+    groups = tuple(sorted({observation.subgroup for observation in observations}))
+    group_coverages = tuple(
+        sum(
+            leave_one_out_hits[index]
+            for index, observation in enumerate(observations)
+            if observation.subgroup == group
+        )
+        / sum(observation.subgroup == group for observation in observations)
+        for group in groups
+    )
+    disparity = max(group_coverages) - min(group_coverages) if len(groups) > 1 else 0.0
+    diagnostics = (
+        CalibrationDiagnostic(
+            diagnostic_id="diagnostic.measured.coverage",
+            status=(
+                CalibrationDiagnosticStatus.PASS
+                if M1007_MIN_COVERAGE <= coverage <= M1007_MAX_COVERAGE
+                else CalibrationDiagnosticStatus.FAIL
+            ),
+            metric_name="leave_one_out_coverage",
+            metric_value=round(coverage, 8),
+            message="Leave-one-out conformal coverage over labeled glioma observations.",
+            evidence=evidence,
+        ),
+        CalibrationDiagnostic(
+            diagnostic_id="diagnostic.measured.subgroup_disparity",
+            status=(
+                CalibrationDiagnosticStatus.PASS
+                if disparity <= _SUBGROUP_DISPARITY_LIMIT
+                else CalibrationDiagnosticStatus.FAIL
+            ),
+            metric_name="subgroup_disparity",
+            metric_value=round(disparity, 8),
+            subgroup=request.query_subgroup,
+            message="Maximum absolute subgroup coverage disparity in the calibration lane.",
+            evidence=evidence,
+        ),
+    )
+    if not prediction_labels:
+        return _MeasuredCalibration(
+            predicted_label=_predicted_label(score),
+            confidence=max(p_values.values()),
+            prediction_labels=(),
+            diagnostics=diagnostics,
+            finding=CalibrationFindingCode.SUPPORT_THRESHOLD_NOT_MET,
+            reason="conformal prediction set is empty at the nominal coverage level",
+        )
+    if score < min(observation.score for observation in observations) or score > max(
+        observation.score for observation in observations
+    ):
+        return _MeasuredCalibration(
+            predicted_label=_predicted_label(score),
+            confidence=max(p_values.values()),
+            prediction_labels=prediction_labels,
+            diagnostics=diagnostics,
+            finding=CalibrationFindingCode.OOD_UNSUPPORTED,
+            reason="query score is outside the observed glioma calibration domain",
+        )
+    if coverage < M1007_MIN_COVERAGE or coverage > M1007_MAX_COVERAGE:
+        return _MeasuredCalibration(
+            predicted_label=_predicted_label(score),
+            confidence=max(p_values.values()),
+            prediction_labels=prediction_labels,
+            diagnostics=diagnostics,
+            finding=CalibrationFindingCode.CALIBRATION_NOT_LOCKED,
+            reason="leave-one-out coverage falls outside the provisional 85-95 percent gate",
+        )
+    if disparity > _SUBGROUP_DISPARITY_LIMIT:
+        return _MeasuredCalibration(
+            predicted_label=_predicted_label(score),
+            confidence=max(p_values.values()),
+            prediction_labels=prediction_labels,
+            diagnostics=diagnostics,
+            finding=CalibrationFindingCode.SUBGROUP_DISPARITY,
+            reason="subgroup coverage disparity exceeds the provisional review ceiling",
+        )
+    confidence = max(p_values.values())
+    if confidence < request.configuration.support_threshold:
+        return _MeasuredCalibration(
+            predicted_label=_predicted_label(score),
+            confidence=confidence,
+            prediction_labels=prediction_labels,
+            diagnostics=diagnostics,
+            finding=CalibrationFindingCode.SUPPORT_THRESHOLD_NOT_MET,
+            reason="conformal confidence does not meet the locked support threshold",
+        )
+    return _MeasuredCalibration(
+        predicted_label=_predicted_label(score),
+        confidence=confidence,
+        prediction_labels=prediction_labels,
+        diagnostics=diagnostics,
+        finding=None,
+        reason=None,
+    )
 
 
 def _limitations() -> tuple[Limitation, ...]:
@@ -250,6 +425,11 @@ def _build(
     digest = canonical_request_digest(request)
     evidence = _evidence(request)
     score = _score(request, digest)
+    measured = (
+        _measured_calibration(request, score, evidence)
+        if request.calibration_observations
+        else None
+    )
     reason: str | None = None
     finding: CalibrationFindingCode | None = None
     if any("unsupported" in item.media_type.casefold() for item in request.source_artifacts):
@@ -257,6 +437,8 @@ def _build(
             "source evidence declares an unsupported media type",
             CalibrationFindingCode.OOD_UNSUPPORTED,
         )
+    elif measured is not None and measured.reason is not None:
+        reason, finding = measured.reason, measured.finding
     elif score < request.configuration.support_threshold:
         reason, finding = (
             "support score does not meet the locked threshold",
@@ -270,22 +452,30 @@ def _build(
     diagnostics: tuple[CalibrationDiagnostic, ...]
     findings: tuple[CalibrationFindingCode, ...]
     if reason is None:
+        predicted_discordance = measured.predicted_label if measured is not None else "discordant"
+        calibrated_confidence = measured.confidence if measured is not None else 0.9
+        prediction_labels = measured.prediction_labels if measured is not None else (
+            "discordant",
+            "concordant",
+        )
         estimate = CalibratedEstimate(
-            predicted_discordance="discordant",
+            predicted_discordance=predicted_discordance,
             score=score,
-            calibrated_confidence=0.9,
+            calibrated_confidence=calibrated_confidence,
             calibration_reference=request.configuration.calibration_artifact,
             evidence=evidence,
         )
         prediction_set = PredictionSet(
-            labels=("discordant", "concordant"), nominal_coverage=0.9, evidence=evidence
+            labels=prediction_labels,
+            nominal_coverage=M1007_NOMINAL_COVERAGE,
+            evidence=evidence,
         )
-        diagnostics = (
+        diagnostics = measured.diagnostics if measured is not None else (
             CalibrationDiagnostic(
                 diagnostic_id="diagnostic.coverage",
                 status=CalibrationDiagnosticStatus.PASS,
                 metric_name="selective_coverage",
-                metric_value=0.9,
+                metric_value=M1007_NOMINAL_COVERAGE,
                 message="Nominal selective coverage is inside the provisional gate.",
                 evidence=evidence,
             ),
@@ -319,7 +509,7 @@ def _build(
         if finding is None:
             raise M1007InputError("missing_finding")
         estimate, prediction_set = None, None
-        diagnostics = (
+        diagnostics = measured.diagnostics if measured is not None else (
             CalibrationDiagnostic(
                 diagnostic_id="diagnostic.abstention",
                 status=CalibrationDiagnosticStatus.NOT_EVALUABLE,

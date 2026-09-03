@@ -7,7 +7,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Final, cast
 
-from pydantic import TypeAdapter
+from pydantic import BaseModel, TypeAdapter
 
 from glio_proteogen.contracts.m05_05 import (
     M0505_CONTRACT_VERSION,
@@ -22,6 +22,7 @@ from glio_proteogen.contracts.m05_06 import (
     M0506_PARENT,
     M0506_ZERO_DIGEST,
     HarmonizePtmLocalizationAnalysisRequest,
+    PtmLocalizationAppliedSupportAdjustment,
     PtmLocalizationArtifactAction,
     PtmLocalizationArtifactEvaluationState,
     PtmLocalizationArtifactHarmonizationReceipt,
@@ -35,6 +36,13 @@ from glio_proteogen.contracts.m05_06 import (
     PtmLocalizationHarmonizationPolicy,
     PtmLocalizationHarmonizationProfile,
     PtmLocalizationHarmonizationResult,
+    PtmLocalizationHarmonizedAnalysis,
+    PtmLocalizationHarmonizedValue,
+    PtmLocalizationInvariantDiagnostic,
+    PtmLocalizationStageTransformation,
+    PtmLocalizationSupportLevelShift,
+    PtmLocalizationTechnicalEffectDiagnostic,
+    PtmLocalizationTransformationManifest,
     expected_provenance,
     opaque_harmonization_identifier,
 )
@@ -52,15 +60,16 @@ from glio_proteogen.kernel.models import (
     ArtifactReference,
     EvidenceReference,
     Limitation,
+    ProvenanceRecord,
     SupportDecision,
     SupportStatus,
+    UncertaintyProfile,
 )
 from glio_proteogen.modules.c05_ptm_localization.m05_06_harmonization.kernel import (
     M0506PtmLocalizationHarmonizationKernel,
 )
 
 _REQUEST_ADAPTER: Final = TypeAdapter(HarmonizePtmLocalizationAnalysisRequest)
-_RESULT_ADAPTER: Final = TypeAdapter(PtmLocalizationHarmonizationResult)
 
 
 class PtmLocalizationHarmonizationAuthorizationError(PermissionError):
@@ -70,6 +79,11 @@ class PtmLocalizationHarmonizationAuthorizationError(PermissionError):
         super().__init__(
             "M05-06 requires accepted controls, resolved identity, and granted consent"
         )
+
+
+class _InvalidEngineResultError(TypeError):
+    def __init__(self) -> None:
+        super().__init__("M05-06 engine output graph is not contract-exact")
 
 
 def _member(value: object, field: str) -> object:
@@ -333,6 +347,105 @@ def _validate_json_request(
     return _REQUEST_ADAPTER.validate_json(body, strict=True)
 
 
+def _assert_exact_model_storage(value: object, expected_type: type[BaseModel]) -> None:
+    """Reject subclasses, missing fields, and extra storage at the trusted output boundary."""
+
+    if type(value) is not expected_type:
+        raise _InvalidEngineResultError
+    storage = object.__getattribute__(value, "__dict__")
+    extra = object.__getattribute__(value, "__pydantic_extra__")
+    if (
+        type(storage) is not dict
+        or extra is not None
+        or any(type(key) is not str for key in dict.keys(storage))
+        or frozenset(dict.keys(storage)) != frozenset(expected_type.model_fields)
+    ):
+        raise _InvalidEngineResultError
+
+
+def _assert_exact_model_tuple(values: object, expected_type: type[BaseModel]) -> None:
+    if type(values) is not tuple:
+        raise _InvalidEngineResultError
+    for value in cast("tuple[object, ...]", values):
+        _assert_exact_model_storage(value, expected_type)
+
+
+def _assert_engine_result_graph(result: PtmLocalizationHarmonizationResult) -> None:
+    """Assert exact model storage for every result object assembled by this engine."""
+
+    direct_models: tuple[tuple[object, type[BaseModel]], ...] = (
+        (result, PtmLocalizationHarmonizationResult),
+        (result.request, HarmonizePtmLocalizationAnalysisRequest),
+        (result.receipt, PtmLocalizationHarmonizationComputationReceipt),
+        (result.support, SupportDecision),
+        (result.uncertainty, UncertaintyProfile),
+        (result.provenance, ProvenanceRecord),
+    )
+    for direct_model, direct_type in direct_models:
+        _assert_exact_model_storage(direct_model, direct_type)
+    collections: tuple[tuple[object, type[BaseModel]], ...] = (
+        (result.technical_effect_diagnostics, PtmLocalizationTechnicalEffectDiagnostic),
+        (result.invariant_diagnostics, PtmLocalizationInvariantDiagnostic),
+        (result.findings, PtmLocalizationHarmonizationFinding),
+        (result.evidence, EvidenceReference),
+        (result.limitations, Limitation),
+    )
+    for values, collection_type in collections:
+        _assert_exact_model_tuple(values, collection_type)
+    if result.analysis is not None:
+        _assert_exact_model_storage(result.analysis, PtmLocalizationHarmonizedAnalysis)
+        _assert_exact_model_tuple(result.analysis.values, PtmLocalizationHarmonizedValue)
+        for harmonized_value in result.analysis.values:
+            _assert_exact_model_tuple(
+                harmonized_value.applied_adjustments,
+                PtmLocalizationAppliedSupportAdjustment,
+            )
+    if result.transformation_manifest is not None:
+        _assert_exact_model_storage(
+            result.transformation_manifest,
+            PtmLocalizationTransformationManifest,
+        )
+        _assert_exact_model_tuple(
+            result.transformation_manifest.stages,
+            PtmLocalizationStageTransformation,
+        )
+        for stage in result.transformation_manifest.stages:
+            _assert_exact_model_tuple(stage.level_shifts, PtmLocalizationSupportLevelShift)
+
+
+def _close_engine_result(
+    payload: dict[str, object],
+) -> PtmLocalizationHarmonizationResult:
+    """Close an internally assembled result without replaying its admitted request.
+
+    The request already passed the strict public adapter, and every output child is
+    produced by a strict constructor in this module or its bounded kernel. Exact
+    storage checks protect that trust boundary; the receipt and result closures
+    retain digest, binding, output-size, and disposition invariants. Public
+    ``model_validate`` remains the strict external replay path.
+    """
+
+    result = PtmLocalizationHarmonizationResult.model_construct(**payload)  # type: ignore[arg-type]
+    _assert_engine_result_graph(result)
+    if (
+        result.output_type != "ptm_localization_harmonized_analysis"
+        or result.result_version != M0506_CONTRACT_VERSION
+        or result.parent_target != M0506_PARENT
+        or result.emits_variant_peptide is not False
+        or result.infers_identity is not False
+        or result.infers_consent is not False
+        or result.localizes_modification is not False
+        or result.infers_kinase_activity is not False
+        or result.performs_all_omics_fusion is not False
+        or result.recommends_treatment is not False
+        or result.mutates_upstream is not False
+    ):
+        raise _InvalidEngineResultError
+    result.receipt.receipt_digest_is_current()  # type: ignore[operator]
+    result.result_is_closed()  # type: ignore[operator]
+    return result
+
+
 class M0506PtmLocalizationHarmonizationEngine:
     """Replay M05-05 and harmonize only caller-declared, cleared support."""
 
@@ -344,7 +457,7 @@ class M0506PtmLocalizationHarmonizationEngine:
     def harmonize(self, request: object) -> PtmLocalizationHarmonizationResult:
         prepared = _prepare(request)
         validated = _REQUEST_ADAPTER.validate_python(prepared, strict=True)
-        return self.harmonize_validated(validated)
+        return self._harmonize_admitted(validated)
 
     def harmonize_validated(
         self,
@@ -354,10 +467,26 @@ class M0506PtmLocalizationHarmonizationEngine:
 
         if not isinstance(request, HarmonizePtmLocalizationAnalysisRequest):
             raise TypeError("M05-06 validated execution requires the declared request type")
+        self._assert_artifact_receipt(request)
+        request.request_is_authorized_and_bound()  # type: ignore[operator]
+        return self._result(request)
+
+    def _harmonize_admitted(
+        self,
+        request: HarmonizePtmLocalizationAnalysisRequest,
+    ) -> PtmLocalizationHarmonizationResult:
+        """Execute a request admitted by the strict service or public adapter."""
+
+        if type(request) is not HarmonizePtmLocalizationAnalysisRequest:
+            raise TypeError("M05-06 admitted execution requires the exact request type")
+        self._assert_artifact_receipt(request)
+        return self._result(request)
+
+    @staticmethod
+    def _assert_artifact_receipt(request: HarmonizePtmLocalizationAnalysisRequest) -> None:
         expected_receipt = artifact_harmonization_receipt(request.artifact_result)
         if request.artifact_receipt != expected_receipt:
             raise ValueError("artifact receipt must replay the exact full M05-05 result")
-        return self._result(request)
 
     def _result(
         self,
@@ -478,7 +607,7 @@ class M0506PtmLocalizationHarmonizationEngine:
             **payload,  # type: ignore[arg-type]
         )
         payload["result_digest"] = result_payload_digest(result_constructed)
-        return _RESULT_ADAPTER.validate_python(payload, strict=True)
+        return _close_engine_result(payload)
 
 
 def harmonize_ptm_localization_analysis(request: object) -> PtmLocalizationHarmonizationResult:

@@ -8,6 +8,7 @@ feature catalogue.  These symbols are provisional scaffolding pending review.
 from __future__ import annotations
 
 from enum import StrEnum
+from math import isfinite
 from typing import Final, Literal
 
 from pydantic import Field, field_validator, model_validator
@@ -127,6 +128,7 @@ class FeatureSpecification(FrozenModel):
     value_kind: RepresentationValueKind
     unit: NonEmptyStr
     dimension: int = Field(ge=1, le=M0902_MAX_VALUES)
+    source_values: tuple[float, ...] = Field(default=(), max_length=M0902_MAX_VALUES)
     lineage: FeatureLineage
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0902_MAX_EVIDENCE)
 
@@ -134,6 +136,10 @@ class FeatureSpecification(FrozenModel):
     def specification_binds_lineage(self) -> FeatureSpecification:
         if self.lineage.feature_id != self.feature_id:
             raise ValueError("feature specification must bind its exact lineage feature id")
+        if self.source_values and len(self.source_values) != self.dimension:
+            raise ValueError("source values must match the declared feature dimension")
+        if any(not isfinite(value) for value in self.source_values):
+            raise ValueError("source values must be finite")
         return self
 
 

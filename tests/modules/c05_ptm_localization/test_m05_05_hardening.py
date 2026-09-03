@@ -55,12 +55,15 @@ from glio_proteogen.modules.c05_ptm_localization.m05_05_artifact_detection impor
     detect_ptm_localization_artifacts,
 )
 from glio_proteogen.modules.c05_ptm_localization.m05_05_artifact_detection.engine import (
+    _assert_engine_result_graph,
     _built_in_sequence_length,
+    _close_engine_result,
     _expected_disposition,
     _expected_findings,
     _expected_posteriors,
     _expected_provenance,
     _ForbiddenEvidenceLedgerError,
+    _InvalidEngineResultError,
     _matching_profile,
     _member,
     _plain_value,
@@ -125,9 +128,7 @@ def test_result_replay_rejects_self_digested_event_binding_tamper() -> None:
     assert result.receipt.event_digests
     forged_receipt = result.receipt.model_copy(
         update={
-            "event_digests": tuple(
-                "sha256:" + ("0" * 64) for _ in result.receipt.event_digests
-            )
+            "event_digests": tuple("sha256:" + ("0" * 64) for _ in result.receipt.event_digests)
         }
     )
     object.__setattr__(forged_receipt, "receipt_digest", receipt_digest(forged_receipt))
@@ -141,6 +142,29 @@ def test_result_replay_rejects_self_digested_event_binding_tamper() -> None:
 
     with pytest.raises(ValidationError, match="complete detector output"):
         PtmLocalizationArtifactDetectionResult.model_validate(forged, strict=True)
+
+
+def test_engine_result_fast_path_retains_exact_graph_and_both_closures() -> None:
+    result = detect_ptm_localization_artifacts(build_scenario("clear").request)
+    _assert_engine_result_graph(result)
+    payload = dict(object.__getattribute__(result, "__dict__"))
+
+    non_inference_payload = payload | {"infers_kinase_activity": True}
+    provisional = PtmLocalizationArtifactDetectionResult.model_construct(**non_inference_payload)
+    non_inference_payload["result_digest"] = result_payload_digest(provisional)
+    with pytest.raises(ValueError, match="literal false"):
+        _close_engine_result(non_inference_payload)
+
+    binding_payload = payload | {"receipt_digest": "sha256:" + ("0" * 64)}
+    provisional = PtmLocalizationArtifactDetectionResult.model_construct(**binding_payload)
+    binding_payload["result_digest"] = result_payload_digest(provisional)
+    with pytest.raises(ValueError, match="receipt digest is stale"):
+        _close_engine_result(binding_payload)
+
+    malformed_request = result.request.model_copy(deep=True)
+    object.__getattribute__(malformed_request, "__dict__").pop("request_id")
+    with pytest.raises(_InvalidEngineResultError):
+        _close_engine_result(payload | {"request": malformed_request})
 
 
 def test_unknown_outer_member_is_rejected_before_execution() -> None:

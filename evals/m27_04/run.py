@@ -198,7 +198,11 @@ def _tamper_rejected(result: object) -> bool:
 def _api_paths(payload: dict[str, object]) -> bool:
     with TestClient(create_app()) as client:
         published = client.post("/v1/modules/M27-04/publish", json=payload)
-        malformed = client.post("/v1/modules/M27-04/publish", content=b"not-json")
+        malformed = client.post(
+            "/v1/modules/M27-04/publish",
+            content=b"not-json",
+            headers={"content-type": "application/json"},
+        )
     return published.status_code == HTTP_OK and malformed.status_code == HTTP_UNPROCESSABLE_CONTENT
 
 

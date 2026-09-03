@@ -1,0 +1,154 @@
+schema: glio-source-admission/1.0
+source_id: gbmap-core-zenodo-6962901
+status: admitted_private_offline_development_only
+purpose: offline_gbm_reference_fitting
+identity_verification_date: 2026-08-30
+
+record:
+  doi: 10.5281/zenodo.6962901
+  concept_doi: 10.5281/zenodo.6961622
+  revision: 1
+  url: https://zenodo.org/records/6962901
+
+artifact:
+  name: scarches_core_GBmap.h5ad
+  download_url: https://zenodo.org/api/records/6962901/files/scarches_core_GBmap.h5ad/content
+  size_bytes: 8975644082
+  source_md5: 308f143ba384bd9a8acb0fbf2ea005fc
+  sha256: sha256:cb48db2e31299b41d2fe2b6004fadbabe49957bf7d6d72396139db12366ecd8a
+
+identity_verification:
+  byte_size_match: true
+  official_md5_match: true
+  independently_recomputed_sha256_match: true
+  receipt_digest: sha256:b46e9e32d2d6d70459d8fcb3d2c4e725fde4503e96023809decdd463f19124b2
+  fingerprint_tool_admission_granted: false
+  fingerprint_tool_scope: byte_identity_only
+
+structural_preflight:
+  status: complete
+  schema: glio-proteogen.gbmap-development-preflight-receipt/1.0.0
+  receipt_digest: sha256:c0121ef9e608c54a619d7f93292437bfdbc3b934b8f507f1c0bae1af103787f8
+  receipt_file_sha256: sha256:2a65326f9d1a733425ff02dcb17f544c538bf328edbd6e183317566cc10c2328
+  extraction_receipt_digest: sha256:787d1fa63b6bea7848c3353ee97d15195a296ff216be57b3eb3266525e3ccd15
+  extraction_recipe_digest: sha256:c87dd62982bd3752539188bea91c9e32139d3cbc86af5454cf79a5a0bd0f7df8
+  taxonomy_digest: sha256:6bef5cb6fa37f10cae9c907896712a54e89477f10f03cbe76bf94f31091b5ae0
+  feature_order_digest: sha256:d2dc362629740745fa216ac5d955f98f6eaaeb49941cf1abdbc3f0439660c577
+  profile_digest: sha256:22d086ff0ac97301d246a5e121ed0e4f1a5b0e23fd978641c09e42ba4f3317e4
+  engine_semantic_digest: sha256:9c9ea0b9d975a3d84108912e154e2ca6a4fa7952773c97b0f776b6605f16ca32
+  source_cells_verified: 338564
+  aggregate_records: 1168
+  validation_folds: 21
+  evaluable_validation_folds: 20
+  hierarchy_fit_upper_bound: 739
+  hierarchy_training_executed: false
+  model_fitted: false
+
+source_admission:
+  decision: admitted_private_offline_development_only
+  decision_date: 2026-08-30
+  basis: exact_identity_license_and_structural_preflight_reviewed
+  admission_basis_preflight_receipt_digest: sha256:f3556ae988b64aa1c1f8ff447a8a5004c4a7b8ffe667203d24fe5b32b2e2b3af
+  post_decision_replay_receipt_digest: sha256:c0121ef9e608c54a619d7f93292437bfdbc3b934b8f507f1c0bae1af103787f8
+  raw_source_repository_storage_permitted: false
+  donor_level_material_publication_permitted: false
+  fitted_artifact_admitted: false
+  runtime_mount_permitted: false
+  public_api_permitted: false
+
+license:
+  spdx: CC-BY-4.0
+  url: https://creativecommons.org/licenses/by/4.0/
+  attribution: "Ruiz-Moreno, Cristian; GBmap; DOI 10.5281/zenodo.6962901"
+  derived_artifact_redistribution: permitted_with_attribution_and_change_notice
+  source_code_reuse: forbidden_until_separately_licensed
+
+scientific_scope:
+  organism: Homo sapiens
+  disease: IDH-wildtype glioblastoma
+  cells: 338564
+  genes_in_fitting_artifact: 5000
+  raw_counts_location: layers/counts
+  raw_counts_encoding: csr_matrix/0.1.0
+  raw_counts_nnz: 196660428
+  raw_counts_data_dtype: float32_exact_integer_values_required
+  raw_counts_indices_dtype: int32
+  raw_counts_indptr_dtype: int32
+  donor_field: patient
+  donor_categories_location: obs/__categories/patient
+  study_field: author
+  study_categories_location: obs/__categories/author
+  label_field: CellID
+  label_categories_location: obs/__categories/CellID
+  label_count: 20
+  labels: [AC-like, Astrocyte, B cell, CD4/CD8, DC, Endothelial, MES-like, Mast, Mono, Mural cell, NK, NPC-like, Neuron, OPC, OPC-like, Oligodendrocyte, Plasma B, RG, TAM-BDM, TAM-MG]
+  publication_reported_patients: 109
+  final_supplement_reported_patients: 110
+  final_supplement_study_count: 16
+  final_supplement_study_patient_counts: [6, 23, 3, 1, 3, 11, 5, 9, 4, 7, 5, 4, 3, 8, 5, 13]
+  final_supplement_bytes: 355505
+  final_supplement_sha256: sha256:521aa37db55ec9ecdb6ae2a573fbcc2a9d36c16b44b316917b1b8dbc4efda3fa
+  final_supplement_url: https://pmc.ncbi.nlm.nih.gov/articles/instance/12526130/bin/noaf113_suppl_supplementary_tables_s1-s5.xlsx
+  zenodo_raw_patient_categories: 113
+  cellxgene_curated_donor_categories: 110
+  target_grouped_donor_categories: 110
+  donor_category_interpretation: raw_source_grouping_key_not_verified_unique_biological_person
+  donor_crosswalk_status: complete_reviewed_digest_bound
+  donor_crosswalk_id: gbmap-zenodo-patient-to-donor/1.0.0
+  donor_crosswalk_digest: sha256:631397e8903514594825076dc791ecd8336dcf65d8d39a00f3cdc7ec7f212a69
+  directly_evidenced_donor_grouping:
+    PW032: [PW032-701, PW032-702, PW032-712]
+    R4: [R4, "R4 n.c."]
+  pombo_r4_reporting_summary: https://static-content.springer.com/esm/art%3A10.1038%2Fs41593-020-00789-y/MediaObjects/41593_2020_789_MOESM2_ESM.pdf
+  pombo_r4_patient_table: https://static-content.springer.com/esm/art%3A10.1038%2Fs41593-020-00789-y/MediaObjects/41593_2020_789_MOESM3_ESM.xlsx
+  pombo_r4_sample_accessions: [EGAN00002820637, EGAN00002820638]
+  opaque_source_suffix_policy: preserve_without_expansion_or_interpretation
+  raw_author_categories: 17
+  grouped_studies: 16
+  study_crosswalk:
+    Neftel2019: [Neftel2019_10x, Neftel2019_smart]
+  study_split_policy: split_on_grouped_study_never_raw_author_batch
+  biological_person_count_claim_permitted: false
+  original_preprint_reported_patients: 110
+  upstream_preprocessing_commit: 43bb27421214d902229f2a9d5ffbe67cca27b9ec
+  upstream_global_donor_deduplication_found: false
+  upstream_deduplication_audit_scope: core_construction_notebooks_and_patient_bearing_transformations
+  cellxgene_collection_id: 999f2a15-3d7e-440b-96ae-2c806799c08c
+  cellxgene_core_dataset_id: c888b684-6c51-431f-972a-6c963044cef0
+  cellxgene_core_dataset_version_id: 861acfd8-25f0-418b-a445-aa96da232827
+  cellxgene_schema_version: 7.1.0
+  cellxgene_core_asset_bytes: 8127057404
+  cellxgene_metadata_api: https://api.cellxgene.cziscience.com/curation/v1/collections/999f2a15-3d7e-440b-96ae-2c806799c08c/datasets/c888b684-6c51-431f-972a-6c963044cef0
+  current_mirror_url: https://cellxgene.cziscience.com/collections/999f2a15-3d7e-440b-96ae-2c806799c08c
+
+fit_policy:
+  implementation: independently_authored_numpy_count_model
+  extraction_dependency: h5py==3.16.0
+  extraction_mode: same_read_only_handle_double_full_file_hash
+  split_units:
+    - grouped_donor
+    - grouped_study
+  forbid_cell_random_split: true
+  unknown_component_required: true
+  rare_label_abstention_required: true
+  gene_selection_must_be_training_fold_local: true
+  donor_profiles_may_be_redistributed: false
+  cell_barcodes_may_be_redistributed: false
+  aggregate_fitted_parameters_only: true
+  raw_observed_cell_abundance_is_prevalence: false
+
+validation_policy:
+  donor_held_out_pseudobulk: required
+  study_held_out_pseudobulk: required
+  entire_label_omission_negative_control: required
+  mixture_residual_calibration: required
+  external_cohort_stress_test: required_before_supported_claims
+
+claim_ceiling: limited_reference_fitted_unvalidated_external_bulk
+
+blockers:
+  - add deterministic resumable hierarchy-task execution before the full fit
+  - train and validate the unknown-background component and its penalties
+  - resolve selected source feature keys to stable admitted identifiers
+  - complete donor-held-out and study-held-out calibration
+  - complete independent-cohort stress testing

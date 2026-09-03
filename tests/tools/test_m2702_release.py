@@ -11,13 +11,16 @@ from tools.verify_m2702_release import ReleaseVerificationError, verify
 _MIN_COVERAGE = 95.0
 
 
+@pytest.mark.historical_artifact
 def test_m2702_release_evidence_matches_current_packages() -> None:
     root = Path(__file__).parents[2]
-    report = verify(root / "release-evidence" / "m27_02", root / "dist")
+    report = verify(root / "release-evidence" / "m27_02", root / "dist-m27-02")
 
     assert report["verified"] is True
     assert report["module_id"] == "GLIO-PROTEOGEN-M27-02"
-    assert report["coverage"] >= _MIN_COVERAGE
+    coverage = report["coverage"]
+    assert isinstance(coverage, int | float)
+    assert coverage >= _MIN_COVERAGE
 
 
 def test_m2702_release_evidence_rejects_stale_package_digest(tmp_path: Path) -> None:
@@ -33,5 +36,11 @@ def test_m2702_release_evidence_rejects_stale_package_digest(tmp_path: Path) -> 
     package["wheel"]["sha256"] = "0" * 64
     package_path.write_text(json.dumps(package), encoding="utf-8")
 
+    package_dir = tmp_path / "dist"
+    package_dir.mkdir()
+    for artifact_name in ("wheel", "sdist"):
+        filename = package[artifact_name]["filename"]
+        (package_dir / filename).write_bytes(b"not-the-locked-package")
+
     with pytest.raises(ReleaseVerificationError, match="package digest mismatch"):
-        verify(copied, root / "dist")
+        verify(copied, package_dir)

@@ -27,10 +27,12 @@ unbound lineage, malformed masks, failed leakage checks without affected held-ou
 feature/result closure violations. Canonical request and result digests bind replay to exact
 content.
 
-The runtime performs seven-control preflight before construction. Values are deterministic hash-
-derived fixture values from the canonical request and content-addressed digests; no external
-artifact is fetched or interpreted. Constructed features carry explicit masks, units, complete
-lineage, evidence references, provenance, and seven explicit not-estimable uncertainty dimensions.
+The runtime performs seven-control preflight before construction. When a producer supplies a
+finite observed vector, the locked lineage transformations perform deterministic scaling,
+normalization, residual centering, and masking on those values; no external artifact is fetched or
+interpreted. Metadata-only requests retain a clearly labelled digest-derived compatibility path.
+Constructed features carry explicit masks, units, complete lineage, evidence references,
+provenance, and seven explicit not-estimable uncertainty dimensions.
 Missing, unsupported, OOD, not-evaluable, or leakage-failure markers abstain with no features and
 an unsupported status; no negative biological finding is manufactured.
 

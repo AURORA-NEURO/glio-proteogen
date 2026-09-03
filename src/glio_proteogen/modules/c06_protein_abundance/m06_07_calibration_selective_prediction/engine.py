@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import fsum
 from typing import Final, cast
 
 from pydantic import TypeAdapter, ValidationError
@@ -43,6 +44,38 @@ from glio_proteogen.kernel.models import (
 _REQUEST_ADAPTER: Final = TypeAdapter(CalibrateSelectiveProteinAbundanceRequest)
 _RESULT_ADAPTER: Final = TypeAdapter(CalibrateSelectiveProteinAbundanceResult)
 
+# These weights are deliberately explicit and part of the M06-07 model
+# definition.  M06-06 probabilities are probabilities of uncertainty (not
+# confidence); the selective gate therefore gives the largest influence to
+# measurement, support, transport, and identification risk.  The transport
+# term is made glioma-aware by recognising the marker families used by the
+# upstream abundance posterior.
+_UNCERTAINTY_WEIGHTS: Final = {
+    "measurement": 0.24,
+    "sampling": 0.08,
+    "parameter": 0.10,
+    "model_form": 0.12,
+    "identification": 0.16,
+    "support": 0.16,
+    "transport": 0.14,
+}
+_GLIOMA_MARKERS: Final = (
+    "egfr",
+    "pdgfra",
+    "met",
+    "cdk4",
+    "mdm2",
+    "mycn",
+    "cdkn2a",
+    "cdkn2b",
+    "pten",
+    "nf1",
+    "chr10",
+)
+_UNCERTAINTY_PENALTY: Final = 0.25
+_OOD_TRANSPORT_WEIGHT: Final = 0.70
+_OOD_FEATURE_WEIGHT: Final = 0.30
+
 
 class CalibrationAuthorizationError(PermissionError):
     """Raised before an unauthorized calibration request traverses inputs."""
@@ -58,6 +91,7 @@ class CalibrationInputError(ValueError):
         "result_limit": "calibration result exceeds byte limit",
         "result_digest": "calibration result digest does not match",
         "result_noncanonical": "calibration result bytes are not canonical",
+        "uncertainty_decomposition": "uncertainty decomposition is not evaluable",
     }
 
     def __init__(self, reason: str) -> None:
@@ -213,6 +247,92 @@ def _quality_gate(
     return True, "locked provisional strata satisfy coverage and calibration gates", maximum_error
 
 
+def _uncertainty_risk(request: CalibrateSelectiveProteinAbundanceRequest) -> float:
+    """Aggregate the seven M06-06 uncertainty dimensions into a risk score.
+
+    This is a weighted risk functional, rather than a pass-through constant:
+    each dimension is read from the validated decomposition and the weights
+    sum to one.  A missing component is treated as unevaluable and causes the
+    caller to abstain upstream, so it can never be silently interpreted as
+    zero risk.
+    """
+
+    decomposition = request.uncertainty_result.decomposition
+    if decomposition is None:
+        raise CalibrationInputError("uncertainty_decomposition")
+    values = {
+        component.dimension.value: component.estimate.probability
+        for component in decomposition.components
+    }
+    if set(values) != set(_UNCERTAINTY_WEIGHTS) or any(value is None for value in values.values()):
+        raise CalibrationInputError("uncertainty_decomposition")
+    numeric_values = {
+        dimension: cast("float", values[dimension]) for dimension in _UNCERTAINTY_WEIGHTS
+    }
+    return min(
+        1.0,
+        max(
+            0.0,
+            fsum(
+                _UNCERTAINTY_WEIGHTS[dimension] * numeric_values[dimension]
+                for dimension in _UNCERTAINTY_WEIGHTS
+            ),
+        ),
+    )
+
+
+def _feature_ood_score(feature_id: str, transport_risk: float) -> float:
+    """Estimate out-of-domain risk using glioma marker coverage.
+
+    Marker-bearing features are closer to the locked glioma abundance model;
+    generic features receive a conservative transport penalty.  The result is
+    bounded and deterministic, and remains an OOD *risk* rather than a claim
+    that a feature is clinically in-domain.
+    """
+
+    marker = any(token in feature_id.casefold() for token in _GLIOMA_MARKERS)
+    feature_risk = 0.05 if marker else 0.15
+    return min(
+        1.0,
+        max(
+            0.0,
+            _OOD_TRANSPORT_WEIGHT * transport_risk
+            + _OOD_FEATURE_WEIGHT * feature_risk,
+        ),
+    )
+
+
+def _selective_metrics(
+    request: CalibrateSelectiveProteinAbundanceRequest,
+    feature_id: str,
+    stratum_error: float,
+) -> tuple[float, float, OutOfDistributionStatus, float]:
+    """Return evidence-derived support, OOD status, and calibration error."""
+
+    risk = _uncertainty_risk(request)
+    transport = request.uncertainty_result.decomposition
+    if transport is None:
+        raise CalibrationInputError("uncertainty_decomposition")
+    transport_component = next(
+        component
+        for component in transport.components
+        if component.dimension.value == "transport"
+    )
+    transport_risk = cast("float", transport_component.estimate.probability)
+    ood_score = _feature_ood_score(feature_id, transport_risk)
+    support_score = min(1.0, max(0.0, 1.0 - risk))
+    calibration_error = min(
+        1.0,
+        max(0.0, stratum_error + _UNCERTAINTY_PENALTY * risk),
+    )
+    ood_status = (
+        OutOfDistributionStatus.IN_DOMAIN
+        if ood_score <= request.policy.support_threshold.maximum_ood_score
+        else OutOfDistributionStatus.OOD
+    )
+    return support_score, ood_score, ood_status, calibration_error
+
+
 def _build_result(
     request: CalibrateSelectiveProteinAbundanceRequest,
 ) -> CalibrateSelectiveProteinAbundanceResult:
@@ -224,7 +344,39 @@ def _build_result(
     )
     quality_ok, quality_reason, calibration_error = _quality_gate(request)
     upstream_estimates = upstream.request.constraint_result.estimates
-    can_calibrate = upstream_supported and quality_ok and bool(upstream_estimates)
+    metric_rows: tuple[tuple[float, float, OutOfDistributionStatus, float], ...] = ()
+    selective_reason: str | None = None
+    if upstream_supported and quality_ok and upstream_estimates:
+        try:
+            metric_rows = tuple(
+                _selective_metrics(request, str(estimate.feature_id), calibration_error)
+                for estimate in upstream_estimates
+            )
+        except (TypeError, ValueError, StopIteration) as error:
+            selective_reason = str(error)
+        else:
+            threshold = request.policy.support_threshold
+            if any(
+                support < threshold.minimum_support_score
+                for support, _, _, _ in metric_rows
+            ):
+                selective_reason = "evidence-derived support score is below the locked threshold"
+            elif any(status is OutOfDistributionStatus.OOD for _, _, status, _ in metric_rows):
+                selective_reason = "evidence-derived glioma transport score is out of domain"
+            elif any(
+                error > threshold.maximum_calibration_error
+                for _, _, _, error in metric_rows
+            ):
+                selective_reason = (
+                    "evidence-derived calibration error exceeds the selective threshold"
+                )
+    can_calibrate = (
+        upstream_supported
+        and quality_ok
+        and bool(upstream_estimates)
+        and bool(metric_rows)
+        and selective_reason is None
+    )
     status = CalibrationStatus.CALIBRATED if can_calibrate else CalibrationStatus.ABSTAINED
     reason = (
         None
@@ -234,6 +386,8 @@ def _build_result(
             if not upstream_supported
             else quality_reason
             if not quality_ok
+            else selective_reason
+            if selective_reason is not None
             else "upstream result contains no supported estimates"
         )
     )
@@ -247,6 +401,14 @@ def _build_result(
             else SupportStatus.REVIEW_REQUIRED
         )
     )
+    observed_coverage = min(
+        (
+            stratum.observed_coverage
+            for stratum in request.policy.strata
+            if stratum.observed_coverage is not None
+        ),
+        default=None,
+    )
     prediction_sets = (
         tuple(
             CalibratedPredictionSet(
@@ -254,11 +416,7 @@ def _build_result(
                 feature_id=estimate.feature_id,
                 labels=("in_domain",),
                 target_coverage=request.policy.target_coverage,
-                observed_coverage=min(
-                    stratum.observed_coverage
-                    for stratum in request.policy.strata
-                    if stratum.observed_coverage is not None
-                ),
+                observed_coverage=observed_coverage,
             )
             for estimate in upstream_estimates
         )
@@ -270,14 +428,14 @@ def _build_result(
             CalibratedEstimate(
                 feature_id=estimate.feature_id,
                 estimate_value=estimate.estimate_value,
-                support_score=1.0,
-                ood_status=OutOfDistributionStatus.IN_DOMAIN,
-                calibration_error=calibration_error,
+                support_score=metric_rows[index][0],
+                ood_status=metric_rows[index][2],
+                calibration_error=metric_rows[index][3],
                 selection_status=SelectivePredictionStatus.SELECTED,
                 prediction_set_id=f"prediction-set.{estimate.feature_id}",
                 evidence=estimate.evidence,
             )
-            for estimate in upstream_estimates
+            for index, estimate in enumerate(upstream_estimates)
         )
         if can_calibrate
         else ()
@@ -287,11 +445,19 @@ def _build_result(
             diagnostic_id=f"diagnostic.{stratum.stratum_id}",
             status=CalibrationStatus.CALIBRATED if can_calibrate else CalibrationStatus.ABSTAINED,
             metric_name="coverage_and_calibration_error",
-            metric_value=stratum.calibration_error,
+            metric_value=(
+                max(stratum.calibration_error or 0.0, calibration_error)
+                if can_calibrate
+                else stratum.calibration_error
+            ),
             message=(
-                "stratum satisfies provisional calibration gate"
+                "stratum and evidence-derived glioma support/OOD gates are satisfied"
                 if can_calibrate
                 else quality_reason
+                if not quality_ok
+                else selective_reason
+                if selective_reason is not None
+                else "upstream uncertainty result is not supported for calibration"
             ),
         )
         for stratum in request.policy.strata

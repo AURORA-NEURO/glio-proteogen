@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from typing import Final
 
 from evals.m25_07.fixture import build_request, denied_request
@@ -154,4 +154,21 @@ def evaluate() -> bool:
     return all(result.passed for result in (*run_scenarios(), *run_adversarial()))
 
 
-__all__ = ["ScenarioResult", "evaluate", "run_adversarial", "run_scenarios"]
+def run_evaluator() -> dict[str, object]:
+    """Return the complete self-identifying evaluator receipt."""
+
+    checks = (*run_scenarios(), *run_adversarial())
+    return {
+        "module_id": "GLIO-PROTEOGEN-M25-07",
+        "passed": all(result.passed for result in checks),
+        "checks": [asdict(result) for result in checks],
+    }
+
+
+__all__ = [
+    "ScenarioResult",
+    "evaluate",
+    "run_adversarial",
+    "run_evaluator",
+    "run_scenarios",
+]

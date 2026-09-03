@@ -7,6 +7,7 @@ import json
 import os
 import stat
 import sys
+from collections.abc import Callable
 from contextlib import suppress
 from ctypes import wintypes
 from pathlib import Path, PurePosixPath
@@ -83,10 +84,39 @@ from glio_proteogen.adapters.api import (
     _support_routing_contract_schema,
     create_app,
 )
+from glio_proteogen.adapters.cptac_gbm_cis_dosage import (
+    cli as cptac_gbm_cis_dosage_app,
+)
+from glio_proteogen.adapters.cptac_gbm_transcript_protein_discordance import (
+    cli as cptac_gbm_transcript_protein_discordance_app,
+)
+from glio_proteogen.adapters.gbm_factor_graph import cli as gbm_factor_graph_app
+from glio_proteogen.adapters.gbm_functional_proteotype import (
+    cli as gbm_functional_proteotype_app,
+)
+from glio_proteogen.adapters.gbm_master_kinases import cli as gbm_master_kinases_app
+from glio_proteogen.adapters.gbm_rna_purity import cli as gbm_rna_purity_app
+from glio_proteogen.adapters.glioma_models import cli as gbm_axes_app
 from glio_proteogen.adapters.limits import (
     MAX_REQUEST_BYTES,
     RequestBodyTooLargeError,
     read_bounded,
+)
+from glio_proteogen.adapters.longitudinal_gbm import cli as longitudinal_gbm_app
+from glio_proteogen.adapters.longitudinal_gbm_complex_transition import (
+    cli as longitudinal_gbm_complex_transition_app,
+)
+from glio_proteogen.adapters.longitudinal_gbm_kinase_transition import (
+    cli as longitudinal_gbm_kinase_transition_app,
+)
+from glio_proteogen.adapters.longitudinal_gbm_neftel_transition import (
+    cli as longitudinal_gbm_neftel_transition_app,
+)
+from glio_proteogen.adapters.longitudinal_gbm_phospho import (
+    cli as longitudinal_gbm_phospho_app,
+)
+from glio_proteogen.adapters.longitudinal_gbm_reactome_transition import (
+    cli as longitudinal_gbm_reactome_transition_app,
 )
 from glio_proteogen.adapters.m1901 import m1901_app
 from glio_proteogen.adapters.m1902 import m1902_app
@@ -95,6 +125,8 @@ from glio_proteogen.adapters.m2001 import m2001_app
 from glio_proteogen.adapters.m2002 import m2002_app
 from glio_proteogen.adapters.m2003 import m2003_app
 from glio_proteogen.adapters.m2004 import m2004_app
+from glio_proteogen.adapters.neftel_programs import cli as neftel_programs_app
+from glio_proteogen.adapters.research_state import cli as research_state_app
 from glio_proteogen.contracts.m01_01.v1 import (
     EvaluateMetadataRequest,
     RegisterProtocolRequest,
@@ -709,6 +741,33 @@ if TYPE_CHECKING:
 app = typer.Typer(no_args_is_help=True, pretty_exceptions_enable=False)
 protocol_app = typer.Typer(no_args_is_help=True, help="M01-01 protocol operations.")
 app.add_typer(protocol_app, name="protocol")
+app.add_typer(research_state_app, name="research-state")
+app.add_typer(gbm_factor_graph_app, name="gbm-factor-graph")
+app.add_typer(gbm_functional_proteotype_app, name="gbm-functional-proteotype")
+app.add_typer(gbm_axes_app, name="gbm-axes")
+app.add_typer(neftel_programs_app, name="neftel-programs")
+app.add_typer(gbm_master_kinases_app, name="gbm-master-kinases")
+app.add_typer(gbm_rna_purity_app, name="gbm-rna-purity")
+app.add_typer(longitudinal_gbm_app, name="longitudinal-gbm")
+app.add_typer(longitudinal_gbm_complex_transition_app, name="complex-transition")
+app.add_typer(longitudinal_gbm_phospho_app, name="longitudinal-gbm-phospho")
+app.add_typer(
+    longitudinal_gbm_kinase_transition_app,
+    name="longitudinal-gbm-kinase-transition",
+)
+app.add_typer(
+    longitudinal_gbm_neftel_transition_app,
+    name="longitudinal-gbm-neftel-transition",
+)
+app.add_typer(
+    longitudinal_gbm_reactome_transition_app,
+    name="longitudinal-gbm-reactome-transition",
+)
+app.add_typer(cptac_gbm_cis_dosage_app, name="cptac-gbm-cis-dosage")
+app.add_typer(
+    cptac_gbm_transcript_protein_discordance_app,
+    name="cptac-gbm-transcript-protein-discordance",
+)
 identity_app = typer.Typer(no_args_is_help=True, help="M01-02 identity and lineage operations.")
 app.add_typer(identity_app, name="identity")
 raw_app = typer.Typer(no_args_is_help=True, help="M01-03 bounded raw-format ingestion.")
@@ -2897,6 +2956,34 @@ def _raise_anchored_output_error() -> Never:
     raise OSError
 
 
+def _windows_load_library(
+    name: str,
+    *,
+    use_last_error: bool = False,
+) -> ctypes.CDLL:  # pragma: no cover
+    """Load a Windows DLL without exposing platform-only ctypes attributes to MyPy."""
+
+    loader = cast(
+        "Callable[..., ctypes.CDLL] | None",
+        getattr(ctypes, "WinDLL", None),
+    )
+    if loader is None:
+        _raise_anchored_output_error()
+    return loader(name, use_last_error=use_last_error)
+
+
+def _windows_read_last_error() -> int:  # pragma: no cover
+    """Read the thread-local Windows error through a platform-safe lookup."""
+
+    reader = cast(
+        "Callable[[], int] | None",
+        getattr(ctypes, "get_last_error", None),
+    )
+    if reader is None:
+        _raise_anchored_output_error()
+    return int(reader())
+
+
 def _write_proteoform_raw_result_windows(  # pragma: no cover
     path: Path,
     payload: bytes,
@@ -2997,7 +3084,7 @@ def _open_proteoform_raw_windows_parent(  # pragma: no cover
 
 
 def _windows_open_root(anchor: str) -> int:  # pragma: no cover
-    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32 = _windows_load_library("kernel32", use_last_error=True)
     create_file = kernel32.CreateFileW
     create_file.argtypes = [
         wintypes.LPCWSTR,
@@ -3067,7 +3154,7 @@ def _windows_nt_create_relative(  # noqa: PLR0913 - mirrors NtCreateFile policy.
     )
     io_status = _WindowsIoStatusBlock()
     received = wintypes.HANDLE()
-    ntdll = ctypes.WinDLL("ntdll")
+    ntdll = _windows_load_library("ntdll")
     nt_create_file = ntdll.NtCreateFile
     nt_create_file.argtypes = [
         ctypes.POINTER(wintypes.HANDLE),
@@ -3122,7 +3209,7 @@ def _windows_rename_proteoform_raw_output(  # pragma: no cover
         len(encoded_name),
     )
     io_status = _WindowsIoStatusBlock()
-    ntdll = ctypes.WinDLL("ntdll")
+    ntdll = _windows_load_library("ntdll")
     nt_set_information_file = ntdll.NtSetInformationFile
     nt_set_information_file.argtypes = [
         wintypes.HANDLE,
@@ -3151,7 +3238,7 @@ def _write_proteoform_raw_windows_handle(  # pragma: no cover
 ) -> None:
     if len(payload) > _WINDOWS_MAX_WRITE:
         _raise_anchored_output_error()
-    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32 = _windows_load_library("kernel32", use_last_error=True)
     write_file = kernel32.WriteFile
     write_file.argtypes = [
         wintypes.HANDLE,
@@ -3184,7 +3271,7 @@ def _write_proteoform_raw_windows_handle(  # pragma: no cover
 def _windows_mark_output_for_deletion(handle: int) -> None:  # pragma: no cover
     disposition = _WindowsDispositionInformation()
     disposition.delete_file = True
-    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32 = _windows_load_library("kernel32", use_last_error=True)
     set_information = kernel32.SetFileInformationByHandle
     set_information.argtypes = [
         wintypes.HANDLE,
@@ -3208,7 +3295,7 @@ def _windows_file_receipt(  # pragma: no cover
     directory: bool,
 ) -> tuple[int, int]:
     information = _WindowsByHandleFileInformation()
-    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32 = _windows_load_library("kernel32", use_last_error=True)
     get_information = kernel32.GetFileInformationByHandle
     get_information.argtypes = [
         wintypes.HANDLE,
@@ -3226,7 +3313,7 @@ def _windows_file_receipt(  # pragma: no cover
 
 
 def _windows_close_handle(handle: int) -> None:  # pragma: no cover
-    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32 = _windows_load_library("kernel32", use_last_error=True)
     close_handle = kernel32.CloseHandle
     close_handle.argtypes = [wintypes.HANDLE]
     close_handle.restype = wintypes.BOOL
@@ -3243,13 +3330,13 @@ def _windows_extended_path(path: str) -> str:  # pragma: no cover
 
 
 def _windows_last_error() -> OSError:  # pragma: no cover
-    received = ctypes.get_last_error()
+    received = _windows_read_last_error()
     code = int(received)
     return OSError(code, f"Windows error {code}")
 
 
 def _windows_ntstatus_error(status: int) -> OSError:  # pragma: no cover
-    ntdll = ctypes.WinDLL("ntdll")
+    ntdll = _windows_load_library("ntdll")
     convert = ntdll.RtlNtStatusToDosError
     convert.argtypes = [wintypes.LONG]
     convert.restype = wintypes.ULONG

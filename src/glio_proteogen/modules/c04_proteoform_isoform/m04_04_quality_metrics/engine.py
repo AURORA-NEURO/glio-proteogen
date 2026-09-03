@@ -25,7 +25,7 @@ from glio_proteogen.contracts.m04_04 import (
 )
 from glio_proteogen.contracts.m04_04.v1 import (
     _derive_provenance,
-    _expected_quality_bundle,
+    _expected_bundle_for_capability,
     _issue_raw_input_replay_capability,
     _validate_json_request_with_raw_capability,
     _validate_request_with_raw_capability,
@@ -164,7 +164,7 @@ def _compute_result(
     capability: _ValidatedRequestCapability,
 ) -> ProteoformQualityResult:
     request = capability.request
-    bundle = _expected_quality_bundle(request)
+    bundle = _expected_bundle_for_capability(capability)
     metrics = bundle.metrics
     findings = bundle.findings
     disposition = bundle.disposition

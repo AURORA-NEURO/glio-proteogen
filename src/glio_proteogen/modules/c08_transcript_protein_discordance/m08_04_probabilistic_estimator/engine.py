@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import statistics
+import re
 from collections.abc import Mapping
+from math import exp, isfinite, sqrt
 from typing import Final
 
 from pydantic import TypeAdapter
@@ -44,6 +45,16 @@ _ZERO_DIGEST: Final = "sha256:" + ("0" * 64)
 _MIN_POSTERIOR: Final = 0.01
 _MAX_POSTERIOR: Final = 0.99
 _MIDPOINT: Final = 0.5
+_HUBER_K: Final = 1.5
+_POSTERIOR_Z90: Final = 1.6448536269514722
+_IRLS_TOLERANCE: Final = 1e-7
+_MAX_IRLS_ITERATIONS: Final = 256
+_MIN_PRIOR_PARAMETERS: Final = 2
+_HARD_BOUND_PATTERN: Final = re.compile(
+    r"(?:discordance|ratio|value)?\s*(>=|<=|==|>)\s*"
+    r"(-?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)",
+    re.IGNORECASE,
+)
 
 
 class M0804AuthorizationError(PermissionError):
@@ -185,47 +196,131 @@ def _diagnostic(  # noqa: PLR0913
     )
 
 
-def _bounded_signal(value: float) -> float:
-    return value / (1.0 + abs(value))
+def _posterior_score(  # noqa: C901, PLR0912, PLR0915
+    request: EstimateTranscriptProteinProbabilisticRequest,
+) -> tuple[float, float]:
+    """Fit a signed transcript/protein discordance posterior with Huber IRLS.
 
+    Feature observations are already reduced by upstream identification. Their
+    reliability weights and isoform labels are therefore used directly: the
+    weight is split across repeated observations of one isoform so a highly
+    sampled isoform cannot dominate the discordance estimate. Priors contribute
+    precision, not an arbitrary score offset, and hard numeric constraints are
+    applied to the latent discordance center.
+    """
 
-def _posterior_score(request: EstimateTranscriptProteinProbabilisticRequest) -> tuple[float, float]:
-    """Compute a deterministic posterior proxy from declared observations only."""
-
-    features = request.feature_observations
-    signals = tuple(_bounded_signal(feature.value or 0.0) for feature in features)
-    weights = tuple(feature.weight for feature in features)
-    weighted_signal = sum(
-        signal * weight for signal, weight in zip(signals, weights, strict=True)
-    ) / sum(weights)
-    prior_values = tuple(
-        _bounded_signal(parameter)
-        for prior in request.configuration.priors
-        for parameter in prior.parameters
-    )
-    prior_signal = statistics.fmean(prior_values)
-    family = request.configuration.estimator_family
-    if family is ProbabilisticEstimatorFamily.MECHANISM_GUIDED:
-        signal = 0.7 * weighted_signal + 0.3 * prior_signal
-    elif family is ProbabilisticEstimatorFamily.PROTEOFORM_PROBABILISTIC:
-        signal = 0.5 * statistics.median(signals) + 0.5 * prior_signal
+    numeric_priors: list[tuple[float, float]] = []
+    for prior in request.configuration.priors:
+        parameters = tuple(float(item) for item in prior.parameters)
+        if prior.kind.value == "normal" and len(parameters) >= _MIN_PRIOR_PARAMETERS:
+            mean, scale = parameters[0], abs(parameters[1])
+        elif prior.kind.value == "log_normal" and len(parameters) >= _MIN_PRIOR_PARAMETERS:
+            try:
+                log_mean, log_scale = parameters[0], abs(parameters[1])
+                mean = exp(log_mean + 0.5 * log_scale * log_scale)
+                scale = sqrt(
+                    max(
+                        1e-12,
+                        (exp(log_scale * log_scale) - 1.0)
+                        * exp(2.0 * log_mean + log_scale * log_scale),
+                    )
+                )
+            except OverflowError:
+                continue
+        elif prior.kind.value == "empirical" and parameters:
+            ordered = sorted(parameters)
+            midpoint = len(ordered) // 2
+            mean = (
+                ordered[midpoint]
+                if len(ordered) % 2
+                else (ordered[midpoint - 1] + ordered[midpoint]) / 2.0
+            )
+            scale = max(
+                0.05,
+                sqrt(sum((item - mean) ** 2 for item in ordered) / len(ordered)),
+            )
+        else:
+            continue
+        if isfinite(mean) and isfinite(scale) and scale > 0.0:
+            numeric_priors.append((mean, scale))
+    if numeric_priors:
+        prior_precision = sum(1.0 / (scale * scale) for _, scale in numeric_priors)
+        prior_mean = sum(mean / (scale * scale) for mean, scale in numeric_priors) / prior_precision
     else:
-        signal = 0.8 * weighted_signal + 0.2 * prior_signal
-    seed_offset = ((request.configuration.seed % 19) - 9) / 900.0
-    hard_constraint_penalty = sum(
-        1 for item in request.configuration.constraints if item.hard
-    ) / 1_000.0
-    score = 0.5 + (signal + seed_offset - hard_constraint_penalty) / 2.0
-    score = max(_MIN_POSTERIOR, min(_MAX_POSTERIOR, score))
-    width = min(
-        0.25,
-        max(
-            0.04,
-            0.08
-            + (len(request.configuration.constraints) * 0.002)
-            + (0.02 if family is ProbabilisticEstimatorFamily.PROTEOFORM_PROBABILISTIC else 0.0),
-        ),
+        prior_mean, prior_precision = 0.0, 1.0
+
+    isoform_counts: dict[str, int] = {}
+    for feature in request.feature_observations:
+        isoform_counts[feature.isoform_id or "__unbound__"] = (
+            isoform_counts.get(feature.isoform_id or "__unbound__", 0) + 1
+        )
+    observations = tuple(
+        (
+            feature.value,
+            feature.weight / sqrt(isoform_counts[feature.isoform_id or "__unbound__"]),
+        )
+        for feature in request.feature_observations
+        if feature.value is not None and isfinite(feature.value)
     )
+    if not observations:
+        return _MIN_POSTERIOR, 0.25
+
+    lower, upper = float("-inf"), float("inf")
+    for constraint in request.configuration.constraints:
+        if not constraint.hard:
+            continue
+        match = _HARD_BOUND_PATTERN.search(constraint.expression)
+        if match is None:
+            continue
+        operator, raw_value = match.groups()
+        bound = float(raw_value)
+        if not isfinite(bound):
+            continue
+        if operator in {">=", ">"}:
+            lower = max(lower, bound + (1e-9 if operator == ">" else 0.0))
+        elif operator == "<=":
+            upper = min(upper, bound)
+        else:
+            lower, upper = max(lower, bound), min(upper, bound)
+    if lower > upper:
+        return _MIN_POSTERIOR, 0.25
+
+    center = min(upper, max(lower, prior_mean))
+    robust_weight = 1.0
+    posterior_precision = prior_precision
+    gap = float("inf")
+    for _ in range(_MAX_IRLS_ITERATIONS):
+        weighted_precision = prior_precision
+        weighted_value = prior_precision * prior_mean
+        for observed, reliability in observations:
+            residual = observed - center
+            robust_weight = min(1.0, _HUBER_K / max(1.0, abs(residual)))
+            precision = reliability * robust_weight
+            weighted_precision += precision
+            weighted_value += precision * observed
+        candidate = weighted_value / weighted_precision
+        candidate = min(upper, max(lower, candidate))
+        gap = abs(candidate - center)
+        center = 0.65 * candidate + 0.35 * center
+        posterior_precision = weighted_precision
+        if gap <= _IRLS_TOLERANCE:
+            break
+
+    posterior_sd = sqrt(1.0 / max(1e-12, posterior_precision))
+    interval_width = _POSTERIOR_Z90 * posterior_sd
+    family_gain = {
+        ProbabilisticEstimatorFamily.MECHANISM_GUIDED: 1.0,
+        ProbabilisticEstimatorFamily.PROTEOFORM_PROBABILISTIC: 0.9,
+        ProbabilisticEstimatorFamily.LEARNED: 1.1,
+    }[request.configuration.estimator_family]
+    try:
+        score = 1.0 / (1.0 + exp(-family_gain * center))
+    except OverflowError:
+        score = 0.0 if center < 0.0 else 1.0
+    score = max(_MIN_POSTERIOR, min(_MAX_POSTERIOR, score))
+    width = min(0.25, max(0.04, 0.5 * interval_width * score * (1.0 - score)))
+    if not all(isfinite(item) for item in (score, width, gap)):
+        return _MIN_POSTERIOR, 0.25
     return score, width
 
 

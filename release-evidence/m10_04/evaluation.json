@@ -2,9 +2,10 @@
   "module_id": "GLIO-PROTEOGEN-M10-04",
   "evaluator_version": "0.1.0-provisional",
   "passed": true,
-  "check_count": 7,
+  "check_count": 8,
   "checks": [
     "safe_abstention_has_diagnostic_and_uncertainty",
+    "measured_observation_has_robust_posterior",
     "transitive_replay_is_byte_stable",
     "tampered_receipt_rejected",
     "unresolved_controls_fail_closed",

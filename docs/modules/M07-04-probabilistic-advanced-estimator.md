@@ -37,11 +37,17 @@ rebound receipt cannot pass as a verified estimate.
 
 The runtime performs consent, identity/lineage, provenance, quality, support,
 intended-use, and configuration preflight before estimator execution. The
-current mechanism-guided implementation is a deterministic, locked declaration
-proxy (`locked_declaration_proxy_v1`) intended to exercise the complete typed
-and replayable boundary while owner-approved probabilistic model parameters
-remain unfrozen. It projects finite scalar and interval observations only;
-categorical observations and unfrozen learned families abstain with human
+current mechanism-guided implementation is a deterministic, locked GBM
+copy-number model (`locked_gbm_copy_number_irls_v1`; the former declaration
+proxy name remains a compatibility alias). Each numeric observation is updated
+with a robust Huber-IRLS Normal conjugate step: assay-family variance is chosen
+from copy-number, allelic-balance, or log2-ratio semantics, feature-keyed priors
+are resolved before generic priors, and hard numeric constraints are applied
+without silently coercing unsupported values. The locked vocabulary includes
+recurrent GBM dosage loci (EGFR, PDGFRA, MET, CDK4, MDM2, MYCN, CDKN2A/B,
+PTEN, NF1, and chromosome 10). Results expose posterior intervals or robust
+support mass, objective/convergence diagnostics, and observation-level evidence.
+Categorical observations and unfrozen learned families still abstain with human
 review required. Unsupported, missing, non-finite, ambiguous, or contradictory
 inputs never become a negative finding.
 
@@ -72,6 +78,8 @@ plugin parity. Coverage is branch-enabled and enforced at the repository's
 
 This branch does not claim calibrated posterior accuracy, a validated clinical
 or treatment use, a frozen learned estimator, or a frozen upstream M07-02 ABI.
+The GBM marker priors and assay variance constants are research defaults and
+must be recalibrated against locked cohort data before any promotion.
 Before promotion, the owner must freeze endpoint/media/schema identifiers,
 provide mechanism-guided or learned model evidence, run uncertainty calibration
 against the dossier's 85–95% acceptance expectation, and re-record the package

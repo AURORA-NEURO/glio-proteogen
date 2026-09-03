@@ -20,3 +20,13 @@ The PDC record is metadata provenance, not a claim about patient-level biology. 
 not a production GLIO-PROTEOGEN module and does not alter M03/M04's frozen non-inference boundary.
 No external raw file is bundled in the repository. Fetching a public file is an explicit caller
 operation, bounded by the caller and recorded by its source metadata and digest.
+
+## Release receipts
+
+`docs/evidence/research-foundation/package.json` is immutable historical
+evidence for its recorded build and locked evaluator fixture. The release
+workflow continues to validate those claims, then supplies the separately
+generated `evidence/current-candidate-receipt.json` to the semantic verifier.
+That explicit receipt binds the current wheel and sdist, their complete member
+inventories, the research algorithm profile, source commit,
+`SOURCE_DATE_EPOCH`, and the byte-identical second build.

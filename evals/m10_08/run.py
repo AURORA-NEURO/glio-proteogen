@@ -14,6 +14,7 @@ if __package__ in {None, ""}:
         sys.path.insert(0, str(_PROJECT_ROOT))
 
 from glio_proteogen.contracts.m10_08.v1 import (
+    DiscordanceObservation,
     EvidencePublicationStatus,
     PublisherAssumption,
     PublisherCounterEvidence,
@@ -41,6 +42,7 @@ from glio_proteogen.modules.c10_pathway_proteotype_factors import (
 
 AUTHORITY_SHA256: Final = "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
 AUTHORITY_LINES: Final = "3584-3627"
+_MEASURED_OBSERVATION_COUNT: Final = 6
 _DIGEST = "sha256:" + ("a" * 64)
 
 
@@ -63,7 +65,7 @@ def _decision(identifier: str) -> UpstreamDecisionReference:
 
 
 def build_request(
-    *, complete: bool = True, accepted: bool = True
+    *, complete: bool = True, accepted: bool = True, measured: bool = False
 ) -> PublishProteinRnaEvidenceRequest:
     """Build one deterministic fixture without traversing external payloads."""
 
@@ -116,6 +118,19 @@ def build_request(
         )
         for index, kind in enumerate(PublisherSourceKind)
     )
+    discordance_observations = tuple(
+        DiscordanceObservation(
+            observation_id=f"observation.m1008.{index}",
+            feature_id=f"EGFR.feature.{index}",
+            protein_effect=round(0.35 + index * 0.05, 4),
+            rna_effect=round(0.05 + index * 0.01, 4),
+            protein_standard_error=0.1,
+            rna_standard_error=0.1,
+            quality_weight=0.9,
+            evidence=(evidence,),
+        )
+        for index in range(_MEASURED_OBSERVATION_COUNT)
+    ) if measured else ()
     return PublishProteinRnaEvidenceRequest(
         request_id="eval.m1008.request",
         context=context,
@@ -154,6 +169,7 @@ def build_request(
         )
         if complete
         else (),
+        discordance_observations=discordance_observations,
     )
 
 
@@ -182,6 +198,7 @@ def evaluate() -> dict[str, object]:
         "unaccepted_controls_fail_closed": _raises_authorization(),
         "wrong_upstream_media_rejected": _raises_wrong_media(request),
         "duplicate_json_rejected": _raises_duplicate(plugin, request),
+        "measured_discordance_summary": _measured_summary(),
     }
     return {
         "module": "GLIO-PROTEOGEN-M10-08",
@@ -190,6 +207,18 @@ def evaluate() -> dict[str, object]:
         "checks": checks,
         "passed": all(checks.values()),
     }
+
+
+def _measured_summary() -> bool:
+    result = m1008_runtime.publish_protein_rna_evidence(build_request(measured=True))
+    summary = result.explanation.discordance_summary if result.explanation is not None else None
+    return (
+        result.status is EvidencePublicationStatus.PUBLISHED
+        and summary is not None
+        and summary.observation_count == _MEASURED_OBSERVATION_COUNT
+        and summary.robust_location > 0.0
+        and summary.discordant_fraction == 1.0
+    )
 
 
 def _raises_authorization() -> bool:

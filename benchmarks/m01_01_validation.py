@@ -14,6 +14,7 @@ import pytest
 from pydantic import TypeAdapter
 from tests.m01_01_support import load_protocol_schema, load_request
 
+from benchmarks._module_validation import run_pytest_benchmark
 from glio_proteogen.contracts.m01_01.canonical import (
     identity_binding_digest,
     metadata_document_digest,
@@ -53,9 +54,41 @@ from glio_proteogen.modules.c01_preanalytic.m01_01_protocol_metadata.validator i
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
+    from typing import Protocol, TypeVar
 
-    from pytest_benchmark.fixture import BenchmarkFixture
+    _ResultT = TypeVar("_ResultT")
+
+    class _TimingStatistics(Protocol):
+        mean: float
+
+    class _BenchmarkStatistics(Protocol):
+        stats: _TimingStatistics
+
+    class BenchmarkFixture(Protocol):
+        stats: _BenchmarkStatistics
+        extra_info: dict[str, object]
+
+        def __call__(
+            self,
+            operation: Callable[..., _ResultT],
+            *args: object,
+            **kwargs: object,
+        ) -> _ResultT: ...
+
+        def pedantic(  # noqa: PLR0913 - mirrors the pytest-benchmark fixture API.
+            self,
+            operation: Callable[..., _ResultT],
+            *,
+            args: tuple[object, ...] = (),
+            setup: (Callable[[], tuple[tuple[object, ...], dict[str, object]]] | None) = None,
+            teardown: Callable[..., object] | None = None,
+            rounds: int,
+            warmup_rounds: int,
+            iterations: int,
+        ) -> _ResultT: ...
+
 
 REFERENCE_MEAN_BUDGET_SECONDS = 0.005
 LARGE_MEAN_BUDGET_SECONDS = 0.050
@@ -287,3 +320,14 @@ def test_exact_service_replay_mean_latency(
     assert verification.valid is True
     assert verification.event_count == SERVICE_EVENT_COUNT
     assert benchmark.stats.stats.mean <= SERVICE_REPLAY_MEAN_BUDGET_SECONDS
+
+
+def run_benchmark(iterations: int = 10) -> dict[str, object]:
+    """Run the locked representative metadata-validation workload."""
+
+    return run_pytest_benchmark(
+        module_id="GLIO-PROTEOGEN-M01-01",
+        workload=test_reference_validation_mean_latency,
+        iterations=iterations,
+        mean_budget_seconds=REFERENCE_MEAN_BUDGET_SECONDS,
+    )

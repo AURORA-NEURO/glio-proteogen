@@ -8,19 +8,24 @@ provisional because the dossier freezes behavior but not an ABI.
 ## Behavior
 
 The runtime performs a seven-control authorization preflight before reading
-constraint or feature inputs. Only a closed expression vocabulary is evaluated:
+constraint or feature inputs. The compatibility vocabulary remains available:
 `always_true`/`true`/`satisfied` produce a satisfied outcome and
-`always_false`/`false`/`violated` produce a violated outcome. Any other caller
-expression is `not_evaluable` and safely abstains. This keeps opaque artifact
-references content-free and prevents unsupported evidence from becoming a
-negative finding.
+`always_false`/`false`/`violated` produce a violated outcome. Requests may also
+declare bounded feature observations (`observed`, `left_censored`, `missing`, or
+`unsupported`). Numeric comparisons such as `feature.pathway >= 0.5` are then
+evaluated against the measured value with an assay-error-scaled residual and a
+continuous Gaussian satisfaction strength. Left-censored evidence is used only
+when its bound proves an upper constraint; missing or unsupported evidence remains
+`not_evaluable` and is never made negative. Other caller expressions safely
+abstain.
 
 Hard constraints cannot carry weights and a hard violation always produces a
 review-required abstention. Soft constraints require an explicit weight and
-always emit an ablation record; a soft conflict may remain integrated but marks
-the result for review. Every result binds the exact request digest, result ID,
-all evaluations, all soft ablations, seven uncertainty dimensions, ordered
-provenance controls, evidence, limitations, and a rederived result digest.
+always emit an ablation record; measured soft conflicts retain a quality-weighted
+effect rather than collapsing to a binary proxy and mark the result for review.
+Every result binds the exact request digest, result ID, all evaluations, all soft
+ablations, seven uncertainty dimensions, ordered provenance controls, evidence,
+limitations, and a rederived result digest.
 
 The module does not emit kinase activity, generic all-omics fusion, treatment
 recommendations, identity/consent inference, upstream mutations, relabeling,
@@ -40,8 +45,8 @@ weak-reference token bound to the original request object and canonical digest.
 
 ## Gate evidence
 
-The locked local evidence includes 37 focused contract/runtime/interface tests,
-an eight-case evaluator matrix, deterministic benchmark samples, schema
+The locked local evidence includes focused contract/runtime/interface tests,
+a nine-case evaluator matrix, deterministic benchmark samples, schema
 serialization, strict Ruff and MyPy checks, and an isolated package import.
 The package evidence records wheel/sdist hashes, byte sizes, member inventories,
 and the clean isolated import. Generated coverage and package directories are

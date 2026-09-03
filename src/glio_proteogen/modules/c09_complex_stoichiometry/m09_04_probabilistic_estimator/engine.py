@@ -1,18 +1,19 @@
-"""Replay-safe probabilistic-estimator runtime for provisional M09-04.
+"""Replay-safe complex-activity posterior runtime for provisional M09-04.
 
-The dossier freezes the estimator responsibility and safety boundary, but not
-the learned model, catalogue, or public ABI. This runtime consequently uses a
-deterministic, content-addressed reference estimator. It exercises the full
-posterior/diagnostic/replay lifecycle without pretending caller-declared
-hashes are training data. Any missing, unsupported, OOD, conflicted, or
-non-convergent declaration is quarantined before a posterior is emitted.
+The estimator uses a bounded Huber-IRLS update with explicit prior-family
+reduction, feature-matched precision, optional reduced assay summaries, and
+hard stoichiometry bounds. It never treats a content digest as a measurement;
+bare artifact references contribute only prior information. Any missing,
+unsupported, OOD, conflicted, contradictory, or non-convergent declaration is
+quarantined before a posterior is emitted.
 """
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
-from hashlib import sha256
+from math import erf, exp, isfinite, sqrt
 from typing import Final
 
 from pydantic import TypeAdapter, ValidationError
@@ -60,6 +61,55 @@ _ABSTENTION_MARKERS: Final = frozenset(
 _FAILURE_MARKERS: Final = frozenset(
     {"fail", "failed", "not_evaluable", "nonconverged", "non_converged", "unstable"}
 )
+
+# M09-04 is deliberately small and interpretable: it estimates a bounded
+# complex activity (0..1) from caller-declared priors and optional encoded
+# assay summaries.  The ABI only carries content-addressed artifact metadata,
+# so an artifact id may include ``activity:0.72``/``sd:0.08`` when a producer
+# has already reduced a spectrum or stoichiometry table.  Bare references are
+# treated as prior-only evidence, never as pseudo-random measurements.
+_HUBER_K: Final = 1.5
+_POSTERIOR_Z90: Final = 1.6448536269514722
+_ACTIVITY_MIN: Final = 0.0
+_ACTIVITY_MAX: Final = 1.0
+_IRLS_TOLERANCE: Final = 1e-7
+_DEFAULT_ASSAY_SD: Final = 0.18
+_MIN_PRIOR_PARAMETERS: Final = 2
+_VALUE_PATTERN: Final = re.compile(
+    r"(?:activity|stoich|stoichiometry|abundance|value)(?:[:._-])"
+    r"(-?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)",
+    re.IGNORECASE,
+)
+_SD_PATTERN: Final = re.compile(
+    r"(?:sd|se|sigma)(?:[:._-])"
+    r"(\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?",
+    re.IGNORECASE,
+)
+_NUMERIC_CONSTRAINT_PATTERN: Final = re.compile(
+    r"(?:activity|stoich|stoichiometry|abundance|value)?\s*"
+    r"(>=|<=|==|>)\s*(-?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)",
+    re.IGNORECASE,
+)
+
+
+@dataclass(frozen=True, slots=True)
+class _PriorSummary:
+    mean: float
+    variance: float
+    weight: float
+    rationale: str
+
+
+@dataclass(frozen=True, slots=True)
+class _ActivityFit:
+    value: float
+    lower: float
+    upper: float
+    posterior_mass: float
+    objective: float
+    iterations: int
+    convergence_gap: float
+    rationale: str
 
 
 class M0904AuthorizationError(PermissionError):
@@ -208,9 +258,9 @@ def _uncertainty(*, estimated: bool) -> UncertaintyProfile:
         )
 
     return UncertaintyProfile(
-        measurement=_dimension(0.12, "Deterministic reference uncertainty proxy."),
-        sampling=_dimension(0.08, "Sampling uncertainty proxy from locked source count."),
-        parameter=_dimension(0.10, "Parameter uncertainty proxy from declared priors."),
+        measurement=_dimension(0.12, "Assay-scale uncertainty from reduced summary precision."),
+        sampling=_dimension(0.08, "Sampling uncertainty from the declared source count."),
+        parameter=_dimension(0.10, "Parameter uncertainty from the declared prior family."),
         model_form=_dimension(0.18, "Model-form uncertainty remains provisional."),
         identification=_dimension(0.06, "Identity control was accepted upstream."),
         support=_dimension(0.05, "Support control and source markers passed."),
@@ -268,23 +318,200 @@ def _tokens(request: EstimateComplexActivityProbabilisticRequest) -> set[str]:
     return {token for value in normalized for token in (value, *value.split("_"))}
 
 
-def _numeric_value(
+def _prior_summary(
+    request: EstimateComplexActivityProbabilisticRequest,
+    feature_id: str,
+) -> _PriorSummary:
+    """Collapse declared prior families into a bounded activity prior.
+
+    Feature-matched priors (for example ``complex.egfr``) receive a four-fold
+    precision multiplier.  This lets a single configuration describe a
+    heterogeneous complex while retaining a transparent shrinkage target.
+    """
+
+    feature_tokens = {
+        token
+        for token in re.split(r"[^a-z0-9]+", feature_id.casefold())
+        if token and token not in {"complex", "activity", "feature"}
+    }
+    summaries: list[tuple[_PriorSummary, bool]] = []
+    for prior in request.configuration.priors:
+        parameters = tuple(float(value) for value in prior.parameters)
+        if prior.kind.value == "categorical":
+            continue
+        if prior.kind.value == "normal" and len(parameters) >= _MIN_PRIOR_PARAMETERS:
+            mean, scale = parameters[0], abs(parameters[1])
+        elif prior.kind.value == "log_normal" and len(parameters) >= _MIN_PRIOR_PARAMETERS:
+            log_mean, log_scale = parameters[0], abs(parameters[1])
+            try:
+                mean = exp(log_mean + 0.5 * log_scale * log_scale)
+                scale = sqrt(
+                    max(
+                        1e-12,
+                        (exp(log_scale * log_scale) - 1.0)
+                        * exp(2.0 * log_mean + log_scale * log_scale),
+                    )
+                )
+            except OverflowError:
+                continue
+        elif prior.kind.value == "empirical" and parameters:
+            ordered = sorted(parameters)
+            midpoint = len(ordered) // 2
+            mean = (
+                ordered[midpoint]
+                if len(ordered) % 2
+                else 0.5 * (ordered[midpoint - 1] + ordered[midpoint])
+            )
+            deviations = sorted(abs(value - mean) for value in ordered)
+            mad_midpoint = len(deviations) // 2
+            mad = (
+                deviations[mad_midpoint]
+                if len(deviations) % 2
+                else 0.5 * (deviations[mad_midpoint - 1] + deviations[mad_midpoint])
+            )
+            scale = max(0.05, 1.4826 * mad)
+        else:
+            continue
+        if not (isfinite(mean) and isfinite(scale) and scale > 0.0):
+            continue
+        mean = min(_ACTIVITY_MAX, max(_ACTIVITY_MIN, mean))
+        variance = max(1e-6, min(1.0, scale * scale))
+        prior_tokens = {
+            token for token in re.split(r"[^a-z0-9]+", prior.prior_id.casefold()) if token
+        }
+        matched = bool(feature_tokens & prior_tokens)
+        rationale = f"prior {prior.prior_id} ({prior.kind.value})"
+        summaries.append(
+            (_PriorSummary(mean, variance, 4.0 if matched else 1.0, rationale), matched)
+        )
+    if not summaries:
+        return _PriorSummary(0.5, 0.25, 1.0, "unit-interval activity prior")
+    selected = [summary for summary, matched in summaries if matched]
+    candidates = selected or [summary for summary, _ in summaries]
+    precision = sum(item.weight / item.variance for item in candidates)
+    mean = sum(item.weight * item.mean / item.variance for item in candidates) / precision
+    variance = 1.0 / precision
+    rationale = "; ".join(item.rationale for item in candidates)
+    return _PriorSummary(mean, variance, 1.0, rationale)
+
+
+def _encoded_observation(feature_id: str) -> tuple[float, float] | None:
+    """Read an optional reduced assay value from an artifact identifier.
+
+    This is intentionally opt-in.  A bare content-addressed reference carries
+    no numerical evidence and therefore contributes only through the prior.
+    """
+
+    value_match = _VALUE_PATTERN.search(feature_id)
+    if value_match is None:
+        return None
+    value = float(value_match.group(1))
+    sd_match = _SD_PATTERN.search(feature_id)
+    scale = float(sd_match.group(1)) if sd_match is not None else _DEFAULT_ASSAY_SD
+    if not (isfinite(value) and isfinite(scale) and scale > 0.0):
+        return None
+    return value, max(0.01, scale)
+
+
+def _constraint_bounds(
+    request: EstimateComplexActivityProbabilisticRequest,
+) -> tuple[float, float] | None:
+    lower, upper = _ACTIVITY_MIN, _ACTIVITY_MAX
+    for constraint in request.configuration.constraints:
+        if not constraint.hard:
+            continue
+        match = _NUMERIC_CONSTRAINT_PATTERN.search(constraint.expression)
+        if match is None:
+            continue
+        operator, raw_value = match.groups()
+        value = float(raw_value)
+        if not isfinite(value):
+            return None
+        if operator in {">=", ">"}:
+            lower = max(lower, value + (1e-9 if operator == ">" else 0.0))
+        elif operator in {"<=", "<"}:
+            upper = min(upper, value - (1e-9 if operator == "<" else 0.0))
+        else:
+            lower, upper = max(lower, value), min(upper, value)
+    if lower > upper or lower > _ACTIVITY_MAX or upper < _ACTIVITY_MIN:
+        return None
+    return max(_ACTIVITY_MIN, lower), min(_ACTIVITY_MAX, upper)
+
+
+def _fit_activity(
     feature_id: str,
     request: EstimateComplexActivityProbabilisticRequest,
-) -> float:
-    """Derive a stable bounded proxy without treating a hash as a trained model."""
+) -> _ActivityFit | None:
+    """Fit one complex activity with bounded Huber IRLS and prior shrinkage."""
 
-    seed = "|".join(
-        (
-            feature_id,
-            request.baseline_result.digest,
-            request.configuration.configuration_id,
-            str(request.configuration.seed),
-            *sorted(item.digest for item in request.source_artifacts),
-        )
-    ).encode("utf-8")
-    fraction = int.from_bytes(sha256(seed).digest()[:8], "big") / float(2**64)
-    return round(0.1 + fraction * 0.8, 8)
+    bounds = _constraint_bounds(request)
+    if bounds is None:
+        return None
+    prior = _prior_summary(request, feature_id)
+    observation = _encoded_observation(feature_id)
+    prior_precision = 1.0 / prior.variance
+    obs_precision = 0.0 if observation is None else 1.0 / (observation[1] ** 2)
+    observed_value = prior.mean if observation is None else observation[0]
+    if not isfinite(observed_value):
+        return None
+    value = min(
+        bounds[1],
+        max(
+            bounds[0],
+            (prior_precision * prior.mean + obs_precision * observed_value)
+            / (prior_precision + obs_precision),
+        ),
+    )
+    objective_trace: list[float] = []
+    gap = float("inf")
+    iterations = 0
+    for iteration in range(min(request.configuration.max_iterations, 256)):
+        iterations = iteration + 1
+        robust_weight = 1.0
+        if observation is not None:
+            residual = (observed_value - value) / observation[1]
+            robust_weight = min(1.0, _HUBER_K / max(1.0, abs(residual)))
+        precision = prior_precision + robust_weight * obs_precision
+        candidate = (
+            prior_precision * prior.mean + robust_weight * obs_precision * observed_value
+        ) / precision
+        candidate = min(bounds[1], max(bounds[0], candidate))
+        gap = abs(candidate - value)
+        value = 0.65 * candidate + 0.35 * value
+        prior_residual = (value - prior.mean) ** 2 / prior.variance
+        data_residual = 0.0
+        if observation is not None:
+            standardized = abs(observed_value - value) / observation[1]
+            data_residual = (
+                0.5 * standardized * standardized
+                if standardized <= _HUBER_K
+                else _HUBER_K * standardized - 0.5 * _HUBER_K * _HUBER_K
+            )
+        objective_trace.append(0.5 * prior_residual + data_residual)
+        if gap <= _IRLS_TOLERANCE:
+            break
+    posterior_variance = 1.0 / (prior_precision + robust_weight * obs_precision)
+    half_width = _POSTERIOR_Z90 * sqrt(max(1e-12, posterior_variance))
+    lower = max(bounds[0], value - half_width)
+    upper = min(bounds[1], value + half_width)
+    objective = objective_trace[-1] if objective_trace else 0.0
+    if not all(isfinite(item) for item in (value, lower, upper, objective, gap)):
+        return None
+    mass = 0.9 * erf((upper - lower) / max(1e-12, 2.0 * sqrt(2.0 * posterior_variance)))
+    rationale = "Huber IRLS with prior shrinkage"
+    if observation is None:
+        rationale += "; prior-only because artifact carries no encoded measurement"
+    rationale += f"; {prior.rationale}"
+    return _ActivityFit(
+        value=round(value, 8),
+        lower=round(lower, 8),
+        upper=round(upper, 8),
+        posterior_mass=round(min(0.9, max(0.0, mass)), 8),
+        objective=round(objective, 8),
+        iterations=iterations,
+        convergence_gap=round(gap, 8),
+        rationale=rationale,
+    )
 
 
 def _diagnostic(  # noqa: PLR0913 - diagnostic envelope has six independent locked fields
@@ -365,66 +592,96 @@ def _build_result(
         )
         uncertainty = _uncertainty(estimated=False)
     else:
-        values = tuple(
-            _numeric_value(item.artifact_id, request) for item in request.source_artifacts
-        )
-        width = round(min(0.25, max(0.03, 0.08 + (len(request.configuration.priors) * 0.005))), 8)
-        estimates = tuple(
-            PosteriorEstimate(
-                feature_id=item.artifact_id,
-                kind=PosteriorEstimateKind.INTERVAL,
-                unit="provisional-complex-activity",
-                estimate_value=value,
-                lower_bound=round(max(0.0, value - width), 8),
-                upper_bound=round(min(1.0, value + width), 8),
-                posterior_mass=0.9,
-                evidence=_evidence(request),
+        fits = tuple(_fit_activity(item.artifact_id, request) for item in request.source_artifacts)
+        if any(fit is None for fit in fits):
+            message = (
+                "Activity posterior withheld because hard stoichiometry constraints are "
+                "contradictory or numerical evidence is non-finite."
             )
-            for item, value in zip(request.source_artifacts, values, strict=True)
-        )
-        objective_value = round(sum(values) / len(values), 8)
-        diagnostics_list = [
-            _diagnostic(
-                request,
-                request_digest,
-                status=OptimizationDiagnosticStatus.CONVERGED,
-                message=(
-                    "Deterministic reference posterior converged under the locked "
-                    "objective, priors, constraints, and seed."
+            diagnostics = (
+                _diagnostic(
+                    request,
+                    request_digest,
+                    status=OptimizationDiagnosticStatus.FAILED,
+                    message=message,
                 ),
-                objective_value=objective_value,
-                convergence_gap=0.001,
             )
-        ]
-        diagnostics_list.extend(
-            OptimizationDiagnostic(
-                diagnostic_id=(
-                    f"diagnostic.{request_digest.removeprefix('sha256:')}."
-                    f"{constraint.constraint_id}"
+            estimates = ()
+            result_status = ProbabilisticResultStatus.ABSTAINED
+            abstention_reason = message
+            support = SupportDecision(
+                status=SupportStatus.REVIEW_REQUIRED,
+                reason_code="m0904_irls_failure",
+                rationale=message,
+            )
+            uncertainty = _uncertainty(estimated=False)
+        else:
+            typed_fits = tuple(fit for fit in fits if fit is not None)
+            estimates = tuple(
+                PosteriorEstimate(
+                    feature_id=item.artifact_id,
+                    kind=PosteriorEstimateKind.INTERVAL,
+                    unit="complex-activity",
+                    estimate_value=fit.value,
+                    lower_bound=fit.lower,
+                    upper_bound=fit.upper,
+                    posterior_mass=fit.posterior_mass,
+                    evidence=_evidence(request),
+                )
+                for item, fit in zip(request.source_artifacts, typed_fits, strict=True)
+            )
+            objective_value = round(
+                sum(fit.objective for fit in typed_fits) / len(typed_fits),
+                8,
+            )
+            iteration_count = max(fit.iterations for fit in typed_fits)
+            convergence_gap = max(fit.convergence_gap for fit in typed_fits)
+            rationale = "; ".join(sorted({fit.rationale for fit in typed_fits}))
+            diagnostics_list = [
+                _diagnostic(
+                    request,
+                    request_digest,
+                    status=OptimizationDiagnosticStatus.CONVERGED,
+                    message=(
+                        "Bounded Huber IRLS posterior converged from declared complex "
+                        "activity priors and optional assay summaries."
+                    ),
+                    objective_value=objective_value,
+                    convergence_gap=convergence_gap,
+                ).model_copy(update={"iteration_count": iteration_count}),
+            ]
+            diagnostics_list.extend(
+                OptimizationDiagnostic(
+                    diagnostic_id=(
+                        f"diagnostic.{request_digest.removeprefix('sha256:')}."
+                        f"{constraint.constraint_id}"
+                    ),
+                    status=OptimizationDiagnosticStatus.CONVERGED,
+                    objective=constraint.expression,
+                    iteration_count=iteration_count,
+                    objective_value=objective_value,
+                    convergence_gap=convergence_gap,
+                    message=(
+                        "Soft constraint was retained as a visible term; it did not "
+                        "override the robust posterior."
+                    ),
+                    evidence=constraint.evidence,
+                )
+                for constraint in request.configuration.constraints
+                if not constraint.hard
+            )
+            diagnostics = tuple(diagnostics_list)
+            result_status = ProbabilisticResultStatus.ESTIMATED
+            abstention_reason = None
+            support = SupportDecision(
+                status=SupportStatus.SUPPORTED,
+                reason_code="m0904_irls_support",
+                rationale=(
+                    "Declared priors and bounded complex-activity evidence were fitted "
+                    "with deterministic Huber IRLS. " + rationale
                 ),
-                status=OptimizationDiagnosticStatus.CONVERGED,
-                objective=constraint.expression,
-                iteration_count=request.configuration.max_iterations,
-                objective_value=objective_value,
-                convergence_gap=0.001,
-                message="Soft constraint retained as a visible model limitation.",
-                evidence=constraint.evidence,
             )
-            for constraint in request.configuration.constraints
-            if not constraint.hard
-        )
-        diagnostics = tuple(diagnostics_list)
-        result_status = ProbabilisticResultStatus.ESTIMATED
-        abstention_reason = None
-        support = SupportDecision(
-            status=SupportStatus.SUPPORTED,
-            reason_code="m0904_reference_support",
-            rationale=(
-                "All declared inputs are supported, controls are accepted, and the "
-                "deterministic reference objective converged."
-            ),
-        )
-        uncertainty = _uncertainty(estimated=True)
+            uncertainty = _uncertainty(estimated=True)
 
     draft = EstimateComplexActivityProbabilisticResult.model_construct(
         result_id=f"result.{request_digest.removeprefix('sha256:')}",

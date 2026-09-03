@@ -162,16 +162,10 @@ def main() -> int:
         "passed": all(bool(check["passed"]) for check in checks),
         "checks": checks,
     }
-    if args.json:
-        sys.stdout.write(canonical_json_bytes(payload).decode() + "\n")
-    else:
-        sys.stdout.write(
-            f"{payload['module_id']} cases={payload['executed']} passed={payload['passed']}\n"
-        )
-        for check in checks:
-            sys.stdout.write(
-                f"{check['id']}: {check['actual']} ({'PASS' if check['passed'] else 'FAIL'})\n"
-            )
+    # A fresh evaluator process always emits one strict JSON document.  Keep
+    # the historical flag accepted so existing automation remains valid.
+    del args
+    sys.stdout.write(canonical_json_bytes(payload).decode() + "\n")
     return 0 if payload["passed"] and payload["declared"] == payload["executed"] else 1
 
 

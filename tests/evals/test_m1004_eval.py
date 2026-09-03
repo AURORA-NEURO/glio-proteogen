@@ -10,7 +10,7 @@ from evals.m10_04.run import evaluate
 def test_evaluator_matrix_passes() -> None:
     report = evaluate()
     assert report["passed"] is True
-    assert report["check_count"] == 7
+    assert report["check_count"] == 8
 
 
 def test_benchmark_respects_provisional_budgets() -> None:
