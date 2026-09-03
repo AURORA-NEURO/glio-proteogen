@@ -123,6 +123,8 @@ def _perturbation(
         baseline_value=baseline,
         perturbed_value=perturbed,
         rationale="Stress-test a declared protein-native variant-peptide response.",
+        baseline_measurements=(0.92, 1.00, 1.08),
+        perturbed_measurements=(1.10, 1.20, 1.27),
         alternative_prior=(
             _artifact(f"prior.{name}") if kind is PerturbationKind.ALTERNATIVE_PRIOR else None
         ),
@@ -141,7 +143,7 @@ def _request(
     config = SensitivitySimulationConfiguration(
         configuration_id="config.m1106",
         version="1.0.0",
-        model_family="deterministic-bounded-reference",
+        model_family="robust-replicate-finite-difference",
         reference_artifact=_artifact("config.reference"),
         maximum_scenarios=8,
         negative_control_artifact=_artifact("control.negative") if negative_control else None,
@@ -174,6 +176,39 @@ def test_supported_surface_is_bounded_and_replayable() -> None:
     assert len(result.provenance.control_decisions) == _CONTROL_COUNT
     verified = M1106SensitivityEngine().verify(result)
     assert verified.model_dump(mode="json") == result.model_dump(mode="json")
+
+
+def test_typed_sensitivity_reports_effect_and_bootstrap_uncertainty() -> None:
+    request = _request()
+    result = M1106SensitivityEngine().register(request)
+    assert result.surface is not None
+    response = result.surface.responses[0]
+    assert response.raw_effect_delta is not None
+    assert response.raw_effect_delta > 0.0
+    assert response.sensitivity_standard_error is not None
+    assert response.replicate_count == (
+        len(request.perturbations[0].baseline_measurements)
+        + len(request.perturbations[0].perturbed_measurements)
+    )
+    assert response.lower_bound is not None
+    assert response.response_value is not None
+    assert response.upper_bound is not None
+    assert -1.0 <= response.lower_bound <= response.response_value <= response.upper_bound <= 1.0
+    replay = M1106SensitivityEngine().register(request)
+    assert replay.model_dump(mode="json") == result.model_dump(mode="json")
+
+
+def test_typed_sensitivity_abstains_without_minimum_replicates() -> None:
+    request = _request()
+    incomplete = request.perturbations[0].model_copy(
+        update={"baseline_measurements": (), "perturbed_measurements": ()}
+    )
+    result = M1106SensitivityEngine().register(
+        request.model_copy(update={"perturbations": (incomplete,)})
+    )
+    assert result.status is SensitivitySimulationStatus.ABSTAINED
+    assert "input_incomplete" in {finding.value for finding in result.findings}
+    assert result.surface is None
 
 
 @pytest.mark.parametrize(
