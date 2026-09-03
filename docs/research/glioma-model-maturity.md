@@ -310,9 +310,10 @@ assumptions so a reviewer can distinguish measurement uncertainty from the locke
 response transform. Fewer than three finite replicates per arm, non-positive
 quality, unsupported markers, or a missing negative control produce a typed
 abstention rather than a synthetic score. Opaque artifact references remain
-immutable and are not traversed. The governed M11-06 ABI and its historical
-digest-derived path remain unchanged; this lane is the glioma-specific research
-surface for replacing that placeholder under owner review.
+immutable and are not traversed. The M11-06 route remains provisional: typed
+replicate requests activate this glioma-specific research model, while legacy
+opaque requests safely abstain instead of receiving a digest-derived score. The
+lane is therefore a reviewable replacement surface, not a governed clinical API.
 
 ## Negative cross-assay feasibility result
 
