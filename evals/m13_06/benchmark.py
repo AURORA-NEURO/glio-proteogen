@@ -1,4 +1,4 @@
-"""Representative M13-06 bounded replay benchmark."""
+"""Representative M13-06 typed glioma perturbation benchmark."""
 
 from __future__ import annotations
 
@@ -52,7 +52,7 @@ def run_benchmark(iterations: int = BENCHMARK_ITERATIONS) -> dict[str, object]:
         "mean_budget_ns": MEAN_BUDGET_NS,
         "p95_budget_ns": P95_BUDGET_NS,
         "passed": average <= MEAN_BUDGET_NS and p95 <= P95_BUDGET_NS,
-        "scope": "public bounded replay operation only",
+        "scope": "public typed perturbation graph operation; software latency only",
     }
 
 

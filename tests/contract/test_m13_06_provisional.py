@@ -44,6 +44,8 @@ def test_provisional_schemas_require_bounded_assumptions() -> None:
         assert metadata["provisionalAbi"] is True
         assert metadata["boundedPerturbationRequired"] is True
         assert metadata["unsupportedToNegative"] is False
+        assert metadata["typedGliomaPerturbationModel"] is True
+        assert metadata["robustEstimator"] == "damped_huber_signed_program_coordinate_descent"
     assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M1306_OUTPUT_MEDIA_TYPE
     assert M1306_PROVISIONAL_ABI is True
 

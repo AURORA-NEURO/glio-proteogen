@@ -353,6 +353,24 @@ receive a synthetic typed score. This is a research-use-only temporal signal,
 not a diagnosis, prognosis, treatment recommendation, or kinase-ownership
 claim.
 
+## Completed M13-06 typed glioma perturbation lane
+
+The additive M13-06 research runtime now has a typed perturbation path over the
+same glioma program vocabulary. A scenario carries a signed baseline-to-
+perturbed effect, standard error, quality weight, and observed/left-censored/
+missing/unsupported state. Robust Huber coordinate descent fits direct program
+effects while enforcing signed RTK/PI3K/AKT/mTOR, p53/cell-cycle,
+IDH/HIF1A, mesenchymal, and proliferation edge coherence. Deterministic
+request-digest perturbations produce effect intervals, stability, discordance,
+top drivers, and an objective-trace digest for replay.
+
+The historical bounded replay ABI remains compatibility-only. Missing and
+unsupported typed scenarios are excluded and an all-missing request abstains;
+the lane never turns an unsupported perturbation into a negative biological
+finding. These program effects are research-use-only sensitivity signals, not
+causal intervention estimates, kinase ownership, treatment recommendations, or
+clinical evidence.
+
 ## Negative cross-assay feasibility result
 
 An exact development-only join found all 88 PDC000515 pairs in PDC000514, but

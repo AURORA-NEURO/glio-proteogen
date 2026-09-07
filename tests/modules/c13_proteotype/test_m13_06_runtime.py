@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
@@ -12,6 +13,8 @@ from glio_proteogen.adapters.cli import app
 from glio_proteogen.contracts.m13_06 import canonical_request_digest, result_payload_digest
 from glio_proteogen.contracts.m13_06.v1 import (
     M1306_OPERATION,
+    GliomaPerturbationProgram,
+    PerturbationEvidenceState,
     PerturbationKind,
     PerturbationPolicy,
     PerturbationScenario,
@@ -157,6 +160,33 @@ def _request(
     )
 
 
+def _typed_request(
+    *,
+    program: GliomaPerturbationProgram = GliomaPerturbationProgram.RTK_PI3K_AKT_MTOR,
+    evidence_state: PerturbationEvidenceState = PerturbationEvidenceState.OBSERVED,
+    quality: float = 0.9,
+    status: PerturbationStatus = PerturbationStatus.SUPPORTED,
+    perturbed: float = 0.5,
+) -> SimulateProteotypePerturbationRequest:
+    payload = _request().model_dump(mode="json")
+    scenario = payload["scenarios"][0]
+    scenario["program"] = program.value
+    scenario["evidence_state"] = evidence_state.value
+    scenario["quality_weight"] = quality
+    scenario["status"] = status.value
+    scenario["perturbed_value"] = perturbed
+    if evidence_state in {
+        PerturbationEvidenceState.OBSERVED,
+        PerturbationEvidenceState.LEFT_CENSORED,
+    }:
+        scenario["standard_error"] = 0.1
+    else:
+        scenario.pop("standard_error", None)
+    return SimulateProteotypePerturbationRequest.model_validate_json(
+        json.dumps(payload), strict=True
+    )
+
+
 def test_supported_request_is_replayable_and_sealed() -> None:
     request = _request()
     first = simulate_proteotype_perturbation_sensitivity(request)
@@ -176,6 +206,103 @@ def test_supported_request_is_replayable_and_sealed() -> None:
     tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
     with pytest.raises(M1306ReplayError):
         service.verify(tampered)
+
+
+def test_typed_glioma_perturbation_graph_emits_interval_and_trace() -> None:
+    request = _typed_request()
+    result = M1306Service().execute(request)
+    assert result.status.value == "simulated"
+    assert result.sensitivity_surface is not None
+    surface = result.sensitivity_surface
+    assert surface.typed_model is True
+    assert surface.objective_trace_digest is not None
+    response = surface.responses[0]
+    assert response.standardized_effect is not None
+    assert response.lower_bound is not None
+    assert response.upper_bound is not None
+    assert response.lower_bound <= response.upper_bound
+    assert response.stability is not None
+    assert response.top_drivers
+    assert M1306Service().verify(result) == result
+
+
+def test_typed_missing_or_unsupported_evidence_abstains_without_negative_response() -> None:
+    request = _typed_request(evidence_state=PerturbationEvidenceState.MISSING, quality=0.0)
+    result = M1306Service().execute(request)
+    assert result.status.value == "abstained"
+    assert result.sensitivity_surface is None
+    assert result.abstention_reason is not None
+    assert "at least one" in result.abstention_reason
+
+
+def test_typed_left_censoring_and_program_sign_are_explicit() -> None:
+    result = M1306Service().execute(
+        _typed_request(
+            program=GliomaPerturbationProgram.P53_CELL_CYCLE,
+            evidence_state=PerturbationEvidenceState.LEFT_CENSORED,
+        )
+    )
+    assert result.status.value == "simulated"
+    assert result.sensitivity_surface is not None
+    response = result.sensitivity_surface.responses[0]
+    assert response.standardized_effect is not None
+    assert response.standardized_effect <= _EXPECTED_DELTA
+    assert response.upper_bound is not None
+    assert response.upper_bound <= _EXPECTED_DELTA
+
+
+def test_typed_scenario_requires_state_and_positive_active_quality() -> None:
+    payload = _request().model_dump(mode="json")
+    payload["scenarios"][0]["program"] = GliomaPerturbationProgram.RTK_PI3K_AKT_MTOR.value
+    payload["scenarios"][0]["standard_error"] = 0.1
+    with pytest.raises(ValueError, match="evidence_state"):
+        SimulateProteotypePerturbationRequest.model_validate_json(
+            json.dumps(payload), strict=True
+        )
+
+
+def test_typed_missing_point_is_excluded_when_another_program_is_observed() -> None:
+    payload = _request().model_dump(mode="json")
+    payload["policy"]["maximum_scenarios"] = 2
+    first = payload["scenarios"][0]
+    first.update(
+        {
+            "program": GliomaPerturbationProgram.RTK_PI3K_AKT_MTOR.value,
+            "evidence_state": PerturbationEvidenceState.OBSERVED.value,
+            "standard_error": 0.1,
+            "quality_weight": 0.9,
+        }
+    )
+    missing = json.loads(json.dumps(first))
+    missing.update(
+        {
+            "scenario_id": "scenario.missing",
+            "evidence_state": PerturbationEvidenceState.MISSING.value,
+            "quality_weight": 0.0,
+        }
+    )
+    missing.pop("standard_error", None)
+    payload["scenarios"].append(missing)
+    request = SimulateProteotypePerturbationRequest.model_validate_json(
+        json.dumps(payload), strict=True
+    )
+    result = M1306Service().execute(request)
+    assert result.status.value == "simulated"
+    assert result.sensitivity_surface is not None
+    assert tuple(response.scenario_id for response in result.sensitivity_surface.responses) == (
+        "scenario.fixture",
+    )
+
+
+def test_typed_unsupported_status_and_envelope_are_safe_abstentions() -> None:
+    unsupported = M1306Service().execute(
+        _typed_request(status=PerturbationStatus.UNSUPPORTED)
+    )
+    assert unsupported.status.value == "abstained"
+    assert unsupported.sensitivity_surface is None
+    envelope = M1306Service().execute(_typed_request(perturbed=1.1))
+    assert envelope.status.value == "abstained"
+    assert envelope.sensitivity_surface is None
 
 
 def test_unsupported_scenario_abstains_without_surface() -> None:

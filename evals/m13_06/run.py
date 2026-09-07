@@ -14,6 +14,8 @@ if __package__ in {None, ""}:
         sys.path.insert(0, str(_PROJECT_ROOT))
 
 from glio_proteogen.contracts.m13_06.v1 import (
+    GliomaPerturbationProgram,
+    PerturbationEvidenceState,
     PerturbationKind,
     PerturbationPolicy,
     PerturbationScenario,
@@ -109,6 +111,10 @@ def _request(case: dict[str, Any]) -> SimulateProteotypePerturbationRequest:
         assumption="Synthetic fixture remains within the declared envelope.",
         source_artifact=source,
         evidence=(evidence,),
+        program=GliomaPerturbationProgram.RTK_PI3K_AKT_MTOR,
+        evidence_state=PerturbationEvidenceState.OBSERVED,
+        standard_error=0.1,
+        quality_weight=0.9,
     )
     configuration = SimulatorConfiguration(
         configuration_id="configuration.m1306.eval",
