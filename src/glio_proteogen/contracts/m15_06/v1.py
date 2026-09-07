@@ -57,6 +57,9 @@ M1506_MAX_DIAGNOSTICS: Final = 128
 M1506_MAX_FINDINGS: Final = 64
 M1506_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M1506_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
+M1506_MAX_EFFECT: Final = 20.0
+M1506_DEFAULT_BOOTSTRAP_REPLICATES: Final = 64
+M1506_MAX_BOOTSTRAP_REPLICATES: Final = 256
 M1506_EVIDENCE_CLAIM: Final = (
     "Caller-declared M15-06 perturbation and sensitivity evidence; issuer "
     "authority is not authenticated."
@@ -99,6 +102,25 @@ class SensitivityFindingCode(StrEnum):
     PROVISIONAL_ABI_PENDING_REVIEW = "provisional_abi_pending_review"
 
 
+class PerturbationEvidenceState(StrEnum):
+    """Evidence state for typed longitudinal perturbation measurements."""
+
+    OBSERVED = "observed"
+    LEFT_CENSORED = "left_censored"
+    MISSING = "missing"
+    UNSUPPORTED = "unsupported"
+
+
+class GliomaPerturbationProgram(StrEnum):
+    """Glioma programs used as coordinates in the complex-activity perturbation graph."""
+
+    RTK_PI3K_AKT_MTOR = "RTK_PI3K_AKT_MTOR"
+    P53_CELL_CYCLE = "P53_CELL_CYCLE"
+    IDH_HIF1A = "IDH_HIF1A"
+    MESENCHYMAL_PROGRAM = "MESENCHYMAL_PROGRAM"
+    PROLIFERATION = "PROLIFERATION"
+
+
 class PerturbationSpecification(FrozenModel):
     perturbation_id: Identifier
     kind: PerturbationKind
@@ -110,6 +132,12 @@ class PerturbationSpecification(FrozenModel):
     alternative_prior: ArtifactReference | None = None
     assay_artifact: ArtifactReference | None = None
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1506_MAX_EVIDENCE)
+    program: GliomaPerturbationProgram | None = None
+    evidence_state: PerturbationEvidenceState | None = None
+    standard_error: float | None = Field(
+        default=None, gt=0.0, le=M1506_MAX_EFFECT, allow_inf_nan=False
+    )
+    quality_weight: float = Field(default=1.0, ge=0.0, le=1.0, allow_inf_nan=False)
 
     @model_validator(mode="after")
     def perturbation_shape_is_closed(self) -> PerturbationSpecification:
@@ -121,6 +149,26 @@ class PerturbationSpecification(FrozenModel):
             raise ValueError("assay perturbation requires an assay artifact")
         if self.kind is PerturbationKind.ALTERNATIVE_PRIOR and not self.evidence:
             raise ValueError("alternative-prior perturbation requires evidence")
+        typed = (
+            self.program is not None
+            or self.evidence_state is not None
+            or self.standard_error is not None
+        )
+        if not typed:
+            return self
+        if self.evidence_state is None:
+            raise ValueError("typed perturbation requires evidence_state")
+        active = self.evidence_state in {
+            PerturbationEvidenceState.OBSERVED,
+            PerturbationEvidenceState.LEFT_CENSORED,
+        }
+        if active:
+            if self.program is None or self.standard_error is None or self.quality_weight <= 0.0:
+                raise ValueError(
+                    "observed perturbation requires program, standard error, and positive quality"
+                )
+        elif self.standard_error is not None or self.quality_weight != 0.0:
+            raise ValueError("missing or unsupported perturbation cannot carry a value")
         return self
 
 
@@ -132,6 +180,10 @@ class SensitivityResponse(FrozenModel):
     upper_bound: float | None = None
     assumptions: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=64)
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1506_MAX_EVIDENCE)
+    stability: float | None = Field(default=None, ge=0.0, le=1.0, allow_inf_nan=False)
+    discordance: float | None = Field(default=None, ge=0.0, le=1.0, allow_inf_nan=False)
+    top_drivers: tuple[NonEmptyStr, ...] = Field(default=(), max_length=8)
+    ablation_effects: tuple[NonEmptyStr, ...] = Field(default=(), max_length=8)
 
     @field_validator("response_value", "lower_bound", "upper_bound")
     @classmethod
@@ -165,6 +217,11 @@ class SensitivitySimulationConfiguration(FrozenModel):
     model_family: NonEmptyStr
     reference_artifact: ArtifactReference
     maximum_scenarios: int = Field(gt=0, le=M1506_MAX_SCENARIOS)
+    bootstrap_replicates: int = Field(
+        default=M1506_DEFAULT_BOOTSTRAP_REPLICATES,
+        ge=16,
+        le=M1506_MAX_BOOTSTRAP_REPLICATES,
+    )
     locked: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1506_MAX_EVIDENCE)
 
@@ -181,6 +238,13 @@ class SensitivitySurface(FrozenModel):
     responses: tuple[SensitivityResponse, ...] = Field(min_length=1, max_length=M1506_MAX_RESPONSES)
     configuration: SensitivitySimulationConfiguration
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1506_MAX_EVIDENCE)
+    typed_model: bool = False
+    solver_iterations: int | None = Field(default=None, ge=0, le=1000)
+    solver_objective: float | None = Field(default=None, ge=0.0, le=1e9, allow_inf_nan=False)
+    solver_max_update: float | None = Field(
+        default=None, ge=0.0, le=M1506_MAX_EFFECT, allow_inf_nan=False
+    )
+    objective_trace_digest: Sha256Digest | None = None
 
     @model_validator(mode="after")
     def surface_is_closed(self) -> SensitivitySurface:
@@ -408,12 +472,15 @@ def expected_provenance(
 
 __all__ = [
     "M1506_CONTRACT_VERSION",
+    "M1506_DEFAULT_BOOTSTRAP_REPLICATES",
     "M1506_EVIDENCE_CLAIM",
     "M1506_GATE",
     "M1506_M1505_INPUT_MEDIA_TYPE",
+    "M1506_MAX_BOOTSTRAP_REPLICATES",
     "M1506_MAX_CANONICAL_REQUEST_BYTES",
     "M1506_MAX_CANONICAL_RESULT_BYTES",
     "M1506_MAX_DIAGNOSTICS",
+    "M1506_MAX_EFFECT",
     "M1506_MAX_EVIDENCE",
     "M1506_MAX_FINDINGS",
     "M1506_MAX_RESPONSES",
@@ -427,6 +494,8 @@ __all__ = [
     "M1506_PROVISIONAL_ABI",
     "M1506_SAFETY_CLASS",
     "ComplexActivitySensitivitySimulationResult",
+    "GliomaPerturbationProgram",
+    "PerturbationEvidenceState",
     "PerturbationKind",
     "PerturbationResponseStatus",
     "PerturbationSpecification",

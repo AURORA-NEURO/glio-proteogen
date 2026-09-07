@@ -17,6 +17,8 @@ from glio_proteogen.adapters.m1506 import app, m1506_app
 from glio_proteogen.contracts.m15_06 import (
     M1506_M1505_INPUT_MEDIA_TYPE,
     ComplexActivitySensitivitySimulationResult,
+    GliomaPerturbationProgram,
+    PerturbationEvidenceState,
     PerturbationKind,
     PerturbationResponseStatus,
     PerturbationSpecification,
@@ -207,6 +209,75 @@ def test_supported_result_has_bounds_parent_and_all_uncertainty_dimensions() -> 
     profile = expected_uncertainty(supported=True)
     assert profile.measurement.probability == 0.9
     assert len(profile.sensitivity_notes) == 2
+
+
+def test_typed_glioma_graph_solver_emits_bootstrap_and_ablation_metadata() -> None:
+    perturbations = (
+        _perturbation(
+            perturbation_id="scenario.rtk",
+            program=GliomaPerturbationProgram.RTK_PI3K_AKT_MTOR,
+            evidence_state=PerturbationEvidenceState.OBSERVED,
+            standard_error=0.1,
+        ),
+        _perturbation(
+            perturbation_id="scenario.p53",
+            baseline_value="1.0",
+            perturbed_value="0.7",
+            program=GliomaPerturbationProgram.P53_CELL_CYCLE,
+            evidence_state=PerturbationEvidenceState.OBSERVED,
+            standard_error=0.2,
+        ),
+        _perturbation(
+            perturbation_id="scenario.idh",
+            baseline_value="1.0",
+            perturbed_value="1.1",
+            program=GliomaPerturbationProgram.IDH_HIF1A,
+            evidence_state=PerturbationEvidenceState.LEFT_CENSORED,
+            standard_error=0.15,
+        ),
+    )
+    request = build_scenario_request(perturbations=perturbations).model_copy(
+        update={
+            "configuration": build_scenario_request().configuration.model_copy(
+                update={"bootstrap_replicates": 16}
+            )
+        }
+    )
+    engine = M1506SensitivitySimulatorEngine()
+    result = engine.infer(request)
+    assert result.status is SensitivitySimulationStatus.SIMULATED
+    assert result.surface is not None
+    assert result.surface.typed_model
+    assert result.surface.solver_iterations is not None
+    assert result.surface.solver_iterations > 0
+    assert result.surface.solver_objective is not None
+    assert result.surface.objective_trace_digest is not None
+    assert len(result.surface.responses) == 3
+    assert all(
+        response.lower_bound is not None
+        and response.upper_bound is not None
+        and response.stability is not None
+        and response.discordance is not None
+        and response.top_drivers
+        and response.ablation_effects
+        for response in result.surface.responses
+    )
+    assert engine.verify(result) == result
+
+
+def test_typed_missing_or_unsupported_evidence_abstains_without_negative_response() -> None:
+    missing = _perturbation(
+        program=GliomaPerturbationProgram.RTK_PI3K_AKT_MTOR,
+        evidence_state=PerturbationEvidenceState.MISSING,
+        quality_weight=0.0,
+    )
+    result = M1506SensitivitySimulatorEngine().infer(
+        build_scenario_request(perturbations=(missing,))
+    )
+    assert result.status is SensitivitySimulationStatus.ABSTAINED
+    assert result.surface is None
+    assert result.abstention_reason is not None
+    assert "excluded" in result.abstention_reason
 
 
 def test_evidence_paths_include_prior_and_assay_artifacts() -> None:

@@ -268,15 +268,15 @@ trajectory implementation described above and are not counted as a fixed
 posterior estimator.
 
 The strict 22 are a floor for counterfeit estimators, not the whole scientific
-debt inventory. Eleven further engines are transparently labelled
+debt inventory. Eight further engines are transparently labelled
 formula/pass-through/declaration shells rather than fitted models: M06-03,
-M10-05, M11-03, M11-04, M12-03, M12-04, M12-06, M13-04,
-M15-06. Three representation constructors—M07-02, M08-02, and
+M10-05, M11-03, M11-04, M12-03, M12-04, M12-06, M13-04.
+Three representation constructors—M07-02, M08-02, and
 M09-02—also synthesize numeric vectors from hashes. They remain classified as
 representation plumbing, but their vectors must never be described as learned
 biological features. The exhaustive partition is therefore 22 strict stand-ins,
-9 transparent scientific shells, three synthetic representation constructors,
-and 46 schema, safe-abstention, validation, registry, evidence-publisher, or
+8 transparent scientific shells, three synthetic representation constructors,
+and 47 schema, safe-abstention, validation, registry, evidence-publisher, or
 other non-estimator engines.
 
 The strict list deliberately excludes representation/schema plumbing, safe
@@ -430,6 +430,24 @@ request abstains with review required.
 The original unit/topology/perturbation constructor remains unchanged for legacy
 requests. Derived features are research-use-only and do not claim causality,
 clinical state, prognosis, kinase ownership, or treatment effect.
+
+## Completed M15-06 typed glioma perturbation sensitivity lane
+
+The additive M15-06 runtime now fits typed longitudinal perturbation effects over
+the glioma program graph rather than returning a fixed absolute-difference proxy.
+Observed and left-censored effects are weighted by standard error and quality,
+robustified with Huber loss, stabilized with ridge regularization, and coupled by
+signed RTK/PI3K/AKT/mTOR, p53/cell-cycle, IDH/HIF1A, mesenchymal, and proliferation
+edges using deterministic damped coordinate descent. Solver convergence and the
+objective trace are included in the surface metadata for replay auditability.
+
+Request-digest-seeded bootstrap perturbations produce bounded intervals, stability,
+discordance, top program drivers, and measurement/topology ablation explanations.
+Missing and unsupported scenarios are explicitly excluded; incomplete typed
+surfaces abstain with human review rather than manufacturing a negative response.
+The historical scalar sensitivity ABI remains available for compatibility only.
+This lane is research-use-only and does not claim causality, prognosis, kinase
+ownership, treatment effect, or clinical state.
 
 ## Negative cross-assay feasibility result
 
