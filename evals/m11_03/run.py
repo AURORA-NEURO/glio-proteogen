@@ -14,12 +14,15 @@ if __package__ in {None, ""}:
         sys.path.insert(0, str(_PROJECT_ROOT))
 
 from glio_proteogen.contracts.m11_03 import (
+    M1103_GLIOMA_MODEL_FAMILY,
     M1103_M1102_INPUT_MEDIA_TYPE,
     ConstructVariantPeptideMechanisticFeaturesRequest,
     MechanisticFeature,
     MechanisticFeatureConfiguration,
     MechanisticFeatureKind,
     MechanisticFeatureLineage,
+    MechanisticRelation,
+    MechanisticRelationKind,
     MechanisticValueKind,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
@@ -121,13 +124,44 @@ def request_for(case: dict[str, Any]) -> ConstructVariantPeptideMechanisticFeatu
             transformation_ids=("transform.scale",),
         ),
     )
+    features: tuple[MechanisticFeature, ...] = (feature,)
+    relations: tuple[MechanisticRelation, ...] = ()
+    if case.get("typed_glioma", False):
+        egfr = feature.model_copy(
+            update={
+                "feature_id": "protein.egfr",
+                "kind": MechanisticFeatureKind.STATE,
+                "scalar_value": 1.2,
+                "lineage": feature.lineage.model_copy(
+                    update={
+                        "feature_id": "protein.egfr",
+                        "claim": "Evaluator EGFR abundance.",
+                    }
+                ),
+            }
+        )
+        features = (feature, egfr)
+        relations = (
+            MechanisticRelation(
+                relation_id="relation.egfr.pathway",
+                source_feature_id="protein.egfr",
+                target_feature_id="pathway.activity",
+                kind=MechanisticRelationKind.ACTIVATES,
+                weight=0.8,
+            ),
+        )
     config = MechanisticFeatureConfiguration(
         configuration_id="config.m1103.evaluator",
         version="1.0.0",
-        model_family="curated-mechanistic-baseline",
+        model_family=(
+            M1103_GLIOMA_MODEL_FAMILY
+            if case.get("typed_glioma", False)
+            else "curated-mechanistic-baseline"
+        ),
         transformation_ids=("transform.scale",),
         topology_reference=_artifact(case.get("topology_id", "topology.reference")),
         negative_control_artifacts=(_artifact(case.get("negative_id", "negative.control")),),
+        bootstrap_replicates=16 if case.get("typed_glioma", False) else 64,
     )
     return ConstructVariantPeptideMechanisticFeaturesRequest(
         request_id=context.request_id,
@@ -137,7 +171,8 @@ def request_for(case: dict[str, Any]) -> ConstructVariantPeptideMechanisticFeatu
         ),
         configuration=config,
         source_artifacts=(source,),
-        declared_features=() if case.get("no_features", False) else (feature,),
+        declared_features=() if case.get("no_features", False) else features,
+        declared_relations=relations,
     )
 
 

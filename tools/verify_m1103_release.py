@@ -14,17 +14,18 @@ _ROOT = Path(__file__).resolve().parents[1]
 _EVIDENCE = _ROOT / "release-evidence" / "m11_03"
 _EXPECTED_MODULE = "GLIO-PROTEOGEN-M11-03"
 _EXPECTED_FIXTURE = "m11-03-mechanistic-feature-constructor-v1"
-_EXPECTED_DIGEST = "sha256:88caacf751fa63f232ab7461ab6a096bf3dbbe6297a7b6da9d98fcfb82e5000f"
+_EXPECTED_DIGEST = "sha256:d0cf6cc4f0f011e131d132fa60a14fd7c99c3c61c7ffea75a4077b91a80bccdb"
 _EXPECTED_CASES = (
     "supported",
     "upstream_unsupported",
     "incomplete",
     "unit_failure",
     "negative_control_failure",
+    "typed_glioma",
     "replay_tamper",
     "denied_control",
 )
-_CASE_COUNT = 7
+_CASE_COUNT = 8
 _BENCHMARK_ITERATIONS = 10
 
 

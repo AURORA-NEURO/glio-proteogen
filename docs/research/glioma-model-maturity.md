@@ -268,17 +268,16 @@ trajectory implementation described above and are not counted as a fixed
 posterior estimator.
 
 The strict 22 are a floor for counterfeit estimators, not the whole scientific
-debt inventory. Six further engines are transparently labelled
-formula/pass-through/declaration shells rather than fitted models: M11-03,
-M11-04, M12-03, M12-04, M12-06, M13-04. M10-05 now has a typed glioma
-constraint-graph lane documented below while its legacy expression path remains
-provisional.
+debt inventory. Five further engines are transparently labelled
+formula/pass-through/declaration shells rather than fitted models: M11-04,
+M12-03, M12-04, M12-06, M13-04. M10-05 and M11-03 now have typed glioma
+research lanes documented below while their legacy paths remain provisional.
 Three representation constructors—M07-02, M08-02, and
 M09-02—also synthesize numeric vectors from hashes. They remain classified as
 representation plumbing, but their vectors must never be described as learned
 biological features. The exhaustive partition is therefore 22 strict stand-ins,
-6 transparent scientific shells, three synthetic representation constructors,
-and 49 schema, safe-abstention, validation, registry, evidence-publisher, or
+5 transparent scientific shells, three synthetic representation constructors,
+and 50 schema, safe-abstention, validation, registry, evidence-publisher, or
 other non-estimator engines.
 
 The strict list deliberately excludes representation/schema plumbing, safe
@@ -326,6 +325,23 @@ The original M06-01 replay and scalar/interval/categorical baseline output remai
 available for compatibility. Typed program states are research-use-only normalized
 signals and do not establish measurement truth, diagnosis, prognosis, or treatment
 response.
+
+## Completed M11-03 typed glioma feature lane
+
+The additive M11-03 runtime now supports an opt-in
+`glioma-signed-mechanistic-graph/1.0.0` model family. Scalar and interval
+features are robustly median/MAD normalized and fitted with Huber-weighted,
+signed activation/inhibition relation terms, ridge stabilization, and damped
+coordinate descent. Deterministic request-digest perturbations provide a
+bootstrap aggregate state interval; projected features retain their declared
+lineage and the result adds derived signed-state and interval features.
+
+The declaration-only constructor remains compatible for all other model
+families. The typed lane requires at least two numeric features and one
+supported signed relation, abstaining when topology is insufficient or the
+solver does not converge. Its outputs are research-use-only mechanistic
+features, not variant interpretation, diagnosis, prognosis, kinase ownership,
+or treatment recommendations.
 
 ## Completed M10-05 typed glioma constraint lane
 
