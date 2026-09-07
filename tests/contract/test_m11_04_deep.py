@@ -22,6 +22,10 @@ from glio_proteogen.contracts.m11_04 import (
     MechanismEstimate,
     MechanismEstimateKind,
     MechanismInferenceStatus,
+    MechanismObservation,
+    MechanismObservationState,
+    MechanismRelation,
+    MechanismRelationKind,
     VariantPeptideMechanismInferenceResult,
     contract_json_schema,
     contract_json_schemas,
@@ -29,6 +33,7 @@ from glio_proteogen.contracts.m11_04 import (
     result_payload_digest,
 )
 from glio_proteogen.contracts.m11_04.canonical import normalized_request
+from glio_proteogen.contracts.m11_04.v1 import M1104_GLIOMA_MODEL_FAMILY
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.modules.c11_protein_native_subtype.m11_04_network_state_mechanism_inference import (
     M1104MechanismAuthorizationError,
@@ -115,6 +120,136 @@ def test_posterior_result_has_counter_evidence_and_provenance() -> None:
     assert result.provenance.module_id == "GLIO-PROTEOGEN-M11-04"
     assert result.parent_target == "variant_peptide"
     assert result.emits_parent is False
+
+
+def test_typed_glioma_graph_fits_signed_evidence_and_replays() -> None:
+    base = build_scenario_request()
+    request = base.model_copy(
+        update={
+            "configuration": base.configuration.model_copy(
+                update={
+                    "model_family": M1104_GLIOMA_MODEL_FAMILY,
+                    "bootstrap_replicates": 16,
+                }
+            ),
+            "typed_observations": (
+                MechanismObservation(
+                    observation_id="obs.egfr",
+                    mechanism_id="egfr",
+                    label="EGFR signaling",
+                    standardized_effect=1.4,
+                    standard_error=0.2,
+                    quality_weight=0.95,
+                ),
+                MechanismObservation(
+                    observation_id="obs.pten",
+                    mechanism_id="pten",
+                    label="PTEN brake",
+                    standardized_effect=-0.8,
+                    standard_error=0.25,
+                    quality_weight=0.9,
+                ),
+                MechanismObservation(
+                    observation_id="obs.censored",
+                    mechanism_id="akt",
+                    label="AKT",
+                    standardized_effect=0.4,
+                    standard_error=0.4,
+                    state=MechanismObservationState.LEFT_CENSORED,
+                ),
+                MechanismObservation(
+                    observation_id="obs.missing",
+                    mechanism_id="unmeasured",
+                    label="Unmeasured",
+                    state=MechanismObservationState.MISSING,
+                ),
+                MechanismObservation(
+                    observation_id="obs.unsupported",
+                    mechanism_id="unsupported",
+                    label="Unsupported",
+                    state=MechanismObservationState.UNSUPPORTED,
+                ),
+            ),
+            "typed_relations": (
+                MechanismRelation(
+                    relation_id="rel.egfr-pten",
+                    source_mechanism_id="egfr",
+                    target_mechanism_id="pten",
+                    kind=MechanismRelationKind.INHIBITS,
+                    weight=0.7,
+                ),
+            ),
+        }
+    )
+    engine = M1104MechanismEngine()
+    result = engine.infer(request)
+    assert result.status is MechanismInferenceStatus.INFERRED
+    assert result.typed_model is True
+    assert result.model_profile == M1104_GLIOMA_MODEL_FAMILY
+    assert result.solver_iterations > 0
+    assert result.solver_objective is not None
+    assert {estimate.mechanism_id for estimate in result.estimates} == {"akt", "egfr", "pten"}
+    assert (
+        next(item for item in result.estimates if item.mechanism_id == "egfr").posterior_probability
+        > 0.5
+    )
+    assert engine.verify(result) == result
+
+
+def test_typed_request_order_is_canonical_and_insufficient_graph_abstains() -> None:
+    base = build_scenario_request()
+    config = base.configuration.model_copy(
+        update={"model_family": M1104_GLIOMA_MODEL_FAMILY, "bootstrap_replicates": 16}
+    )
+    observations = (
+        MechanismObservation(
+            observation_id="obs.a",
+            mechanism_id="a",
+            label="A",
+            standardized_effect=0.6,
+            standard_error=0.2,
+        ),
+        MechanismObservation(
+            observation_id="obs.b",
+            mechanism_id="b",
+            label="B",
+            standardized_effect=0.4,
+            standard_error=0.2,
+        ),
+    )
+    relation = MechanismRelation(
+        relation_id="rel.a-b",
+        source_mechanism_id="a",
+        target_mechanism_id="b",
+        kind=MechanismRelationKind.COUPLES,
+        weight=0.5,
+    )
+    request = base.model_copy(
+        update={
+            "configuration": config,
+            "typed_observations": observations,
+            "typed_relations": (relation,),
+        }
+    )
+    reversed_request = request.model_copy(
+        update={"typed_observations": tuple(reversed(observations)), "typed_relations": (relation,)}
+    )
+    engine = M1104MechanismEngine()
+    first = engine.infer(request)
+    second = engine.infer(reversed_request)
+    assert first.request_digest == second.request_digest
+    assert first.estimates == second.estimates
+    insufficient = base.model_copy(
+        update={
+            "configuration": config,
+            "typed_observations": (observations[0],),
+            "typed_relations": (),
+        }
+    )
+    result = engine.infer(insufficient)
+    assert result.status is MechanismInferenceStatus.ABSTAINED
+    assert result.typed_model is False
+    assert "requires two supported" in (result.abstention_reason or "")
 
 
 def test_request_and_result_closure_reject_forged_payloads() -> None:
@@ -276,7 +411,7 @@ def test_service_validation_and_evaluator() -> None:
     assert service.execute(request).status is MechanismInferenceStatus.INFERRED
     report = run_evaluator()
     assert report["passed"] is True
-    assert report["declared_cases"] == 7
+    assert report["declared_cases"] == 8
 
 
 def test_http_schema_infer_verify_and_sanitized_errors() -> None:

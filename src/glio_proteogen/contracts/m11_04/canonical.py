@@ -19,7 +19,18 @@ def _dump(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
 
 
 def normalized_request(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
-    return _dump(value)
+    document = _dump(value)
+    # Typed research evidence is a set, not a sequence.  Sorting only these
+    # additive fields preserves legacy request digests while making replay and
+    # bootstrap seeds invariant to JSON input order.
+    for field, key in (
+        ("typed_observations", "observation_id"),
+        ("typed_relations", "relation_id"),
+    ):
+        entries = document.get(field)
+        if isinstance(entries, list):
+            document[field] = sorted(entries, key=lambda item: str(item.get(key, "")))
+    return document
 
 
 def canonical_request_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:

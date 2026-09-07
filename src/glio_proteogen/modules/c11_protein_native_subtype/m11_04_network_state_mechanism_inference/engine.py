@@ -8,7 +8,10 @@ method as a negative biological finding.
 
 from __future__ import annotations
 
+import hashlib
+import math
 from collections.abc import Mapping
+from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import Final
 
@@ -17,6 +20,7 @@ from pydantic import TypeAdapter
 from glio_proteogen.contracts.m11_04 import (
     M1104_CONTRACT_VERSION,
     M1104_EVIDENCE_CLAIM,
+    M1104_GLIOMA_MODEL_FAMILY,
     M1104_PARENT,
     InferVariantPeptideMechanismRequest,
     MechanismEstimate,
@@ -24,6 +28,8 @@ from glio_proteogen.contracts.m11_04 import (
     MechanismFinding,
     MechanismFindingCode,
     MechanismInferenceStatus,
+    MechanismObservationState,
+    MechanismRelationKind,
     VariantPeptideMechanismInferenceResult,
     expected_provenance,
     expected_uncertainty,
@@ -52,6 +58,25 @@ _SUPPORTED_STATES: Final = frozenset(
 )
 _POSTERIOR_PARTS: Final = 6
 _STATE_PARTS: Final = 4
+_M1104_RIDGE: Final = 0.04
+_M1104_DAMPING: Final = 0.72
+_M1104_HUBER_DELTA: Final = 1.5
+_M1104_SOLVER_ITERATIONS: Final = 160
+_M1104_SOLVER_TOLERANCE: Final = 1e-6
+_M1104_MIN_SCALE: Final = 1e-6
+_M1104_MIN_TYPED_MECHANISMS: Final = 2
+_M1104_LOW_QUANTILE: Final = 0.05
+_M1104_HIGH_QUANTILE: Final = 0.95
+
+
+@dataclass(frozen=True, slots=True)
+class _TypedFit:
+    mechanism_ids: tuple[str, ...]
+    values: tuple[float, ...]
+    objective: float
+    iterations: int
+    converged: bool
+    trace: tuple[float, ...]
 
 
 class M1104MechanismAuthorizationError(PermissionError):
@@ -115,6 +140,16 @@ def _evidence(request: InferVariantPeptideMechanismRequest) -> tuple[KernelEvide
         request.configuration.model_reference,
         request.configuration.calibration_reference,
         *(item.reference for item in request.configuration.evidence),
+        *(
+            reference
+            for item in request.typed_observations
+            for reference in (e.reference for e in item.evidence)
+        ),
+        *(
+            reference
+            for item in request.typed_relations
+            for reference in (e.reference for e in item.evidence)
+        ),
         refs.approved_configuration.evidence,
         refs.identity_lineage.evidence,
         refs.provenance.evidence,
@@ -253,7 +288,249 @@ def _parse_method(  # noqa: PLR0911
     )
 
 
-def _limitations(*, supported: bool) -> tuple[Limitation, ...]:
+def _huber_loss(value: float) -> float:
+    absolute = abs(value)
+    if absolute <= _M1104_HUBER_DELTA:
+        return 0.5 * value * value
+    return _M1104_HUBER_DELTA * (absolute - 0.5 * _M1104_HUBER_DELTA)
+
+
+def _hash_normal(material: str) -> float:
+    """Digest-seeded normal draw without process-global RNG state."""
+
+    first_digest = hashlib.sha256((material + ":u1").encode("utf-8")).digest()
+    second_digest = hashlib.sha256((material + ":u2").encode("utf-8")).digest()
+    first = (int.from_bytes(first_digest[:8], "big") + 1.0) / (2.0**64 + 1.0)
+    second = (int.from_bytes(second_digest[:8], "big") + 1.0) / (2.0**64 + 1.0)
+    return math.sqrt(-2.0 * math.log(max(_M1104_MIN_SCALE, first))) * math.cos(
+        2.0 * math.pi * second
+    )
+
+
+def _relation_coefficient(kind: MechanismRelationKind, weight: float) -> float:
+    magnitude = max(_M1104_MIN_SCALE, abs(weight))
+    if kind is MechanismRelationKind.INHIBITS:
+        return -magnitude
+    if kind is MechanismRelationKind.ACTIVATES:
+        return magnitude
+    return math.copysign(magnitude, weight if abs(weight) > _M1104_MIN_SCALE else 1.0)
+
+
+def _typed_objective(
+    values: list[float],
+    observations: tuple[tuple[int, float, float, float, MechanismObservationState], ...],
+    relations: tuple[tuple[int, int, float], ...],
+) -> float:
+    objective = _M1104_RIDGE * sum(value * value for value in values)
+    for index, target, uncertainty, quality, state in observations:
+        residual = (values[index] - target) / max(_M1104_MIN_SCALE, uncertainty)
+        if state is MechanismObservationState.LEFT_CENSORED:
+            residual = max(0.0, residual)
+        objective += quality * _huber_loss(residual)
+    for source, target, coefficient in relations:
+        objective += 0.5 * (values[target] - coefficient * values[source]) ** 2
+    return objective
+
+
+def _fit_typed(  # noqa: C901, PLR0912 - explicit coordinate updates keep the objective auditable.
+    request: InferVariantPeptideMechanismRequest,
+    *,
+    perturbation: Mapping[str, float] | None = None,
+) -> _TypedFit | None:
+    """Fit latent mechanism activities with robust measurement and signed graph terms."""
+
+    usable = tuple(
+        item
+        for item in request.typed_observations
+        if item.state
+        in {
+            MechanismObservationState.OBSERVED,
+            MechanismObservationState.LEFT_CENSORED,
+        }
+        and item.standardized_effect is not None
+        and item.standard_error is not None
+        and item.quality_weight > 0.0
+    )
+    mechanism_ids = tuple(sorted({item.mechanism_id for item in usable}))
+    if len(mechanism_ids) < _M1104_MIN_TYPED_MECHANISMS:
+        return None
+    index = {mechanism_id: position for position, mechanism_id in enumerate(mechanism_ids)}
+    observations_list: list[tuple[int, float, float, float, MechanismObservationState]] = []
+    for item in sorted(usable, key=lambda value: (value.mechanism_id, value.observation_id)):
+        effect = item.standardized_effect
+        uncertainty = item.standard_error
+        if effect is None or uncertainty is None:
+            continue
+        observations_list.append(
+            (
+                index[item.mechanism_id],
+                effect + (perturbation or {}).get(item.observation_id, 0.0),
+                uncertainty,
+                item.quality_weight,
+                item.state,
+            )
+        )
+    observations = tuple(observations_list)
+    relations = tuple(
+        (
+            index[item.source_mechanism_id],
+            index[item.target_mechanism_id],
+            _relation_coefficient(item.kind, item.weight),
+        )
+        for item in sorted(request.typed_relations, key=lambda value: value.relation_id)
+        if item.source_mechanism_id in index and item.target_mechanism_id in index
+    )
+    if not relations:
+        return None
+    values = [0.0] * len(mechanism_ids)
+    for position in range(len(values)):
+        terms = [item for item in observations if item[0] == position]
+        total = sum(item[3] / max(_M1104_MIN_SCALE, item[2] ** 2) for item in terms)
+        values[position] = sum(
+            item[1] * item[3] / max(_M1104_MIN_SCALE, item[2] ** 2) for item in terms
+        ) / max(_M1104_MIN_SCALE, total)
+    objective = _typed_objective(values, observations, relations)
+    trace = [objective]
+    for iteration in range(1, _M1104_SOLVER_ITERATIONS + 1):
+        previous = values.copy()
+        for position, current in enumerate(values):
+            gradient = 2.0 * _M1104_RIDGE * current
+            hessian = 2.0 * _M1104_RIDGE
+            for index_value, target, uncertainty, quality, state in observations:
+                if index_value != position:
+                    continue
+                scale = max(_M1104_MIN_SCALE, uncertainty)
+                residual = (current - target) / scale
+                active = state is MechanismObservationState.OBSERVED or residual > 0.0
+                if not active:
+                    continue
+                influence = (
+                    1.0
+                    if abs(residual) <= _M1104_HUBER_DELTA
+                    else _M1104_HUBER_DELTA / max(_M1104_MIN_SCALE, abs(residual))
+                )
+                information = quality * influence / (scale * scale)
+                gradient += information * (current - target)
+                hessian += information
+            for source, target, coefficient in relations:
+                if position == source:
+                    residual = values[target] - coefficient * current
+                    gradient -= coefficient * residual
+                    hessian += coefficient * coefficient
+                elif position == target:
+                    residual = current - coefficient * values[source]
+                    gradient += residual
+                    hessian += 1.0
+            proposal = current - gradient / max(_M1104_MIN_SCALE, hessian)
+            values[position] = current + _M1104_DAMPING * (proposal - current)
+        next_objective = _typed_objective(values, observations, relations)
+        trace.append(next_objective)
+        update = max(abs(after - before) for after, before in zip(values, previous, strict=True))
+        if (
+            update <= _M1104_SOLVER_TOLERANCE
+            and abs(objective - next_objective) <= 2.0 * _M1104_SOLVER_TOLERANCE
+        ):
+            return _TypedFit(
+                mechanism_ids=mechanism_ids,
+                values=tuple(float(f"{value:.8f}") for value in values),
+                objective=float(f"{next_objective:.8f}"),
+                iterations=iteration,
+                converged=True,
+                trace=tuple(float(f"{value:.8f}") for value in trace),
+            )
+        objective = next_objective
+    return _TypedFit(
+        mechanism_ids=mechanism_ids,
+        values=tuple(float(f"{value:.8f}") for value in values),
+        objective=float(f"{objective:.8f}"),
+        iterations=_M1104_SOLVER_ITERATIONS,
+        converged=False,
+        trace=tuple(float(f"{value:.8f}") for value in trace),
+    )
+
+
+def _sigmoid(value: float) -> float:
+    if value >= 0.0:
+        return 1.0 / (1.0 + math.exp(-min(40.0, value)))
+    exponential = math.exp(max(-40.0, value))
+    return exponential / (1.0 + exponential)
+
+
+def _nearest_quantile(values: tuple[float, ...], probability: float) -> float:
+    ordered = sorted(values)
+    position = max(0, min(len(ordered) - 1, math.ceil(probability * len(ordered)) - 1))
+    return float(f"{ordered[position]:.8f}")
+
+
+def _typed_estimates(
+    request: InferVariantPeptideMechanismRequest,
+    request_hash: str,
+    evidence: tuple[KernelEvidenceReference, ...],
+    counter_evidence: tuple[KernelEvidenceReference, ...],
+) -> tuple[tuple[MechanismEstimate, ...], _TypedFit | None, str | None]:
+    fit = _fit_typed(request)
+    if fit is None:
+        return (
+            (),
+            None,
+            "typed glioma mechanism graph requires two supported mechanisms and a signed relation",
+        )
+    if not fit.converged:
+        return (), fit, "typed glioma mechanism graph did not converge"
+    draws: dict[str, list[float]] = {mechanism_id: [] for mechanism_id in fit.mechanism_ids}
+    usable = tuple(
+        item
+        for item in request.typed_observations
+        if item.state
+        in {
+            MechanismObservationState.OBSERVED,
+            MechanismObservationState.LEFT_CENSORED,
+        }
+        and item.standardized_effect is not None
+        and item.standard_error is not None
+    )
+    for draw in range(request.configuration.bootstrap_replicates):
+        perturbation: dict[str, float] = {}
+        for item in usable:
+            if item.standard_error is not None:
+                perturbation[item.observation_id] = item.standard_error * _hash_normal(
+                    f"{request_hash}:{draw}:{item.observation_id}"
+                )
+        sample = _fit_typed(request, perturbation=perturbation)
+        if sample is None or not sample.converged:
+            return (), sample, "typed glioma bootstrap fit did not converge"
+        for mechanism_id, value in zip(sample.mechanism_ids, sample.values, strict=True):
+            draws[mechanism_id].append(_sigmoid(value))
+    labels = {item.mechanism_id: item.label for item in request.typed_observations}
+    estimates = tuple(
+        MechanismEstimate(
+            estimate_id=f"estimate.{mechanism_id}",
+            mechanism_id=mechanism_id,
+            label=labels[mechanism_id],
+            kind=MechanismEstimateKind.POSTERIOR,
+            posterior_probability=float(f"{_sigmoid(value):.8f}"),
+            lower_bound=min(
+                _nearest_quantile(tuple(draws[mechanism_id]), _M1104_LOW_QUANTILE),
+                _sigmoid(value),
+            ),
+            upper_bound=max(
+                _nearest_quantile(tuple(draws[mechanism_id]), _M1104_HIGH_QUANTILE),
+                _sigmoid(value),
+            ),
+            assumptions=(
+                "Mechanism effects are standardized caller-declared observations.",
+                "Signed relations encode activation, inhibition, or coupling constraints.",
+            ),
+            alternatives=("Unmeasured mechanisms and alternative topologies remain possible.",),
+            counter_evidence=counter_evidence,
+            evidence=evidence,
+        )
+        for mechanism_id, value in zip(fit.mechanism_ids, fit.values, strict=True)
+    )
+    return estimates, fit, None
+
+
+def _limitations(*, supported: bool, typed: bool = False) -> tuple[Limitation, ...]:
     values = [
         Limitation(
             code="opaque_inputs",
@@ -280,6 +557,16 @@ def _limitations(*, supported: bool) -> tuple[Limitation, ...]:
                 statement="No mechanism estimate is published outside the closed method grammar.",
             )
         )
+    if typed:
+        values.append(
+            Limitation(
+                code="typed_research_lane",
+                statement=(
+                    "The glioma graph is an experimental, standardized-effect mechanism model; "
+                    "it is not clinical mechanism, diagnosis, prognosis, or treatment evidence."
+                ),
+            )
+        )
     return tuple(values)
 
 
@@ -298,21 +585,34 @@ class M1104MechanismEngine:
         request_hash = canonical_request_digest(request)
         evidence = _evidence(request)
         counter_evidence = _counter_evidence(request)
-        estimate, finding_code, finding_message = _parse_method(
-            request.configuration.method,
-            counter_evidence=counter_evidence,
-            evidence=evidence,
-        )
-        safe = estimate is not None and bool(counter_evidence)
-        if estimate is None:
-            safe = False
-            finding_code = finding_code or MechanismFindingCode.MODEL_NOT_CALIBRATED
-            finding_message = finding_message or "Mechanism estimate is not evaluable."
-        elif not counter_evidence:
-            safe = False
-            finding_code = MechanismFindingCode.COUNTER_EVIDENCE_REQUIRED
-            finding_message = "At least one counter-evidence reference is required."
-        estimates = (estimate,) if safe and estimate is not None else ()
+        typed = request.configuration.model_family == M1104_GLIOMA_MODEL_FAMILY
+        fit: _TypedFit | None = None
+        finding_code: MechanismFindingCode | None = None
+        if typed:
+            estimates, fit, finding_message = _typed_estimates(
+                request, request_hash, evidence, counter_evidence
+            )
+            finding_code = MechanismFindingCode.MODEL_NOT_CALIBRATED
+            safe = bool(estimates) and bool(counter_evidence) and fit is not None and fit.converged
+            if not safe and not counter_evidence:
+                finding_code = MechanismFindingCode.COUNTER_EVIDENCE_REQUIRED
+                finding_message = "At least one counter-evidence reference is required."
+        else:
+            estimate, finding_code, finding_message = _parse_method(
+                request.configuration.method,
+                counter_evidence=counter_evidence,
+                evidence=evidence,
+            )
+            safe = estimate is not None and bool(counter_evidence)
+            if estimate is None:
+                safe = False
+                finding_code = finding_code or MechanismFindingCode.MODEL_NOT_CALIBRATED
+                finding_message = finding_message or "Mechanism estimate is not evaluable."
+            elif not counter_evidence:
+                safe = False
+                finding_code = MechanismFindingCode.COUNTER_EVIDENCE_REQUIRED
+                finding_message = "At least one counter-evidence reference is required."
+            estimates = (estimate,) if safe and estimate is not None else ()
         findings = (
             ()
             if safe
@@ -355,8 +655,13 @@ class M1104MechanismEngine:
             "uncertainty": expected_uncertainty(supported=safe),
             "provenance": expected_provenance(request, request_hash),
             "evidence": evidence,
-            "limitations": _limitations(supported=safe),
+            "limitations": _limitations(supported=safe, typed=typed),
             "human_review_required": not safe,
+            "typed_model": typed and safe,
+            "model_profile": request.configuration.model_family if typed else None,
+            "solver_iterations": fit.iterations if fit is not None else 0,
+            "solver_objective": fit.objective if fit is not None else None,
+            "converged": fit.converged if fit is not None else True,
         }
         constructed = VariantPeptideMechanismInferenceResult.model_construct(**payload)  # type: ignore[arg-type]
         payload["result_digest"] = result_payload_digest(constructed)

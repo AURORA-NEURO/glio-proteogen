@@ -268,16 +268,16 @@ trajectory implementation described above and are not counted as a fixed
 posterior estimator.
 
 The strict 22 are a floor for counterfeit estimators, not the whole scientific
-debt inventory. Five further engines are transparently labelled
-formula/pass-through/declaration shells rather than fitted models: M11-04,
-M12-03, M12-04, M12-06, M13-04. M10-05 and M11-03 now have typed glioma
+debt inventory. Four further engines are transparently labelled
+formula/pass-through/declaration shells rather than fitted models: M12-03,
+M12-04, M12-06, M13-04. M10-05, M11-03, and M11-04 now have typed glioma
 research lanes documented below while their legacy paths remain provisional.
 Three representation constructors—M07-02, M08-02, and
 M09-02—also synthesize numeric vectors from hashes. They remain classified as
 representation plumbing, but their vectors must never be described as learned
 biological features. The exhaustive partition is therefore 22 strict stand-ins,
-5 transparent scientific shells, three synthetic representation constructors,
-and 50 schema, safe-abstention, validation, registry, evidence-publisher, or
+4 transparent scientific shells, three synthetic representation constructors,
+and 51 schema, safe-abstention, validation, registry, evidence-publisher, or
 other non-estimator engines.
 
 The strict list deliberately excludes representation/schema plumbing, safe
@@ -360,6 +360,26 @@ supported evidence or fails to converge, the service abstains with review
 required rather than manufacturing a score. Program states are research-use
 only signals and do not represent clinical mechanism, diagnosis, prognosis, or
 treatment response.
+
+## Completed M11-04 typed glioma mechanism lane
+
+The additive M11-04 runtime now supports an opt-in
+`glioma-mechanism-evidence-graph/1.0.0` family. Structured mechanism
+observations carry standardized effects, standard errors, quality weights, and
+explicit observed, left-censored, missing, or unsupported states. Signed
+activation, inhibition, and coupling relations are fitted with robust Huber
+loss, ridge stabilization, and damped coordinate descent; the solver records
+objective and convergence diagnostics rather than returning a fixed posterior.
+Digest-seeded bootstrap perturbations produce per-mechanism posterior
+intervals, while missing and unsupported observations are excluded from the
+objective and cannot become negative evidence.
+
+The original closed posterior/state method grammar remains compatible for all
+other model families. The typed lane requires at least two supported mechanisms
+and a signed relation, and abstains with review required when topology or
+convergence is insufficient. Estimates are experimental standardized signals,
+not clinical mechanism, diagnosis, prognosis, kinase ownership, or treatment
+recommendations.
 
 ## Completed M11-06 typed perturbation sensitivity lane
 

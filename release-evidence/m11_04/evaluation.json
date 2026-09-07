@@ -2,7 +2,7 @@
   "module_id": "GLIO-PROTEOGEN-M11-04",
   "contract_version": "0.1.0-provisional",
   "fixture_path": "tests/fixtures/m11_04/scenarios.json",
-  "fixture_sha256": "sha256:882a119104ee57c6c5452ed1547a203d73d7d576d1506fc57a12350a97c2ef52",
+  "fixture_sha256": "sha256:310157c5df85bc73c2b0d1519960a21c57309f9cf218bf2de9f9bfd069cec8bc",
   "case_ids": [
     "posterior_inference",
     "state_inference",
@@ -10,10 +10,11 @@
     "unknown_method_abstention",
     "invalid_bounds_abstention",
     "replay_and_tamper",
-    "authorization_gate"
+    "authorization_gate",
+    "typed_glioma_graph"
   ],
-  "declared_cases": 7,
-  "executed_cases": 7,
-  "passed_cases": 7,
+  "declared_cases": 8,
+  "executed_cases": 8,
+  "passed_cases": 8,
   "passed": true
 }
