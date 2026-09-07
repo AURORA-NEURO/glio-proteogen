@@ -268,15 +268,17 @@ trajectory implementation described above and are not counted as a fixed
 posterior estimator.
 
 The strict 22 are a floor for counterfeit estimators, not the whole scientific
-debt inventory. Seven further engines are transparently labelled
-formula/pass-through/declaration shells rather than fitted models: M10-05,
-M11-03, M11-04, M12-03, M12-04, M12-06, M13-04.
+debt inventory. Six further engines are transparently labelled
+formula/pass-through/declaration shells rather than fitted models: M11-03,
+M11-04, M12-03, M12-04, M12-06, M13-04. M10-05 now has a typed glioma
+constraint-graph lane documented below while its legacy expression path remains
+provisional.
 Three representation constructors—M07-02, M08-02, and
 M09-02—also synthesize numeric vectors from hashes. They remain classified as
 representation plumbing, but their vectors must never be described as learned
 biological features. The exhaustive partition is therefore 22 strict stand-ins,
-7 transparent scientific shells, three synthetic representation constructors,
-and 48 schema, safe-abstention, validation, registry, evidence-publisher, or
+6 transparent scientific shells, three synthetic representation constructors,
+and 49 schema, safe-abstention, validation, registry, evidence-publisher, or
 other non-estimator engines.
 
 The strict list deliberately excludes representation/schema plumbing, safe
@@ -324,6 +326,24 @@ The original M06-01 replay and scalar/interval/categorical baseline output remai
 available for compatibility. Typed program states are research-use-only normalized
 signals and do not establish measurement truth, diagnosis, prognosis, or treatment
 response.
+
+## Completed M10-05 typed glioma constraint lane
+
+The additive M10-05 runtime now accepts feature observations annotated to
+RTK/PI3K/AKT/mTOR, p53/cell-cycle, IDH/HIF1A, mesenchymal, and proliferation
+programs. Annotated observations are robustly median/MAD normalized and fitted
+with Huber-weighted signed program coupling using damped coordinate descent;
+left-censored values use one-sided residuals, while missing and unsupported
+values are excluded. The result carries solver iterations/objective,
+digest-seeded bootstrap intervals, top drivers, and signed-edge ablation effects
+for every supported program.
+
+The original closed true/false and numeric constraint evaluator, hard/soft
+semantics, and replay envelope remain compatible. If the typed graph has no
+supported evidence or fails to converge, the service abstains with review
+required rather than manufacturing a score. Program states are research-use
+only signals and do not represent clinical mechanism, diagnosis, prognosis, or
+treatment response.
 
 ## Completed M11-06 typed perturbation sensitivity lane
 

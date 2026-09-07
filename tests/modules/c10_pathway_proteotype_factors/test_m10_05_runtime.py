@@ -22,6 +22,7 @@ from glio_proteogen.contracts.m10_05 import (
     ConstraintKind,
     FeatureObservation,
     FeatureObservationState,
+    GliomaConstraintProgram,
     MechanismConstraint,
     MechanismConstraintSet,
     ProteinRnaConstraintIntegrationResult,
@@ -80,6 +81,104 @@ def test_numeric_feature_constraint_uses_measured_value_and_error() -> None:
     assert all(item.outcome is ConstraintEvaluationOutcome.SATISFIED for item in result.evaluations)
     assert result.estimates[0].score == 1.0
     assert result.ablations[0].effect_delta == 0.4
+
+
+def test_typed_glioma_constraint_graph_emits_replayable_program_states() -> None:
+    request = build_request(
+        hard_expression="feature.pathway >= 0.5",
+        soft_expression="feature.pathway <= 1.0",
+        measured=True,
+    )
+    artifacts = (
+        request.feature_artifacts[0],
+        *tuple(
+            request.feature_artifacts[0].model_copy(
+                update={
+                    "artifact_id": f"feature.{name}",
+                    "digest": f"sha256:{fill * 64}",
+                }
+            )
+            for name, fill in (("rtk", "c"), ("p53", "d"), ("idh", "e"))
+        ),
+    )
+    typed_request = request.model_copy(
+        update={
+            "feature_artifacts": artifacts,
+            "feature_observations": (
+                FeatureObservation(
+                    feature_id="feature.pathway",
+                    state=FeatureObservationState.OBSERVED,
+                    value=0.8,
+                    standard_error=0.1,
+                    program=GliomaConstraintProgram.RTK_PI3K_AKT_MTOR,
+                ),
+                FeatureObservation(
+                    feature_id="feature.rtk",
+                    state=FeatureObservationState.OBSERVED,
+                    value=1.2,
+                    standard_error=0.1,
+                    quality_weight=0.9,
+                    program=GliomaConstraintProgram.RTK_PI3K_AKT_MTOR,
+                ),
+                FeatureObservation(
+                    feature_id="feature.p53",
+                    state=FeatureObservationState.OBSERVED,
+                    value=-0.8,
+                    standard_error=0.2,
+                    quality_weight=0.8,
+                    program=GliomaConstraintProgram.P53_CELL_CYCLE,
+                ),
+                FeatureObservation(
+                    feature_id="feature.idh",
+                    state=FeatureObservationState.OBSERVED,
+                    value=0.4,
+                    standard_error=0.15,
+                    quality_weight=1.0,
+                    program=GliomaConstraintProgram.IDH_HIF1A,
+                ),
+            ),
+            "bootstrap_replicates": 16,
+        }
+    )
+    service = M1005Service()
+    result = service.execute(typed_request)
+    assert result.status.value == "integrated"
+    assert result.typed_model is True
+    assert result.solver_iterations is not None
+    assert result.solver_objective is not None
+    assert {state.program for state in result.program_states} == {
+        GliomaConstraintProgram.RTK_PI3K_AKT_MTOR,
+        GliomaConstraintProgram.P53_CELL_CYCLE,
+        GliomaConstraintProgram.IDH_HIF1A,
+    }
+    assert all(
+        state.lower_bound <= state.score <= state.upper_bound for state in result.program_states
+    )
+    assert all(
+        state.evidence_count >= 1 and state.ablation_effects for state in result.program_states
+    )
+    assert service.verify(result).result_digest == result.result_digest
+
+
+def test_typed_missing_evidence_abstains_without_negative_state() -> None:
+    request = build_request().model_copy(
+        update={
+            "feature_observations": (
+                FeatureObservation(
+                    feature_id="feature.pathway",
+                    state=FeatureObservationState.MISSING,
+                    quality_weight=0.0,
+                    program=GliomaConstraintProgram.RTK_PI3K_AKT_MTOR,
+                ),
+            ),
+            "bootstrap_replicates": 16,
+        }
+    )
+    result = M1005Service().execute(request)
+    assert result.status.value == "abstained"
+    assert result.program_states == ()
+    assert result.support_decision.status.value == "review_required"
+    assert "typed glioma constraint graph" in (result.abstention_reason or "")
 
 
 def test_numeric_soft_violation_is_weighted_and_visible_in_ablation() -> None:

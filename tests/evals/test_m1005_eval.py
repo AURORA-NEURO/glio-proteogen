@@ -3,7 +3,7 @@
 from evals.m10_05.benchmark import run_benchmark
 from evals.m10_05.run import evaluate
 
-EXPECTED_CHECKS = 9
+EXPECTED_CHECKS = 10
 
 
 def test_m1005_evaluator_matrix_passes() -> None:

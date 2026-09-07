@@ -23,6 +23,7 @@ from glio_proteogen.contracts.m10_05 import (
     ConstraintKind,
     FeatureObservation,
     FeatureObservationState,
+    GliomaConstraintProgram,
     IntegrateProteinRnaConstraintsRequest,
     MechanismConstraint,
     MechanismConstraintSet,
@@ -213,6 +214,43 @@ def evaluate() -> dict[str, object]:
                 and measured.estimates[0].score == 1.0
             ),
             detail="numeric feature evidence is evaluated with assay-error-scaled residuals",
+        )
+    )
+    typed = service.execute(
+        build_request(
+            hard_expression="feature.pathway >= 0.5",
+            soft_expression="feature.pathway <= 1.0",
+            measured=True,
+        ).model_copy(
+            update={
+                "feature_observations": (
+                    FeatureObservation(
+                        feature_id="feature.pathway",
+                        state=FeatureObservationState.OBSERVED,
+                        value=0.8,
+                        standard_error=0.1,
+                        program=GliomaConstraintProgram.RTK_PI3K_AKT_MTOR,
+                    ),
+                ),
+                "bootstrap_replicates": 16,
+            }
+        )
+    )
+    checks.append(
+        _check(
+            "typed_glioma_program_graph_is_replayable",
+            passed=(
+                typed.status.value == "integrated"
+                and typed.typed_model
+                and len(typed.program_states) == 1
+                and typed.solver_iterations is not None
+                and typed.solver_objective is not None
+                and service.verify(typed).result_digest == typed.result_digest
+            ),
+            detail=(
+                "annotated feature evidence drives a signed glioma program fit with "
+                "deterministic replay"
+            ),
         )
     )
     replay = service.verify(integrated)
