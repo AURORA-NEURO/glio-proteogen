@@ -48,6 +48,19 @@ def test_preflight_non_mapping_fails_closed() -> None:
     assert canonical_request_digest(_request().model_dump())
 
 
+def test_request_canonicalization_normalizes_scenarios_and_non_mapping_items() -> None:
+    request = _request()
+    payload = request.model_dump(mode="json")
+    payload["scenarios"] = [
+        {**payload["scenarios"][0], "baseline_measurements": [0.3, 0.1, 0.2]},
+        "opaque-scenario",
+    ]
+    digest = canonical_request_digest(payload)
+    reordered = dict(payload)
+    reordered["scenarios"] = list(reversed(payload["scenarios"]))
+    assert digest == canonical_request_digest(reordered)
+
+
 def test_policy_bounds_are_ordered() -> None:
     request = _request()
     payload = request.policy.model_dump(mode="json")
@@ -75,6 +88,44 @@ def test_scenario_supported_requires_non_placeholder_and_evidence() -> None:
     base["evidence"] = (_evidence(),)
     with pytest.raises(ValueError, match="placeholder"):
         PerturbationScenario.model_validate(base, strict=True)
+
+
+def test_typed_scenario_requires_paired_replicates_and_positive_quality() -> None:
+    base = {
+        "scenario_id": "scenario-negative",
+        "kind": PerturbationKind.IN_SILICO,
+        "parameter": "signal",
+        "baseline_value": 0.2,
+        "perturbed_value": 0.3,
+        "unit": "relative",
+        "status": PerturbationStatus.SUPPORTED,
+        "assumption": "bounded",
+        "source_artifact": _artifact("source", 90),
+        "evidence": (_evidence(),),
+    }
+    with pytest.raises(ValueError, match="supplied together"):
+        PerturbationScenario.model_validate(
+            {**base, "baseline_measurements": (0.1, 0.2, 0.3)}, strict=True
+        )
+    with pytest.raises(ValueError, match="three replicates"):
+        PerturbationScenario.model_validate(
+            {
+                **base,
+                "baseline_measurements": (0.1, 0.2),
+                "perturbed_measurements": (0.2, 0.3),
+            },
+            strict=True,
+        )
+    with pytest.raises(ValueError, match="positive quality"):
+        PerturbationScenario.model_validate(
+            {
+                **base,
+                "baseline_measurements": (0.1, 0.2, 0.3),
+                "perturbed_measurements": (0.2, 0.3, 0.4),
+                "quality_weight": 0.0,
+            },
+            strict=True,
+        )
 
 
 def test_unsupported_positive_evidence_is_rejected() -> None:

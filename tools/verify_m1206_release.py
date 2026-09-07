@@ -24,6 +24,7 @@ EXPECTED_CASE_IDS: Final = (
     "consent_denied",
     "identity_denied",
     "support_denied",
+    "typed_glioma_graph",
 )
 
 

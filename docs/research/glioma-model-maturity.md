@@ -268,16 +268,18 @@ trajectory implementation described above and are not counted as a fixed
 posterior estimator.
 
 The strict 22 are a floor for counterfeit estimators, not the whole scientific
-debt inventory. Two further engines are transparently labelled
-formula/pass-through/declaration shells rather than fitted models: M12-06,
-M13-04. M10-05, M11-03, M11-04, M12-03, and M12-04 now have typed glioma
+debt inventory. M12-06's legacy scalar compatibility path remains in this
+floor, while its new typed glioma replicate lane is a real robust estimator.
+One further engine is transparently labelled a
+formula/pass-through/declaration shell rather than a fitted model: M13-04.
+M10-05, M11-03, M11-04, M12-03, M12-04, and M12-06 now have typed glioma
 research lanes documented below while their legacy paths remain provisional.
 Three representation constructors—M07-02, M08-02, and
 M09-02—also synthesize numeric vectors from hashes. They remain classified as
 representation plumbing, but their vectors must never be described as learned
 biological features. The exhaustive partition is therefore 22 strict stand-ins,
-2 transparent scientific shells, three synthetic representation constructors,
-and 53 schema, safe-abstention, validation, registry, evidence-publisher, or
+1 transparent scientific shell, three synthetic representation constructors,
+and 54 schema, safe-abstention, validation, registry, evidence-publisher, or
 other non-estimator engines.
 
 The strict list deliberately excludes representation/schema plumbing, safe
@@ -414,6 +416,21 @@ families. The typed path requires two supported mechanisms and a signed edge,
 and abstains when topology or convergence is insufficient. Outputs remain
 experimental standardized signals, not clinical mechanism, diagnosis,
 prognosis, kinase ownership, or treatment recommendations.
+
+## Completed M12-06 typed glioma perturbation response lane
+
+The additive M12-06 runtime now supports an opt-in
+`glioma-panel-perturbation-response-graph/1.0.0` family. Paired baseline and
+perturbed assay replicates are fit with quality-weighted Huber IRLS arm
+locations, robust finite differences, and a bounded logistic response mapped
+to the caller's response envelope. Digest-seeded bootstrap resampling yields
+replayable intervals, robust standard errors, and explicit replicate counts.
+
+The compatibility scalar path remains unchanged. Typed requests require at
+least three finite replicates per arm for every supported scenario; missing
+replicates abstain without a surface and never become negative evidence. This
+is an experimental sensitivity projection, not a causal intervention,
+diagnostic, prognostic, kinase-ownership, or treatment-response claim.
 
 ## Completed M11-06 typed perturbation sensitivity lane
 

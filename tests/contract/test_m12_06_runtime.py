@@ -16,6 +16,7 @@ from typer.testing import CliRunner
 
 from glio_proteogen.adapters.m1206 import app, m1206_app
 from glio_proteogen.contracts.m12_06 import (
+    M1206_GLIOMA_MODEL_FAMILY,
     PerturbationKind,
     PerturbationPolicy,
     PerturbationScenario,
@@ -183,6 +184,136 @@ def test_supported_simulation_is_bounded_and_replayable() -> None:
     assert result.result_digest.startswith("sha256:")
     assert result.request_digest == canonical_request_digest(request)
     assert M1206Service().verify(request, result) == result
+
+
+def test_typed_glioma_replicates_fit_robust_response_and_replay() -> None:
+    request = _request()
+    scenario = request.scenarios[0].model_copy(
+        update={
+            "baseline_measurements": (0.80, 0.90, 1.00, 30.0),
+            "perturbed_measurements": (1.10, 1.20, 1.30, 1.40),
+        }
+    )
+    configuration = request.policy.configuration.model_copy(
+        update={"model_family": M1206_GLIOMA_MODEL_FAMILY}
+    )
+    typed = request.model_copy(
+        update={
+            "scenarios": (scenario,),
+            "policy": request.policy.model_copy(update={"configuration": configuration}),
+        }
+    )
+    result = M1206Service().execute(typed)
+    assert result.typed_model is True
+    assert result.model_profile == M1206_GLIOMA_MODEL_FAMILY
+    assert result.bootstrap_replicates == 64
+    assert result.sensitivity_surface is not None
+    response = result.sensitivity_surface.responses[0]
+    assert response.raw_effect_delta is not None
+    assert response.raw_effect_delta > 0.0
+    assert response.sensitivity_standard_error is not None
+    assert response.replicate_count == 8
+    assert M1206Service().verify(typed, result) == result
+
+
+def test_typed_glioma_replicate_order_is_digest_invariant() -> None:
+    request = _request()
+    scenario = request.scenarios[0].model_copy(
+        update={
+            "baseline_measurements": (0.8, 0.9, 1.0),
+            "perturbed_measurements": (1.1, 1.2, 1.3),
+        }
+    )
+    configuration = request.policy.configuration.model_copy(
+        update={"model_family": M1206_GLIOMA_MODEL_FAMILY}
+    )
+    typed = request.model_copy(
+        update={
+            "scenarios": (scenario,),
+            "policy": request.policy.model_copy(update={"configuration": configuration}),
+        }
+    )
+    replay_order = typed.model_copy(
+        update={
+            "scenarios": (
+                scenario.model_copy(
+                    update={
+                        "baseline_measurements": tuple(reversed(scenario.baseline_measurements)),
+                        "perturbed_measurements": tuple(reversed(scenario.perturbed_measurements)),
+                    }
+                ),
+            )
+        }
+    )
+    first = M1206Service().execute(typed)
+    second = M1206Service().execute(replay_order)
+    assert first.request_digest == second.request_digest
+    assert first.sensitivity_surface is not None
+    assert second.sensitivity_surface is not None
+    assert first.sensitivity_surface.responses[0] == second.sensitivity_surface.responses[0]
+
+
+def test_typed_glioma_missing_replicates_abstain_without_surface() -> None:
+    request = _request()
+    configuration = request.policy.configuration.model_copy(
+        update={"model_family": M1206_GLIOMA_MODEL_FAMILY}
+    )
+    typed = request.model_copy(
+        update={
+            "policy": request.policy.model_copy(update={"configuration": configuration}),
+        }
+    )
+    result = M1206Service().execute(typed)
+    assert result.status is SimulatorStatus.ABSTAINED
+    assert result.typed_model is True
+    assert result.sensitivity_surface is None
+
+
+def test_typed_glioma_negative_and_constant_replicates_are_bounded() -> None:
+    request = _request()
+    scenario = request.scenarios[0].model_copy(
+        update={
+            "baseline_measurements": (-1.0, -1.0, -1.0),
+            "perturbed_measurements": (-1.0, -1.0, -1.0),
+        }
+    )
+    configuration = request.policy.configuration.model_copy(
+        update={"model_family": M1206_GLIOMA_MODEL_FAMILY}
+    )
+    typed = request.model_copy(
+        update={
+            "scenarios": (scenario,),
+            "policy": request.policy.model_copy(update={"configuration": configuration}),
+        }
+    )
+    result = M1206Service().execute(typed)
+    assert result.status is SimulatorStatus.SIMULATED
+    assert result.sensitivity_surface is not None
+    response = result.sensitivity_surface.responses[0]
+    assert response.envelope_lower < response.envelope_upper
+    assert response.delta == 0.0
+
+
+def test_typed_glioma_extreme_replicates_abstain_without_infinite_output() -> None:
+    request = _request()
+    scenario = request.scenarios[0].model_copy(
+        update={
+            "baseline_measurements": (1e308, 1e308, 1e308),
+            "perturbed_measurements": (-1e308, -1e308, -1e308),
+        }
+    )
+    configuration = request.policy.configuration.model_copy(
+        update={"model_family": M1206_GLIOMA_MODEL_FAMILY}
+    )
+    typed = request.model_copy(
+        update={
+            "scenarios": (scenario,),
+            "policy": request.policy.model_copy(update={"configuration": configuration}),
+        }
+    )
+    result = M1206Service().execute(typed)
+    assert result.status is SimulatorStatus.ABSTAINED
+    assert result.sensitivity_surface is None
 
 
 @pytest.mark.parametrize("denied", ["consent", "identity_lineage", "support", "quality"])
