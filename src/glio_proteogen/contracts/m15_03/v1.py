@@ -55,6 +55,9 @@ M1503_MAX_FINDINGS: Final = 64
 M1503_MAX_ASSUMPTIONS: Final = 64
 M1503_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M1503_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
+M1503_MAX_EFFECT: Final = 20.0
+M1503_DEFAULT_BOOTSTRAP_REPLICATES: Final = 64
+M1503_MAX_BOOTSTRAP_REPLICATES: Final = 256
 
 
 class FeatureKind(StrEnum):
@@ -88,6 +91,25 @@ class FeatureFindingCode(StrEnum):
     PROVISIONAL_ABI_PENDING_REVIEW = "provisional_abi_pending_review"
 
 
+class MechanisticEvidenceState(StrEnum):
+    """Evidence state for typed mechanistic feature measurements."""
+
+    OBSERVED = "observed"
+    LEFT_CENSORED = "left_censored"
+    MISSING = "missing"
+    UNSUPPORTED = "unsupported"
+
+
+class GliomaFeatureProgram(StrEnum):
+    """Glioma signaling programs used by the typed feature constructor."""
+
+    RTK_PI3K_AKT_MTOR = "RTK_PI3K_AKT_MTOR"
+    P53_CELL_CYCLE = "P53_CELL_CYCLE"
+    IDH_HIF1A = "IDH_HIF1A"
+    MESENCHYMAL_PROGRAM = "MESENCHYMAL_PROGRAM"
+    PROLIFERATION = "PROLIFERATION"
+
+
 class FeatureConstructorConfiguration(FrozenModel):
     configuration_id: Identifier
     version: SemanticVersion
@@ -97,6 +119,11 @@ class FeatureConstructorConfiguration(FrozenModel):
     locked: Literal[True] = True
     topology_invariants_required: Literal[True] = True
     perturbation_invariants_required: Literal[True] = True
+    bootstrap_replicates: int = Field(
+        default=M1503_DEFAULT_BOOTSTRAP_REPLICATES,
+        ge=16,
+        le=M1503_MAX_BOOTSTRAP_REPLICATES,
+    )
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1503_MAX_EVIDENCE)
 
 
@@ -121,6 +148,23 @@ class MechanisticFeature(FrozenModel):
         min_length=1, max_length=M1503_MAX_EVIDENCE
     )
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1503_MAX_EVIDENCE)
+    program: GliomaFeatureProgram | None = None
+    evidence_state: MechanisticEvidenceState | None = None
+    standard_error: float | None = Field(
+        default=None, gt=0.0, le=M1503_MAX_EFFECT, allow_inf_nan=False
+    )
+    quality_weight: float = Field(default=1.0, ge=0.0, le=1.0, allow_inf_nan=False)
+    lower_bound: float | None = Field(
+        default=None, ge=-M1503_MAX_EFFECT, le=M1503_MAX_EFFECT, allow_inf_nan=False
+    )
+    upper_bound: float | None = Field(
+        default=None, ge=-M1503_MAX_EFFECT, le=M1503_MAX_EFFECT, allow_inf_nan=False
+    )
+    stability: float | None = Field(default=None, ge=0.0, le=1.0, allow_inf_nan=False)
+    discordance: float | None = Field(default=None, ge=0.0, le=1.0, allow_inf_nan=False)
+    evidence_count: int | None = Field(default=None, ge=0, le=M1503_MAX_EVIDENCE)
+    top_drivers: tuple[NonEmptyStr, ...] = Field(default=(), max_length=8)
+    ablation_effects: tuple[NonEmptyStr, ...] = Field(default=(), max_length=8)
 
     @field_validator("numeric_value")
     @classmethod
@@ -133,6 +177,30 @@ class MechanisticFeature(FrozenModel):
         if self.support_status is FeatureSupportStatus.SUPPORTED and not self.evidence:
             raise ValueError("supported mechanistic feature requires evidence")
         _require_feature_unit(self)
+        typed = (
+            self.program is not None
+            or self.evidence_state is not None
+            or self.standard_error is not None
+        )
+        if typed:
+            if self.evidence_state is None:
+                raise ValueError("typed mechanistic feature requires evidence_state")
+            active = self.evidence_state in {
+                MechanisticEvidenceState.OBSERVED,
+                MechanisticEvidenceState.LEFT_CENSORED,
+            }
+            if active:
+                if (
+                    self.program is None
+                    or self.numeric_value is None
+                    or self.standard_error is None
+                    or self.quality_weight <= 0.0
+                ):
+                    raise ValueError(
+                        "observed mechanistic feature requires program, value, error, and quality"
+                    )
+            elif self.numeric_value is not None or self.standard_error is not None:
+                raise ValueError("missing or unsupported feature cannot carry a value")
         return self
 
 
@@ -158,6 +226,13 @@ class MechanisticFeatureObject(FrozenModel):
     perturbation_invariant_verified: Literal[True] = True
     locked_reference: ArtifactReference
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M1503_MAX_EVIDENCE)
+    typed_model: bool = False
+    solver_iterations: int | None = Field(default=None, ge=0, le=1000)
+    solver_objective: float | None = Field(default=None, ge=0.0, le=1e9, allow_inf_nan=False)
+    solver_max_update: float | None = Field(
+        default=None, ge=0.0, le=M1503_MAX_EFFECT, allow_inf_nan=False
+    )
+    objective_trace_digest: Sha256Digest | None = None
 
     @model_validator(mode="after")
     def feature_ids_are_unique(self) -> MechanisticFeatureObject:
@@ -377,11 +452,14 @@ def expected_provenance(
 
 __all__ = [
     "M1503_CONTRACT_VERSION",
+    "M1503_DEFAULT_BOOTSTRAP_REPLICATES",
     "M1503_GATE",
     "M1503_M1502_RESULT_MEDIA_TYPE",
     "M1503_MAX_ASSUMPTIONS",
+    "M1503_MAX_BOOTSTRAP_REPLICATES",
     "M1503_MAX_CANONICAL_REQUEST_BYTES",
     "M1503_MAX_CANONICAL_RESULT_BYTES",
+    "M1503_MAX_EFFECT",
     "M1503_MAX_EVIDENCE",
     "M1503_MAX_FEATURES",
     "M1503_MAX_FINDINGS",
@@ -401,6 +479,8 @@ __all__ = [
     "FeatureFindingCode",
     "FeatureKind",
     "FeatureSupportStatus",
+    "GliomaFeatureProgram",
+    "MechanisticEvidenceState",
     "MechanisticFeature",
     "MechanisticFeatureObject",
     "expected_provenance",

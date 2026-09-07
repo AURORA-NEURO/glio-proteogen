@@ -22,6 +22,8 @@ from glio_proteogen.contracts.m15_03 import (
     FeatureFindingCode,
     FeatureKind,
     FeatureSupportStatus,
+    GliomaFeatureProgram,
+    MechanisticEvidenceState,
     MechanisticFeature,
     MechanisticFeatureObject,
     contract_json_schema,
@@ -162,6 +164,105 @@ def test_constructed_result_has_parent_provenance_and_invariants() -> None:
         construct_complex_activity_mechanistic_features(build_scenario_request()).feature_object
         is not None
     )
+
+
+def test_typed_glioma_feature_network_derives_uncertainty_aware_program_features() -> None:
+    base = build_scenario_request()
+    first = base.candidate_features[0]
+    observed = (
+        first.model_copy(
+            update={
+                "feature_id": "feature.rtk",
+                "program": GliomaFeatureProgram.RTK_PI3K_AKT_MTOR,
+                "evidence_state": MechanisticEvidenceState.OBSERVED,
+                "numeric_value": 0.9,
+                "value": "0.9",
+                "standard_error": 0.15,
+                "quality_weight": 0.9,
+            }
+        ),
+        first.model_copy(
+            update={
+                "feature_id": "feature.p53",
+                "program": GliomaFeatureProgram.P53_CELL_CYCLE,
+                "evidence_state": MechanisticEvidenceState.OBSERVED,
+                "numeric_value": -0.6,
+                "value": "-0.6",
+                "standard_error": 0.2,
+                "quality_weight": 0.8,
+            }
+        ),
+        first.model_copy(
+            update={
+                "feature_id": "feature.idh",
+                "program": GliomaFeatureProgram.IDH_HIF1A,
+                "evidence_state": MechanisticEvidenceState.OBSERVED,
+                "numeric_value": 0.25,
+                "value": "0.25",
+                "standard_error": 0.25,
+                "quality_weight": 0.7,
+            }
+        ),
+        first.model_copy(
+            update={
+                "feature_id": "feature.missing",
+                "program": GliomaFeatureProgram.MESENCHYMAL_PROGRAM,
+                "evidence_state": MechanisticEvidenceState.MISSING,
+                "numeric_value": None,
+                "value": "NA",
+                "standard_error": None,
+                "quality_weight": 0.0,
+                "support_status": FeatureSupportStatus.LIMITED,
+                "evidence": (),
+            }
+        ),
+    )
+    request = base.model_copy(
+        update={
+            "candidate_features": observed,
+            "policy": base.policy.model_copy(
+                update={
+                    "configuration": base.policy.configuration.model_copy(
+                        update={"bootstrap_replicates": 16}
+                    )
+                }
+            ),
+        }
+    )
+    engine = M1503FeatureConstructorEngine()
+    result = engine.infer(request)
+    assert result.status.value == "constructed"
+    assert result.feature_object is not None
+    assert result.feature_object.typed_model is True
+    assert result.feature_object.solver_iterations is not None
+    assert result.feature_object.objective_trace_digest is not None
+    derived = [item for item in result.feature_object.features if item.feature_id.startswith("feature.derived.")]
+    assert len(derived) == len(GliomaFeatureProgram)
+    assert all(item.lower_bound is not None and item.upper_bound is not None for item in derived)
+    assert all(item.top_drivers and item.ablation_effects for item in derived)
+    assert engine.verify(result) == result
+
+
+def test_typed_feature_request_with_only_missing_evidence_abstains() -> None:
+    base = build_scenario_request()
+    feature = base.candidate_features[0].model_copy(
+        update={
+            "program": GliomaFeatureProgram.RTK_PI3K_AKT_MTOR,
+            "evidence_state": MechanisticEvidenceState.UNSUPPORTED,
+            "numeric_value": None,
+            "value": "NA",
+            "standard_error": None,
+            "quality_weight": 0.0,
+            "support_status": FeatureSupportStatus.LIMITED,
+            "evidence": (),
+        }
+    )
+    result = M1503FeatureConstructorEngine().infer(
+        base.model_copy(update={"candidate_features": (feature,)})
+    )
+    assert result.feature_object is None
+    assert result.human_review_required
+    assert result.abstention_reason is not None
 
 
 @pytest.mark.parametrize(

@@ -271,12 +271,12 @@ The strict 22 are a floor for counterfeit estimators, not the whole scientific
 debt inventory. Eleven further engines are transparently labelled
 formula/pass-through/declaration shells rather than fitted models: M06-03,
 M10-05, M11-03, M11-04, M12-03, M12-04, M12-06, M13-04,
-M15-03, and M15-06. Three representation constructors—M07-02, M08-02, and
+M15-06. Three representation constructors—M07-02, M08-02, and
 M09-02—also synthesize numeric vectors from hashes. They remain classified as
 representation plumbing, but their vectors must never be described as learned
 biological features. The exhaustive partition is therefore 22 strict stand-ins,
-10 transparent scientific shells, three synthetic representation constructors,
-and 45 schema, safe-abstention, validation, registry, evidence-publisher, or
+9 transparent scientific shells, three synthetic representation constructors,
+and 46 schema, safe-abstention, validation, registry, evidence-publisher, or
 other non-estimator engines.
 
 The strict list deliberately excludes representation/schema plumbing, safe
@@ -416,6 +416,20 @@ excluded rather than treated as negative evidence.
 The opaque posterior/state grammar remains compatibility-only and the typed lane
 is review-gated. It does not claim causal mechanism, clinical probability,
 prognosis, kinase ownership, or treatment effect.
+
+## Completed M15-03 typed glioma feature lane
+
+The additive M15-03 runtime now turns typed pathway/topology feature evidence
+into derived complex-activity program features using robust Huber coordinate
+descent over signed glioma network edges. It preserves the caller features and
+adds request-digest-seeded bootstrap bounds, stability, discordance, evidence
+counts, top drivers, and topology/measurement ablation explanations for each
+program. Missing and unsupported typed features are excluded; an all-unsupported
+request abstains with review required.
+
+The original unit/topology/perturbation constructor remains unchanged for legacy
+requests. Derived features are research-use-only and do not claim causality,
+clinical state, prognosis, kinase ownership, or treatment effect.
 
 ## Negative cross-assay feasibility result
 
