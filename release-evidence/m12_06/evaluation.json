@@ -42,7 +42,7 @@
   "coverage": {
     "total_percent": 98.78,
     "branch_percent": 95.45,
-    "statements": 626,
+    "statements": 628,
     "branches": 110,
     "scoped_packages": [
       "glio_proteogen.contracts.m12_06",
