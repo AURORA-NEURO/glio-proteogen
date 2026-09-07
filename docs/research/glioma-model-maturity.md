@@ -268,9 +268,9 @@ trajectory implementation described above and are not counted as a fixed
 posterior estimator.
 
 The strict 22 are a floor for counterfeit estimators, not the whole scientific
-debt inventory. Twelve further engines are transparently labelled
+debt inventory. Eleven further engines are transparently labelled
 formula/pass-through/declaration shells rather than fitted models: M06-03,
-M10-05, M11-03, M11-04, M12-03, M12-04, M12-06, M13-04, M14-04, M14-06,
+M10-05, M11-03, M11-04, M12-03, M12-04, M12-06, M13-04, M14-04,
 M15-03, and M15-06. Three representation constructors—M07-02, M08-02, and
 M09-02—also synthesize numeric vectors from hashes. They remain classified as
 representation plumbing, but their vectors must never be described as learned
@@ -386,6 +386,21 @@ the lane never turns an unsupported perturbation into a negative biological
 finding. These program effects are research-use-only sensitivity signals, not
 causal intervention estimates, kinase ownership, treatment recommendations, or
 clinical evidence.
+
+## Completed M14-06 typed glioma perturbation lane
+
+The additive M14-06 runtime now includes a typed perturbation model over the
+same five glioma signaling programs. It fits signed scenario effects with
+Huber-robust coordinate descent, ridge stabilization, and explicit program-edge
+coherence rather than using the legacy absolute-difference proxy. Request-
+digest-seeded bootstrap perturbations produce replayable intervals, stability,
+discordance, top drivers, and topology/measurement ablation explanations.
+
+Missing and unsupported typed evidence is excluded and cannot become a negative
+response; incomplete typed surfaces abstain with a human-review requirement.
+The historical scalar sensitivity ABI remains available for compatibility only.
+This lane is research-use-only and does not infer causality, kinase ownership,
+treatment effects, prognosis, or clinical state.
 
 ## Negative cross-assay feasibility result
 

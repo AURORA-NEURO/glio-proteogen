@@ -23,6 +23,8 @@ import glio_proteogen.modules.c14_microenvironment_protein_deconvolution.m14_06_
 from glio_proteogen.adapters.m1406 import app, m1406_app
 from glio_proteogen.contracts.m14_06 import (
     M1406_OUTPUT_MEDIA_TYPE,
+    GliomaPerturbationProgram,
+    PerturbationEvidenceState,
     PerturbationKind,
     PerturbationResponseStatus,
     PerturbationSpecification,
@@ -135,6 +137,69 @@ def test_response_bounds_require_counter_evidence_and_are_closed() -> None:
             response_value=0.1,
             assumptions=("assumption",),
         )
+
+
+def test_typed_glioma_program_solver_bootstrap_and_ablations() -> None:
+    typed = (
+        _perturbation("scenario.rtk").model_copy(
+            update={
+                "program": GliomaPerturbationProgram.RTK_PI3K_AKT_MTOR,
+                "evidence_state": PerturbationEvidenceState.OBSERVED,
+                "standard_error": 0.15,
+                "quality_weight": 0.9,
+            }
+        ),
+        _perturbation("scenario.p53", baseline="1.0", perturbed="0.7").model_copy(
+            update={
+                "program": GliomaPerturbationProgram.P53_CELL_CYCLE,
+                "evidence_state": PerturbationEvidenceState.OBSERVED,
+                "standard_error": 0.2,
+                "quality_weight": 0.8,
+            }
+        ),
+        _perturbation("scenario.idh", baseline="1.0", perturbed="1.1").model_copy(
+            update={
+                "program": GliomaPerturbationProgram.IDH_HIF1A,
+                "evidence_state": PerturbationEvidenceState.OBSERVED,
+                "standard_error": 0.25,
+                "quality_weight": 0.7,
+            }
+        ),
+    )
+    request = build_scenario_request(perturbations=typed).model_copy(
+        update={
+            "configuration": build_scenario_request().configuration.model_copy(
+                update={"bootstrap_replicates": 16}
+            )
+        }
+    )
+    engine = M1406SensitivityEngine()
+    result = engine.infer(request)
+    assert result.status is SensitivitySimulationStatus.SIMULATED
+    assert result.uncertainty.measurement.probability == 0.9
+    assert result.surface is not None
+    assert result.surface.typed_model is True
+    assert result.surface.solver_iterations is not None
+    assert result.surface.objective_trace_digest is not None
+    assert len(result.surface.responses) == 3
+    assert all(item.lower_bound is not None and item.upper_bound is not None for item in result.surface.responses)
+    assert all(item.top_drivers and item.ablation_effects for item in result.surface.responses)
+    assert engine.verify(result) == result
+
+
+def test_typed_missing_or_unsupported_evidence_abstains_without_negative_conversion() -> None:
+    typed_missing = _perturbation("scenario.missing").model_copy(
+        update={
+            "program": GliomaPerturbationProgram.MESENCHYMAL_PROGRAM,
+            "evidence_state": PerturbationEvidenceState.MISSING,
+            "quality_weight": 0.0,
+        }
+    )
+    result = M1406SensitivityEngine().infer(build_scenario_request(perturbations=(typed_missing,)))
+    assert result.status is SensitivitySimulationStatus.ABSTAINED
+    assert result.surface is None
+    assert result.abstention_reason is not None
+    assert "excluded" in result.abstention_reason
 
 
 def test_uncertainty_is_explicit_on_supported_and_abstained_paths() -> None:
