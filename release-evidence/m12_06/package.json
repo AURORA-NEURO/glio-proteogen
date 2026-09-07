@@ -4,11 +4,11 @@
   "build_backend": "hatchling",
   "wheel_path": "release-evidence/m12_06/artifacts/glio_proteogen-0.1.0-py3-none-any.whl",
   "sdist_path": "release-evidence/m12_06/artifacts/glio_proteogen-0.1.0.tar.gz",
-  "wheel_sha256": "5dee1805bf3fd7962e961c4bdc855124f23c4332c93ba9d62763a879bb6d2603",
-  "sdist_sha256": "9f1e1b4ddd57cf58e04607a3dd2274730065a3c20d1f8a94ea595caa6a845242",
+  "wheel_sha256": "962fed256da2cf70c8be3722d07512e190013d20a475b6e5a1f386d77a0bbce6",
+  "sdist_sha256": "217f8afffa3e7d81a2f822f0f4f0107a77c247644ba2deba5c3e6336c1d00690",
   "wheel_members": 2276,
   "sdist_members": 3770,
   "isolated_import": true,
-  "isolated_import_target": "C:/Users/murar/AppData/Local/Temp/gpa-m1206-install-903f8a19",
+  "isolated_import_target": "C:/Users/murar/AppData/Local/Temp/gpa-m1206-install-6b6ac116",
   "passed": true
 }
