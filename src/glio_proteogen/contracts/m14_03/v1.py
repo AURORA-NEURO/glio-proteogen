@@ -57,6 +57,9 @@ M1403_MAX_DIAGNOSTICS: Final = 128
 M1403_MAX_FINDINGS: Final = 64
 M1403_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M1403_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
+M1403_MAX_EFFECT: Final = 20.0
+M1403_DEFAULT_BOOTSTRAP_REPLICATES: Final = 64
+M1403_MAX_BOOTSTRAP_REPLICATES: Final = 256
 M1403_EVIDENCE_CLAIM: Final = (
     "Caller-declared M14-03 mechanistic feature evidence; issuer authority "
     "is not authenticated."
@@ -101,6 +104,25 @@ class MechanisticFindingCode(StrEnum):
     PROVISIONAL_ABI_PENDING_REVIEW = "provisional_abi_pending_review"
 
 
+class GliomaMicroenvironmentProgram(StrEnum):
+    """Reviewable glioma microenvironment programs used by the typed lane."""
+
+    MESENCHYMAL = "MESENCHYMAL"
+    MYELOID = "MYELOID"
+    T_CELL = "T_CELL"
+    ENDOTHELIAL = "ENDOTHELIAL"
+    HYPOXIA = "HYPOXIA"
+    ANGIOGENIC = "ANGIOGENIC"
+    OPC_LIKE = "OPC_LIKE"
+
+
+class MechanisticEvidenceState(StrEnum):
+    OBSERVED = "observed"
+    LEFT_CENSORED = "left_censored"
+    MISSING = "missing"
+    UNSUPPORTED = "unsupported"
+
+
 class MechanisticRelationKind(StrEnum):
     ACTIVATES = "activates"
     INHIBITS = "inhibits"
@@ -131,9 +153,9 @@ class MechanisticFeature(FrozenModel):
     kind: MechanisticFeatureKind
     value_kind: MechanisticValueKind
     unit: NonEmptyStr
-    scalar_value: float | None = None
-    lower_bound: float | None = None
-    upper_bound: float | None = None
+    scalar_value: float | None = Field(default=None, allow_inf_nan=False)
+    lower_bound: float | None = Field(default=None, allow_inf_nan=False)
+    upper_bound: float | None = Field(default=None, allow_inf_nan=False)
     category: NonEmptyStr | None = None
     lineage: MechanisticFeatureLineage
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1403_MAX_EVIDENCE)
@@ -192,7 +214,47 @@ class MechanisticFeatureConfiguration(FrozenModel):
         min_length=1, max_length=M1403_MAX_EVIDENCE
     )
     locked: Literal[True] = True
+    bootstrap_replicates: int = Field(
+        default=M1403_DEFAULT_BOOTSTRAP_REPLICATES,
+        ge=16,
+        le=M1403_MAX_BOOTSTRAP_REPLICATES,
+    )
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1403_MAX_EVIDENCE)
+
+
+class MechanisticTypedObservation(FrozenModel):
+    """One signed microenvironment program measurement for the research lane."""
+
+    observation_id: Identifier
+    program: GliomaMicroenvironmentProgram
+    evidence_state: MechanisticEvidenceState
+    standardized_effect: float | None = Field(
+        default=None, ge=-M1403_MAX_EFFECT, le=M1403_MAX_EFFECT, allow_inf_nan=False
+    )
+    standard_error: float | None = Field(
+        default=None, gt=0.0, le=M1403_MAX_EFFECT, allow_inf_nan=False
+    )
+    quality_weight: float = Field(default=1.0, ge=0.0, le=1.0, allow_inf_nan=False)
+    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1403_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def observation_shape_is_closed(self) -> MechanisticTypedObservation:
+        active = self.evidence_state in {
+            MechanisticEvidenceState.OBSERVED,
+            MechanisticEvidenceState.LEFT_CENSORED,
+        }
+        if active:
+            if self.standardized_effect is None or self.standard_error is None:
+                raise ValueError("active typed observation requires effect and standard error")
+            if self.quality_weight <= 0.0:
+                raise ValueError("active typed observation requires positive quality")
+        elif (
+            self.standardized_effect is not None
+            or self.standard_error is not None
+            or self.quality_weight != 0.0
+        ):
+            raise ValueError("missing or unsupported typed observation cannot carry a value")
+        return self
 
 
 class MechanisticFeatureObject(FrozenModel):
@@ -248,6 +310,9 @@ class ConstructProteinSubtypeMechanisticFeaturesRequest(FrozenModel):
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M1403_MAX_EVIDENCE
     )
+    typed_observations: tuple[MechanisticTypedObservation, ...] = Field(
+        default=(), max_length=M1403_MAX_FEATURES
+    )
     supersedes_result_digest: Sha256Digest | None = None
 
     @model_validator(mode="after")
@@ -260,6 +325,9 @@ class ConstructProteinSubtypeMechanisticFeaturesRequest(FrozenModel):
         )
         if len(keys) != len(set(keys)):
             raise ValueError("source artifact references must be unique")
+        observation_ids = tuple(item.observation_id for item in self.typed_observations)
+        if len(observation_ids) != len(set(observation_ids)):
+            raise ValueError("typed observation identifiers must be unique")
         return self
 
 
@@ -320,13 +388,16 @@ class ProteinSubtypeMechanisticFeatureResult(FrozenModel):
 
 __all__ = [
     "M1403_CONTRACT_VERSION",
+    "M1403_DEFAULT_BOOTSTRAP_REPLICATES",
     "M1403_DOSSIER_SLICE",
     "M1403_EVIDENCE_CLAIM",
     "M1403_GATE",
     "M1403_M1402_INPUT_MEDIA_TYPE",
+    "M1403_MAX_BOOTSTRAP_REPLICATES",
     "M1403_MAX_CANONICAL_REQUEST_BYTES",
     "M1403_MAX_CANONICAL_RESULT_BYTES",
     "M1403_MAX_DIAGNOSTICS",
+    "M1403_MAX_EFFECT",
     "M1403_MAX_EVIDENCE",
     "M1403_MAX_FEATURES",
     "M1403_MAX_FINDINGS",
@@ -341,8 +412,10 @@ __all__ = [
     "M1403_REQUIREMENT_SHA256",
     "M1403_SAFETY_CLASS",
     "ConstructProteinSubtypeMechanisticFeaturesRequest",
+    "GliomaMicroenvironmentProgram",
     "MechanisticConstructionStatus",
     "MechanisticDiagnosticStatus",
+    "MechanisticEvidenceState",
     "MechanisticFeature",
     "MechanisticFeatureConfiguration",
     "MechanisticFeatureDiagnostic",
@@ -352,6 +425,7 @@ __all__ = [
     "MechanisticFindingCode",
     "MechanisticRelation",
     "MechanisticRelationKind",
+    "MechanisticTypedObservation",
     "MechanisticValueKind",
     "ProteinSubtypeMechanisticFeatureResult",
 ]

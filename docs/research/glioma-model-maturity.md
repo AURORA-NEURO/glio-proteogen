@@ -7,7 +7,7 @@ does not make a numerical method scientifically mature.
 
 ## Implemented research inference
 
-The mounted additive research namespace currently contains twelve distinct,
+The mounted additive research namespace currently contains thirteen distinct,
 independently testable scientific-inference lanes plus one integrated
 composition surface. Distinctness in the twelve-lane mounted inventory means
 separate algorithms and receipts, not scientifically independent evidence:
@@ -85,6 +85,15 @@ separate algorithms and receipts, not scientifically independent evidence:
   same-cohort transition concordance, not single-cell state, cellular fraction,
   recurrence prediction, tumor evolution, or clinical evidence.
 
+- `m1403-glioma-microenvironment-programs/0.1.0-provisional`: a typed,
+  research-only microenvironment program graph over mesenchymal, myeloid,
+  T-cell, endothelial, hypoxia, angiogenic, and OPC-like programs. It uses
+  robust Huber signed coordinate descent, explicit missing/unsupported and
+  left-censored evidence states, deterministic bootstrap intervals, and
+  signed program relations. The historical categorical feature constructor is
+  retained only as a compatibility path; the typed lane is synthetic and does
+  not claim cell fractions, diagnosis, prognosis, or treatment response.
+
 The provisional M11-05 longitudinal module now also has an additive typed
 proteomic-effect lane. It fits subject-level recurrence trajectories with
 quality/standard-error weighted Huber IRLS, preserves left-censored and
@@ -94,12 +103,12 @@ unchanged and remains provisional; this lane is an evolutionary evidence
 signal, not a validated tumor-evolution or treatment-response predictor.
 
 The additional `glio-ecgi-kncc-gbm-transition/1.0.0` factor-graph surface is not
-a thirteenth independent fitted model. It runs the exact PDC000514 Reactome and
+a fourteenth independent fitted model. It runs the exact PDC000514 Reactome and
 PDC000515 SPHINKS signature-transition child engines numerically independently
 but deterministically in serial, nests their exact receipts, and adds only a
 locked 41-node presentation topology with 39 annotation-only containment edges
 and zero numerical cross-block edges. It performs no cross-modal fusion or
-feedback and therefore does not increase the twelve-lane independent-inference
+feedback and therefore does not increase the thirteen-lane independent-inference
 count. See
 [`kncc-gbm-factor-graph.md`](kncc-gbm-factor-graph.md).
 
@@ -109,7 +118,7 @@ mounted inventory: `cptac-gbm-cis-dosage/1.0.0` and
 fit/query/replay algorithms over caller-owned exact source copies, but neither
 bundles a fitted artifact or mounts an HTTP route. A caller-built artifact is
 therefore local cohort evidence, not a repository-shipped model, and neither
-implementation increases the twelve-lane mounted count.
+implementation increases the thirteen-lane mounted count.
 
 These lanes remain research-only. Their presence does not promote any governed
 module or establish clinical validity.
@@ -124,7 +133,7 @@ composition. Exact PyTorch/NumPy parity, source-tree admission, coverage gates,
 local numerical attribution, API/CLI replay, and claim ceilings are documented
 in [`gbm-rna-purity.md`](gbm-rna-purity.md).
 
-This does not complete M14 microenvironment replacement. A licensed,
+This does not complete M14 cellular microenvironment replacement. A licensed,
 donor-aware GBM single-cell reference and count-native mixture model are still
 required for multi-lineage fractions.
 

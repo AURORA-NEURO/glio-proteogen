@@ -5,7 +5,9 @@ from __future__ import annotations
 import pytest
 
 from glio_proteogen.contracts.m14_03 import (
+    M1403_DEFAULT_BOOTSTRAP_REPLICATES,
     M1403_DOSSIER_SLICE,
+    M1403_MAX_BOOTSTRAP_REPLICATES,
     M1403_OUTPUT_MEDIA_TYPE,
     M1403_REQUIREMENT_SHA256,
     MechanisticFeature,
@@ -46,6 +48,12 @@ def test_m1403_schemas_are_strict_and_explicitly_provisional() -> None:
     assert metadata["topologyInvariantsRequired"]
     assert metadata["unitInvariantsRequired"]
     assert metadata["safeAbstentionRequired"]
+    assert metadata["typedGliomaMicroenvironmentModel"] is True
+    assert metadata["robustEstimator"] == (
+        "damped_huber_signed_microenvironment_coordinate_descent"
+    )
+    assert metadata["bootstrapReplicatesDefault"] == M1403_DEFAULT_BOOTSTRAP_REPLICATES
+    assert metadata["bootstrapReplicatesMaximum"] == M1403_MAX_BOOTSTRAP_REPLICATES
     assert metadata["dossierSlice"] == M1403_DOSSIER_SLICE == "4804-4847"
     assert metadata["requirementSha256"] == M1403_REQUIREMENT_SHA256
 

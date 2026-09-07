@@ -1,16 +1,18 @@
 """Deterministic, replay-bound M14-03 mechanistic feature construction.
 
-The provisional ABI does not expose scientific source bytes or a model input
-matrix.  This engine therefore constructs only caller-declared categorical
-feature records from immutable references and a locked configuration.  It
-never infers mechanism, topology, kinetics, state, identity, or treatment
-effect.  Unsupported configuration families and failed negative-control
-closure return explicit abstention.
+Typed requests use a glioma microenvironment program graph with robust signed
+effect fitting and deterministic intervals. The original categorical feature
+path remains compatibility-only; opaque artifacts are never traversed and
+unsupported inputs still close as explicit abstentions.
 """
 
 from __future__ import annotations
 
+import hashlib
+import math
+from collections import defaultdict
 from collections.abc import Mapping
+from dataclasses import dataclass
 from typing import Final
 
 from pydantic import TypeAdapter
@@ -18,11 +20,14 @@ from pydantic import TypeAdapter
 from glio_proteogen.contracts.m14_03 import (
     M1403_CONTRACT_VERSION,
     M1403_EVIDENCE_CLAIM,
+    M1403_MAX_EFFECT,
     M1403_MODULE_ID,
     M1403_PARENT,
     ConstructProteinSubtypeMechanisticFeaturesRequest,
+    GliomaMicroenvironmentProgram,
     MechanisticConstructionStatus,
     MechanisticDiagnosticStatus,
+    MechanisticEvidenceState,
     MechanisticFeature,
     MechanisticFeatureDiagnostic,
     MechanisticFeatureKind,
@@ -31,6 +36,7 @@ from glio_proteogen.contracts.m14_03 import (
     MechanisticFindingCode,
     MechanisticRelation,
     MechanisticRelationKind,
+    MechanisticTypedObservation,
     MechanisticValueKind,
     ProteinSubtypeMechanisticFeatureResult,
     canonical_request_digest,
@@ -89,6 +95,80 @@ _LIMITATIONS: Final = (
         ),
     ),
 )
+_TYPED_LIMITATIONS: Final = (
+    *_LIMITATIONS,
+    Limitation(
+        code="typed_glioma_microenvironment_graph",
+        statement=(
+            "Typed observations are fit against a fixed signed microenvironment program graph; "
+            "the lane is experimental and research-use-only."
+        ),
+    ),
+    Limitation(
+        code="no_clinical_interpretation",
+        statement=(
+            "Intervals and directional labels are not diagnostic, prognostic, or treatment "
+            "recommendations."
+        ),
+    ),
+)
+_HUBER_DELTA: Final = 1.5
+_DAMPING: Final = 0.7
+_RIDGE: Final = 0.03
+_EDGE_STRENGTH: Final = 0.45
+_SOLVER_ITERATIONS: Final = 160
+_SOLVER_TOLERANCE: Final = 1e-4
+_MIN_SCALE: Final = 1e-6
+_BOOTSTRAP_LOW: Final = 0.05
+_BOOTSTRAP_HIGH: Final = 0.95
+_PROGRAM_ORDER: Final = tuple(GliomaMicroenvironmentProgram)
+_PROGRAM_EDGES: Final = (
+    (
+        GliomaMicroenvironmentProgram.HYPOXIA,
+        GliomaMicroenvironmentProgram.ANGIOGENIC,
+        1.0,
+    ),
+    (
+        GliomaMicroenvironmentProgram.HYPOXIA,
+        GliomaMicroenvironmentProgram.MESENCHYMAL,
+        1.0,
+    ),
+    (
+        GliomaMicroenvironmentProgram.MESENCHYMAL,
+        GliomaMicroenvironmentProgram.MYELOID,
+        1.0,
+    ),
+    (
+        GliomaMicroenvironmentProgram.MYELOID,
+        GliomaMicroenvironmentProgram.T_CELL,
+        -1.0,
+    ),
+    (
+        GliomaMicroenvironmentProgram.OPC_LIKE,
+        GliomaMicroenvironmentProgram.MESENCHYMAL,
+        -1.0,
+    ),
+)
+
+
+@dataclass(frozen=True, slots=True)
+class _TypedTerm:
+    observation_id: str
+    program: GliomaMicroenvironmentProgram
+    state: MechanisticEvidenceState
+    effect: float
+    standard_error: float
+    quality_weight: float
+
+
+@dataclass(frozen=True, slots=True)
+class _TypedFit:
+    values: tuple[float, ...]
+    converged: bool
+    iterations: int
+    objective: float
+    max_update: float
+    objective_trace: tuple[float, ...]
 
 
 class M1403AuthorizationError(PermissionError):
@@ -120,6 +200,26 @@ class _UnsupportedConfigurationError(ValueError):
 class _DuplicateNegativeControlError(ValueError):
     def __init__(self) -> None:
         super().__init__("negative control references must be unique")
+
+
+class _TypedInferenceError(ValueError):
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+
+
+class _TypedEvidenceAbsentError(_TypedInferenceError):
+    def __init__(self) -> None:
+        super().__init__("typed M14-03 evidence has no supported observations")
+
+
+class _TypedSolverNonConvergenceError(_TypedInferenceError):
+    def __init__(self) -> None:
+        super().__init__("typed M14-03 solver did not converge")
+
+
+class _TypedBootstrapNonConvergenceError(_TypedInferenceError):
+    def __init__(self) -> None:
+        super().__init__("typed M14-03 bootstrap solver did not converge")
 
 
 def _member(value: object, field: str) -> object:
@@ -212,7 +312,58 @@ def _controls(
     )
 
 
-def _uncertainty() -> UncertaintyProfile:
+def _uncertainty(*, typed: bool = False) -> UncertaintyProfile:
+    if typed:
+        estimated = {
+            "measurement": (
+                "Estimated from supplied standard errors and quality weights; bootstrap "
+                "perturbations quantify measurement sensitivity."
+            ),
+            "sampling": (
+                "Estimated by deterministic bootstrap perturbations of the supported typed "
+                "observations."
+            ),
+            "parameter": (
+                "Estimated from the converged robust coordinate-descent fit and its bootstrap "
+                "refits."
+            ),
+        }
+        estimates: dict[str, UncertaintyEstimate] = {
+            name: UncertaintyEstimate(
+                state=EstimateState.ESTIMATED,
+                probability=0.9,
+                rationale=reason,
+            )
+            for name, reason in estimated.items()
+        }
+        estimates.update(
+            {
+                "model_form": UncertaintyEstimate(
+                    state=EstimateState.NOT_ESTIMABLE,
+                    rationale="External model-form uncertainty is not calibrated in this lane.",
+                ),
+                "identification": UncertaintyEstimate(
+                    state=EstimateState.NOT_APPLICABLE,
+                    rationale="Program identifiers are supplied by the typed request.",
+                ),
+                "support": UncertaintyEstimate(
+                    state=EstimateState.NOT_ESTIMABLE,
+                    rationale="Evidence issuer authenticity remains outside this boundary.",
+                ),
+                "transport": UncertaintyEstimate(
+                    state=EstimateState.NOT_ESTIMABLE,
+                    rationale="Cross-cohort and cross-assay transport is not calibrated.",
+                ),
+            }
+        )
+        return UncertaintyProfile(
+            **estimates,
+            sensitivity_notes=(
+                "Bootstrap intervals quantify measurement and solver sensitivity, not "
+                "clinical risk.",
+                "Ablation and external validation are required before scientific promotion.",
+            ),
+        )
     values = {
         "measurement": "No measurement values are constructed from opaque references.",
         "sampling": "Sampling coverage is not available at this metadata-only boundary.",
@@ -261,6 +412,262 @@ def _provenance(
         consent_evidence_digest=references.consent.evidence.digest,
         control_decisions=_controls(request),
     )
+
+
+def _huber_weight(residual: float) -> float:
+    absolute = abs(residual)
+    return 1.0 if absolute <= _HUBER_DELTA else _HUBER_DELTA / absolute
+
+
+def _huber_loss(residual: float) -> float:
+    absolute = abs(residual)
+    return (
+        0.5 * residual * residual
+        if absolute <= _HUBER_DELTA
+        else _HUBER_DELTA * (absolute - 0.5 * _HUBER_DELTA)
+    )
+
+
+def _quantize(value: float) -> float:
+    return float(f"{value:.8f}")
+
+
+def _typed_terms(
+    observations: tuple[MechanisticTypedObservation, ...],
+) -> tuple[_TypedTerm, ...]:
+    terms: list[_TypedTerm] = []
+    for observation in observations:
+        if (
+            observation.evidence_state
+            not in {
+                MechanisticEvidenceState.OBSERVED,
+                MechanisticEvidenceState.LEFT_CENSORED,
+            }
+            or observation.standardized_effect is None
+            or observation.standard_error is None
+        ):
+            continue
+        terms.append(
+            _TypedTerm(
+                observation_id=observation.observation_id,
+                program=observation.program,
+                state=observation.evidence_state,
+                effect=observation.standardized_effect,
+                standard_error=observation.standard_error,
+                quality_weight=observation.quality_weight,
+            )
+        )
+    return tuple(sorted(terms, key=lambda item: (item.program.value, item.observation_id)))
+
+
+def _typed_objective(values: list[float], terms: tuple[_TypedTerm, ...]) -> float:
+    index = {program: position for position, program in enumerate(_PROGRAM_ORDER)}
+    objective = _RIDGE * sum(value * value for value in values)
+    for term in terms:
+        residual = (
+            max(0.0, values[index[term.program]] - term.effect)
+            if term.state is MechanisticEvidenceState.LEFT_CENSORED
+            else values[index[term.program]] - term.effect
+        ) / max(_MIN_SCALE, term.standard_error)
+        objective += term.quality_weight * _huber_loss(residual)
+    for source, target, sign in _PROGRAM_EDGES:
+        residual = values[index[target]] - sign * _EDGE_STRENGTH * values[index[source]]
+        objective += _huber_loss(residual)
+    return objective
+
+
+def _fit_typed(  # noqa: C901 - signed edge contributions remain explicit for auditability.
+    terms: tuple[_TypedTerm, ...],
+) -> _TypedFit:
+    index = {program: position for position, program in enumerate(_PROGRAM_ORDER)}
+    grouped: dict[GliomaMicroenvironmentProgram, list[_TypedTerm]] = defaultdict(list)
+    for term in terms:
+        grouped[term.program].append(term)
+    values = [0.0] * len(_PROGRAM_ORDER)
+    for program, program_terms in grouped.items():
+        values[index[program]] = sum(
+            term.quality_weight * term.effect for term in program_terms
+        ) / max(_MIN_SCALE, sum(term.quality_weight for term in program_terms))
+    previous = _typed_objective(values, terms)
+    trace = [_quantize(previous)]
+    converged = False
+    max_update = math.inf
+    iterations = 0
+    for iteration in range(1, _SOLVER_ITERATIONS + 1):
+        iterations = iteration
+        old = values.copy()
+        for position, program in enumerate(_PROGRAM_ORDER):
+            current = values[position]
+            gradient = 2.0 * _RIDGE * current
+            hessian = 2.0 * _RIDGE
+            for term in grouped.get(program, ()):
+                if (
+                    term.state is MechanisticEvidenceState.LEFT_CENSORED
+                    and current <= term.effect
+                ):
+                    continue
+                residual = (
+                    max(0.0, current - term.effect)
+                    if term.state is MechanisticEvidenceState.LEFT_CENSORED
+                    else current - term.effect
+                ) / max(_MIN_SCALE, term.standard_error)
+                information = (
+                    term.quality_weight
+                    * _huber_weight(residual)
+                    / max(_MIN_SCALE, term.standard_error**2)
+                )
+                gradient += information * (current - term.effect)
+                hessian += information
+            for source, target, sign in _PROGRAM_EDGES:
+                if program is source:
+                    residual = values[index[target]] - sign * _EDGE_STRENGTH * current
+                    gradient += -sign * _EDGE_STRENGTH * _huber_weight(residual) * residual
+                    hessian += _EDGE_STRENGTH**2
+                elif program is target:
+                    residual = current - sign * _EDGE_STRENGTH * values[index[source]]
+                    gradient += _huber_weight(residual) * residual
+                    hessian += 1.0
+            proposal = current - gradient / max(_MIN_SCALE, hessian)
+            values[position] = max(
+                -M1403_MAX_EFFECT,
+                min(M1403_MAX_EFFECT, current + _DAMPING * (proposal - current)),
+            )
+        max_update = max(abs(new - before) for new, before in zip(values, old, strict=True))
+        objective = _typed_objective(values, terms)
+        trace.append(_quantize(objective))
+        if max_update <= _SOLVER_TOLERANCE and abs(previous - objective) <= _SOLVER_TOLERANCE:
+            converged = True
+            previous = objective
+            break
+        previous = objective
+    return _TypedFit(
+        values=tuple(_quantize(value) for value in values),
+        converged=converged,
+        iterations=iterations,
+        objective=_quantize(previous),
+        max_update=_quantize(max_update if math.isfinite(max_update) else 0.0),
+        objective_trace=tuple(trace),
+    )
+
+
+def _hash_uniform(material: str) -> float:
+    digest = hashlib.sha256(material.encode("utf-8")).digest()
+    return (int.from_bytes(digest[:8], "big") + 1.0) / (2.0**64 + 1.0)
+
+
+def _hash_normal(material: str) -> float:
+    first = max(_MIN_SCALE, _hash_uniform(material + ":u1"))
+    second = _hash_uniform(material + ":u2")
+    return math.sqrt(-2.0 * math.log(first)) * math.cos(2.0 * math.pi * second)
+
+
+def _quantile(values: tuple[float, ...], probability: float) -> float:
+    if not values:
+        return 0.0
+    ordered = sorted(values)
+    index = max(0, min(len(ordered) - 1, math.ceil(probability * len(ordered)) - 1))
+    return _quantize(ordered[index])
+
+
+def _typed_trace_digest(fit: _TypedFit) -> str:
+    material = ",".join(str(value) for value in fit.objective_trace)
+    return "sha256:" + hashlib.sha256(material.encode("utf-8")).hexdigest()
+
+
+def _typed_features(
+    request: ConstructProteinSubtypeMechanisticFeaturesRequest,
+    evidence: tuple[EvidenceReference, ...],
+    request_hash: str,
+) -> tuple[
+    tuple[MechanisticFeature, ...],
+    tuple[MechanisticRelation, ...],
+    MechanisticFeatureDiagnostic,
+]:
+    terms = _typed_terms(request.typed_observations)
+    if not terms:
+        raise _TypedEvidenceAbsentError
+    fit = _fit_typed(terms)
+    if not fit.converged:
+        raise _TypedSolverNonConvergenceError
+    index = {program: position for position, program in enumerate(_PROGRAM_ORDER)}
+    draws: list[tuple[float, ...]] = []
+    for draw in range(request.configuration.bootstrap_replicates):
+        perturbed = tuple(
+            _TypedTerm(
+                observation_id=term.observation_id,
+                program=term.program,
+                state=term.state,
+                effect=max(
+                    -M1403_MAX_EFFECT,
+                    min(
+                        M1403_MAX_EFFECT,
+                        term.effect
+                        + 0.5
+                        * term.standard_error
+                        * _hash_normal(f"{request_hash}:{draw}:{term.observation_id}"),
+                    ),
+                ),
+                standard_error=term.standard_error,
+                quality_weight=term.quality_weight,
+            )
+            for term in terms
+        )
+        draw_fit = _fit_typed(perturbed)
+        if not draw_fit.converged:
+            raise _TypedBootstrapNonConvergenceError
+        draws.append(draw_fit.values)
+    prefix = request_hash.removeprefix("sha256:")[:12]
+    features: list[MechanisticFeature] = []
+    for program in _PROGRAM_ORDER:
+        position = index[program]
+        samples = tuple(draw[position] for draw in draws)
+        lower = min(_quantile(samples, _BOOTSTRAP_LOW), fit.values[position])
+        upper = max(_quantile(samples, _BOOTSTRAP_HIGH), fit.values[position])
+        feature_id = f"feature.m1403.{prefix}.program.{program.value.lower()}"
+        features.append(
+            MechanisticFeature(
+                feature_id=feature_id,
+                version="0.1.0-provisional",
+                kind=MechanisticFeatureKind.STATE,
+                value_kind=MechanisticValueKind.INTERVAL,
+                unit="standardized_effect",
+                lower_bound=lower,
+                upper_bound=upper,
+                lineage=MechanisticFeatureLineage(
+                    feature_id=feature_id,
+                    source_artifacts=tuple(request.source_artifacts),
+                    claim="Typed glioma microenvironment program state with signed graph support.",
+                    transformation_ids=request.configuration.transformation_ids,
+                    evidence=evidence[:1],
+                ),
+                evidence=evidence[:1],
+            )
+        )
+    program_index = {program: position for position, program in enumerate(_PROGRAM_ORDER)}
+    relations = tuple(
+        MechanisticRelation(
+            relation_id=f"relation.m1403.{prefix}.program.{edge_index}",
+            source_feature_id=features[program_index[source]].feature_id,
+            target_feature_id=features[program_index[target]].feature_id,
+            kind=MechanisticRelationKind.ACTIVATES
+            if sign > 0.0
+            else MechanisticRelationKind.INHIBITS,
+            weight=sign * _EDGE_STRENGTH,
+            evidence=evidence[:1],
+        )
+        for edge_index, (source, target, sign) in enumerate(_PROGRAM_EDGES)
+    )
+    diagnostic = MechanisticFeatureDiagnostic(
+        diagnostic_id=f"diagnostic.m1403.{prefix}.typed-solver",
+        status=MechanisticDiagnosticStatus.PASS,
+        message=(
+            f"Typed glioma microenvironment solver converged in {fit.iterations} iterations; "
+            f"objective={fit.objective}, max_update={fit.max_update}, "
+            f"trace_digest={_typed_trace_digest(fit)}."
+        ),
+        evidence=evidence[:1],
+    )
+    return tuple(features), relations, diagnostic
 
 
 def _feature_object(
@@ -315,11 +722,18 @@ def _feature_object(
         )
         for index in range(len(features) - 1)
     )
+    typed_features: tuple[MechanisticFeature, ...] = ()
+    typed_relations: tuple[MechanisticRelation, ...] = ()
+    typed_diagnostic: MechanisticFeatureDiagnostic | None = None
+    if request.typed_observations:
+        typed_features, typed_relations, typed_diagnostic = _typed_features(
+            request, evidence, request_hash
+        )
     feature_object = MechanisticFeatureObject(
         object_id=f"features.m1403.{request_hash.removeprefix('sha256:')[:32]}",
         version="0.1.0-provisional",
-        features=features,
-        relations=relations,
+        features=(*features, *typed_features),
+        relations=(*relations, *typed_relations),
         configuration=request.configuration,
         evidence=evidence,
     )
@@ -351,11 +765,13 @@ def _feature_object(
             ),
         )
     )
+    if typed_diagnostic is not None:
+        diagnostics = (*diagnostics, typed_diagnostic)
     return feature_object, diagnostics
 
 
 class M1403MechanisticFeatureEngine:
-    """Construct caller-declared feature metadata without scientific inference."""
+    """Construct compatibility metadata or typed research program states."""
 
     __slots__ = ()
 
@@ -424,10 +840,12 @@ class M1403MechanisticFeatureEngine:
                     )
                 ),
             ),
-            "uncertainty": _uncertainty(),
+            "uncertainty": _uncertainty(typed=bool(request.typed_observations)),
             "provenance": _provenance(request, request_hash),
             "evidence": evidence,
-            "limitations": _LIMITATIONS,
+            "limitations": (
+                _TYPED_LIMITATIONS if request.typed_observations else _LIMITATIONS
+            ),
             "human_review_required": human_review_required,
         }
         constructed = ProteinSubtypeMechanisticFeatureResult.model_construct(
