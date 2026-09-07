@@ -14,6 +14,7 @@ from typer.testing import CliRunner
 import glio_proteogen.adapters.m1203 as m1203_adapter
 from glio_proteogen.adapters.m1203 import app, m1203_app
 from glio_proteogen.contracts.m12_03 import (
+    M1203_GLIOMA_MODEL_FAMILY,
     M1203_M1202_INPUT_MEDIA_TYPE,
     M1203_OPERATION,
     ConstructBiomarkerPanelMechanisticFeaturesRequest,
@@ -185,6 +186,55 @@ def test_supported_runtime_constructs_closed_object_and_replays() -> None:
 
     replayed = type(result).model_validate_json(result.model_dump_json())
     assert replayed.result_digest == result.result_digest
+
+
+def test_typed_glioma_constraint_graph_fits_and_bootstraps() -> None:
+    base = request()
+    source = artifact("typed-source")
+    second = MechanisticFeature(
+        feature_id="feature.egfr",
+        version="1.0.0",
+        kind=MechanisticFeatureKind.REGULATORY,
+        value_kind=MechanisticValueKind.SCALAR,
+        unit="score",
+        scalar_value=1.2,
+        lineage=MechanisticFeatureLineage(
+            feature_id="feature.egfr",
+            source_artifacts=(source,),
+            claim="Typed EGFR evidence.",
+            transformation_ids=("transform.log1p",),
+        ),
+    )
+    typed = base.model_copy(
+        update={
+            "configuration": base.configuration.model_copy(
+                update={"model_family": M1203_GLIOMA_MODEL_FAMILY, "bootstrap_replicates": 16}
+            ),
+            "feature_inputs": (base.feature_inputs[0], second),
+            "relations": (
+                MechanisticRelation(
+                    relation_id="relation.egfr-pathway",
+                    source_feature_id="feature.egfr",
+                    target_feature_id="feature.pathway",
+                    kind=MechanisticRelationKind.ACTIVATES,
+                    weight=0.65,
+                ),
+            ),
+            "source_artifacts": (base.source_artifacts[0], source),
+        }
+    )
+    result = construct_mechanistic_features(typed)
+    assert result.status.value == "constructed"
+    assert result.typed_model is True
+    assert result.solver_iterations > 0
+    assert result.solver_objective is not None
+    assert result.state_interval_lower is not None
+    assert result.state_interval_upper is not None
+    assert result.feature_object is not None
+    assert any(
+        feature.feature_id == "feature.glioma.mechanism_state"
+        for feature in result.feature_object.features
+    )
 
 
 def test_failed_negative_control_abstains_without_object() -> None:

@@ -32,8 +32,8 @@ def _verify_evaluation(root: Path) -> None:
     report = _read(root, "evaluation.json")
     if report.get("module_id") != MODULE_ID or report.get("passed") is not True:
         raise M1203ReleaseVerificationError("evaluation report is not passing")
-    if report.get("declared_cases") != 6 or report.get("executed_cases") != 6:
-        raise M1203ReleaseVerificationError("evaluation case count is not locked to six")
+    if report.get("declared_cases") != 7 or report.get("executed_cases") != 7:
+        raise M1203ReleaseVerificationError("evaluation case count is not locked to seven")
     coverage = cast("dict[str, object]", report.get("coverage", {}))
     if float(cast("float | int", coverage.get("branch_percent", 0))) < 95.0:
         raise M1203ReleaseVerificationError("coverage is below the release gate")

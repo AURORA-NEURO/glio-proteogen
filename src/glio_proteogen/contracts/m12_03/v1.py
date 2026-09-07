@@ -10,7 +10,7 @@ provisional scaffolding pending owner confirmation.
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Final, Literal
+from typing import Annotated, Final, Literal
 
 from pydantic import Field, model_validator
 
@@ -59,9 +59,14 @@ M1203_MAX_DIAGNOSTICS: Final = 128
 M1203_MAX_FINDINGS: Final = 64
 M1203_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M1203_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
+M1203_DEFAULT_BOOTSTRAP_REPLICATES: Final = 64
+M1203_MAX_BOOTSTRAP_REPLICATES: Final = 256
+M1203_GLIOMA_MODEL_FAMILY: Final = "glioma-biomarker-constraint-graph/1.0.0"
 M1203_EVIDENCE_CLAIM: Final = (
     "Caller-declared M12-03 mechanistic feature evidence; issuer authority is not authenticated."
 )
+
+FiniteFloat = Annotated[float, Field(allow_inf_nan=False)]
 
 
 class MechanisticFeatureKind(StrEnum):
@@ -201,6 +206,11 @@ class MechanisticFeatureConfiguration(FrozenModel):
     negative_control_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M1203_MAX_EVIDENCE
     )
+    bootstrap_replicates: int = Field(
+        default=M1203_DEFAULT_BOOTSTRAP_REPLICATES,
+        ge=16,
+        le=M1203_MAX_BOOTSTRAP_REPLICATES,
+    )
     locked: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1203_MAX_EVIDENCE)
 
@@ -311,6 +321,12 @@ class BiomarkerPanelMechanisticFeatureResult(FrozenModel):
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1203_MAX_EVIDENCE)
     limitations: tuple[Limitation, ...] = Field(min_length=1, max_length=32)
     human_review_required: bool = False
+    typed_model: bool = False
+    model_profile: NonEmptyStr | None = None
+    solver_iterations: int = Field(default=0, ge=0)
+    solver_objective: FiniteFloat | None = Field(default=None, ge=0.0)
+    state_interval_lower: FiniteFloat | None = None
+    state_interval_upper: FiniteFloat | None = None
 
     @model_validator(mode="after")
     def result_is_closed(self) -> BiomarkerPanelMechanisticFeatureResult:
@@ -321,6 +337,12 @@ class BiomarkerPanelMechanisticFeatureResult(FrozenModel):
             raise ValueError("diagnostic ids must be unique")
         if self.evidence and {item.role for item in self.evidence} != {"evidence"}:
             raise ValueError("M12-03 result evidence cannot relabel counter-evidence")
+        if (
+            self.state_interval_lower is not None
+            and self.state_interval_upper is not None
+            and self.state_interval_lower > self.state_interval_upper
+        ):
+            raise ValueError("typed state interval must be ordered")
         failed = {MechanisticDiagnosticStatus.FAIL, MechanisticDiagnosticStatus.NOT_EVALUABLE}
         if self.status is MechanisticConstructionStatus.CONSTRUCTED:
             if (
@@ -497,9 +519,12 @@ def expected_provenance(
 
 __all__ = [
     "M1203_CONTRACT_VERSION",
+    "M1203_DEFAULT_BOOTSTRAP_REPLICATES",
     "M1203_EVIDENCE_CLAIM",
     "M1203_GATE",
+    "M1203_GLIOMA_MODEL_FAMILY",
     "M1203_M1202_INPUT_MEDIA_TYPE",
+    "M1203_MAX_BOOTSTRAP_REPLICATES",
     "M1203_MAX_CANONICAL_REQUEST_BYTES",
     "M1203_MAX_CANONICAL_RESULT_BYTES",
     "M1203_MAX_DIAGNOSTICS",

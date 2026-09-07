@@ -7,6 +7,7 @@
     {"case_id": "negative-not-evaluable", "expected_status": "abstained"},
     {"case_id": "quality-rejected", "expected_status": "abstained"},
     {"case_id": "denied-control", "expected_status": "authorization_error"},
-    {"case_id": "deterministic-replay", "expected_status": "constructed"}
+    {"case_id": "deterministic-replay", "expected_status": "constructed"},
+    {"case_id": "typed-glioma-graph", "expected_status": "constructed"}
   ]
 }

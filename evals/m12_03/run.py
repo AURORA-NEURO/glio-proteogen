@@ -16,6 +16,7 @@ if __package__ in {None, ""}:
         sys.path.insert(0, str(_PROJECT_ROOT))
 
 from glio_proteogen.contracts.m12_03 import (
+    M1203_GLIOMA_MODEL_FAMILY,
     M1203_M1202_INPUT_MEDIA_TYPE,
     ConstructBiomarkerPanelMechanisticFeaturesRequest,
     MechanisticFeature,
@@ -23,6 +24,8 @@ from glio_proteogen.contracts.m12_03 import (
     MechanisticFeatureKind,
     MechanisticFeatureLineage,
     MechanisticQualityStatus,
+    MechanisticRelation,
+    MechanisticRelationKind,
     MechanisticValueKind,
     NegativeControlStatus,
 )
@@ -165,7 +168,45 @@ def _fixture() -> dict[str, object]:
     return cast("dict[str, object]", json.loads(SCENARIO_PATH.read_text(encoding="utf-8")))
 
 
-def run_evaluator() -> dict[str, object]:  # noqa: C901 - fixture matrix is intentionally explicit.
+def build_typed_request() -> ConstructBiomarkerPanelMechanisticFeaturesRequest:
+    base = build_request()
+    source = _artifact("typed-source")
+    second = MechanisticFeature(
+        feature_id="eval.feature.egfr",
+        version="1.0.0",
+        kind=MechanisticFeatureKind.REGULATORY,
+        value_kind=MechanisticValueKind.SCALAR,
+        unit="score",
+        scalar_value=1.2,
+        lineage=MechanisticFeatureLineage(
+            feature_id="eval.feature.egfr",
+            source_artifacts=(source,),
+            claim="Evaluation EGFR feature is source-bound.",
+            transformation_ids=("eval.transform",),
+        ),
+    )
+    configuration = base.configuration.model_copy(
+        update={"model_family": M1203_GLIOMA_MODEL_FAMILY, "bootstrap_replicates": 16}
+    )
+    return base.model_copy(
+        update={
+            "configuration": configuration,
+            "feature_inputs": (base.feature_inputs[0], second),
+            "relations": (
+                MechanisticRelation(
+                    relation_id="eval.relation.egfr-pathway",
+                    source_feature_id="eval.feature.egfr",
+                    target_feature_id="eval.feature.pathway",
+                    kind=MechanisticRelationKind.ACTIVATES,
+                    weight=0.65,
+                ),
+            ),
+            "source_artifacts": (base.source_artifacts[0], source),
+        }
+    )
+
+
+def run_evaluator() -> dict[str, object]:  # noqa: C901, PLR0912 - fixture matrix is intentionally explicit.
     fixture = _fixture()
     checks: list[EvalCheck] = []
     cases = cast("list[dict[str, object]]", fixture["cases"])
@@ -210,6 +251,15 @@ def run_evaluator() -> dict[str, object]:  # noqa: C901 - fixture matrix is inte
                 first = construct_mechanistic_features(build_request())
                 second = construct_mechanistic_features(build_request())
                 passed = first.result_digest == second.result_digest
+            elif case_id == "typed-glioma-graph":
+                result = construct_mechanistic_features(build_typed_request())
+                passed = (
+                    result.status.value == case["expected_status"]
+                    and result.feature_object is not None
+                    and result.typed_model
+                    and result.solver_iterations > 0
+                    and result.state_interval_lower is not None
+                )
             else:
                 passed = False
                 detail = "unknown fixture case"
