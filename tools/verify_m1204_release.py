@@ -76,7 +76,7 @@ def _verify_package(value: dict[str, Any]) -> None:
         raise M1204ReleaseVerificationError("package evidence identity or pass flag invalid")
     for kind in ("wheel", "sdist"):
         package = cast("dict[str, Any]", value.get(kind, {}))
-        path = next((ROOT / "dist-m12-04").glob(str(package.get("filename", ""))), None)
+        path = EVIDENCE / str(package.get("filename", ""))
         if path is None or not path.is_file():
             raise M1204ReleaseVerificationError(f"missing {kind} artifact")
         if _sha256(path) != package.get("sha256") or path.stat().st_size != package.get("bytes"):
