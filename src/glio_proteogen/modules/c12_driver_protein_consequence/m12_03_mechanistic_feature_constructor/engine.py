@@ -84,12 +84,16 @@ def _is_typed(request: ConstructBiomarkerPanelMechanisticFeaturesRequest) -> boo
 
 def _feature_numeric(feature: MechanisticFeature) -> tuple[float, float] | None:
     if feature.value_kind is MechanisticValueKind.SCALAR and feature.scalar_value is not None:
+        if not math.isfinite(feature.scalar_value):
+            return None
         return feature.scalar_value, 1.0
     if (
         feature.value_kind is MechanisticValueKind.INTERVAL
         and feature.lower_bound is not None
         and feature.upper_bound is not None
     ):
+        if not math.isfinite(feature.lower_bound) or not math.isfinite(feature.upper_bound):
+            return None
         return (
             (feature.lower_bound + feature.upper_bound) / 2.0,
             max(_M1203_MIN_SCALE, (feature.upper_bound - feature.lower_bound) / 2.0),
@@ -98,6 +102,8 @@ def _feature_numeric(feature: MechanisticFeature) -> tuple[float, float] | None:
 
 
 def _relation_sign(relation: MechanisticRelation) -> float | None:
+    if relation.weight is not None and not math.isfinite(relation.weight):
+        return None
     signs = {
         MechanisticRelationKind.ACTIVATES: 1.0,
         MechanisticRelationKind.INHIBITS: -1.0,
