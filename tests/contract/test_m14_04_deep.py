@@ -19,10 +19,13 @@ import glio_proteogen.modules.c14_microenvironment_protein_deconvolution.m14_04_
 from glio_proteogen.adapters.m1404 import app, m1404_app
 from glio_proteogen.contracts.m14_04 import (
     M1404_OUTPUT_MEDIA_TYPE,
+    GliomaMechanismProgram,
     InferProteinSubtypeMechanismRequest,
     MechanismEstimate,
     MechanismEstimateKind,
+    MechanismEvidenceState,
     MechanismInferenceStatus,
+    MechanismObservation,
     ProteinSubtypeMechanismInferenceResult,
     contract_json_schema,
     contract_json_schemas,
@@ -126,6 +129,84 @@ def test_posterior_result_has_counter_evidence_and_provenance() -> None:
     assert result.provenance.module_id == "GLIO-PROTEOGEN-M14-04"
     assert result.parent_target == "protein_subtype"
     assert result.emits_parent is False
+
+
+def test_typed_glioma_network_solver_bootstrap_and_replay() -> None:
+    base = build_scenario_request()
+    evidence = base.configuration.evidence
+    observations = (
+        MechanismObservation(
+            observation_id="observation.rtk",
+            program=GliomaMechanismProgram.RTK_PI3K_AKT_MTOR,
+            evidence_state=MechanismEvidenceState.OBSERVED,
+            standardized_effect=0.9,
+            standard_error=0.15,
+            quality_weight=0.9,
+            evidence=evidence,
+        ),
+        MechanismObservation(
+            observation_id="observation.p53",
+            program=GliomaMechanismProgram.P53_CELL_CYCLE,
+            evidence_state=MechanismEvidenceState.OBSERVED,
+            standardized_effect=-0.6,
+            standard_error=0.2,
+            quality_weight=0.8,
+            evidence=evidence,
+        ),
+        MechanismObservation(
+            observation_id="observation.idh",
+            program=GliomaMechanismProgram.IDH_HIF1A,
+            evidence_state=MechanismEvidenceState.OBSERVED,
+            standardized_effect=0.25,
+            standard_error=0.25,
+            quality_weight=0.7,
+            evidence=evidence,
+        ),
+        MechanismObservation(
+            observation_id="observation.missing",
+            program=GliomaMechanismProgram.MESENCHYMAL_PROGRAM,
+            evidence_state=MechanismEvidenceState.MISSING,
+        ),
+    )
+    request = base.model_copy(
+        update={
+            "observations": observations,
+            "configuration": base.configuration.model_copy(update={"bootstrap_replicates": 16}),
+        }
+    )
+    engine = M1404MechanismEngine()
+    result = engine.infer(request)
+    assert result.status is MechanismInferenceStatus.INFERRED
+    assert result.typed_model is True
+    assert result.solver_iterations is not None
+    assert result.objective_trace_digest is not None
+    assert result.uncertainty.measurement.probability == 0.9
+    assert len(result.estimates) == len(GliomaMechanismProgram)
+    assert all(item.effect_lower_bound is not None for item in result.estimates)
+    assert all(item.evidence_count is not None for item in result.estimates)
+    assert all(item.top_drivers and item.ablation_effects for item in result.estimates)
+    assert result.estimates[0].classification in {"active", "inactive", "stable"}
+    assert engine.verify(result) == result
+
+
+def test_typed_network_all_missing_abstains_without_negative_state() -> None:
+    base = build_scenario_request()
+    request = base.model_copy(
+        update={
+            "observations": (
+                MechanismObservation(
+                    observation_id="observation.unsupported",
+                    program=GliomaMechanismProgram.RTK_PI3K_AKT_MTOR,
+                    evidence_state=MechanismEvidenceState.UNSUPPORTED,
+                ),
+            )
+        }
+    )
+    result = M1404MechanismEngine().infer(request)
+    assert result.status is MechanismInferenceStatus.ABSTAINED
+    assert not result.estimates
+    assert result.abstention_reason is not None
+    assert "observed" in result.abstention_reason
 
 
 def test_request_and_result_closure_reject_forged_payloads() -> None:

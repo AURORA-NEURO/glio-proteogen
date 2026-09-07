@@ -270,13 +270,13 @@ posterior estimator.
 The strict 22 are a floor for counterfeit estimators, not the whole scientific
 debt inventory. Eleven further engines are transparently labelled
 formula/pass-through/declaration shells rather than fitted models: M06-03,
-M10-05, M11-03, M11-04, M12-03, M12-04, M12-06, M13-04, M14-04,
+M10-05, M11-03, M11-04, M12-03, M12-04, M12-06, M13-04,
 M15-03, and M15-06. Three representation constructors—M07-02, M08-02, and
 M09-02—also synthesize numeric vectors from hashes. They remain classified as
 representation plumbing, but their vectors must never be described as learned
 biological features. The exhaustive partition is therefore 22 strict stand-ins,
-11 transparent scientific shells, three synthetic representation constructors,
-and 44 schema, safe-abstention, validation, registry, evidence-publisher, or
+10 transparent scientific shells, three synthetic representation constructors,
+and 45 schema, safe-abstention, validation, registry, evidence-publisher, or
 other non-estimator engines.
 
 The strict list deliberately excludes representation/schema plumbing, safe
@@ -401,6 +401,21 @@ response; incomplete typed surfaces abstain with a human-review requirement.
 The historical scalar sensitivity ABI remains available for compatibility only.
 This lane is research-use-only and does not infer causality, kinase ownership,
 treatment effects, prognosis, or clinical state.
+
+## Completed M14-04 typed glioma network lane
+
+The additive M14-04 runtime now consumes explicit protein/PTM mechanism
+observations instead of relying on caller-declared posterior strings. A robust
+Huber coordinate-descent solver fits signed RTK/PI3K/AKT/mTOR, p53/cell-cycle,
+IDH/HIF1A, mesenchymal, and proliferation coupling, then maps latent states to
+bounded posterior-like research scores. Deterministic request-digest bootstrap
+draws provide intervals, stability, discordance, evidence counts, top drivers,
+and topology ablation effects; missing and unsupported observations are
+excluded rather than treated as negative evidence.
+
+The opaque posterior/state grammar remains compatibility-only and the typed lane
+is review-gated. It does not claim causal mechanism, clinical probability,
+prognosis, kinase ownership, or treatment effect.
 
 ## Negative cross-assay feasibility result
 
