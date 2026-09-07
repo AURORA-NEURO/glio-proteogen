@@ -275,8 +275,8 @@ M15-03, and M15-06. Three representation constructors—M07-02, M08-02, and
 M09-02—also synthesize numeric vectors from hashes. They remain classified as
 representation plumbing, but their vectors must never be described as learned
 biological features. The exhaustive partition is therefore 22 strict stand-ins,
-12 transparent scientific shells, three synthetic representation constructors,
-and 43 schema, safe-abstention, validation, registry, evidence-publisher, or
+11 transparent scientific shells, three synthetic representation constructors,
+and 44 schema, safe-abstention, validation, registry, evidence-publisher, or
 other non-estimator engines.
 
 The strict list deliberately excludes representation/schema plumbing, safe
