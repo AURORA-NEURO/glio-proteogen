@@ -333,6 +333,26 @@ support, and measurement/topology limitations. It does not estimate kinetics,
 spatial state, kinase ownership, prognosis, treatment response, or causality, and
 the research lane is not a governed clinical API.
 
+## Completed M13-05 typed glioma temporal lane
+
+The additive M13-05 research runtime now fits typed longitudinal glioma program
+effects instead of assigning caller-declared labels a fixed probability. Each
+time point identifies one of five reviewable programs (RTK/PI3K/AKT/mTOR,
+p53/cell-cycle, IDH/HIF1A, mesenchymal, or proliferation), a standardized signed
+effect, standard error, quality weight, and observed/left-censored/missing/
+unsupported evidence state. Missing and unsupported points are excluded from
+the objective; left-censored points contribute only a one-sided residual.
+
+The model uses damped Huber IRLS coordinate descent with first-order temporal
+smoothing, curvature control, ridge stabilization, convergence checks, and a
+request-digest-seeded 64-draw perturbation interval. Every state reports an
+interval, evidence count, stability, discordance, top program drivers, and the
+objective-trace digest; change points use the same signed bootstrap deltas.
+Legacy opaque objective requests remain a compatibility-only grammar and do not
+receive a synthetic typed score. This is a research-use-only temporal signal,
+not a diagnosis, prognosis, treatment recommendation, or kinase-ownership
+claim.
+
 ## Negative cross-assay feasibility result
 
 An exact development-only join found all 88 PDC000515 pairs in PDC000514, but

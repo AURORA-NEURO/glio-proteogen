@@ -22,6 +22,8 @@ from glio_proteogen.contracts.m13_05 import (
     M1305_M1304_RESULT_MEDIA_TYPE,
     EvolutionModelConfiguration,
     EvolutionModelFamily,
+    GliomaTrajectoryProgram,
+    LongitudinalEvidenceState,
     ModelProteotypeLongitudinalEvolutionRequest,
     TimePointObservation,
     TrajectoryDimension,
@@ -132,6 +134,7 @@ def _controls(*, accepted: bool = True) -> ContextReferences:
 def build_scenario_request(
     objective: str = "stable", *, accepted: bool = True
 ) -> ModelProteotypeLongitudinalEvolutionRequest:
+    typed_effects = (0.0, 0.0, 2.0)
     observations = tuple(
         TimePointObservation(
             observation_id=f"observation.{index}",
@@ -147,6 +150,11 @@ def build_scenario_request(
                     claim="Locked evaluator observation.",
                 ),
             ),
+            program=GliomaTrajectoryProgram.RTK_PI3K_AKT_MTOR,
+            evidence_state=LongitudinalEvidenceState.OBSERVED,
+            standardized_effect=typed_effects[index],
+            standard_error=0.2,
+            quality_weight=0.9,
         )
         for index in range(3)
     )
