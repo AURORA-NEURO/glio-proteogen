@@ -461,6 +461,24 @@ class M1206SimulatorEngine:
 def _simulate_validated(
     request: SimulateBiomarkerPanelPerturbationRequest,
 ) -> BiomarkerPanelPerturbationSensitivityResult:
+    # Carry the canonical semantic order into the receipt itself, not only its
+    # digest, so reordering scenarios or replicate vectors cannot change the
+    # replayed result payload.
+    canonical_scenarios = tuple(
+        sorted(
+            (
+                item.model_copy(
+                    update={
+                        "baseline_measurements": tuple(sorted(item.baseline_measurements)),
+                        "perturbed_measurements": tuple(sorted(item.perturbed_measurements)),
+                    }
+                )
+                for item in request.scenarios
+            ),
+            key=lambda item: item.scenario_id,
+        )
+    )
+    request = request.model_copy(update={"scenarios": canonical_scenarios})
     request_digest = canonical_request_digest(request)
     policy = request.policy
     typed = policy.configuration.model_family == M1206_GLIOMA_MODEL_FAMILY

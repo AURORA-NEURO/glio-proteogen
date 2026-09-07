@@ -251,6 +251,7 @@ def test_typed_glioma_replicate_order_is_digest_invariant() -> None:
     assert first.sensitivity_surface is not None
     assert second.sensitivity_surface is not None
     assert first.sensitivity_surface.responses[0] == second.sensitivity_surface.responses[0]
+    assert first.model_dump(mode="json") == second.model_dump(mode="json")
 
 
 def test_typed_glioma_missing_replicates_abstain_without_surface() -> None:
