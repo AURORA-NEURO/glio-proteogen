@@ -7,9 +7,9 @@ does not make a numerical method scientifically mature.
 
 ## Implemented research inference
 
-The mounted additive research namespace currently contains thirteen distinct,
+The mounted additive research namespace currently contains fourteen distinct,
 independently testable scientific-inference lanes plus one integrated
-composition surface. Distinctness in the twelve-lane mounted inventory means
+composition surface. Distinctness in the fourteen-lane mounted inventory means
 separate algorithms and receipts, not scientifically independent evidence:
 
 - `glio-ecgi/1.0.0`: directed robust evidence-graph inference with censored
@@ -93,6 +93,13 @@ separate algorithms and receipts, not scientifically independent evidence:
   signed program relations. The historical categorical feature constructor is
   retained only as a compatibility path; the typed lane is synthetic and does
   not claim cell fractions, diagnosis, prognosis, or treatment response.
+- `m1405-glioma-temporal-programs/0.1.0-provisional`: a typed temporal lane
+  that fits robust, Huber-smoothed RTK/PI3K/AKT/mTOR, p53/cell-cycle, IDH/HIF1A,
+  mesenchymal, and proliferation trajectories with left-censored evidence,
+  deterministic bootstrap intervals, and interval-supported change points.
+  Missing and unsupported observations are excluded and an all-unsupported
+  history abstains; the original ordered metadata replay remains compatibility-
+  only and no trajectory is diagnostic, prognostic, or prescriptive.
 
 The provisional M11-05 longitudinal module now also has an additive typed
 proteomic-effect lane. It fits subject-level recurrence trajectories with
@@ -103,12 +110,12 @@ unchanged and remains provisional; this lane is an evolutionary evidence
 signal, not a validated tumor-evolution or treatment-response predictor.
 
 The additional `glio-ecgi-kncc-gbm-transition/1.0.0` factor-graph surface is not
-a fourteenth independent fitted model. It runs the exact PDC000514 Reactome and
+a fifteenth independent fitted model. It runs the exact PDC000514 Reactome and
 PDC000515 SPHINKS signature-transition child engines numerically independently
 but deterministically in serial, nests their exact receipts, and adds only a
 locked 41-node presentation topology with 39 annotation-only containment edges
 and zero numerical cross-block edges. It performs no cross-modal fusion or
-feedback and therefore does not increase the thirteen-lane independent-inference
+feedback and therefore does not increase the fourteen-lane independent-inference
 count. See
 [`kncc-gbm-factor-graph.md`](kncc-gbm-factor-graph.md).
 
@@ -118,7 +125,7 @@ mounted inventory: `cptac-gbm-cis-dosage/1.0.0` and
 fit/query/replay algorithms over caller-owned exact source copies, but neither
 bundles a fitted artifact or mounts an HTTP route. A caller-built artifact is
 therefore local cohort evidence, not a repository-shipped model, and neither
-implementation increases the thirteen-lane mounted count.
+implementation increases the fourteen-lane mounted count.
 
 These lanes remain research-only. Their presence does not promote any governed
 module or establish clinical validity.
@@ -163,7 +170,7 @@ extraction, fitting, and held-out calibration remain. The redistribution
 boundary, validation gates, and remaining blockers are recorded in
 [`gbmap-deconvolution-source-admission.md`](gbmap-deconvolution-source-admission.md).
 No fitted artifact or runtime endpoint exists for this candidate, so it does
-not increase the twelve-lane fitted-inference inventory.
+not increase the fourteen-lane fitted-inference inventory.
 
 ## Local M07 cis-dosage substitution boundary
 
@@ -226,7 +233,7 @@ module integration boundaries:
 
 They add responsibility/exclusion metadata and compatibility transport, not new
 scientific models, posterior subtype/cell-fraction estimates, or independent
-evidence. They therefore do not increase the twelve-lane inference count.
+evidence. They therefore do not increase the fourteen-lane inference count.
 
 ## Strict numerical-stand-in floor
 

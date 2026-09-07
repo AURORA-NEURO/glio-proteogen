@@ -1,5 +1,6 @@
 """Runtime and adversarial tests for provisional M14-05 replay."""
 
+import json
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -10,6 +11,8 @@ from glio_proteogen.contracts.m14_05 import (
     ChangePointStatus,
     EvolutionModelConfiguration,
     EvolutionModelFamily,
+    GliomaTrajectoryProgram,
+    LongitudinalEvidenceState,
     ModelProteinSubtypeLongitudinalEvolutionRequest,
     TimePointObservation,
     TrajectoryDimension,
@@ -34,6 +37,30 @@ from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
 )
 
 _FOLLOW_UP_SEQUENCE = 2
+_LEFT_CENSORED_BOUND = 0.6
+
+
+def _typed_request() -> ModelProteinSubtypeLongitudinalEvolutionRequest:
+    payload = _request().model_dump(mode="json")
+    observations = list(payload["observations"])
+    effects = (0.15, 0.8, 1.15)
+    for observation, effect in zip(observations, effects, strict=True):
+        observation.update(
+            {
+                "program": GliomaTrajectoryProgram.RTK_PI3K_AKT_MTOR.value,
+                "evidence_state": LongitudinalEvidenceState.OBSERVED.value,
+                "standardized_effect": effect,
+                "standard_error": 0.12,
+                "quality_weight": 0.9,
+            }
+        )
+    payload["observations"] = observations
+    configuration = dict(payload["policy"]["configuration"])
+    configuration["bootstrap_replicates"] = 16
+    payload["policy"]["configuration"] = configuration
+    return ModelProteinSubtypeLongitudinalEvolutionRequest.model_validate_json(
+        json.dumps(payload), strict=True
+    )
 
 
 def _artifact(name: str, media_type: str = "application/json") -> ArtifactReference:
@@ -147,6 +174,81 @@ def test_constructs_ordered_metadata_trajectory_and_replays() -> None:
     assert result.future_leakage_checked is True
     assert result.human_review_required is True
     assert result.support_decision.status is SupportStatus.REVIEW_REQUIRED
+    assert service.verify(result) == result
+
+
+def test_typed_glioma_temporal_fit_emits_intervals_change_points_and_trace() -> None:
+    service = m1405.M1405Service()
+    request = _typed_request()
+    result = service.construct(request)
+
+    assert result.status.value == "modeled"
+    assert all(state.standardized_state is not None for state in result.trajectory)
+    assert all(
+        state.lower_bound is not None and state.upper_bound is not None
+        for state in result.trajectory
+    )
+    assert any(point.effect_delta is not None for point in result.change_points)
+    assert any("trace_digest=" in diagnostic.message for diagnostic in result.diagnostics)
+    assert result.uncertainty.measurement.state.value == "estimated"
+    assert any(item.code == "typed_glioma_temporal_fit" for item in result.limitations)
+    assert service.verify(result) == result
+
+
+def test_typed_temporal_missing_and_unsupported_evidence_abstain_safely() -> None:
+    request = _typed_request().model_dump(mode="json")
+    request["observations"][0].update(
+        {
+            "program": GliomaTrajectoryProgram.RTK_PI3K_AKT_MTOR.value,
+            "evidence_state": LongitudinalEvidenceState.MISSING.value,
+            "standardized_effect": None,
+            "standard_error": None,
+            "quality_weight": 0.0,
+        }
+    )
+    request["observations"][1].update(
+        {
+            "program": GliomaTrajectoryProgram.P53_CELL_CYCLE.value,
+            "evidence_state": LongitudinalEvidenceState.UNSUPPORTED.value,
+            "standardized_effect": None,
+            "standard_error": None,
+            "quality_weight": 0.0,
+        }
+    )
+    request["observations"][2].update(
+        {
+            "program": GliomaTrajectoryProgram.IDH_HIF1A.value,
+            "evidence_state": LongitudinalEvidenceState.MISSING.value,
+            "standardized_effect": None,
+            "standard_error": None,
+            "quality_weight": 0.0,
+        }
+    )
+    typed = ModelProteinSubtypeLongitudinalEvolutionRequest.model_validate_json(
+        json.dumps(request), strict=True
+    )
+    result = m1405.M1405Service().construct(typed)
+
+    assert result.status.value == "abstained"
+    assert not result.trajectory
+    assert "no supported observations" in " ".join(
+        diagnostic.message for diagnostic in result.diagnostics
+    )
+
+
+def test_typed_left_censored_effect_is_one_sided_and_replay_stable() -> None:
+    payload = _typed_request().model_dump(mode="json")
+    payload["observations"][1]["evidence_state"] = LongitudinalEvidenceState.LEFT_CENSORED.value
+    payload["observations"][1]["standardized_effect"] = _LEFT_CENSORED_BOUND
+    typed = ModelProteinSubtypeLongitudinalEvolutionRequest.model_validate_json(
+        json.dumps(payload), strict=True
+    )
+    service = m1405.M1405Service()
+    result = service.construct(typed)
+
+    assert result.status.value == "modeled"
+    assert result.trajectory[1].standardized_state is not None
+    assert result.trajectory[1].standardized_state >= _LEFT_CENSORED_BOUND
     assert service.verify(result) == result
 
 
