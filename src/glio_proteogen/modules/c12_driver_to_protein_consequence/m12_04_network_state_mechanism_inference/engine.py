@@ -8,7 +8,10 @@ negative biological finding.
 
 from __future__ import annotations
 
+import hashlib
+import math
 from collections.abc import Mapping
+from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import Any, Final, cast
 
@@ -17,6 +20,7 @@ from pydantic import TypeAdapter
 from glio_proteogen.contracts.m12_04 import (
     M1204_CONTRACT_VERSION,
     M1204_EVIDENCE_CLAIM,
+    M1204_GLIOMA_MODEL_FAMILY,
     M1204_PARENT,
     BiomarkerPanelMechanismInferenceResult,
     InferBiomarkerPanelMechanismRequest,
@@ -25,6 +29,8 @@ from glio_proteogen.contracts.m12_04 import (
     MechanismFinding,
     MechanismFindingCode,
     MechanismInferenceStatus,
+    MechanismObservationState,
+    MechanismRelationKind,
     expected_provenance,
     expected_uncertainty,
 )
@@ -50,6 +56,22 @@ _SUPPORTED_STATES: Final = frozenset(
 )
 _POSTERIOR_PARTS: Final = 6
 _STATE_PARTS: Final = 4
+_M1204_RIDGE: Final = 0.04
+_M1204_DAMPING: Final = 0.72
+_M1204_HUBER_DELTA: Final = 1.5
+_M1204_SOLVER_ITERATIONS: Final = 160
+_M1204_SOLVER_TOLERANCE: Final = 1e-6
+_M1204_MIN_SCALE: Final = 1e-6
+_M1204_MIN_TYPED_MECHANISMS: Final = 2
+
+
+@dataclass(frozen=True, slots=True)
+class _TypedFit:
+    mechanism_ids: tuple[str, ...]
+    values: tuple[float, ...]
+    objective: float
+    iterations: int
+    converged: bool
 
 
 class M1204MechanismAuthorizationError(PermissionError):
@@ -112,6 +134,8 @@ def _evidence(request: InferBiomarkerPanelMechanismRequest) -> tuple[KernelEvide
         request.configuration.model_reference,
         request.configuration.calibration_reference,
         *(item.reference for item in request.configuration.evidence),
+        *(e.reference for item in request.typed_observations for e in item.evidence),
+        *(e.reference for item in request.typed_relations for e in item.evidence),
         refs.approved_configuration.evidence,
         refs.identity_lineage.evidence,
         refs.provenance.evidence,
@@ -250,6 +274,232 @@ def _parse_method(  # noqa: PLR0911
     )
 
 
+def _huber(value: float) -> float:
+    absolute = abs(value)
+    return (
+        0.5 * value * value
+        if absolute <= _M1204_HUBER_DELTA
+        else _M1204_HUBER_DELTA * (absolute - 0.5 * _M1204_HUBER_DELTA)
+    )
+
+
+def _hash_normal(material: str) -> float:
+    first = (
+        int.from_bytes(hashlib.sha256((material + ":u1").encode()).digest()[:8], "big") + 1.0
+    ) / (2.0**64 + 1.0)
+    second = (
+        int.from_bytes(hashlib.sha256((material + ":u2").encode()).digest()[:8], "big") + 1.0
+    ) / (2.0**64 + 1.0)
+    return math.sqrt(-2.0 * math.log(max(_M1204_MIN_SCALE, first))) * math.cos(
+        2.0 * math.pi * second
+    )
+
+
+def _relation_coefficient(kind: MechanismRelationKind, weight: float) -> float:
+    magnitude = max(_M1204_MIN_SCALE, abs(weight))
+    if kind is MechanismRelationKind.INHIBITS:
+        return -magnitude
+    if kind is MechanismRelationKind.ACTIVATES:
+        return magnitude
+    return math.copysign(magnitude, weight if abs(weight) > _M1204_MIN_SCALE else 1.0)
+
+
+def _fit_typed(  # noqa: C901, PLR0912 - explicit coordinate updates are auditable.
+    request: InferBiomarkerPanelMechanismRequest,
+    *,
+    perturbation: Mapping[str, float] | None = None,
+) -> _TypedFit | None:
+    usable = tuple(
+        item
+        for item in request.typed_observations
+        if item.state
+        in {MechanismObservationState.OBSERVED, MechanismObservationState.LEFT_CENSORED}
+        and item.standardized_effect is not None
+        and item.standard_error is not None
+        and item.quality_weight > 0.0
+    )
+    mechanism_ids = tuple(sorted({item.mechanism_id for item in usable}))
+    if len(mechanism_ids) < _M1204_MIN_TYPED_MECHANISMS:
+        return None
+    index = {mechanism_id: position for position, mechanism_id in enumerate(mechanism_ids)}
+    observations: list[tuple[int, float, float, float, MechanismObservationState]] = []
+    for item in sorted(usable, key=lambda value: (value.mechanism_id, value.observation_id)):
+        effect = item.standardized_effect
+        uncertainty = item.standard_error
+        if effect is None or uncertainty is None:
+            continue
+        observations.append(
+            (
+                index[item.mechanism_id],
+                effect + (perturbation or {}).get(item.observation_id, 0.0),
+                uncertainty,
+                item.quality_weight,
+                item.state,
+            )
+        )
+    relations = tuple(
+        (
+            index[item.source_mechanism_id],
+            index[item.target_mechanism_id],
+            _relation_coefficient(item.kind, item.weight),
+        )
+        for item in sorted(request.typed_relations, key=lambda value: value.relation_id)
+        if item.source_mechanism_id in index and item.target_mechanism_id in index
+    )
+    if not relations:
+        return None
+    values = [0.0] * len(mechanism_ids)
+    for position in range(len(values)):
+        terms = [item for item in observations if item[0] == position]
+        total = sum(item[3] / max(_M1204_MIN_SCALE, item[2] ** 2) for item in terms)
+        values[position] = sum(
+            item[1] * item[3] / max(_M1204_MIN_SCALE, item[2] ** 2) for item in terms
+        ) / max(_M1204_MIN_SCALE, total)
+    objective = float("inf")
+    for iteration in range(1, _M1204_SOLVER_ITERATIONS + 1):
+        previous = values.copy()
+        for position, current in enumerate(values):
+            gradient = 2.0 * _M1204_RIDGE * current
+            hessian = 2.0 * _M1204_RIDGE
+            for index_value, target, uncertainty, quality, state in observations:
+                if index_value != position:
+                    continue
+                scale = max(_M1204_MIN_SCALE, uncertainty)
+                residual = (current - target) / scale
+                if state is MechanismObservationState.LEFT_CENSORED:
+                    residual = max(0.0, residual)
+                if state is MechanismObservationState.LEFT_CENSORED and residual == 0.0:
+                    continue
+                influence = (
+                    1.0
+                    if abs(residual) <= _M1204_HUBER_DELTA
+                    else _M1204_HUBER_DELTA / max(_M1204_MIN_SCALE, abs(residual))
+                )
+                information = quality * influence / (scale * scale)
+                gradient += information * (current - target)
+                hessian += information
+            for source, target, coefficient in relations:
+                if position == source:
+                    residual = values[target] - coefficient * current
+                    gradient -= coefficient * residual
+                    hessian += coefficient * coefficient
+                elif position == target:
+                    residual = current - coefficient * values[source]
+                    gradient += residual
+                    hessian += 1.0
+            proposal = current - gradient / max(_M1204_MIN_SCALE, hessian)
+            values[position] = current + _M1204_DAMPING * (proposal - current)
+        next_objective = _M1204_RIDGE * sum(value * value for value in values)
+        next_objective += sum(
+            quality
+            * _huber(
+                max(0.0, (value - target) / max(_M1204_MIN_SCALE, uncertainty))
+                if state is MechanismObservationState.LEFT_CENSORED
+                else (value - target) / max(_M1204_MIN_SCALE, uncertainty)
+            )
+            for index_value, target, uncertainty, quality, state in observations
+            for value in (values[index_value],)
+        )
+        next_objective += sum(
+            0.5 * (values[target] - coefficient * values[source]) ** 2
+            for source, target, coefficient in relations
+        )
+        update = max(abs(after - before) for after, before in zip(values, previous, strict=True))
+        if (
+            update <= _M1204_SOLVER_TOLERANCE
+            and abs(objective - next_objective) <= 2.0 * _M1204_SOLVER_TOLERANCE
+        ):
+            return _TypedFit(
+                mechanism_ids=mechanism_ids,
+                values=tuple(float(f"{value:.8f}") for value in values),
+                objective=float(f"{next_objective:.8f}"),
+                iterations=iteration,
+                converged=True,
+            )
+        objective = next_objective
+    return _TypedFit(
+        mechanism_ids=mechanism_ids,
+        values=tuple(float(f"{value:.8f}") for value in values),
+        objective=float(f"{objective:.8f}"),
+        iterations=_M1204_SOLVER_ITERATIONS,
+        converged=False,
+    )
+
+
+def _sigmoid(value: float) -> float:
+    if value >= 0.0:
+        return 1.0 / (1.0 + math.exp(-min(40.0, value)))
+    exponential = math.exp(max(-40.0, value))
+    return exponential / (1.0 + exponential)
+
+
+def _quantile(values: tuple[float, ...], probability: float) -> float:
+    ordered = sorted(values)
+    index = max(0, min(len(ordered) - 1, math.ceil(probability * len(ordered)) - 1))
+    return float(f"{ordered[index]:.8f}")
+
+
+def _typed_estimates(
+    request: InferBiomarkerPanelMechanismRequest,
+    request_hash: str,
+    evidence: tuple[KernelEvidenceReference, ...],
+    counter_evidence: tuple[KernelEvidenceReference, ...],
+) -> tuple[tuple[MechanismEstimate, ...], _TypedFit | None, str | None]:
+    fit = _fit_typed(request)
+    if fit is None:
+        return (
+            (),
+            None,
+            "typed glioma panel graph requires two supported mechanisms and a signed relation",
+        )
+    if not fit.converged:
+        return (), fit, "typed glioma panel graph did not converge"
+    draws: dict[str, list[float]] = {mechanism_id: [] for mechanism_id in fit.mechanism_ids}
+    usable = tuple(
+        item
+        for item in request.typed_observations
+        if item.state
+        in {MechanismObservationState.OBSERVED, MechanismObservationState.LEFT_CENSORED}
+        and item.standard_error is not None
+        and item.standardized_effect is not None
+    )
+    for draw in range(request.configuration.bootstrap_replicates):
+        perturbation: dict[str, float] = {}
+        for item in usable:
+            if item.standard_error is not None:
+                perturbation[item.observation_id] = item.standard_error * _hash_normal(
+                    f"{request_hash}:{draw}:{item.observation_id}"
+                )
+        sample = _fit_typed(request, perturbation=perturbation)
+        if sample is None or not sample.converged:
+            return (), sample, "typed glioma panel bootstrap fit did not converge"
+        for mechanism_id, value in zip(sample.mechanism_ids, sample.values, strict=True):
+            draws[mechanism_id].append(_sigmoid(value))
+    labels = {item.mechanism_id: item.label for item in request.typed_observations}
+    estimates = tuple(
+        MechanismEstimate(
+            estimate_id=f"estimate.{mechanism_id}",
+            mechanism_id=mechanism_id,
+            label=labels[mechanism_id],
+            kind=MechanismEstimateKind.POSTERIOR,
+            posterior_probability=float(f"{_sigmoid(value):.8f}"),
+            lower_bound=min(_quantile(tuple(draws[mechanism_id]), 0.05), _sigmoid(value)),
+            upper_bound=max(_quantile(tuple(draws[mechanism_id]), 0.95), _sigmoid(value)),
+            assumptions=(
+                "Biomarker effects are standardized caller-declared observations.",
+                "Signed relations encode panel activation, inhibition, or coupling constraints.",
+            ),
+            alternatives=(
+                "Unmeasured mechanisms and alternative panel topologies remain possible.",
+            ),
+            counter_evidence=counter_evidence,
+            evidence=evidence,
+        )
+        for mechanism_id, value in zip(fit.mechanism_ids, fit.values, strict=True)
+    )
+    return estimates, fit, None
+
+
 def _limitations(*, supported: bool) -> tuple[Limitation, ...]:
     values = [
         Limitation(
@@ -296,21 +546,35 @@ class M1204MechanismEngine:
         request_hash = canonical_request_digest(request)
         evidence = _evidence(request)
         counter_evidence = _counter_evidence(request)
-        estimate, finding_code, finding_message = _parse_method(
-            request.configuration.method,
-            counter_evidence=counter_evidence,
-            evidence=evidence,
-        )
-        safe = estimate is not None and bool(counter_evidence)
-        if estimate is None:
-            safe = False
-            finding_code = finding_code or MechanismFindingCode.MODEL_NOT_CALIBRATED
-            finding_message = finding_message or "Mechanism estimate is not evaluable."
-        elif not counter_evidence:
-            safe = False
-            finding_code = MechanismFindingCode.COUNTER_EVIDENCE_REQUIRED
-            finding_message = "At least one counter-evidence reference is required."
-        estimates = (estimate,) if safe and estimate is not None else ()
+        typed = request.configuration.model_family == M1204_GLIOMA_MODEL_FAMILY
+        fit: _TypedFit | None = None
+        finding_code: MechanismFindingCode | None = None
+        if typed:
+            estimates, fit, finding_message = _typed_estimates(
+                request, request_hash, evidence, counter_evidence
+            )
+            finding_code = MechanismFindingCode.MODEL_NOT_CALIBRATED
+            safe = bool(estimates) and bool(counter_evidence) and fit is not None and fit.converged
+            if not counter_evidence:
+                safe = False
+                finding_code = MechanismFindingCode.COUNTER_EVIDENCE_REQUIRED
+                finding_message = "At least one counter-evidence reference is required."
+        else:
+            estimate, finding_code, finding_message = _parse_method(
+                request.configuration.method,
+                counter_evidence=counter_evidence,
+                evidence=evidence,
+            )
+            safe = estimate is not None and bool(counter_evidence)
+            if estimate is None:
+                safe = False
+                finding_code = finding_code or MechanismFindingCode.MODEL_NOT_CALIBRATED
+                finding_message = finding_message or "Mechanism estimate is not evaluable."
+            elif not counter_evidence:
+                safe = False
+                finding_code = MechanismFindingCode.COUNTER_EVIDENCE_REQUIRED
+                finding_message = "At least one counter-evidence reference is required."
+            estimates = (estimate,) if safe and estimate is not None else ()
         findings = (
             ()
             if safe
@@ -355,6 +619,11 @@ class M1204MechanismEngine:
             "evidence": evidence,
             "limitations": _limitations(supported=safe),
             "human_review_required": not safe,
+            "typed_model": typed and safe,
+            "model_profile": request.configuration.model_family if typed else None,
+            "solver_iterations": fit.iterations if fit is not None else 0,
+            "solver_objective": fit.objective if fit is not None else None,
+            "converged": fit.converged if fit is not None else True,
         }
         constructed = BiomarkerPanelMechanismInferenceResult.model_construct(
             **cast("dict[str, Any]", payload)

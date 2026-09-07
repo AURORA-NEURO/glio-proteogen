@@ -14,6 +14,7 @@ import pytest
 import glio_proteogen.modules.c12_driver_to_protein_consequence.m12_04_network_state_mechanism_inference as m1204_package
 import glio_proteogen.modules.c12_driver_to_protein_consequence.m12_04_network_state_mechanism_inference.engine as engine_module
 from glio_proteogen.contracts.m12_04 import (
+    M1204_GLIOMA_MODEL_FAMILY,
     M1204_M1201_RESULT_MEDIA_TYPE,
     M1204_MODULE_ID,
     BiomarkerPanelMechanismInferenceResult,
@@ -23,6 +24,10 @@ from glio_proteogen.contracts.m12_04 import (
     MechanismFindingCode,
     MechanismInferenceConfiguration,
     MechanismInferenceStatus,
+    MechanismObservation,
+    MechanismObservationState,
+    MechanismRelation,
+    MechanismRelationKind,
     expected_uncertainty,
     result_payload_digest,
 )
@@ -164,6 +169,66 @@ def test_supported_posterior_is_typed_and_replayable() -> None:
     assert result.provenance.module_id == M1204_MODULE_ID
     assert result.parent_target == "biomarker_panel"
     assert engine.verify(result).model_dump(mode="json") == result.model_dump(mode="json")
+
+
+def test_typed_glioma_panel_graph_fits_and_replays() -> None:
+    base = _request()
+    typed = base.model_copy(
+        update={
+            "configuration": base.configuration.model_copy(
+                update={
+                    "model_family": M1204_GLIOMA_MODEL_FAMILY,
+                    "bootstrap_replicates": 16,
+                }
+            ),
+            "typed_observations": (
+                MechanismObservation(
+                    observation_id="obs.egfr",
+                    mechanism_id="egfr",
+                    label="EGFR signaling",
+                    standardized_effect=1.3,
+                    standard_error=0.2,
+                ),
+                MechanismObservation(
+                    observation_id="obs.pten",
+                    mechanism_id="pten",
+                    label="PTEN brake",
+                    standardized_effect=-0.7,
+                    standard_error=0.25,
+                ),
+                MechanismObservation(
+                    observation_id="obs.akt",
+                    mechanism_id="akt",
+                    label="AKT signaling",
+                    standardized_effect=0.5,
+                    standard_error=0.3,
+                    state=MechanismObservationState.LEFT_CENSORED,
+                ),
+            ),
+            "typed_relations": (
+                MechanismRelation(
+                    relation_id="rel.egfr-pten",
+                    source_mechanism_id="egfr",
+                    target_mechanism_id="pten",
+                    kind=MechanismRelationKind.INHIBITS,
+                    weight=0.7,
+                ),
+            ),
+        }
+    )
+    engine = M1204MechanismEngine()
+    result = engine.infer(typed)
+    assert result.status is MechanismInferenceStatus.INFERRED
+    assert result.typed_model is True
+    assert result.model_profile == M1204_GLIOMA_MODEL_FAMILY
+    assert result.solver_iterations > 0
+    assert result.solver_objective is not None
+    assert len(result.estimates) == 3
+    assert (
+        next(item for item in result.estimates if item.mechanism_id == "egfr").posterior_probability
+        > 0.5
+    )
+    assert engine.verify(result) == result
 
 
 def test_state_method_preserves_alternatives_and_counter_evidence() -> None:

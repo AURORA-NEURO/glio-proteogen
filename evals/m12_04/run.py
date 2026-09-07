@@ -19,10 +19,15 @@ if __package__ in {None, ""}:
         sys.path.insert(0, str(_PROJECT_ROOT))
 
 from glio_proteogen.contracts.m12_04 import (
+    M1204_GLIOMA_MODEL_FAMILY,
     M1204_M1201_RESULT_MEDIA_TYPE,
     InferBiomarkerPanelMechanismRequest,
     MechanismInferenceConfiguration,
     MechanismInferenceStatus,
+    MechanismObservation,
+    MechanismObservationState,
+    MechanismRelation,
+    MechanismRelationKind,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
@@ -43,6 +48,7 @@ from glio_proteogen.modules.c12_driver_to_protein_consequence.m12_04_network_sta
 )
 
 MODULE_ID: Final = "GLIO-PROTEOGEN-M12-04"
+EXPECTED_TYPED_ESTIMATES: Final = 3
 SCENARIO_PATH: Final = (
     Path(__file__).parents[2] / "tests" / "fixtures" / "m12_04" / "scenarios.json"
 )
@@ -54,6 +60,7 @@ EXPECTED_CASE_IDS: Final = (
     "invalid_bounds_abstention",
     "replay_and_tamper",
     "authorization_gate",
+    "typed_glioma_graph",
 )
 
 
@@ -227,6 +234,61 @@ def run_evaluator() -> dict[str, object]:
     except M1204MechanismAuthorizationError:
         denied = True
     checks.append(EvalCheck("authorization_gate", denied, "denied controls rejected"))
+    base = build_scenario_request()
+    typed = base.model_copy(
+        update={
+            "configuration": base.configuration.model_copy(
+                update={
+                    "model_family": M1204_GLIOMA_MODEL_FAMILY,
+                    "bootstrap_replicates": 16,
+                }
+            ),
+            "typed_observations": (
+                MechanismObservation(
+                    observation_id="obs.egfr",
+                    mechanism_id="egfr",
+                    label="EGFR signaling",
+                    standardized_effect=1.3,
+                    standard_error=0.2,
+                ),
+                MechanismObservation(
+                    observation_id="obs.pten",
+                    mechanism_id="pten",
+                    label="PTEN brake",
+                    standardized_effect=-0.7,
+                    standard_error=0.25,
+                ),
+                MechanismObservation(
+                    observation_id="obs.akt",
+                    mechanism_id="akt",
+                    label="AKT signaling",
+                    standardized_effect=0.5,
+                    standard_error=0.3,
+                    state=MechanismObservationState.LEFT_CENSORED,
+                ),
+            ),
+            "typed_relations": (
+                MechanismRelation(
+                    relation_id="rel.egfr-pten",
+                    source_mechanism_id="egfr",
+                    target_mechanism_id="pten",
+                    kind=MechanismRelationKind.INHIBITS,
+                    weight=0.7,
+                ),
+            ),
+        }
+    )
+    typed_result = engine.infer(typed)
+    checks.append(
+        EvalCheck(
+            "typed_glioma_graph",
+            typed_result.status is MechanismInferenceStatus.INFERRED
+            and typed_result.typed_model
+            and typed_result.solver_iterations > 0
+            and len(typed_result.estimates) == EXPECTED_TYPED_ESTIMATES,
+            typed_result.status.value,
+        )
+    )
     passed = sum(item.passed for item in checks)
     return {
         "module_id": MODULE_ID,
