@@ -414,10 +414,13 @@ def _compute(
         and request.negative_control_status is NegativeControlStatus.PASSED
         and not failing
     )
-    feature_object = _feature_object(request, request_digest, typed_fit=typed_fit) if safe else None
+    typed_features: tuple[MechanisticFeature, ...] | None = None
     interval = None
-    if typed and typed_fit is not None and typed_fit.converged:
-        _, interval = _typed_projection(request, request_digest, typed_fit)
+    if safe and typed and typed_fit is not None and typed_fit.converged:
+        typed_features, interval = _typed_projection(request, request_digest, typed_fit)
+    feature_object = (
+        _feature_object(request, request_digest, typed_features=typed_features) if safe else None
+    )
     if safe:
         status = MechanisticConstructionStatus.CONSTRUCTED
         support = SupportDecision(
@@ -485,11 +488,11 @@ def _feature_object(
     request: ConstructBiomarkerPanelMechanisticFeaturesRequest,
     request_digest: str,
     *,
-    typed_fit: _TypedFit | None = None,
+    typed_features: tuple[MechanisticFeature, ...] | None = None,
 ) -> MechanisticFeatureObject:
     features = request.feature_inputs
-    if typed_fit is not None and typed_fit.converged:
-        features, _ = _typed_projection(request, request_digest, typed_fit)
+    if typed_features is not None:
+        features = typed_features
     return MechanisticFeatureObject(
         object_id=f"feature-object.m1203.{request_digest.removeprefix('sha256:')}",
         version=request.configuration.version,
