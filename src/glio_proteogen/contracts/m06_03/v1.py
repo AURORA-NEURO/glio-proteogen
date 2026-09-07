@@ -9,9 +9,10 @@ only and must not be treated as a production contract.
 from __future__ import annotations
 
 from enum import StrEnum
+from math import isfinite
 from typing import Final, Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 
 from glio_proteogen.contracts.m06_01.canonical import canonical_request_digest
 from glio_proteogen.contracts.m06_01.v1 import (
@@ -53,6 +54,9 @@ M0603_MAX_METRICS: Final = 64
 M0603_MAX_EVIDENCE: Final = 32
 M0603_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M0603_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
+M0603_MAX_PROGRAM_STATES: Final = 5
+M0603_DEFAULT_BOOTSTRAP_REPLICATES: Final = 64
+M0603_MAX_BOOTSTRAP_REPLICATES: Final = 256
 M0603_BENCHMARK_ITERATIONS: Final = 25
 M0603_BENCHMARK_WARMUPS: Final = 1
 M0603_MEAN_BUDGET_NS: Final = 500_000_000
@@ -86,6 +90,16 @@ class BaselineResultStatus(StrEnum):
     ABSTAINED = "abstained"
 
 
+class GliomaBaselineProgram(StrEnum):
+    """Glioma programs used by the research-only abundance baseline lane."""
+
+    RTK_PI3K_AKT_MTOR = "RTK_PI3K_AKT_MTOR"
+    P53_CELL_CYCLE = "P53_CELL_CYCLE"
+    IDH_HIF1A = "IDH_HIF1A"
+    MESENCHYMAL_PROGRAM = "MESENCHYMAL_PROGRAM"
+    PROLIFERATION = "PROLIFERATION"
+
+
 class BaselinePreprocessingPolicy(FrozenModel):
     """Locked, caller-declared preprocessing steps for the baseline."""
 
@@ -112,6 +126,23 @@ class BaselineTuningRecord(FrozenModel):
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0603_MAX_EVIDENCE)
 
 
+class GliomaFeatureAnnotation(FrozenModel):
+    """A caller-declared feature-to-program mapping for the research lane."""
+
+    feature_id: Identifier
+    program: GliomaBaselineProgram
+    direction: Literal[-1, 1] = 1
+    standard_error: float = Field(default=1.0, gt=0.0, le=100.0, allow_inf_nan=False)
+    quality_weight: float = Field(default=1.0, ge=0.0, le=1.0, allow_inf_nan=False)
+    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0603_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def annotation_is_informative(self) -> GliomaFeatureAnnotation:
+        if self.quality_weight <= 0.0:
+            raise ValueError("glioma feature annotation requires positive quality")
+        return self
+
+
 class MatureBaselineConfiguration(FrozenModel):
     """Versioned estimator configuration bound to the M06-01 state schema."""
 
@@ -123,8 +154,23 @@ class MatureBaselineConfiguration(FrozenModel):
     preprocessing: BaselinePreprocessingPolicy
     tuning: BaselineTuningRecord
     reference: ArtifactReference
+    glioma_annotations: tuple[GliomaFeatureAnnotation, ...] = Field(
+        default=(), max_length=M0603_MAX_FEATURES
+    )
+    bootstrap_replicates: int = Field(
+        default=M0603_DEFAULT_BOOTSTRAP_REPLICATES,
+        ge=16,
+        le=M0603_MAX_BOOTSTRAP_REPLICATES,
+    )
     locked: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0603_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def annotations_are_unique(self) -> MatureBaselineConfiguration:
+        ids = tuple(item.feature_id for item in self.glioma_annotations)
+        if len(ids) != len(set(ids)):
+            raise ValueError("glioma feature annotations must be unique")
+        return self
 
 
 class BaselineEstimate(FrozenModel):
@@ -174,6 +220,36 @@ class BaselineDiagnostic(FrozenModel):
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0603_MAX_EVIDENCE)
 
 
+class GliomaProgramBaselineState(FrozenModel):
+    """Robust, normalized research state for one glioma program."""
+
+    program: GliomaBaselineProgram
+    score: float
+    lower_bound: float
+    upper_bound: float
+    stability: float = Field(ge=0.0, le=1.0, allow_inf_nan=False)
+    discordance: float = Field(ge=0.0, le=1.0, allow_inf_nan=False)
+    evidence_count: int = Field(ge=1, le=M0603_MAX_FEATURES)
+    top_drivers: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=8)
+    ablation_effects: tuple[NonEmptyStr, ...] = Field(default=(), max_length=8)
+    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0603_MAX_EVIDENCE)
+
+    @field_validator("score", "lower_bound", "upper_bound")
+    @classmethod
+    def state_values_are_finite(cls, value: float) -> float:
+        if not isfinite(value):
+            raise ValueError("glioma baseline state values must be finite")
+        return value
+
+    @model_validator(mode="after")
+    def state_bounds_are_closed(self) -> GliomaProgramBaselineState:
+        if self.lower_bound > self.upper_bound or not (
+            self.lower_bound <= self.score <= self.upper_bound
+        ):
+            raise ValueError("glioma baseline state requires ordered bounds containing score")
+        return self
+
+
 class EstimateProteinAbundanceBaselineRequest(FrozenModel):
     """Provisional request ABI for the mature-baseline estimator."""
 
@@ -211,6 +287,9 @@ class EstimateProteinAbundanceBaselineRequest(FrozenModel):
             or self.configuration.state_schema_version != self.state_schema.version
         ):
             raise ValueError("baseline configuration does not bind the formal-state schema")
+        annotation_ids = {item.feature_id for item in self.configuration.glioma_annotations}
+        if not annotation_ids <= schema_features:
+            raise ValueError("glioma baseline annotation references an unknown feature")
         return self
 
 
@@ -228,6 +307,9 @@ class EstimateProteinAbundanceBaselineResult(FrozenModel):
     status: BaselineResultStatus
     estimates: tuple[BaselineEstimate, ...] = Field(
         default=(), max_length=M0603_MAX_ESTIMATES
+    )
+    program_states: tuple[GliomaProgramBaselineState, ...] = Field(
+        default=(), max_length=M0603_MAX_PROGRAM_STATES
     )
     diagnostics: tuple[BaselineDiagnostic, ...] = Field(
         default=(), max_length=M0603_MAX_DIAGNOSTICS
@@ -252,6 +334,7 @@ class EstimateProteinAbundanceBaselineResult(FrozenModel):
                 raise ValueError("estimated result requires supported status")
         elif (
             self.estimates
+            or self.program_states
             or self.abstention_reason is None
             or self.support_decision.status
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
@@ -266,8 +349,10 @@ __all__ = [
     "M0603_BENCHMARK_ITERATIONS",
     "M0603_BENCHMARK_WARMUPS",
     "M0603_CONTRACT_VERSION",
+    "M0603_DEFAULT_BOOTSTRAP_REPLICATES",
     "M0603_EVIDENCE_CLAIM",
     "M0603_GATE",
+    "M0603_MAX_BOOTSTRAP_REPLICATES",
     "M0603_MAX_CANONICAL_REQUEST_BYTES",
     "M0603_MAX_CANONICAL_RESULT_BYTES",
     "M0603_MAX_DIAGNOSTICS",
@@ -276,6 +361,7 @@ __all__ = [
     "M0603_MAX_FEATURES",
     "M0603_MAX_METRICS",
     "M0603_MAX_PREPROCESSING_STEPS",
+    "M0603_MAX_PROGRAM_STATES",
     "M0603_MEAN_BUDGET_NS",
     "M0603_MODULE_ID",
     "M0603_OPERATION",
@@ -294,5 +380,8 @@ __all__ = [
     "BaselineTuningRecord",
     "EstimateProteinAbundanceBaselineRequest",
     "EstimateProteinAbundanceBaselineResult",
+    "GliomaBaselineProgram",
+    "GliomaFeatureAnnotation",
+    "GliomaProgramBaselineState",
     "MatureBaselineConfiguration",
 ]

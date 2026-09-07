@@ -268,15 +268,15 @@ trajectory implementation described above and are not counted as a fixed
 posterior estimator.
 
 The strict 22 are a floor for counterfeit estimators, not the whole scientific
-debt inventory. Eight further engines are transparently labelled
-formula/pass-through/declaration shells rather than fitted models: M06-03,
-M10-05, M11-03, M11-04, M12-03, M12-04, M12-06, M13-04.
+debt inventory. Seven further engines are transparently labelled
+formula/pass-through/declaration shells rather than fitted models: M10-05,
+M11-03, M11-04, M12-03, M12-04, M12-06, M13-04.
 Three representation constructors—M07-02, M08-02, and
 M09-02—also synthesize numeric vectors from hashes. They remain classified as
 representation plumbing, but their vectors must never be described as learned
 biological features. The exhaustive partition is therefore 22 strict stand-ins,
-8 transparent scientific shells, three synthetic representation constructors,
-and 47 schema, safe-abstention, validation, registry, evidence-publisher, or
+7 transparent scientific shells, three synthetic representation constructors,
+and 48 schema, safe-abstention, validation, registry, evidence-publisher, or
 other non-estimator engines.
 
 The strict list deliberately excludes representation/schema plumbing, safe
@@ -308,6 +308,22 @@ boundary with explicit per-responsibility exclusions; it is not a governed
 replacement and does not convert concordance coordinates into pathway activity,
 mechanism, prognosis, or treatment claims. See
 [`gbm-functional-proteotype.md`](gbm-functional-proteotype.md).
+
+## Completed M06-03 typed glioma baseline lane
+
+The additive M06-03 runtime now supports an explicitly annotated research path
+for protein-abundance baselines. Scalar and interval state values are normalized
+with a robust median/MAD scale, down-weighted with Huber influence, and fitted to
+the signed RTK/PI3K/AKT/mTOR, p53/cell-cycle, IDH/HIF1A, mesenchymal, and
+proliferation program graph using damped coordinate descent. Deterministic
+request-digest perturbations provide bootstrap intervals, stability, driver
+features, and feature/network ablation explanations; categorical, missing, and
+unsupported values never become negative evidence.
+
+The original M06-01 replay and scalar/interval/categorical baseline output remain
+available for compatibility. Typed program states are research-use-only normalized
+signals and do not establish measurement truth, diagnosis, prognosis, or treatment
+response.
 
 ## Completed M11-06 typed perturbation sensitivity lane
 

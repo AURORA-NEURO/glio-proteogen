@@ -40,6 +40,7 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 from glio_proteogen.modules.c06_estimation.m06_03_mature_baseline_estimator.kernel import (
+    GliomaBaselineOutput,
     M0603BaselineKernel,
 )
 
@@ -107,9 +108,33 @@ def _validate_json_request(
     return _REQUEST_ADAPTER.validate_json(body, strict=True)
 
 
-def _uncertainty() -> UncertaintyProfile:
+def _uncertainty(*, typed: bool = False) -> UncertaintyProfile:
     def unavailable(rationale: str) -> UncertaintyEstimate:
         return UncertaintyEstimate(state=EstimateState.NOT_ESTIMABLE, rationale=rationale)
+
+    if typed:
+        estimate = UncertaintyEstimate(
+            state=EstimateState.ESTIMATED,
+            probability=0.9,
+            rationale=(
+                "Deterministic median/MAD normalization and digest-seeded bootstrap "
+                "perturbations are replayable within the annotated support domain."
+            ),
+        )
+        return UncertaintyProfile(
+            measurement=estimate,
+            sampling=estimate,
+            parameter=estimate,
+            model_form=estimate,
+            identification=unavailable("Feature identity remains caller-declared."),
+            support=estimate,
+            transport=unavailable("No external transport model is installed."),
+            sensitivity_notes=(
+                "Only observed scalar and interval values contribute; missing and unsupported "
+                "values are excluded.",
+                "Program states are research-use-only normalized signals, not clinical estimates.",
+            ),
+        )
 
     return UncertaintyProfile(
         measurement=unavailable("No measurement error model is installed."),
@@ -212,6 +237,7 @@ class M0603MatureBaselineEngine:
         request_digest = canonical_request_digest(request)
         diagnostics: tuple[BaselineDiagnostic, ...] = ()
         estimates: tuple[Any, ...] = ()
+        program_states: tuple[Any, ...] = ()
         reason: str | None = None
         if request.formal_state_result.status is not FormalStateValidationStatus.VALID:
             status = BaselineResultStatus.ABSTAINED
@@ -225,10 +251,19 @@ class M0603MatureBaselineEngine:
                 ),
             )
         else:
-            output = self._kernel.estimate(request)
-            estimates = output.estimates
-            diagnostics = output.diagnostics
-            reason = output.abstention_reason
+            base_output = self._kernel.estimate(request)
+            typed = bool(request.configuration.glioma_annotations)
+            typed_output: GliomaBaselineOutput | None = None
+            if typed:
+                typed_output = self._kernel.estimate_typed(request, request_digest)
+                estimates = base_output.estimates if typed_output.abstention_reason is None else ()
+                diagnostics = (*base_output.diagnostics, *typed_output.diagnostics)
+                program_states = typed_output.states
+                reason = typed_output.abstention_reason
+            else:
+                estimates = base_output.estimates
+                diagnostics = base_output.diagnostics
+                reason = base_output.abstention_reason
             status = BaselineResultStatus.ABSTAINED if reason else BaselineResultStatus.ESTIMATED
         support_status = (
             SupportStatus.SUPPORTED
@@ -252,12 +287,13 @@ class M0603MatureBaselineEngine:
             "request": request,
             "status": status,
             "estimates": estimates,
+            "program_states": program_states,
             "diagnostics": diagnostics,
             "abstention_reason": reason,
             "parent_target": M0603_PARENT,
             "emits_parent": False,
             "support_decision": support,
-            "uncertainty": _uncertainty(),
+            "uncertainty": _uncertainty(typed=bool(request.configuration.glioma_annotations)),
             "provenance": _provenance(request, request_digest),
             "evidence": _evidence(request),
             "limitations": (
@@ -268,6 +304,26 @@ class M0603MatureBaselineEngine:
                 Limitation(
                     code="no_calibrated_probability",
                     statement="No calibrated probability or clinical interpretation is emitted.",
+                ),
+                *(
+                    (
+                        Limitation(
+                            code="typed_glioma_program_baseline",
+                            statement=(
+                                "Annotated values are normalized with robust median/MAD "
+                                "scaling and a signed glioma program graph."
+                            ),
+                        ),
+                        Limitation(
+                            code="research_use_only",
+                            statement=(
+                                "Program states are research-use-only signals and do not "
+                                "establish diagnosis, prognosis, or treatment response."
+                            ),
+                        ),
+                    )
+                    if request.configuration.glioma_annotations
+                    else ()
                 ),
             ),
         }
