@@ -582,6 +582,14 @@ class ConstructProteinRnaRepresentationRequest(FrozenModel):
             raise ValueError("typed glioma observations must bind one-to-one to input features")
         if any(item not in input_ids for item in input_ids_for_observations):
             raise ValueError("typed glioma observation references an unknown input feature")
+        typed_evidence_digests = {
+            evidence.reference.digest
+            for observation in self.glioma_observations
+            for evidence in observation.evidence
+        }
+        source_digests = {artifact.digest for artifact in self.source_artifacts}
+        if len(typed_evidence_digests | source_digests) > M1002_MAX_EVIDENCE:
+            raise ValueError("combined typed glioma evidence exceeds the bounded evidence limit")
         return self
 
 
