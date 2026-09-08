@@ -251,6 +251,21 @@ class ImmunopeptidomicPresentationResult(FrozenModel):
         return self
 
 
+class PresentationReplayRequest(FrozenModel):
+    """Transport envelope for exact result verification."""
+
+    request: ImmunopeptidomicPresentationRequest
+    result: ImmunopeptidomicPresentationResult
+
+
+class PresentationReplayResult(FrozenModel):
+    """Sanitized verification response for the HTTP/CLI boundary."""
+
+    verified: Literal[True] = True
+    request_digest: Sha256Digest
+    result_digest: Sha256Digest
+
+
 def _digest_payload(value: FrozenModel, field: str) -> dict[str, object]:
     payload = value.model_dump(mode="json")
     payload[field] = _ZERO_DIGEST
@@ -562,6 +577,8 @@ __all__ = [
     "PeptidePresentation",
     "PositionWeightMatrix",
     "PresentationProfile",
+    "PresentationReplayRequest",
+    "PresentationReplayResult",
     "analyze_immunopeptidomic_presentation",
     "model_digest",
     "presentation_profile",

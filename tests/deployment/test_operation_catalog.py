@@ -41,6 +41,11 @@ from glio_proteogen.adapters.glioma_models import (
     GBM_AXES_REQUEST_MAX_BYTES,
     GBM_AXES_RESULT_MAX_BYTES,
 )
+from glio_proteogen.adapters.immunopeptidomic_presentation import (
+    PRESENTATION_REPLAY_MAX_BYTES,
+    PRESENTATION_REQUEST_MAX_BYTES,
+    PRESENTATION_RESULT_MAX_BYTES,
+)
 from glio_proteogen.adapters.longitudinal_gbm import (
     LONGITUDINAL_GBM_REPLAY_MAX_BYTES,
     LONGITUDINAL_GBM_REQUEST_MAX_BYTES,
@@ -154,29 +159,29 @@ def _assert_exhaustive_report(report: dict[str, object], digest: str) -> None:
     assert report == {
         "valid": True,
         "catalog_digest": digest,
-        "mounted_operation_count": 421,
-        "mounted_route_registration_count": 421,
+        "mounted_operation_count": 425,
+        "mounted_route_registration_count": 425,
         "shadowed_route_registration_count": 0,
-        "catalog_operation_count": 421,
-        "method_counts": {"GET": 195, "POST": 226},
+        "catalog_operation_count": 425,
+        "method_counts": {"GET": 197, "POST": 228},
         "safety_class_counts": {
             "S2": 157,
             "S3": 187,
             "operational": 5,
-            "research-use-only": 72,
+            "research-use-only": 76,
         },
         "request_media_type_counts": {
-            "application/json": 225,
+            "application/json": 227,
             "application/octet-stream": 1,
         },
-        "response_media_type_counts": {"application/json": 421},
-        "request_limit_declared_count": 226,
-        "result_limit_declared_count": 290,
-        "validated_example_status_counts": {"abstained": 403, "validated": 18},
+        "response_media_type_counts": {"application/json": 425},
+        "request_limit_declared_count": 228,
+        "result_limit_declared_count": 294,
+        "validated_example_status_counts": {"abstained": 407, "validated": 18},
         "validated_example_abstention_reason_counts": {
-            "no_repository_validated_fixture": 138,
-            "operation_has_no_request_body": 195,
-            "requires_prior_operation_result": 70,
+            "no_repository_validated_fixture": 139,
+            "operation_has_no_request_body": 197,
+            "requires_prior_operation_result": 71,
         },
     }
 
@@ -244,8 +249,27 @@ def _assert_research_metadata(operations: dict[tuple[str, str], dict[str, object
         _assert_m11_facade_metadata,
         _assert_m14_facade_metadata,
         _assert_m15_facade_metadata,
+        _assert_immunopeptidomic_metadata,
     ):
         assertion(operations)
+
+
+def _assert_immunopeptidomic_metadata(
+    operations: dict[tuple[str, str], dict[str, object]],
+) -> None:
+    prefix = "/v1/research/immunopeptidomic-presentation"
+    analyze = operations[("POST", f"{prefix}/analyze")]
+    assert analyze["request_max_bytes"] == PRESENTATION_REQUEST_MAX_BYTES
+    assert analyze["result_max_bytes"] == PRESENTATION_RESULT_MAX_BYTES
+    assert analyze["safety_class"] == "research-use-only"
+    assert analyze["mutability_class"] == "stateless-compute"
+    verify = operations[("POST", f"{prefix}/verify")]
+    assert verify["request_max_bytes"] == PRESENTATION_REPLAY_MAX_BYTES
+    assert verify["result_max_bytes"] == PRESENTATION_REPLAY_MAX_BYTES
+    for suffix in ("profile", "demo"):
+        operation = operations[("GET", f"{prefix}/{suffix}")]
+        assert operation["request_max_bytes"] is None
+        assert operation["result_max_bytes"] == PRESENTATION_RESULT_MAX_BYTES
 
 
 def _assert_functional_proteotype_metadata(

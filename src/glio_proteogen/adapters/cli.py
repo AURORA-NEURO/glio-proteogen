@@ -97,6 +97,9 @@ from glio_proteogen.adapters.gbm_functional_proteotype import (
 from glio_proteogen.adapters.gbm_master_kinases import cli as gbm_master_kinases_app
 from glio_proteogen.adapters.gbm_rna_purity import cli as gbm_rna_purity_app
 from glio_proteogen.adapters.glioma_models import cli as gbm_axes_app
+from glio_proteogen.adapters.immunopeptidomic_presentation import (
+    cli as immunopeptidomic_presentation_app,
+)
 from glio_proteogen.adapters.limits import (
     MAX_REQUEST_BYTES,
     RequestBodyTooLargeError,
@@ -742,6 +745,10 @@ app = typer.Typer(no_args_is_help=True, pretty_exceptions_enable=False)
 protocol_app = typer.Typer(no_args_is_help=True, help="M01-01 protocol operations.")
 app.add_typer(protocol_app, name="protocol")
 app.add_typer(research_state_app, name="research-state")
+app.add_typer(
+    immunopeptidomic_presentation_app,
+    name="immunopeptidomic-presentation",
+)
 app.add_typer(gbm_factor_graph_app, name="gbm-factor-graph")
 app.add_typer(gbm_functional_proteotype_app, name="gbm-functional-proteotype")
 app.add_typer(gbm_axes_app, name="gbm-axes")

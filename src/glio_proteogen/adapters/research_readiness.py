@@ -21,6 +21,7 @@ from glio_proteogen.adapters import (
     gbm_master_kinases,
     gbm_rna_purity,
     glioma_models,
+    immunopeptidomic_presentation,
     longitudinal_gbm,
     longitudinal_gbm_complex_transition,
     longitudinal_gbm_kinase_transition,
@@ -75,6 +76,13 @@ RESEARCH_READINESS_CHECKS: Final[tuple[ResearchReadinessCheck, ...]] = (
         lane_id="proteogenomic-state",
         profile_routes=(_profile_route(research_state.RESEARCH_STATE_ROUTE_PREFIX),),
         check=research_state.ensure_research_state_ready,
+    ),
+    ResearchReadinessCheck(
+        lane_id="immunopeptidomic-presentation",
+        profile_routes=(
+            _profile_route(immunopeptidomic_presentation.PRESENTATION_ROUTE_PREFIX),
+        ),
+        check=immunopeptidomic_presentation.ensure_presentation_ready,
     ),
     ResearchReadinessCheck(
         lane_id="gbm-functional-proteotype",

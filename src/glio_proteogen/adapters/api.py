@@ -62,6 +62,15 @@ from glio_proteogen.adapters.glioma_models import (
     install_glioma_models_openapi,
 )
 from glio_proteogen.adapters.glioma_models import router as glioma_models_router
+from glio_proteogen.adapters.immunopeptidomic_presentation import (
+    PRESENTATION_REPLAY_MAX_BYTES,
+    PRESENTATION_REQUEST_MAX_BYTES,
+    PRESENTATION_RESULT_MAX_BYTES,
+    PRESENTATION_ROUTE_PREFIX,
+)
+from glio_proteogen.adapters.immunopeptidomic_presentation import (
+    router as immunopeptidomic_presentation_router,
+)
 from glio_proteogen.adapters.limits import MAX_REQUEST_BYTES, RequestSizeLimitMiddleware
 from glio_proteogen.adapters.longitudinal_gbm import (
     LONGITUDINAL_GBM_REPLAY_MAX_BYTES,
@@ -1551,6 +1560,14 @@ _MODEL_ROUTE_LIMITS: Final[dict[str, tuple[int, int | None]]] = {
     RESEARCH_STATE_ROUTE_PREFIX: (
         RESEARCH_STATE_REQUEST_MAX_BYTES,
         RESEARCH_STATE_RESULT_MAX_BYTES,
+    ),
+    f"{PRESENTATION_ROUTE_PREFIX}/verify": (
+        PRESENTATION_REPLAY_MAX_BYTES,
+        PRESENTATION_REPLAY_MAX_BYTES,
+    ),
+    PRESENTATION_ROUTE_PREFIX: (
+        PRESENTATION_REQUEST_MAX_BYTES,
+        PRESENTATION_RESULT_MAX_BYTES,
     ),
     "/v1/modules/M01-02": (MAX_REQUEST_BYTES, None),
     "/v1/modules/M03-02": (MAX_REQUEST_BYTES, None),
@@ -3514,6 +3531,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         app.include_router(model_app.router)
 
     app.include_router(research_state_router)
+    app.include_router(immunopeptidomic_presentation_router)
     app.include_router(gbm_functional_proteotype_router)
     app.include_router(glioma_models_router)
     app.include_router(neftel_programs_router)
