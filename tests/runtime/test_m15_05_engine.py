@@ -11,6 +11,8 @@ from glio_proteogen.contracts.m15_05 import (
     ChangePointStatus,
     EvolutionModelConfiguration,
     EvolutionModelFamily,
+    GliomaEvolutionProgram,
+    LongitudinalEvidenceState,
     ModelComplexActivityLongitudinalEvolutionRequest,
     TimePointObservation,
     TrajectoryDimension,
@@ -36,6 +38,7 @@ from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
 )
 
 _OBSERVATION_COUNT = 2
+_TYPED_OBSERVATION_COUNT = 4
 
 
 def _digest(label: str) -> str:
@@ -136,6 +139,39 @@ def _request() -> ModelComplexActivityLongitudinalEvolutionRequest:
     )
 
 
+def _typed_request() -> ModelComplexActivityLongitudinalEvolutionRequest:
+    request = _request()
+    configuration = request.policy.configuration.model_copy(
+        update={
+            "model_family": EvolutionModelFamily.GLIOMA_TYPED_GRAPH,
+            "bootstrap_replicates": 16,
+        }
+    )
+    observations = tuple(
+        _observation(sequence, label).model_copy(
+            update={
+                "program": program,
+                "standardized_effect": effect,
+                "standard_error": 0.2,
+                "quality_weight": 0.9,
+                "evidence_state": LongitudinalEvidenceState.OBSERVED,
+            }
+        )
+        for sequence, label, program, effect in (
+            (0, "baseline-rtk", GliomaEvolutionProgram.RTK_PI3K_AKT_MTOR, 4.0),
+            (1, "baseline-p53", GliomaEvolutionProgram.P53_CELL_CYCLE, -4.0),
+            (2, "recurrence-rtk", GliomaEvolutionProgram.RTK_PI3K_AKT_MTOR, 4.0),
+            (3, "recurrence-p53", GliomaEvolutionProgram.P53_CELL_CYCLE, -4.0),
+        )
+    )
+    return request.model_copy(
+        update={
+            "policy": request.policy.model_copy(update={"configuration": configuration}),
+            "observations": observations,
+        }
+    )
+
+
 def test_supported_replay_preserves_order_and_explicit_change_points() -> None:
     service = m1505.M1505Service()
     result = service.execute(_request())
@@ -147,6 +183,47 @@ def test_supported_replay_preserves_order_and_explicit_change_points() -> None:
     assert result.temporal_order_verified is True
     assert result.future_leakage_checked is True
     assert service.verify(result).result_digest == result.result_digest
+
+
+def test_typed_glioma_temporal_graph_infers_intervals_and_change_points() -> None:
+    service = m1505.M1505Service()
+    result = service.execute(_typed_request())
+    assert result.status is TrajectoryStatus.MODELED
+    assert result.typed_model
+    assert result.solver_iterations is not None
+    assert result.objective_trace_digest is not None
+    assert len(result.trajectory) == _TYPED_OBSERVATION_COUNT
+    assert all(0.0 <= state.posterior_probability <= 1.0 for state in result.trajectory)
+    assert any(item.status is ChangePointStatus.DETECTED for item in result.change_points)
+    assert service.verify(result) == result
+
+
+def test_typed_missing_evidence_abstains_without_negative_state() -> None:
+    request = _typed_request()
+    missing = request.observations[0].model_copy(
+        update={
+            "program": None,
+            "standardized_effect": None,
+            "standard_error": None,
+            "evidence_state": LongitudinalEvidenceState.MISSING,
+        }
+    )
+    result = m1505.M1505Service().execute(
+        request.model_copy(update={"observations": (missing, *request.observations[1:])})
+    )
+    assert result.status is TrajectoryStatus.MODELED
+    assert "indeterminate" in result.trajectory[0].label
+    insufficient = request.model_copy(
+        update={"observations": tuple(item.model_copy(update={
+            "program": None,
+            "standardized_effect": None,
+            "standard_error": None,
+            "evidence_state": LongitudinalEvidenceState.UNSUPPORTED,
+        }) for item in request.observations)}
+    )
+    abstained = m1505.M1505Service().execute(insufficient)
+    assert abstained.status is TrajectoryStatus.ABSTAINED
+    assert abstained.human_review_required
 
 
 def test_denied_control_fails_closed() -> None:
@@ -265,4 +342,3 @@ def test_replay_mismatch_is_distinguished_from_digest_tamper() -> None:
     changed = changed.model_copy(update={"result_digest": result_payload_digest(changed)})
     with pytest.raises(m1505.M1505ReplayVerificationError):
         m1505.M1505Service().verify(changed)
-

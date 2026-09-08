@@ -11,7 +11,7 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from pydantic import ValidationError
-from tests.runtime.test_m15_05_engine import _request
+from tests.runtime.test_m15_05_engine import _request, _typed_request
 
 from glio_proteogen.contracts.m15_05 import (
     M1505_DOSSIER_SHA256,
@@ -30,6 +30,8 @@ def _candidate(kind: str) -> object:
     request = _request()
     if kind == "supported":
         return request
+    if kind == "typed_glioma_graph":
+        return _typed_request()
     payload: dict[str, Any] = request.model_dump(mode="json")
     if kind == "denied_control":
         payload["context"]["references"]["consent"]["state"] = "withheld"

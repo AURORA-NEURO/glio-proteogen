@@ -252,7 +252,6 @@ M11-06
 M12-05
 M13-03 M13-05 M13-06
 M14-03 M14-05
-M15-05
 ```
 
 The strict union contains nine digest-derived-number engines, six fixed-posterior
@@ -267,15 +266,15 @@ its backward-compatible opaque path; typed effect requests use the robust
 trajectory implementation described above and are not counted as a fixed
 posterior estimator.
 
-The strict 21 are a floor for counterfeit estimators, not the whole scientific
+The strict 20 are a floor for counterfeit estimators, not the whole scientific
 debt inventory. M12-06's legacy scalar compatibility path remains in this
 floor, while its new typed glioma replicate lane is a real robust estimator.
-M10-05, M11-03, M11-04, M12-03, M12-04, M12-06, M13-04, and M15-04 now have typed glioma
+M10-05, M11-03, M11-04, M12-03, M12-04, M12-06, M13-04, M15-04, and M15-05 now have typed glioma
 research lanes documented below while their legacy paths remain provisional.
 Three representation constructors—M07-02, M08-02, and
 M09-02—also synthesize numeric vectors from hashes. They remain classified as
 representation plumbing, but their vectors must never be described as learned
-biological features. The exhaustive partition is therefore 21 strict stand-ins,
+biological features. The exhaustive partition is therefore 20 strict stand-ins,
 0 transparent scientific shells, three synthetic representation constructors,
 and 55 schema, safe-abstention, validation, registry, evidence-publisher, or
 other non-estimator engines.
@@ -587,6 +586,26 @@ for human review. The legacy posterior/state grammar remains unchanged for
 compatibility; typed mechanism activity is research-use-only and is not a
 clinical probability, causal claim, prognosis, kinase-ownership decision, or
 treatment recommendation.
+
+## Completed M15-05 typed glioma temporal graph lane
+
+The additive M15-05 runtime now supports the
+`glioma-complex-activity-longitudinal-graph/1.0.0` model family. Longitudinal
+observations carry signed standardized effects for the five glioma programs,
+assay errors, quality weights, and explicit observed, left-censored, missing,
+or unsupported states. A damped Huber coordinate-descent fit combines temporal
+smoothing with directional RTK/PI3K/AKT/mTOR, p53/cell-cycle, IDH/HIF1A,
+mesenchymal, and proliferation coherence without using future observations to
+label an earlier time point.
+
+Digest-seeded bootstrap perturbations provide replayable intervals and
+posterior support for thresholded trajectory labels. Cross-band transitions
+produce detected change-point objects; missing or unsupported points remain
+explicitly indeterminate and insufficient typed histories abstain for human
+review. The historical metadata-replay path remains compatible and retains its
+provisional, non-biological semantics. Typed trajectories are research-use-only
+signals, not diagnosis, prognosis, causal intervention, kinase ownership, or
+treatment recommendations.
 
 ## Completed M15-06 typed glioma perturbation sensitivity lane
 

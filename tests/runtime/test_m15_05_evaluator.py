@@ -6,7 +6,7 @@ import json
 
 from evals.m15_05.run import main
 
-_SCENARIO_COUNT = 8
+_SCENARIO_COUNT = 9
 
 
 def test_locked_m1505_evaluator_corpus_passes(capsys: object) -> None:
@@ -16,4 +16,3 @@ def test_locked_m1505_evaluator_corpus_passes(capsys: object) -> None:
     assert report["passed"] is True
     assert report["declared"] == _SCENARIO_COUNT
     assert report["dossier_sha256"].startswith("sha256:")
-

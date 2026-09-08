@@ -56,6 +56,10 @@ M1505_MAX_DIAGNOSTICS: Final = 64
 M1505_MAX_DIMENSIONS: Final = 16
 M1505_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M1505_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
+M1505_DEFAULT_BOOTSTRAP_REPLICATES: Final = 64
+M1505_MAX_BOOTSTRAP_REPLICATES: Final = 256
+M1505_MAX_EFFECT: Final = 20.0
+M1505_GLIOMA_MODEL_FAMILY: Final = "glioma-complex-activity-longitudinal-graph/1.0.0"
 
 
 class TrajectoryDimension(StrEnum):
@@ -73,6 +77,7 @@ class EvolutionModelFamily(StrEnum):
     MECHANISTIC = "mechanistic"
     FOUNDATION_ASSISTED = "foundation_assisted"
     LATENT_CLASS_PROTEOTYPE = "latent_class_proteotype"
+    GLIOMA_TYPED_GRAPH = M1505_GLIOMA_MODEL_FAMILY
 
 
 class TrajectoryStatus(StrEnum):
@@ -95,6 +100,21 @@ class LongitudinalDiagnosticCode(StrEnum):
     PROVISIONAL_ABI_PENDING_REVIEW = "provisional_abi_pending_review"
 
 
+class LongitudinalEvidenceState(StrEnum):
+    OBSERVED = "observed"
+    LEFT_CENSORED = "left_censored"
+    MISSING = "missing"
+    UNSUPPORTED = "unsupported"
+
+
+class GliomaEvolutionProgram(StrEnum):
+    RTK_PI3K_AKT_MTOR = "RTK_PI3K_AKT_MTOR"
+    P53_CELL_CYCLE = "P53_CELL_CYCLE"
+    IDH_HIF1A = "IDH_HIF1A"
+    MESENCHYMAL_PROGRAM = "MESENCHYMAL_PROGRAM"
+    PROLIFERATION = "PROLIFERATION"
+
+
 class TimePointObservation(FrozenModel):
     """One immutable, ordered observation used by the evolution model."""
 
@@ -105,6 +125,44 @@ class TimePointObservation(FrozenModel):
     treatment_era: NonEmptyStr
     feature_artifact: ArtifactReference
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1505_MAX_EVIDENCE)
+    program: GliomaEvolutionProgram | None = None
+    standardized_effect: float | None = Field(
+        default=None, ge=-M1505_MAX_EFFECT, le=M1505_MAX_EFFECT, allow_inf_nan=False
+    )
+    standard_error: float | None = Field(
+        default=None, gt=0.0, le=M1505_MAX_EFFECT, allow_inf_nan=False
+    )
+    quality_weight: float = Field(default=1.0, gt=0.0, le=1.0, allow_inf_nan=False)
+    evidence_state: LongitudinalEvidenceState | None = None
+
+    @model_validator(mode="after")
+    def typed_observation_shape_is_closed(self) -> TimePointObservation:
+        typed = (
+            self.program is not None
+            or self.standardized_effect is not None
+            or self.standard_error is not None
+            or self.evidence_state is not None
+        )
+        if not typed:
+            return self
+        if self.evidence_state is None:
+            raise ValueError("typed longitudinal observation requires evidence_state")
+        active = self.evidence_state in {
+            LongitudinalEvidenceState.OBSERVED,
+            LongitudinalEvidenceState.LEFT_CENSORED,
+        }
+        if active and (
+            self.program is None
+            or self.standardized_effect is None
+            or self.standard_error is None
+            or self.quality_weight <= 0.0
+        ):
+            raise ValueError(
+                "supported longitudinal observation requires program, effect, and error"
+            )
+        if not active and (self.standardized_effect is not None or self.standard_error is not None):
+            raise ValueError("missing or unsupported longitudinal observation cannot carry values")
+        return self
 
 
 class EvolutionModelConfiguration(FrozenModel):
@@ -115,6 +173,11 @@ class EvolutionModelConfiguration(FrozenModel):
     model_reference: ArtifactReference
     locked: Literal[True] = True
     future_leakage_blocked: Literal[True] = True
+    bootstrap_replicates: int = Field(
+        default=M1505_DEFAULT_BOOTSTRAP_REPLICATES,
+        ge=16,
+        le=M1505_MAX_BOOTSTRAP_REPLICATES,
+    )
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1505_MAX_EVIDENCE)
 
 
@@ -241,6 +304,13 @@ class ComplexActivityLongitudinalEvolutionResult(FrozenModel):
     temporal_order_verified: Literal[True] = True
     future_leakage_checked: Literal[True] = True
     human_review_required: bool = False
+    typed_model: bool = False
+    solver_iterations: int | None = Field(default=None, ge=0, le=1000)
+    solver_objective: float | None = Field(default=None, ge=0.0, le=1e9, allow_inf_nan=False)
+    solver_max_update: float | None = Field(
+        default=None, ge=0.0, le=M1505_MAX_EFFECT, allow_inf_nan=False
+    )
+    objective_trace_digest: Sha256Digest | None = None
 
     @model_validator(mode="after")
     def result_is_closed(self) -> ComplexActivityLongitudinalEvolutionResult:
@@ -273,9 +343,11 @@ class ComplexActivityLongitudinalEvolutionResult(FrozenModel):
 
 __all__ = [
     "M1505_CONTRACT_VERSION",
+    "M1505_DEFAULT_BOOTSTRAP_REPLICATES",
     "M1505_DOSSIER_SHA256",
     "M1505_DOSSIER_SLICE",
     "M1505_GATE",
+    "M1505_GLIOMA_MODEL_FAMILY",
     "M1505_M1504_RESULT_MEDIA_TYPE",
     "M1505_MAX_CANONICAL_REQUEST_BYTES",
     "M1505_MAX_CANONICAL_RESULT_BYTES",
@@ -297,8 +369,10 @@ __all__ = [
     "ComplexActivityLongitudinalEvolutionResult",
     "EvolutionModelConfiguration",
     "EvolutionModelFamily",
+    "GliomaEvolutionProgram",
     "LongitudinalDiagnostic",
     "LongitudinalDiagnosticCode",
+    "LongitudinalEvidenceState",
     "ModelComplexActivityLongitudinalEvolutionRequest",
     "TimePointObservation",
     "TrajectoryDimension",
