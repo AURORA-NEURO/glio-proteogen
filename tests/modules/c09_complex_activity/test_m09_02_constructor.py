@@ -10,6 +10,8 @@ from glio_proteogen.contracts.m09_02 import (
     ConstructComplexActivityRepresentationRequest,
     FeatureLineage,
     FeatureSpecification,
+    GliomaComplexEvidenceState,
+    GliomaComplexObservation,
     LeakageCheck,
     LeakageCheckStatus,
     RepresentationFeature,
@@ -300,3 +302,86 @@ def test_built_result_seal_rejects_digest_and_bytes_drift() -> None:
         )
     with pytest.raises(m0902.M0902InputError, match="canonical"):
         m0902.BuiltM0902Result(result=built.result, canonical_bytes=b"{}")
+
+
+def _typed_request(*, reverse: bool = False) -> ConstructComplexActivityRepresentationRequest:
+    request = _request()
+    specification = request.feature_specs[0].model_copy(update={"dimension": 4})
+    records = (
+        ("EGFR", 2.0, 1.20, True),
+        ("MET", 1.0, 0.90, False),
+        ("GRB2", 1.0, 0.80, False),
+    )
+    observations = tuple(
+        GliomaComplexObservation(
+            observation_id=f"observation.{member.casefold()}",
+            feature_id=specification.feature_id,
+            complex_id="complex.rtk",
+            member_id=member,
+            stoichiometric_weight=weight,
+            essential=essential,
+            evidence_state=GliomaComplexEvidenceState.OBSERVED,
+            standardized_effect=effect,
+            standard_error=0.2,
+            quality_weight=1.0,
+        )
+        for member, weight, effect, essential in records
+    )
+    if reverse:
+        observations = tuple(reversed(observations))
+    return request.model_copy(
+        update={"feature_specs": (specification,), "typed_observations": observations}
+    )
+
+
+def test_typed_glioma_complex_fit_is_evidence_driven_and_replay_bound() -> None:
+    engine = m0902.M0902RepresentationConstructor()
+    built = engine.construct(_typed_request())
+    replay = engine.construct(_typed_request(reverse=True))
+
+    assert built.result.status.value == "constructed"
+    feature = built.result.features[0]
+    assert feature.model_family == "glioma-complex-stoichiometric-irls/1.0.0"
+    assert feature.evidence_count == len(built.result.request.typed_observations)
+    assert feature.lower_bound is not None
+    assert feature.upper_bound is not None
+    assert feature.lower_bound <= feature.values[0] <= feature.upper_bound
+    assert feature.top_drivers
+    assert feature.ablation_effects
+    assert built.canonical_bytes == replay.canonical_bytes
+    assert engine.verify(built.result, built.canonical_bytes)
+
+
+def test_typed_missing_evidence_abstains_without_negative_feature() -> None:
+    request = _typed_request()
+    missing = request.typed_observations[0].model_copy(
+        update={
+            "evidence_state": GliomaComplexEvidenceState.MISSING,
+            "standardized_effect": None,
+            "standard_error": None,
+            "quality_weight": 0.0,
+        }
+    )
+    request = request.model_copy(
+        update={"typed_observations": (missing, *request.typed_observations[1:])}
+    )
+    result = m0902.M0902RepresentationConstructor().construct(request).result
+    assert result.status.value == "abstained"
+    assert result.features == ()
+    assert result.abstention_reason is not None
+
+
+def test_typed_duplicate_member_and_unresolved_feature_are_rejected() -> None:
+    request = _typed_request()
+    duplicate = request.typed_observations[0].model_copy(
+        update={"observation_id": "observation.duplicate"}
+    )
+    duplicate_payload = request.model_dump(mode="python")
+    duplicate_payload["typed_observations"] = (*request.typed_observations, duplicate)
+    with pytest.raises(ValueError, match="unique per member"):
+        ConstructComplexActivityRepresentationRequest.model_validate(duplicate_payload)
+    unknown = request.typed_observations[0].model_copy(update={"feature_id": "feature.unknown"})
+    unknown_payload = request.model_dump(mode="python")
+    unknown_payload["typed_observations"] = (unknown, *request.typed_observations[1:])
+    with pytest.raises(ValueError, match="bind requested features"):
+        ConstructComplexActivityRepresentationRequest.model_validate(unknown_payload)
