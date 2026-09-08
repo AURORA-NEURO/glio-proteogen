@@ -249,7 +249,6 @@ M09-03 M09-04 M09-05 M09-06
 M10-03 M10-07
 M11-05 (legacy opaque path)
 M11-06
-M12-05
 M13-03 M13-05 M13-06
 M14-03 M14-05
 ```
@@ -449,6 +448,25 @@ families. The typed path requires two supported mechanisms and a signed edge,
 and abstains when topology or convergence is insufficient. Outputs remain
 experimental standardized signals, not clinical mechanism, diagnosis,
 prognosis, kinase ownership, or treatment recommendations.
+
+## Completed M12-05 typed glioma temporal program lane
+
+The additive M12-05 runtime now recognizes typed temporal observations for the
+five reviewable glioma programs (RTK/PI3K/AKT/mTOR, p53/cell-cycle, IDH/HIF1A,
+mesenchymal, and proliferation). Each program is fitted over the ordered
+history with quality/standard-error precision, robust Huber influence, ridge
+stabilization, temporal smoothness, curvature control, and damped coordinate
+descent. Missing and unsupported observations are excluded; left-censored
+observations contribute a one-sided residual, so absence is never manufactured
+as suppression.
+
+The result includes quantized NumPy PCG64 request-digest bootstrap intervals,
+thresholded activation labels, evidence counts, stability, cross-program
+discordance, top drivers, solver objective-trace digest, and interval-supported
+change points. The original opaque objective grammar remains compatibility-only
+and unchanged for untyped requests. This is an experimental longitudinal
+molecular signal, not validated tumor evolution, prognosis, diagnosis, or
+treatment response.
 
 ## Completed M12-06 typed glioma perturbation response lane
 

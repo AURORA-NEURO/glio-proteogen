@@ -10,7 +10,7 @@
 | Operation | `infer_biomarker_panel_longitudinal_evolution` |
 | Input boundary | Opaque M12-04 network/state result, ordered time-point observations, locked model configuration, source artifacts, and seven caller controls |
 | Output ceiling | Time-indexed trajectory and explicit change points, typed uncertainty, support, provenance, evidence, limitations, and abstention |
-| Selected runtime | Deterministic caller-declared trajectory grammar with replay-bound canonical digests |
+| Selected runtime | Additive typed glioma temporal program fit (damped Huber IRLS, smoothing/curvature, deterministic bootstrap) with the caller-declared grammar retained for compatibility |
 | API | `GET /v1/m12-05/schema/{name}`; `POST /v1/modules/M12-05/longitudinal`; `POST /v1/modules/M12-05/verify` |
 | CLI | `m1205_app export-schema NAME`; `m1205_app infer REQUEST [--output RESULT]`; `m1205_app verify RESULT` |
 | Schemas | `request`, `output`, `observation`, `trajectory-state`, `change-point`, `configuration`, `policy`, `diagnostic` |
@@ -33,6 +33,18 @@ Observation sequence and timestamp ordering are validated at the contract
 boundary, preventing future leakage and preserving temporal reproducibility.
 
 ## Objective and output semantics
+
+Typed observations may opt into the research-only glioma lane by supplying a
+program, standardized effect, standard error, quality weight, and explicit
+evidence state. The solver fits five glioma programs independently over the
+ordered history, aggregates their latent state, and emits bounded intervals,
+stability, discordance, evidence counts, and top program drivers. It uses a
+one-sided loss for left-censored evidence and ignores missing/unsupported
+observations. Deterministic NumPy PCG64 perturbations are seeded from the
+canonical request digest; the objective-trace digest binds the complete solver
+path for replay. A change point is detected only when its bootstrap signed delta
+clears the configured threshold. This is an experimental molecular signal and
+does not assert tumor evolution, clinical risk, or treatment response.
 
 The selected deterministic reference boundary accepts exactly `stable`,
 `alternating`, `territory`, `treatment_era`, `time_course`, their
