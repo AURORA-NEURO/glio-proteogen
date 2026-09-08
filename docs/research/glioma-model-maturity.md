@@ -1082,7 +1082,16 @@ inventory. See
    [`cptac-gbm-matched-evidence-graph-design.md`](cptac-gbm-matched-evidence-graph-design.md).
 3. **Glioma immunopeptidomic presentation.** Bind exact HLA alleles and pinned
    pretrained processing/binding/presentation models, with allele support,
-   calibration, and abstention exposed in every result.
+   calibration, and abstention exposed in every result. The first numerical
+   step is now implemented as the caller-owned
+   `glioma-immunopeptidomic-presentation/0.1.0` runtime: it executes supplied
+   position matrices and processing coefficients, preserves missing/censored
+   expression, computes deterministic bootstrap intervals and component
+   ablations, and seals replay digests. No pretrained artifact is bundled, so
+   this lane remains caller-owned and cannot make a source-derived GBM
+   presentation claim until an explicitly licensed, calibrated model package is
+   admitted. See
+   [`glioma-immunopeptidomic-presentation.md`](glioma-immunopeptidomic-presentation.md).
 
 The lower-risk M11 integration is complete: its research/v2 facade delegates to
 the exact published GBM proteomic-axis ensembles without changing the frozen
