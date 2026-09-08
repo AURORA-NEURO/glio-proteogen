@@ -230,7 +230,11 @@ def test_typed_glioma_mechanism_graph_is_robust_and_replayable() -> None:
         "mechanism.RTK_PI3K_AKT_MTOR",
         "mechanism.P53_CELL_CYCLE",
     }
-    assert all(item.lower_bound <= item.posterior_probability <= item.upper_bound for item in result.estimates)
+    for item in result.estimates:
+        assert item.lower_bound is not None
+        assert item.posterior_probability is not None
+        assert item.upper_bound is not None
+        assert item.lower_bound <= item.posterior_probability <= item.upper_bound
     assert all(item.evidence_count == 1 for item in result.estimates)
     assert engine.verify(result) == result
 
