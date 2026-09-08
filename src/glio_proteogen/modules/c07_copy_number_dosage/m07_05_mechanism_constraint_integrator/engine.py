@@ -1,4 +1,10 @@
-"""Deterministic, support-aware mechanism and constraint integration runtime."""
+"""Deterministic mechanism/constraint integration with a typed glioma dosage lane.
+
+The compatibility path preserves the original declaration-only hard/soft
+constraint behavior.  The opt-in typed path fits explicit standardized dosage
+effects with robust IRLS, signed glioma program coupling, censor-aware loss,
+and deterministic bootstrap uncertainty without reading caller artifacts.
+"""
 
 from __future__ import annotations
 
