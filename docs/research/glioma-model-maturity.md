@@ -268,7 +268,7 @@ posterior estimator.
 The strict 20 are a floor for counterfeit estimators, not the whole scientific
 debt inventory. M12-06's legacy scalar compatibility path remains in this
 floor, while its new typed glioma replicate lane is a real robust estimator.
-M07-05, M08-03, M09-03, M09-04, M09-05, M09-06, M10-04, M10-05, M11-03, M11-04, M12-03, M12-04, M12-06, M13-04, M15-04, and M15-05 now have typed glioma
+M06-04, M07-05, M08-03, M09-03, M09-04, M09-05, M09-06, M10-04, M10-05, M11-03, M11-04, M12-03, M12-04, M12-06, M13-04, M15-04, and M15-05 now have typed glioma
 research lanes documented below while their legacy paths remain provisional.
 Three representation constructors—M07-02, M08-02, and
 M09-02—also synthesize numeric vectors from hashes. They remain classified as
@@ -323,6 +323,19 @@ The original M06-01 replay and scalar/interval/categorical baseline output remai
 available for compatibility. Typed program states are research-use-only normalized
 signals and do not establish measurement truth, diagnosis, prognosis, or treatment
 response.
+
+## Completed M06-04 coupled glioma abundance lane
+
+The additive M06-04 runtime now includes the locked
+`locked_glioma_abundance_program_irls_v1` optimizer. It maps exact protein marker
+identities into five GBM programs (RTK/PI3K/AKT/mTOR, p53/cell-cycle, IDH/HIF1A,
+mesenchymal, and proliferation) and fits their signed relations with robust Huber
+IRLS coordinate descent, feature-specific priors, assay precision, damping, and
+hard domain bounds. A support gate requires four observed markers across two
+programs; missing, unsupported, and non-numeric values are excluded rather than
+interpreted as down-regulation. The output is a deterministic 90% research
+interval with an objective/convergence diagnostic and exact replay. The prior
+feature-wise optimizer and compatibility proxy remain unchanged.
 
 ## Completed M08-03 typed glioma program baseline lane
 
