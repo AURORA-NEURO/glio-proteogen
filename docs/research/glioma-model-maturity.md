@@ -269,7 +269,7 @@ posterior estimator.
 The strict 20 are a floor for counterfeit estimators, not the whole scientific
 debt inventory. M12-06's legacy scalar compatibility path remains in this
 floor, while its new typed glioma replicate lane is a real robust estimator.
-M09-06, M10-05, M11-03, M11-04, M12-03, M12-04, M12-06, M13-04, M15-04, and M15-05 now have typed glioma
+M08-03, M09-06, M10-05, M11-03, M11-04, M12-03, M12-04, M12-06, M13-04, M15-04, and M15-05 now have typed glioma
 research lanes documented below while their legacy paths remain provisional.
 Three representation constructors—M07-02, M08-02, and
 M09-02—also synthesize numeric vectors from hashes. They remain classified as
@@ -324,6 +324,23 @@ The original M06-01 replay and scalar/interval/categorical baseline output remai
 available for compatibility. Typed program states are research-use-only normalized
 signals and do not establish measurement truth, diagnosis, prognosis, or treatment
 response.
+
+## Completed M08-03 typed glioma program baseline lane
+
+The additive M08-03 runtime now recognizes the
+`glioma-protein-subtype-signed-program-graph/1.0.0` model family. Typed
+observations carry standardized protein effects, standard errors, quality, and
+explicit observed, left-censored, missing, or unsupported states. A robust
+Huber coordinate-descent fit couples RTK/PI3K/AKT/mTOR, p53/cell-cycle,
+IDH/HIF1A, mesenchymal, and proliferation programs through signed biological
+relations, with ridge stabilization and a recorded objective trace.
+
+The result reports bounded program intervals, thresholded activation labels,
+evidence counts, stability, and a digest-seeded bootstrap. Missing programs
+remain indeterminate rather than becoming negative evidence; insufficient
+support abstains. The original statistical, pathway-weighted, and median
+compatibility architectures remain unchanged. Typed output is a research
+diagnostic, not a clinical subtype probability, prognosis, or treatment claim.
 
 ## Completed M09-06 typed glioma complex uncertainty lane
 
