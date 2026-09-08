@@ -47,7 +47,11 @@ class M0804Service:
     ) -> EstimateTranscriptProteinProbabilisticResult:
         """Recompute one exact request and reject any non-deterministic replay."""
 
-        typed_request = self.validate_request(request)
+        # Use the estimator's canonical validator here as well as in execute().
+        # The typed lane sorts observations by stable ID before seeding the
+        # bootstrap; replay must therefore recompute the exact same request
+        # representation even when callers submit a different input order.
+        typed_request = self._engine.validate(request)
         typed_result = self.verify(result)
         if typed_result.request_digest != canonical_request_digest(typed_request):
             raise ValueError("M08-04 replay request digest does not match")  # noqa: TRY003

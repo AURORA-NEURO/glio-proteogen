@@ -341,6 +341,23 @@ support abstains. The original statistical, pathway-weighted, and median
 compatibility architectures remain unchanged. Typed output is a research
 diagnostic, not a clinical subtype probability, prognosis, or treatment claim.
 
+## Completed M08-04 typed glioma discordance lane
+
+The additive M08-04 runtime now recognizes
+`glioma-transcript-protein-discordance-program-irls/1.0.0`. Typed paired
+transcript/protein effects are fitted across RTK/PI3K/AKT/mTOR, p53/cell-cycle,
+IDH/HIF1A, mesenchymal, and proliferation programs with signed coupling,
+quality/standard-error weighting, robust Huber coordinate descent, and a
+digest-seeded bootstrap interval. Protein left-censoring contributes a
+one-sided loss; missing and unsupported evidence is excluded rather than
+treated as a negative observation.
+
+The typed result exposes program-specific intervals, solver diagnostics,
+deterministic replay, and explicit research-only limitations. The historical
+single-posterior ABI remains unchanged and is not silently relabeled as a
+glioma model; neither path emits subtype, kinase, diagnostic, prognostic, or
+treatment claims.
+
 ## Completed M09-04 typed glioma complex stoichiometry lane
 
 The additive M09-04 runtime now recognizes the

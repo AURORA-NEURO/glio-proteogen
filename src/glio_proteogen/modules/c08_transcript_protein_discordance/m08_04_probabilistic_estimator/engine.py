@@ -2,20 +2,26 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
 from collections.abc import Mapping
+from dataclasses import dataclass
 from math import exp, isfinite, sqrt
 from typing import Final
 
+import numpy as np
 from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m08_04 import (
     M0804_CONTRACT_VERSION,
     M0804_EVIDENCE_CLAIM,
+    M0804_GLIOMA_MODEL_FAMILY,
     M0804_MAX_CANONICAL_REQUEST_BYTES,
+    M0804_MAX_EVIDENCE,
     M0804_PARENT,
     EstimateTranscriptProteinProbabilisticRequest,
     EstimateTranscriptProteinProbabilisticResult,
+    GliomaDiscordanceProgram,
     OptimizationDiagnostic,
     OptimizationDiagnosticStatus,
     PosteriorEstimate,
@@ -23,6 +29,8 @@ from glio_proteogen.contracts.m08_04 import (
     ProbabilisticEstimatorFamily,
     ProbabilisticFeatureState,
     ProbabilisticResultStatus,
+    TypedDiscordanceEvidenceState,
+    TypedTranscriptProteinObservation,
     canonical_request_digest,
     expected_provenance,
     expected_uncertainty,
@@ -30,6 +38,7 @@ from glio_proteogen.contracts.m08_04 import (
 )
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
+    ArtifactReference,
     EstimateState,
     EvidenceReference,
     Limitation,
@@ -55,6 +64,25 @@ _HARD_BOUND_PATTERN: Final = re.compile(
     r"(-?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)",
     re.IGNORECASE,
 )
+_TYPED_RIDGE: Final = 0.12
+_TYPED_DAMPING: Final = 0.65
+_TYPED_HUBER_K: Final = 1.5
+_TYPED_MAX_ITERATIONS: Final = 160
+_TYPED_TOLERANCE: Final = 1e-6
+_TYPED_MIN_OBSERVATIONS: Final = 3
+_TYPED_MIN_PROGRAMS: Final = 2
+_TYPED_LOW_QUANTILE: Final = 0.05
+_TYPED_HIGH_QUANTILE: Final = 0.95
+
+
+@dataclass(frozen=True, slots=True)
+class _TypedFit:
+    program_ids: tuple[str, ...]
+    values: tuple[float, ...]
+    objective: float
+    iterations: int
+    converged: bool
+    trace: tuple[float, ...]
 
 
 class M0804AuthorizationError(PermissionError):
@@ -100,7 +128,16 @@ def preflight_m0804_authorization(candidate: object) -> None:
 
 def _validate_typed_request(candidate: object) -> EstimateTranscriptProteinProbabilisticRequest:
     preflight_m0804_authorization(candidate)
-    return _REQUEST_ADAPTER.validate_python(candidate, strict=True)
+    request = _REQUEST_ADAPTER.validate_python(candidate, strict=True)
+    if request.typed_observations:
+        return request.model_copy(
+            update={
+                "typed_observations": tuple(
+                    sorted(request.typed_observations, key=lambda item: item.observation_id)
+                )
+            }
+        )
+    return request
 
 
 def _validate_json_request(
@@ -118,9 +155,17 @@ def _validate_json_request(
 def _evidence(
     request: EstimateTranscriptProteinProbabilisticRequest,
 ) -> tuple[EvidenceReference, ...]:
+    references = tuple(request.source_artifacts) + tuple(
+        item.reference
+        for observation in request.typed_observations
+        for item in observation.evidence
+    )
+    unique: dict[str, ArtifactReference] = {}
+    for reference in references:
+        unique.setdefault(reference.digest, reference)
     return tuple(
         EvidenceReference(reference=artifact, role="evidence", claim=M0804_EVIDENCE_CLAIM)
-        for artifact in request.source_artifacts
+        for artifact in tuple(unique.values())[:M0804_MAX_EVIDENCE]
     )
 
 
@@ -146,8 +191,8 @@ def _estimated_uncertainty(width: float) -> UncertaintyProfile:
     )
 
 
-def _limitations() -> tuple[Limitation, ...]:
-    return (
+def _limitations(*, typed: bool = False) -> tuple[Limitation, ...]:
+    common = (
         Limitation(
             code="probabilistic_posterior_only",
             statement="Output is limited to a typed posterior, diagnostics, and uncertainty.",
@@ -173,6 +218,19 @@ def _limitations() -> tuple[Limitation, ...]:
             ),
         ),
     )
+    if typed:
+        return (
+            *common,
+            Limitation(
+                code="typed_glioma_research_only",
+                statement=(
+                    "Program-coupled transcript/protein discordance is an experimental signal; "
+                    "it is not a subtype probability, kinase estimate, diagnosis, prognosis, "
+                    "or treatment claim."
+                ),
+            ),
+        )
+    return common
 
 
 def _diagnostic(  # noqa: PLR0913
@@ -332,6 +390,352 @@ def _suspicious_source(request: EstimateTranscriptProteinProbabilisticRequest) -
     )
 
 
+_TYPED_PROGRAM_EDGES: Final = (
+    (
+        GliomaDiscordanceProgram.RTK_PI3K_AKT_MTOR.value,
+        GliomaDiscordanceProgram.PROLIFERATION.value,
+        0.45,
+    ),
+    (
+        GliomaDiscordanceProgram.P53_CELL_CYCLE.value,
+        GliomaDiscordanceProgram.PROLIFERATION.value,
+        -0.35,
+    ),
+    (
+        GliomaDiscordanceProgram.IDH_HIF1A.value,
+        GliomaDiscordanceProgram.MESENCHYMAL_PROGRAM.value,
+        -0.25,
+    ),
+    (
+        GliomaDiscordanceProgram.MESENCHYMAL_PROGRAM.value,
+        GliomaDiscordanceProgram.PROLIFERATION.value,
+        0.30,
+    ),
+)
+
+
+def _typed_huber(value: float) -> float:
+    absolute = abs(value)
+    return (
+        0.5 * value * value
+        if absolute <= _TYPED_HUBER_K
+        else _TYPED_HUBER_K * (absolute - 0.5 * _TYPED_HUBER_K)
+    )
+
+
+def _typed_target(observation: TypedTranscriptProteinObservation) -> tuple[float, float, bool]:
+    if (
+        observation.transcript_effect is None
+        or observation.transcript_standard_error is None
+        or observation.protein_standard_error is None
+    ):
+        raise ValueError("active typed discordance is missing paired effect uncertainty")  # noqa: TRY003
+    transcript_effect = observation.transcript_effect
+    uncertainty = max(
+        1e-6,
+        sqrt(observation.transcript_standard_error**2 + observation.protein_standard_error**2),
+    )
+    if (
+        observation.state is TypedDiscordanceEvidenceState.LEFT_CENSORED
+        and observation.protein_effect is None
+    ):
+        if observation.protein_censor_limit is None:
+            raise ValueError("left-censored typed discordance is missing its censor limit")  # noqa: TRY003
+        return observation.protein_censor_limit - transcript_effect, uncertainty, True
+    if observation.protein_effect is None:
+        raise ValueError("observed typed discordance is missing its protein effect")  # noqa: TRY003
+    return observation.protein_effect - transcript_effect, uncertainty, False
+
+
+def _typed_objective(
+    values: tuple[float, ...],
+    observations: tuple[TypedTranscriptProteinObservation, ...],
+    program_ids: tuple[str, ...],
+    perturbations: Mapping[str, float] | None = None,
+) -> float:
+    index = {program: position for position, program in enumerate(program_ids)}
+    objective = _TYPED_RIDGE * sum(value * value for value in values)
+    for observation in observations:
+        if observation.state in {
+            TypedDiscordanceEvidenceState.MISSING,
+            TypedDiscordanceEvidenceState.UNSUPPORTED,
+        }:
+            continue
+        target, uncertainty, censored = _typed_target(observation)
+        if perturbations is not None:
+            target += perturbations.get(observation.observation_id, 0.0)
+        residual = (values[index[observation.program.value]] - target) / uncertainty
+        if censored:
+            residual = max(0.0, residual)
+        objective += observation.quality_weight * _typed_huber(residual)
+    for source, edge_target, coefficient in _TYPED_PROGRAM_EDGES:
+        if source in index and edge_target in index:
+            objective += (
+                0.5 * (values[index[edge_target]] - coefficient * values[index[source]]) ** 2
+            )
+    return float(objective)
+
+
+def _fit_typed(  # noqa: C901, PLR0912 - explicit coordinate updates are audit-visible.
+    observations: tuple[TypedTranscriptProteinObservation, ...],
+    *,
+    perturbations: Mapping[str, float] | None = None,
+) -> _TypedFit | None:
+    active = tuple(
+        sorted(
+            (
+                item
+                for item in observations
+                if item.state
+                in {
+                    TypedDiscordanceEvidenceState.OBSERVED,
+                    TypedDiscordanceEvidenceState.LEFT_CENSORED,
+                }
+            ),
+            key=lambda item: item.observation_id,
+        )
+    )
+    if len(active) < _TYPED_MIN_OBSERVATIONS:
+        return None
+    program_ids = tuple(sorted({item.program.value for item in active}))
+    if len(program_ids) < _TYPED_MIN_PROGRAMS:
+        return None
+    index = {program: position for position, program in enumerate(program_ids)}
+    values = [0.0] * len(program_ids)
+    trace: list[float] = []
+    objective = _typed_objective(tuple(values), active, program_ids, perturbations)
+    trace.append(objective)
+    for iteration in range(1, _TYPED_MAX_ITERATIONS + 1):
+        previous = values.copy()
+        for position, program in enumerate(program_ids):
+            current = values[position]
+            gradient = 2.0 * _TYPED_RIDGE * current
+            hessian = 2.0 * _TYPED_RIDGE
+            for observation in active:
+                if observation.program.value != program:
+                    continue
+                target, uncertainty, censored = _typed_target(observation)
+                if perturbations is not None:
+                    target += perturbations.get(observation.observation_id, 0.0)
+                residual = (current - target) / uncertainty
+                if censored and residual <= 0.0:
+                    continue
+                residual_for_weight = max(0.0, residual) if censored else residual
+                robust = (
+                    1.0
+                    if abs(residual_for_weight) <= _TYPED_HUBER_K
+                    else _TYPED_HUBER_K / max(1e-6, abs(residual_for_weight))
+                )
+                information = observation.quality_weight * robust / (uncertainty * uncertainty)
+                gradient += information * (current - target)
+                hessian += information
+            for source, edge_target, coefficient in _TYPED_PROGRAM_EDGES:
+                if program == source and edge_target in index:
+                    gradient += -coefficient * (values[index[edge_target]] - coefficient * current)
+                    hessian += coefficient * coefficient
+                elif program == edge_target and source in index:
+                    gradient += current - coefficient * values[index[source]]
+                    hessian += 1.0
+            proposal = current - gradient / max(1e-6, hessian)
+            values[position] = current + _TYPED_DAMPING * (proposal - current)
+        update = max(abs(after - before) for after, before in zip(values, previous, strict=True))
+        next_objective = _typed_objective(tuple(values), active, program_ids, perturbations)
+        if next_objective > objective + 1e-10:
+            values = previous
+            next_objective = objective
+        trace.append(next_objective)
+        if update <= _TYPED_TOLERANCE and abs(objective - next_objective) <= 2.0 * _TYPED_TOLERANCE:
+            return _TypedFit(
+                program_ids=program_ids,
+                values=tuple(float(f"{value:.8f}") for value in values),
+                objective=float(f"{next_objective:.8f}"),
+                iterations=iteration,
+                converged=True,
+                trace=tuple(float(f"{item:.8f}") for item in trace),
+            )
+        objective = next_objective
+    return _TypedFit(
+        program_ids=program_ids,
+        values=tuple(float(f"{value:.8f}") for value in values),
+        objective=float(f"{objective:.8f}"),
+        iterations=_TYPED_MAX_ITERATIONS,
+        converged=False,
+        trace=tuple(float(f"{item:.8f}") for item in trace),
+    )
+
+
+def _typed_quantile(values: tuple[float, ...], probability: float) -> float:
+    ordered = sorted(values)
+    position = max(0, min(len(ordered) - 1, int(np.ceil(probability * len(ordered))) - 1))
+    return float(f"{ordered[position]:.8f}")
+
+
+def _typed_estimates(
+    request: EstimateTranscriptProteinProbabilisticRequest,
+) -> tuple[tuple[PosteriorEstimate, ...], _TypedFit | None, tuple[str, ...]]:
+    fit = _fit_typed(request.typed_observations)
+    if fit is None or not fit.converged:
+        return (), fit, ()
+    active = tuple(
+        sorted(
+            (
+                item
+                for item in request.typed_observations
+                if item.state
+                in {
+                    TypedDiscordanceEvidenceState.OBSERVED,
+                    TypedDiscordanceEvidenceState.LEFT_CENSORED,
+                }
+            ),
+            key=lambda item: item.observation_id,
+        )
+    )
+    seed_material = canonical_request_digest(request).encode("utf-8")
+    seed = int.from_bytes(hashlib.sha256(seed_material).digest()[:8], "big", signed=False)
+    rng = np.random.default_rng(seed)
+    draws: dict[str, list[float]] = {program: [] for program in fit.program_ids}
+    for _ in range(request.bootstrap_replicates):
+        perturbations = {
+            item.observation_id: float(rng.normal(0.0, _typed_target(item)[1])) for item in active
+        }
+        replicate = _fit_typed(request.typed_observations, perturbations=perturbations)
+        if replicate is None or not replicate.converged:
+            continue
+        for program, value in zip(replicate.program_ids, replicate.values, strict=True):
+            draws.setdefault(program, []).append(value)
+    evidence = tuple(item for observation in active for item in observation.evidence)[
+        :M0804_MAX_EVIDENCE
+    ]
+    estimates: list[PosteriorEstimate] = []
+    for position, program in enumerate(fit.program_ids):
+        values = tuple(draws.get(program, ())) or (fit.values[position],)
+        lower = _typed_quantile(values, _TYPED_LOW_QUANTILE)
+        upper = _typed_quantile(values, _TYPED_HIGH_QUANTILE)
+        center = float(f"{fit.values[position]:.8f}")
+        stability = sum(value > 0.0 for value in values) / len(values)
+        if center < 0.0:
+            stability = 1.0 - stability
+        estimates.append(
+            PosteriorEstimate(
+                feature_id=f"glioma.{program}.discordance",
+                kind=PosteriorEstimateKind.INTERVAL,
+                unit="standardized-transcript-protein-discordance",
+                estimate_value=center,
+                lower_bound=lower,
+                upper_bound=upper,
+                posterior_mass=float(f"{stability:.8f}"),
+                evidence=evidence,
+            )
+        )
+    return (
+        tuple(estimates),
+        fit,
+        tuple(
+            f"program:{program}:fit={fit.values[position]:.6f}"
+            for position, program in enumerate(fit.program_ids)
+        ),
+    )
+
+
+def _typed_result(
+    request: EstimateTranscriptProteinProbabilisticRequest,
+) -> EstimateTranscriptProteinProbabilisticResult:
+    """Build the additive typed glioma result without changing the legacy path."""
+
+    request_hash = canonical_request_digest(request)
+    configuration_hash = sha256_digest(request.configuration)
+    estimates, fit, _drivers = _typed_estimates(request)
+    suspicious = _suspicious_source(request)
+    diagnostics: list[OptimizationDiagnostic] = []
+    findings: list[str] = []
+    supported = fit is not None and fit.converged and bool(estimates) and not suspicious
+    if supported:
+        gap = abs(fit.trace[-1] - fit.trace[-2]) if fit is not None and len(fit.trace) > 1 else 0.0
+        diagnostics.append(
+            _diagnostic(
+                "optimization.typed-glioma",
+                OptimizationDiagnosticStatus.CONVERGED,
+                request.configuration.objective,
+                (
+                    "typed glioma discordance graph converged with signed program coupling "
+                    "and digest-seeded bootstrap"
+                ),
+                iteration_count=fit.iterations if fit is not None else 0,
+                objective_value=fit.objective if fit is not None else 0.0,
+                convergence_gap=gap,
+            )
+        )
+        support = SupportDecision(
+            status=SupportStatus.SUPPORTED,
+            reason_code="m0804_typed_glioma_supported",
+            rationale=(
+                "Supported paired transcript/protein effects passed the signed program graph, "
+                "robust optimization, and deterministic bootstrap gates."
+            ),
+        )
+        abstention_reason = None
+        status = ProbabilisticResultStatus.ESTIMATED
+        uncertainty = _estimated_uncertainty(0.12)
+    else:
+        reason = (
+            "Typed glioma discordance abstained because source support is outside the domain."
+            if suspicious
+            else (
+                "Typed glioma discordance requires at least three supported observations "
+                "across two programs and a converged fit."
+            )
+        )
+        findings.append(
+            "out_of_domain" if suspicious else "typed_support_or_convergence_insufficient"
+        )
+        diagnostics.append(
+            _diagnostic(
+                "optimization.typed-glioma",
+                OptimizationDiagnosticStatus.NOT_EVALUABLE,
+                request.configuration.objective,
+                reason,
+            )
+        )
+        support = SupportDecision(
+            status=SupportStatus.REVIEW_REQUIRED
+            if fit is not None and not fit.converged
+            else SupportStatus.UNSUPPORTED,
+            reason_code="m0804_typed_glioma_not_supported",
+            rationale=reason,
+        )
+        abstention_reason = reason
+        status = ProbabilisticResultStatus.ABSTAINED
+        estimates = ()
+        uncertainty = expected_uncertainty()
+    payload: dict[str, object] = {
+        "result_id": f"result.{request_hash.removeprefix('sha256:')}",
+        "result_version": M0804_CONTRACT_VERSION,
+        "request_digest": request_hash,
+        "result_digest": _ZERO_DIGEST,
+        "request": request,
+        "status": status,
+        "estimates": estimates,
+        "diagnostics": tuple(diagnostics),
+        "abstention_reason": abstention_reason,
+        "parent_target": M0804_PARENT,
+        "emits_parent": False,
+        "finding_codes": tuple(dict.fromkeys(findings)),
+        "human_review_required": status is ProbabilisticResultStatus.ABSTAINED,
+        "support_decision": support,
+        "uncertainty": uncertainty,
+        "provenance": expected_provenance(request, request_hash, configuration_hash),
+        "evidence": _evidence(request),
+        "limitations": _limitations(typed=True),
+        "typed_model": True,
+        "model_family": M0804_GLIOMA_MODEL_FAMILY,
+    }
+    constructed = EstimateTranscriptProteinProbabilisticResult.model_construct(
+        **payload,  # type: ignore[arg-type]
+    )
+    payload["result_digest"] = result_payload_digest(constructed)
+    return _RESULT_ADAPTER.validate_python(payload, strict=True)
+
+
 class M0804ProbabilisticEstimator:
     """Execute a deterministic provisional posterior with fail-closed support."""
 
@@ -349,6 +753,8 @@ class M0804ProbabilisticEstimator:
     ) -> EstimateTranscriptProteinProbabilisticResult:
         if not isinstance(request, EstimateTranscriptProteinProbabilisticRequest):
             raise TypeError("M08-04 requires a validated request")  # noqa: TRY003
+        if request.typed_observations:
+            return _typed_result(request)
         request_hash = canonical_request_digest(request)
         configuration_hash = sha256_digest(request.configuration)
         objective = request.configuration.objective

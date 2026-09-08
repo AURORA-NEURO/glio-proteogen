@@ -10,12 +10,15 @@ from glio_proteogen.contracts.m08_04 import (
     M0804_BASELINE_MEDIA_TYPE,
     EstimateTranscriptProteinProbabilisticRequest,
     EstimatorConstraint,
+    GliomaDiscordanceProgram,
     ProbabilisticEstimatorConfiguration,
     ProbabilisticEstimatorFamily,
     ProbabilisticFeatureObservation,
     ProbabilisticFeatureState,
     ProbabilisticPrior,
     ProbabilisticPriorKind,
+    TypedDiscordanceEvidenceState,
+    TypedTranscriptProteinObservation,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
@@ -34,6 +37,7 @@ from glio_proteogen.modules.c08_transcript_protein_discordance import (
 )
 
 _EXPECTED_ESTIMATES = 2
+_TYPED_ESTIMATE_COUNT = 3
 _POSTERIOR_MIDPOINT = 0.5
 
 
@@ -244,3 +248,75 @@ def test_plugin_typed_json_parity_and_tamper_rejection() -> None:
     tampered = result.model_copy(update={"result_digest": sha256_digest("tampered")})
     with pytest.raises(ValueError, match="digest"):
         service.verify(tampered)
+
+
+def test_typed_glioma_discordance_graph_bootstraps_and_replays() -> None:
+    typed = (
+        TypedTranscriptProteinObservation(
+            observation_id="obs.egfr",
+            feature_id="EGFR",
+            gene="EGFR",
+            program=GliomaDiscordanceProgram.RTK_PI3K_AKT_MTOR,
+            state=TypedDiscordanceEvidenceState.OBSERVED,
+            transcript_effect=0.4,
+            protein_effect=1.1,
+            transcript_standard_error=0.15,
+            protein_standard_error=0.2,
+        ),
+        TypedTranscriptProteinObservation(
+            observation_id="obs.cdk4",
+            feature_id="CDK4",
+            gene="CDK4",
+            program=GliomaDiscordanceProgram.PROLIFERATION,
+            state=TypedDiscordanceEvidenceState.OBSERVED,
+            transcript_effect=0.6,
+            protein_effect=1.0,
+            transcript_standard_error=0.15,
+            protein_standard_error=0.2,
+        ),
+        TypedTranscriptProteinObservation(
+            observation_id="obs.tp53",
+            feature_id="TP53",
+            gene="TP53",
+            program=GliomaDiscordanceProgram.P53_CELL_CYCLE,
+            state=TypedDiscordanceEvidenceState.LEFT_CENSORED,
+            transcript_effect=0.2,
+            protein_censor_limit=0.0,
+            transcript_standard_error=0.15,
+            protein_standard_error=0.2,
+        ),
+    )
+    request = _request().model_copy(
+        update={"feature_observations": (), "typed_observations": typed}
+    )
+    service = m0804_runtime.M0804Service()
+    result = service.execute(request)
+    assert result.status.value == "estimated"
+    assert result.typed_model is True
+    assert result.model_family == "glioma-transcript-protein-discordance-program-irls/1.0.0"
+    assert len(result.estimates) == _TYPED_ESTIMATE_COUNT
+    assert result.diagnostics[0].objective_value is not None
+    assert service.replay(request, result) == result
+    reordered = request.model_copy(update={"typed_observations": tuple(reversed(typed))})
+    assert service.execute(reordered) == result
+
+
+def test_typed_glioma_discordance_requires_supported_program_coverage() -> None:
+    observation = TypedTranscriptProteinObservation(
+        observation_id="obs.egfr",
+        feature_id="EGFR",
+        gene="EGFR",
+        program=GliomaDiscordanceProgram.RTK_PI3K_AKT_MTOR,
+        state=TypedDiscordanceEvidenceState.OBSERVED,
+        transcript_effect=0.4,
+        protein_effect=1.1,
+        transcript_standard_error=0.15,
+        protein_standard_error=0.2,
+    )
+    request = _request().model_copy(
+        update={"feature_observations": (), "typed_observations": (observation,)}
+    )
+    result = m0804_runtime.M0804Service().execute(request)
+    assert result.status.value == "abstained"
+    assert result.estimates == ()
+    assert result.human_review_required is True
