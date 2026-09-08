@@ -71,10 +71,7 @@ class GbmMixtureRequest(FrozenModel):
 
     profile_id: Literal["gbm-rna-composition/0.1.0"] = "gbm-rna-composition/0.1.0"
     sample_id: Identifier
-    feature_ids: tuple[Identifier, ...] = Field(
-        min_length=2,
-        max_length=MAX_MIXTURE_FEATURES,
-    )
+    feature_ids: tuple[Identifier, ...] = Field(default=(), max_length=MAX_MIXTURE_FEATURES)
     counts: tuple[int, ...] = Field(min_length=2, max_length=MAX_MIXTURE_FEATURES)
     references: tuple[GbmMixtureReference, ...] = Field(
         min_length=1,
@@ -166,9 +163,14 @@ class GbmMixtureResult(FrozenModel):
 
     result_id: Identifier
     profile_id: Literal["gbm-rna-composition/0.1.0"] = "gbm-rna-composition/0.1.0"
+    profile_digest: Sha256Digest
     request_digest: Sha256Digest
     result_digest: Sha256Digest
     sample_id: Identifier
+    feature_ids: tuple[Identifier, ...] = Field(
+        min_length=2,
+        max_length=MAX_MIXTURE_FEATURES,
+    )
     support: Literal["limited", "abstained"]
     known_weights: tuple[GbmMixtureWeight, ...] = Field(default=(), max_length=MAX_MIXTURE_LINEAGES)
     unknown_gene_mass: tuple[float, ...] = Field(default=(), max_length=MAX_MIXTURE_FEATURES)
@@ -190,11 +192,45 @@ class GbmMixtureResult(FrozenModel):
     def result_is_closed(self) -> Self:
         if self.request_digest.startswith("sha256:") is False:
             raise ValueError("request digest must be sha256")
+        if len(self.feature_ids) != len(self.unknown_gene_mass):
+            raise ValueError("unknown gene mass must match the feature axis")
+        if len(self.feature_ids) != len(self.fitted_probabilities):
+            raise ValueError("fitted probabilities must match the feature axis")
+        if len(set(self.feature_ids)) != len(self.feature_ids):
+            raise ValueError("result feature identifiers must be unique")
         if self.support == "limited":
             if self.abstention_reason is not None or not self.known_weights:
                 raise ValueError("limited result requires fitted weights")
+            if len(self.feature_ids) < 2:
+                raise ValueError("limited result requires a feature axis")
             if self.unknown_mass is None or not self.unknown_gene_mass:
                 raise ValueError("limited result requires unknown mass")
+            if any(
+                not math.isfinite(value) or value < 0.0
+                for value in (*self.unknown_gene_mass, *self.fitted_probabilities)
+            ):
+                raise ValueError("limited composition vectors must be finite and non-negative")
+            if not math.isclose(
+                math.fsum(self.fitted_probabilities),
+                1.0,
+                rel_tol=0.0,
+                abs_tol=2e-10,
+            ):
+                raise ValueError("fitted probabilities must sum to one")
+            if not math.isclose(
+                math.fsum(self.unknown_gene_mass),
+                self.unknown_mass,
+                rel_tol=0.0,
+                abs_tol=2e-10,
+            ):
+                raise ValueError("unknown mass does not match its gene-resolved vector")
+            if not math.isclose(
+                math.fsum(item.rna_weight for item in self.known_weights) + self.unknown_mass,
+                1.0,
+                rel_tol=0.0,
+                abs_tol=2e-8,
+            ):
+                raise ValueError("known and unknown weights must share one simplex")
         elif self.known_weights or self.unknown_gene_mass or self.fitted_probabilities:
             raise ValueError("abstained result cannot carry fitted composition")
         if self.result_digest != result_payload_digest(self):
@@ -317,9 +353,11 @@ def _limited_result(
     trace = tuple(round(float(item.objective), 12) for item in solution.trace)
     return GbmMixtureResult.model_construct(
         result_id=f"result.{request.request_digest.removeprefix('sha256:')}",
+        profile_digest=mixture_profile().profile_digest,
         request_digest=request.request_digest,
         result_digest=_ZERO_DIGEST,
         sample_id=request.sample_id,
+        feature_ids=request.feature_ids,
         support="limited",
         known_weights=weights,
         unknown_gene_mass=tuple(round(float(value), 12) for value in solution.unknown_gene_mass),
@@ -347,9 +385,11 @@ def _abstained_result(request: GbmMixtureRequest, reason: str) -> GbmMixtureResu
     empty_trace: tuple[float, ...] = ()
     return GbmMixtureResult.model_construct(
         result_id=f"result.{request.request_digest.removeprefix('sha256:')}",
+        profile_digest=mixture_profile().profile_digest,
         request_digest=request.request_digest,
         result_digest=_ZERO_DIGEST,
         sample_id=request.sample_id,
+        feature_ids=(),
         support="abstained",
         iterations=0,
         trace_digest=_trace_digest(empty_trace),
