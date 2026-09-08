@@ -13,7 +13,10 @@ if __package__ in {None, ""}:
     if str(_PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(_PROJECT_ROOT))
 
-from tests.modules.c08_transcript_protein_discordance.test_m08_02_representation import _request
+from tests.modules.c08_transcript_protein_discordance.test_m08_02_representation import (
+    _request,
+    _typed_request,
+)
 
 from glio_proteogen.modules.c08_transcript_protein_discordance import (
     m08_02_representation_feature_constructor as m0802,
@@ -32,6 +35,10 @@ class EvaluationReport:
     leakage_checks_complete: bool
     replay_verified: bool
     deterministic: bool
+    typed_status: str
+    typed_model_family: str | None
+    typed_replay_verified: bool
+    typed_objective_trace_verified: bool
     passed: bool
 
 
@@ -57,6 +64,12 @@ def evaluate() -> EvaluationReport:
     leakage_checks_complete = {item.check_id for item in first.result.leakage_checks} == {
         f"leakage.{feature_id}" for feature_id in expected_ids
     }
+    typed = engine.construct(_typed_request())
+    typed_replay = engine.verify(typed.result, typed.canonical_bytes).verified
+    typed_trace = bool(typed.result.optimization_diagnostics) and all(
+        item.objective_trace_digest is not None
+        for item in typed.result.optimization_diagnostics
+    )
     return EvaluationReport(
         module_id="GLIO-PROTEOGEN-M08-02",
         contract_version="0.1.0-provisional",
@@ -68,6 +81,10 @@ def evaluate() -> EvaluationReport:
         leakage_checks_complete=leakage_checks_complete,
         replay_verified=replay.verified,
         deterministic=first.canonical_bytes == second.canonical_bytes,
+        typed_status=typed.result.status.value,
+        typed_model_family=typed.result.model_family,
+        typed_replay_verified=typed_replay,
+        typed_objective_trace_verified=typed_trace,
         passed=(
             first.result.status.value == "constructed"
             and leakage.result.status.value == "abstained"
@@ -76,6 +93,10 @@ def evaluate() -> EvaluationReport:
             and leakage_checks_complete
             and replay.verified
             and first.canonical_bytes == second.canonical_bytes
+            and typed.result.status.value == "constructed"
+            and typed.result.model_family == "glioma-transcript-protein-discordance-irls/1.0.0"
+            and typed_replay
+            and typed_trace
         ),
     )
 

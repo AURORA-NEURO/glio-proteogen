@@ -51,6 +51,12 @@ M0802_MAX_EVIDENCE: Final = 32
 M0802_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M0802_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
 M0802_M0801_RESULT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m08-01+json"
+M0802_MAX_TYPED_OBSERVATIONS: Final = 512
+M0802_MAX_TYPED_EFFECT: Final = 20.0
+M0802_DEFAULT_BOOTSTRAP_REPLICATES: Final = 64
+M0802_MAX_BOOTSTRAP_REPLICATES: Final = 256
+M0802_MAX_DIAGNOSTICS: Final = 32
+M0802_GLIOMA_MODEL_FAMILY: Final = "glioma-transcript-protein-discordance-irls/1.0.0"
 M0802_EVIDENCE_CLAIM: Final = (
     "Caller-declared representation and feature-lineage evidence; issuer authority "
     "is not authenticated."
@@ -89,6 +95,135 @@ class RepresentationReplayReason(StrEnum):
 class RepresentationConstructionStatus(StrEnum):
     CONSTRUCTED = "constructed"
     ABSTAINED = "abstained"
+
+
+class GliomaTranscriptProteinEvidenceState(StrEnum):
+    """Measurement state; missing and unsupported are never negative evidence."""
+
+    OBSERVED = "observed"
+    LEFT_CENSORED = "left_censored"
+    MISSING = "missing"
+    UNSUPPORTED = "unsupported"
+
+
+class DiscordanceOptimizationStatus(StrEnum):
+    CONVERGED = "converged"
+    NOT_CONVERGED = "not_converged"
+    NOT_EVALUABLE = "not_evaluable"
+
+
+class GliomaTranscriptProteinObservation(FrozenModel):
+    """Explicit paired transcript/protein evidence for a glioma gene."""
+
+    observation_id: Identifier
+    feature_id: Identifier
+    gene: NonEmptyStr
+    evidence_state: GliomaTranscriptProteinEvidenceState
+    transcript_effect: float | None = Field(
+        default=None, ge=-M0802_MAX_TYPED_EFFECT, le=M0802_MAX_TYPED_EFFECT
+    )
+    protein_effect: float | None = Field(
+        default=None, ge=-M0802_MAX_TYPED_EFFECT, le=M0802_MAX_TYPED_EFFECT
+    )
+    transcript_standard_error: float | None = Field(
+        default=None, gt=0.0, le=M0802_MAX_TYPED_EFFECT
+    )
+    protein_standard_error: float | None = Field(
+        default=None, gt=0.0, le=M0802_MAX_TYPED_EFFECT
+    )
+    transcript_censoring_limit: float | None = Field(
+        default=None, ge=-M0802_MAX_TYPED_EFFECT, le=M0802_MAX_TYPED_EFFECT
+    )
+    protein_censoring_limit: float | None = Field(
+        default=None, ge=-M0802_MAX_TYPED_EFFECT, le=M0802_MAX_TYPED_EFFECT
+    )
+    quality_weight: float = Field(default=1.0, ge=0.0, le=1.0)
+    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0802_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def typed_observation_shape_is_closed(self) -> GliomaTranscriptProteinObservation:
+        for name, value in (
+            ("transcript_effect", self.transcript_effect),
+            ("protein_effect", self.protein_effect),
+            ("transcript_standard_error", self.transcript_standard_error),
+            ("protein_standard_error", self.protein_standard_error),
+            ("transcript_censoring_limit", self.transcript_censoring_limit),
+            ("protein_censoring_limit", self.protein_censoring_limit),
+            ("quality_weight", self.quality_weight),
+        ):
+            if value is not None and not isfinite(value):
+                raise ValueError(f"{name} must be finite")
+        if self.evidence_state is GliomaTranscriptProteinEvidenceState.OBSERVED:
+            if (
+                self.transcript_effect is None
+                or self.protein_effect is None
+                or self.transcript_standard_error is None
+                or self.protein_standard_error is None
+                or self.transcript_censoring_limit is not None
+                or self.protein_censoring_limit is not None
+                or self.quality_weight <= 0.0
+            ):
+                raise ValueError(
+                    "observed transcript-protein evidence requires paired effects, "
+                    "errors, and quality"
+                )
+        elif self.evidence_state is GliomaTranscriptProteinEvidenceState.LEFT_CENSORED:
+            if (
+                self.transcript_standard_error is None
+                or self.protein_standard_error is None
+                or (self.transcript_effect is None and self.transcript_censoring_limit is None)
+                or (self.protein_effect is None and self.protein_censoring_limit is None)
+                or (
+                    self.transcript_effect is not None
+                    and self.transcript_censoring_limit is not None
+                )
+                or (self.protein_effect is not None and self.protein_censoring_limit is not None)
+                or self.quality_weight <= 0.0
+            ):
+                raise ValueError(
+                    "left-censored transcript-protein evidence requires paired values or limits"
+                )
+        elif any(
+            value is not None
+            for value in (
+                self.transcript_effect,
+                self.protein_effect,
+                self.transcript_standard_error,
+                self.protein_standard_error,
+                self.transcript_censoring_limit,
+                self.protein_censoring_limit,
+            )
+        ) or self.quality_weight != 0.0:
+            raise ValueError(
+                "missing or unsupported transcript-protein evidence cannot carry a value"
+            )
+        if any(item.role != "evidence" for item in self.evidence):
+            raise ValueError("typed transcript-protein evidence must use the evidence role")
+        return self
+
+
+class DiscordanceOptimizationDiagnostic(FrozenModel):
+    """Replay-visible diagnostics for a typed transcript-protein fit."""
+
+    diagnostic_id: Identifier
+    status: DiscordanceOptimizationStatus
+    objective: NonEmptyStr
+    iteration_count: int = Field(ge=0)
+    objective_value: float | None = None
+    convergence_gap: float | None = Field(default=None, ge=0.0)
+    objective_trace_digest: Sha256Digest | None = None
+    model_family: NonEmptyStr | None = None
+    message: NonEmptyStr
+    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0802_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def diagnostic_shape_is_closed(self) -> DiscordanceOptimizationDiagnostic:
+        if self.status is DiscordanceOptimizationStatus.CONVERGED:
+            if self.objective_value is None or self.convergence_gap is None:
+                raise ValueError("converged diagnostic requires objective and convergence gap")
+        elif self.objective_value is not None and self.convergence_gap is None:
+            raise ValueError("objective value requires a convergence gap")
+        return self
 
 
 class RepresentationTransformation(FrozenModel):
@@ -169,6 +304,18 @@ class RepresentationFeature(FrozenModel):
     values: tuple[float, ...] = Field(min_length=1, max_length=M0802_MAX_VALUES)
     mask: tuple[bool, ...] = Field(default=(), max_length=M0802_MAX_VALUES)
     lineage: FeatureLineage
+    evidence_count: int = Field(default=0, ge=0, le=M0802_MAX_TYPED_OBSERVATIONS)
+    stability: float | None = Field(default=None, ge=0.0, le=1.0)
+    discordance: float | None = Field(default=None, ge=0.0, le=1.0)
+    top_drivers: tuple[NonEmptyStr, ...] = Field(default=(), max_length=8)
+    ablation_effects: tuple[NonEmptyStr, ...] = Field(default=(), max_length=8)
+    lower_bound: float | None = Field(
+        default=None, ge=-M0802_MAX_TYPED_EFFECT, le=M0802_MAX_TYPED_EFFECT
+    )
+    upper_bound: float | None = Field(
+        default=None, ge=-M0802_MAX_TYPED_EFFECT, le=M0802_MAX_TYPED_EFFECT
+    )
+    model_family: NonEmptyStr | None = None
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0802_MAX_EVIDENCE)
 
     @model_validator(mode="after")
@@ -177,6 +324,17 @@ class RepresentationFeature(FrozenModel):
             raise ValueError("representation feature must bind its exact lineage feature id")
         if self.mask and len(self.mask) != len(self.values):
             raise ValueError("feature mask must be empty or match value length")
+        if (self.lower_bound is None) != (self.upper_bound is None):
+            raise ValueError("feature interval requires both bounds")
+        if (
+            self.lower_bound is not None
+            and self.upper_bound is not None
+            and (
+                self.lower_bound > self.upper_bound
+                or not self.lower_bound <= self.values[0] <= self.upper_bound
+            )
+        ):
+            raise ValueError("feature interval must contain the first value")
         return self
 
 
@@ -203,6 +361,15 @@ class ConstructTranscriptProteinRepresentationRequest(FrozenModel):
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M0802_MAX_EVIDENCE
     )
+    typed_observations: tuple[GliomaTranscriptProteinObservation, ...] = Field(
+        default=(), max_length=M0802_MAX_TYPED_OBSERVATIONS
+    )
+    max_iterations: int = Field(default=128, gt=0, le=10_000)
+    bootstrap_replicates: int = Field(
+        default=M0802_DEFAULT_BOOTSTRAP_REPLICATES,
+        ge=16,
+        le=M0802_MAX_BOOTSTRAP_REPLICATES,
+    )
     supersedes_result_digest: Sha256Digest | None = None
 
     @model_validator(mode="after")
@@ -217,6 +384,20 @@ class ConstructTranscriptProteinRepresentationRequest(FrozenModel):
             for artifact in self.source_artifacts
         ):
             raise ValueError("formal-state handoff must not be duplicated as a source artifact")
+        if self.typed_observations:
+            observation_ids = tuple(item.observation_id for item in self.typed_observations)
+            if len(observation_ids) != len(set(observation_ids)):
+                raise ValueError("typed transcript-protein observation identifiers must be unique")
+            typed_feature_ids = {item.feature_id for item in self.feature_specs}
+            if any(
+                item.feature_id not in typed_feature_ids for item in self.typed_observations
+            ):
+                raise ValueError(
+                    "typed transcript-protein observations must bind requested features"
+                )
+            gene_keys = tuple((item.feature_id, item.gene) for item in self.typed_observations)
+            if len(gene_keys) != len(set(gene_keys)):
+                raise ValueError("typed transcript-protein genes must be unique per feature")
         return self
 
 
@@ -235,6 +416,10 @@ class TranscriptProteinRepresentationResult(FrozenModel):
     features: tuple[RepresentationFeature, ...] = Field(
         default=(), max_length=M0802_MAX_FEATURES
     )
+    optimization_diagnostics: tuple[DiscordanceOptimizationDiagnostic, ...] = Field(
+        default=(), max_length=M0802_MAX_DIAGNOSTICS
+    )
+    model_family: NonEmptyStr | None = None
     leakage_checks: tuple[LeakageCheck, ...] = Field(
         default=(), max_length=M0802_MAX_LEAKAGE_CHECKS
     )
@@ -260,6 +445,9 @@ class TranscriptProteinRepresentationResult(FrozenModel):
         check_ids = tuple(item.check_id for item in self.leakage_checks)
         if len(check_ids) != len(set(check_ids)):
             raise ValueError("leakage check ids must be unique")
+        optimization_ids = tuple(item.diagnostic_id for item in self.optimization_diagnostics)
+        if len(optimization_ids) != len(set(optimization_ids)):
+            raise ValueError("optimization diagnostic ids must be unique")
         leakage_statuses = {item.status for item in self.leakage_checks}
         if self.status is RepresentationConstructionStatus.CONSTRUCTED:
             if (
@@ -311,16 +499,22 @@ class ConstructTranscriptProteinRepresentationVerification(FrozenModel):
 
 __all__ = [
     "M0802_CONTRACT_VERSION",
+    "M0802_DEFAULT_BOOTSTRAP_REPLICATES",
     "M0802_EVIDENCE_CLAIM",
     "M0802_GATE",
+    "M0802_GLIOMA_MODEL_FAMILY",
     "M0802_M0801_RESULT_MEDIA_TYPE",
+    "M0802_MAX_BOOTSTRAP_REPLICATES",
     "M0802_MAX_CANONICAL_REQUEST_BYTES",
     "M0802_MAX_CANONICAL_RESULT_BYTES",
+    "M0802_MAX_DIAGNOSTICS",
     "M0802_MAX_EVIDENCE",
     "M0802_MAX_FEATURES",
     "M0802_MAX_LEAKAGE_CHECKS",
     "M0802_MAX_SOURCE_FIELDS",
     "M0802_MAX_TRANSFORMATIONS",
+    "M0802_MAX_TYPED_EFFECT",
+    "M0802_MAX_TYPED_OBSERVATIONS",
     "M0802_MAX_VALUES",
     "M0802_MODULE_ID",
     "M0802_OPERATION",
@@ -331,8 +525,12 @@ __all__ = [
     "M0802_SAFETY_CLASS",
     "ConstructTranscriptProteinRepresentationRequest",
     "ConstructTranscriptProteinRepresentationVerification",
+    "DiscordanceOptimizationDiagnostic",
+    "DiscordanceOptimizationStatus",
     "FeatureLineage",
     "FeatureSpecification",
+    "GliomaTranscriptProteinEvidenceState",
+    "GliomaTranscriptProteinObservation",
     "LeakageCheck",
     "LeakageCheckStatus",
     "RepresentationConstructionStatus",
