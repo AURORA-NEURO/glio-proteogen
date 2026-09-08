@@ -16,7 +16,7 @@ if __package__ in {None, ""}:
     if str(_PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(_PROJECT_ROOT))
 
-from tests.modules.c15_longitudinal_recurrence.test_m15_04_engine import _request
+from tests.modules.c15_longitudinal_recurrence.test_m15_04_engine import _request, _typed_request
 
 from glio_proteogen.contracts.m15_04 import MechanismEstimateKind, MechanismInferenceStatus
 from glio_proteogen.kernel.canonical import sha256_digest
@@ -28,6 +28,7 @@ from glio_proteogen.modules.c15_longitudinal_recurrence.m15_04_network_state_mec
 MODULE_ID = "GLIO-PROTEOGEN-M15-04"
 SCENARIO_PATH = Path(__file__).parents[2] / "tests" / "fixtures" / "m15_04" / "scenarios.json"
 EXPECTED_CASE_IDS = (
+    "typed_glioma_graph",
     "posterior_positive_control",
     "state_positive_control",
     "unsupported_abstention",
@@ -56,6 +57,18 @@ def evaluate() -> dict[str, object]:
         raise ValueError("M15-04 fixture case IDs are not locked")
     engine = M1504MechanismInference()
     checks: list[EvalCheck] = []
+
+    typed = engine.infer(_typed_request())
+    checks.append(
+        EvalCheck(
+            "typed_glioma_graph",
+            typed.typed_model
+            and typed.status is MechanismInferenceStatus.INFERRED
+            and typed.solver_iterations is not None
+            and len(typed.estimates) == 2,
+            "signed glioma mechanism graph converged",
+        )
+    )
 
     posterior = engine.infer(_request())
     checks.append(

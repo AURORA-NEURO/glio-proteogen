@@ -252,7 +252,7 @@ M11-06
 M12-05
 M13-03 M13-05 M13-06
 M14-03 M14-05
-M15-04 M15-05
+M15-05
 ```
 
 The strict union contains nine digest-derived-number engines, six fixed-posterior
@@ -267,15 +267,15 @@ its backward-compatible opaque path; typed effect requests use the robust
 trajectory implementation described above and are not counted as a fixed
 posterior estimator.
 
-The strict 22 are a floor for counterfeit estimators, not the whole scientific
+The strict 21 are a floor for counterfeit estimators, not the whole scientific
 debt inventory. M12-06's legacy scalar compatibility path remains in this
 floor, while its new typed glioma replicate lane is a real robust estimator.
-M10-05, M11-03, M11-04, M12-03, M12-04, M12-06, and M13-04 now have typed glioma
+M10-05, M11-03, M11-04, M12-03, M12-04, M12-06, M13-04, and M15-04 now have typed glioma
 research lanes documented below while their legacy paths remain provisional.
 Three representation constructors—M07-02, M08-02, and
 M09-02—also synthesize numeric vectors from hashes. They remain classified as
 representation plumbing, but their vectors must never be described as learned
-biological features. The exhaustive partition is therefore 22 strict stand-ins,
+biological features. The exhaustive partition is therefore 21 strict stand-ins,
 0 transparent scientific shells, three synthetic representation constructors,
 and 55 schema, safe-abstention, validation, registry, evidence-publisher, or
 other non-estimator engines.
@@ -567,6 +567,26 @@ request abstains with review required.
 The original unit/topology/perturbation constructor remains unchanged for legacy
 requests. Derived features are research-use-only and do not claim causality,
 clinical state, prognosis, kinase ownership, or treatment effect.
+
+## Completed M15-04 typed glioma mechanism graph lane
+
+The additive M15-04 runtime now supports an opt-in
+`glioma-complex-activity-mechanism-graph/1.0.0` family. Typed observations
+represent signed RTK/PI3K/AKT/mTOR, p53/cell-cycle, IDH/HIF1A, mesenchymal, and
+proliferation program effects with standard errors, quality weights, and
+explicit observed, left-censored, missing, or unsupported states. A bounded
+signed relation graph is fitted with Huber-robust coordinate descent, ridge
+stabilization, convergence diagnostics, and deterministic digest-seeded
+bootstrap intervals. Relation coherence propagates activity to connected
+programs instead of returning a fixed posterior.
+
+Each estimate retains direct evidence counts, stability, discordance, relation
+drivers, and measurement/topology ablation explanations. Missing and
+unsupported observations are excluded and insufficient graph support abstains
+for human review. The legacy posterior/state grammar remains unchanged for
+compatibility; typed mechanism activity is research-use-only and is not a
+clinical probability, causal claim, prognosis, kinase-ownership decision, or
+treatment recommendation.
 
 ## Completed M15-06 typed glioma perturbation sensitivity lane
 

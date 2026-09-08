@@ -10,11 +10,17 @@ from typing import TypedDict, cast
 import pytest
 
 from glio_proteogen.contracts.m15_04 import (
+    M1504_GLIOMA_MODEL_FAMILY,
     M1504_M1501_RESULT_MEDIA_TYPE,
+    GliomaMechanismProgram,
     InferComplexActivityMechanismRequest,
     MechanismEstimateKind,
+    MechanismEvidenceState,
     MechanismInferenceConfiguration,
     MechanismInferenceStatus,
+    MechanismObservation,
+    MechanismRelation,
+    MechanismRelationKind,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
 from glio_proteogen.kernel.models import (
@@ -37,6 +43,13 @@ from glio_proteogen.modules.c15_longitudinal_recurrence.m15_04_network_state_mec
     M1504ReplayVerificationError,
     infer_complex_activity_mechanism,
     preflight_mechanism_authorization,
+)
+from glio_proteogen.modules.c15_longitudinal_recurrence.m15_04_network_state_mechanism_inference.engine import (
+    _hash_normal,
+    _hash_uniform,
+    _huber_loss,
+    _quantile,
+    _sigmoid,
 )
 
 _WHEN = datetime(2026, 1, 1, tzinfo=UTC)
@@ -138,6 +151,52 @@ def _request(
     )
 
 
+def _typed_request() -> InferComplexActivityMechanismRequest:
+    request = _request()
+    return request.model_copy(
+        update={
+            "configuration": request.configuration.model_copy(
+                update={
+                    "model_family": M1504_GLIOMA_MODEL_FAMILY,
+                    "bootstrap_replicates": 16,
+                }
+            ),
+            "observations": (
+                MechanismObservation(
+                    observation_id="observation.egfr",
+                    program=GliomaMechanismProgram.RTK_PI3K_AKT_MTOR,
+                    standardized_effect=1.2,
+                    standard_error=0.2,
+                    quality_weight=0.95,
+                ),
+                MechanismObservation(
+                    observation_id="observation.p53",
+                    program=GliomaMechanismProgram.P53_CELL_CYCLE,
+                    standardized_effect=-0.8,
+                    standard_error=0.25,
+                    quality_weight=0.9,
+                ),
+            ),
+            "relations": (
+                MechanismRelation(
+                    relation_id="relation.egfr-proliferation",
+                    source_program=GliomaMechanismProgram.RTK_PI3K_AKT_MTOR,
+                    target_program=GliomaMechanismProgram.PROLIFERATION,
+                    kind=MechanismRelationKind.ACTIVATES,
+                    weight=0.8,
+                ),
+                MechanismRelation(
+                    relation_id="relation.p53-proliferation",
+                    source_program=GliomaMechanismProgram.P53_CELL_CYCLE,
+                    target_program=GliomaMechanismProgram.PROLIFERATION,
+                    kind=MechanismRelationKind.INHIBITS,
+                    weight=0.75,
+                ),
+            ),
+        }
+    )
+
+
 def test_posterior_inference_is_deterministic_and_replayable() -> None:
     engine = M1504MechanismInference()
     result = engine.infer(_request())
@@ -158,6 +217,129 @@ def test_state_inference_and_public_operation_are_supported() -> None:
     assert result.estimates[0].kind is MechanismEstimateKind.STATE
     assert result.estimates[0].state_value == "complex_activity_supported"
     assert infer_complex_activity_mechanism(request) == result
+
+
+def test_typed_glioma_mechanism_graph_is_robust_and_replayable() -> None:
+    engine = M1504MechanismInference()
+    result = engine.infer(_typed_request())
+    assert result.status is MechanismInferenceStatus.INFERRED
+    assert result.typed_model
+    assert result.solver_iterations is not None
+    assert result.objective_trace_digest is not None
+    assert {item.mechanism_id for item in result.estimates} == {
+        "mechanism.RTK_PI3K_AKT_MTOR",
+        "mechanism.P53_CELL_CYCLE",
+    }
+    assert all(item.lower_bound <= item.posterior_probability <= item.upper_bound for item in result.estimates)
+    assert all(item.evidence_count == 1 for item in result.estimates)
+    assert engine.verify(result) == result
+
+
+def test_typed_request_is_input_order_invariant_and_missing_is_not_negative() -> None:
+    request = _typed_request()
+    reordered = request.model_copy(
+        update={
+            "observations": tuple(reversed(request.observations)),
+            "relations": tuple(reversed(request.relations)),
+        }
+    )
+    first = M1504MechanismInference().infer(request)
+    second = M1504MechanismInference().infer(reordered)
+    assert first.request_digest == second.request_digest
+    assert first.estimates == second.estimates
+    missing = request.model_copy(
+        update={
+            "observations": (
+                request.observations[0].model_copy(
+                    update={
+                        "evidence_state": MechanismEvidenceState.MISSING,
+                        "standardized_effect": None,
+                        "standard_error": None,
+                    }
+                ),
+                request.observations[1],
+            )
+        }
+    )
+    abstained = M1504MechanismInference().infer(missing)
+    assert abstained.status is MechanismInferenceStatus.ABSTAINED
+    assert abstained.human_review_required
+
+
+def test_typed_censoring_coupling_and_numeric_helpers_are_deterministic() -> None:
+    request = _typed_request()
+    censored = request.model_copy(
+        update={
+            "observations": (
+                request.observations[0],
+                request.observations[1].model_copy(
+                    update={"evidence_state": MechanismEvidenceState.LEFT_CENSORED}
+                ),
+                MechanismObservation(
+                    observation_id="observation.proliferation",
+                    program=GliomaMechanismProgram.PROLIFERATION,
+                    standardized_effect=0.6,
+                    standard_error=0.3,
+                ),
+            ),
+            "relations": (
+                *request.relations,
+                MechanismRelation(
+                    relation_id="relation.egfr-p53-coupling",
+                    source_program=GliomaMechanismProgram.RTK_PI3K_AKT_MTOR,
+                    target_program=GliomaMechanismProgram.P53_CELL_CYCLE,
+                    kind=MechanismRelationKind.COUPLES,
+                ),
+            ),
+        }
+    )
+    result = M1504MechanismInference().infer(censored)
+    assert result.typed_model
+    assert result.status is MechanismInferenceStatus.INFERRED
+    assert result.estimates[1].evidence_count == 1
+    assert _hash_uniform("m1504") == _hash_uniform("m1504")
+    assert _hash_normal("m1504") == _hash_normal("m1504")
+    assert _quantile((), 0.5) == 0.0
+    assert 0.0 < _sigmoid(-2.0) < 0.5 < _sigmoid(2.0) < 1.0
+    assert _huber_loss(3.0) > _huber_loss(1.0)
+
+
+@pytest.mark.parametrize(
+    "candidate",
+    [
+        object(),
+        {"context": None},
+        {"context": {"references": None}},
+        {"context": {"references": {"approved_configuration": {"state": 1}}}},
+    ],
+)
+def test_mapping_authorization_fails_closed(candidate: object) -> None:
+    with pytest.raises(M1504AuthorizationError):
+        preflight_mechanism_authorization(candidate)
+
+
+def test_typed_contract_rejects_duplicate_or_unresolved_graph_ids() -> None:
+    request = _typed_request()
+    with pytest.raises(ValueError, match="observation ids"):
+        InferComplexActivityMechanismRequest.model_validate(
+            request.model_dump(mode="python")
+            | {"observations": (*request.observations, request.observations[0])}
+        )
+    with pytest.raises(ValueError, match="Input should be"):
+        InferComplexActivityMechanismRequest.model_validate(
+            request.model_dump(mode="python")
+            | {
+                "relations": (
+                    *request.relations,
+                    {
+                        "relation_id": "relation.unresolved",
+                        "source_program": "UNRESOLVED",
+                        "target_program": GliomaMechanismProgram.PROLIFERATION.value,
+                        "kind": MechanismRelationKind.ACTIVATES.value,
+                    },
+                ),
+            }
+        )
 
 
 @pytest.mark.parametrize(

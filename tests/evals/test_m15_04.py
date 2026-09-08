@@ -14,7 +14,7 @@ from evals.m15_04.run import evaluate
 def test_m1504_evaluator_matrix_passes() -> None:
     report = evaluate()
     assert report["passed"] is True
-    assert report["executed_cases"] == 9
+    assert report["executed_cases"] == 10
     checks = cast("list[dict[str, object]]", report["checks"])
     assert all(item["passed"] is True for item in checks)
 
