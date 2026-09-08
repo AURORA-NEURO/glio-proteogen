@@ -1,5 +1,6 @@
 requirement,authoritative_slice,implementation,evidence,status
 responsibility:mechanism_constraint_integrator,2372-2415,src/glio_proteogen/modules/c07_copy_number_dosage/m07_05_mechanism_constraint_integrator/engine.py,tests/modules/c07_copy_number_dosage/test_m07_05_constraint.py,implemented-provisional
+model:typed_glioma_dosage,2372-2415,contracts/m07_05/v1.py and engine.py,typed IRLS/bootstrap tests and evaluator,implemented-research
 boundary:no_kinase_or_treatment,2372-2415,src/glio_proteogen/contracts/m07_05/v1.py,docs/modules/M07-05.manifest.md,implemented-provisional
 boundary:no_identity_or_unsupported_negative,2372-2415,engine.py,tests/modules/c07_copy_number_dosage/test_m07_05_constraint.py,implemented-provisional
 inputs:proteome_genome_transcriptome_ptm_context,2372-2415,src/glio_proteogen/contracts/m07_05/v1.py,tests/modules/c07_copy_number_dosage/test_m07_05_constraint.py,implemented-provisional

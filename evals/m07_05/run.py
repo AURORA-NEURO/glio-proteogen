@@ -13,7 +13,10 @@ if __package__ in {None, ""}:
     if str(_PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(_PROJECT_ROOT))
 
-from tests.modules.c07_copy_number_dosage.test_m07_05_constraint import _request
+from tests.modules.c07_copy_number_dosage.test_m07_05_constraint import (
+    _request,
+    _typed_observations,
+)
 
 from glio_proteogen.modules.c07_copy_number_dosage.m07_05_mechanism_constraint_integrator import (
     M0705ConstraintEngine,
@@ -32,6 +35,10 @@ class EvaluationReport:
     ablation_count: int
     replay_verified: bool
     deterministic: bool
+    typed_status: str
+    typed_model_family: str | None
+    typed_replay_verified: bool
+    typed_deterministic: bool
     passed: bool
 
 
@@ -48,6 +55,9 @@ def evaluate() -> EvaluationReport:
         update={"constraints": (missing_constraint, request.constraint_set.constraints[1])}
     )
     missing = engine.integrate(request.model_copy(update={"constraint_set": missing_set}))
+    typed_request = request.model_copy(update={"typed_observations": _typed_observations()})
+    typed = engine.integrate(typed_request)
+    typed_repeat = engine.integrate(typed_request)
     replay = engine.verify(first.result, first.canonical_bytes)
     return EvaluationReport(
         module_id="GLIO-PROTEOGEN-M07-05",
@@ -60,6 +70,10 @@ def evaluate() -> EvaluationReport:
         ablation_count=len(first.result.ablations),
         replay_verified=replay.verified,
         deterministic=first.canonical_bytes == second.canonical_bytes,
+        typed_status=typed.result.status.value,
+        typed_model_family=typed.result.model_family,
+        typed_replay_verified=engine.verify(typed.result, typed.canonical_bytes).verified,
+        typed_deterministic=typed.canonical_bytes == typed_repeat.canonical_bytes,
         passed=(
             first.result.status.value == "integrated"
             and hard_violation.result.status.value == "abstained"
@@ -68,6 +82,10 @@ def evaluate() -> EvaluationReport:
             and bool(first.result.ablations)
             and replay.verified
             and first.canonical_bytes == second.canonical_bytes
+            and typed.result.status.value == "integrated"
+            and typed.result.model_family == "glioma-dosage-mechanism-irls/1.0.0"
+            and engine.verify(typed.result, typed.canonical_bytes).verified
+            and typed.canonical_bytes == typed_repeat.canonical_bytes
         ),
     )
 

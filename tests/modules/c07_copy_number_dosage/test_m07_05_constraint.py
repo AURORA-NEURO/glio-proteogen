@@ -8,6 +8,9 @@ import pytest
 
 from glio_proteogen.contracts.m07_05 import (
     M0705_ADVANCED_ESTIMATOR_MEDIA_TYPE,
+    DosageEvidenceState,
+    GliomaDosageObservation,
+    GliomaDosageProgram,
     IntegrateProteotypeConstraintsRequest,
     ProteotypeConstraintAwareEstimate,
     ProteotypeConstraintEvaluationOutcome,
@@ -104,6 +107,7 @@ def _request(*, force_hard_violation: bool = False) -> IntegrateProteotypeConstr
         expression="force_violation" if force_hard_violation else "abundance >= 0",
         feature_ids=("feature.proteotype",),
     )
+
     soft = ProteotypeMechanismConstraint(
         constraint_id="constraint.pathway",
         version="1.0.0",
@@ -139,6 +143,35 @@ def _request(*, force_hard_violation: bool = False) -> IntegrateProteotypeConstr
     )
 
 
+def _typed_observations() -> tuple[GliomaDosageObservation, ...]:
+    return (
+        GliomaDosageObservation(
+            observation_id="observation.egfr",
+            feature_id="feature.proteotype",
+            program=GliomaDosageProgram.RTK_PI3K_AKT_MTOR,
+            evidence_state=DosageEvidenceState.OBSERVED,
+            standardized_effect=1.1,
+            standard_error=0.2,
+        ),
+        GliomaDosageObservation(
+            observation_id="observation.tp53",
+            feature_id="feature.residual",
+            program=GliomaDosageProgram.P53_DNA_REPAIR,
+            evidence_state=DosageEvidenceState.OBSERVED,
+            standardized_effect=-0.6,
+            standard_error=0.25,
+        ),
+        GliomaDosageObservation(
+            observation_id="observation.ccnd1",
+            feature_id="feature.egfr",
+            program=GliomaDosageProgram.CELL_CYCLE,
+            evidence_state=DosageEvidenceState.LEFT_CENSORED,
+            censoring_limit=0.1,
+            standard_error=0.2,
+        ),
+    )
+
+
 def test_integrator_is_deterministic_and_emits_ablation_evidence() -> None:
     engine = M0705ConstraintEngine()
     first = engine.integrate(_request())
@@ -147,6 +180,56 @@ def test_integrator_is_deterministic_and_emits_ablation_evidence() -> None:
     assert len(first.result.estimates) == _EXPECTED_ESTIMATES
     assert first.result.ablations[0].constraint_id == "constraint.pathway"
     assert first.canonical_bytes == second.canonical_bytes
+
+
+def test_typed_glioma_dosage_fit_is_replayable_and_constrained() -> None:
+    request = _request().model_copy(update={"typed_observations": _typed_observations()})
+    reordered = _request().model_copy(
+        update={"typed_observations": tuple(reversed(_typed_observations()))}
+    )
+    engine = M0705ConstraintEngine()
+    first = engine.integrate(request)
+    second = engine.integrate(request)
+    reordered_result = engine.integrate(reordered)
+    assert first.result.status.value == "integrated"
+    assert first.result.model_family == "glioma-dosage-mechanism-irls/1.0.0"
+    assert len(first.result.estimates) == len(_typed_observations())
+    assert all(item.model_family == first.result.model_family for item in first.result.estimates)
+    assert first.result.optimization_diagnostics[0].objective_trace_digest is not None
+    assert first.result.optimization_diagnostics[0].status.value == "converged"
+    assert first.canonical_bytes == second.canonical_bytes
+    assert first.canonical_bytes == reordered_result.canonical_bytes
+    assert engine.verify(first.result, first.canonical_bytes).verified
+
+
+def test_typed_glioma_dosage_excludes_missing_and_abstains_without_program_support() -> None:
+    missing = GliomaDosageObservation(
+        observation_id="observation.missing",
+        feature_id="feature.missing",
+        evidence_state=DosageEvidenceState.MISSING,
+        quality_weight=0.0,
+    )
+    request = _request().model_copy(
+        update={"typed_observations": (*_typed_observations(), missing)}
+    )
+    result = M0705ConstraintEngine().integrate(request).result
+    assert result.status.value == "integrated"
+    assert all(item.evidence_count == 1 for item in result.estimates)
+    unsupported_only = _request().model_copy(
+        update={
+            "typed_observations": (
+                GliomaDosageObservation(
+                    observation_id="observation.unsupported",
+                    feature_id="feature.unsupported",
+                    evidence_state=DosageEvidenceState.UNSUPPORTED,
+                    quality_weight=0.0,
+                ),
+            )
+        }
+    )
+    abstained = M0705ConstraintEngine().integrate(unsupported_only).result
+    assert abstained.status.value == "abstained"
+    assert not abstained.estimates
 
 
 def test_soft_conflict_remains_visible_without_hidden_prior_dominance() -> None:
