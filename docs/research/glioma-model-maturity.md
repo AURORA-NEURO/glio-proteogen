@@ -360,6 +360,25 @@ effects. The original artifact-reference estimator remains the compatibility
 path; typed activity is a research signal and does not establish biochemical
 assembly, diagnosis, prognosis, or treatment response.
 
+## Completed M09-03 typed glioma complex baseline lane
+
+The additive M09-03 runtime now recognizes the
+`glioma-complex-baseline-huber/1.0.0` model family. Explicit standardized
+protein effects are fitted across RTK/PI3K/AKT/mTOR, p53/DNA repair,
+IDH/HIF1A, hypoxia/angiogenesis, and cell-cycle programs with quality and
+standard-error weighting, robust Huber IRLS coordinate descent, ridge
+stabilization, and signed program relations. Left-censored evidence uses a
+one-sided detection-limit loss; missing and unsupported observations are
+excluded and never become negative evidence.
+
+The typed result carries a deterministic, program-stratified bootstrap
+interval, evidence count, stability, residual discordance, top feature drivers,
+signed-relation ablation effects, and a replay-bound objective trace digest. At
+least three supported observations across two programs are required; otherwise
+the lane abstains with review required. The original SHA-256-derived baseline
+is retained as compatibility-only behavior, and the typed signal is not a
+biochemical assay, diagnosis, prognosis, kinase estimate, or treatment claim.
+
 ## Completed M09-05 typed glioma mechanism-constraint lane
 
 The additive M09-05 runtime now recognizes the
