@@ -30,6 +30,9 @@ from glio_proteogen.research.gbm_functional_proteotype.demo import (
 from glio_proteogen.research.gbm_master_kinases import DEMO_ID as MASTER_KINASE_DEMO_ID
 from glio_proteogen.research.gbm_proteomic_axes import DEMO_ID as GBM_DEMO_ID
 from glio_proteogen.research.gbm_rna_purity.demo import DEMO_ID as GBM_RNA_PURITY_DEMO_ID
+from glio_proteogen.research.gbmap_deconvolution import (
+    synthetic_gbm_mixture_request,
+)
 from glio_proteogen.research.kncc_gbm_factor_graph.contracts import (
     DEMO_ID as FACTOR_GRAPH_DEMO_ID,
 )
@@ -72,6 +75,7 @@ _VALIDATED_EXAMPLES: Final = {
     "/v1/research/neftel-protein-programs/analyze": NEFTEL_DEMO_ID,
     "/v1/research/gbm-master-kinases/analyze": MASTER_KINASE_DEMO_ID,
     "/v1/research/gbm-rna-purity/analyze": GBM_RNA_PURITY_DEMO_ID,
+    "/v1/research/gbm-rna-composition/analyze": synthetic_gbm_mixture_request().sample_id,
     "/v1/research/longitudinal-gbm/analyze": LONGITUDINAL_DEMO_ID,
     "/v1/research/longitudinal-gbm-phospho/analyze": LONGITUDINAL_PHOSPHO_DEMO_ID,
     "/v1/research/longitudinal-gbm-kinase-transition/analyze": (
@@ -133,6 +137,12 @@ _VALIDATED_EXAMPLE_FLOWS: Final = (
         "/v1/research/gbm-rna-purity/analyze",
         "sample_id",
         GBM_RNA_PURITY_DEMO_ID,
+    ),
+    (
+        "/v1/research/gbm-rna-composition/demo",
+        "/v1/research/gbm-rna-composition/analyze",
+        "sample_id",
+        synthetic_gbm_mixture_request().sample_id,
     ),
     (
         "/v1/research/longitudinal-gbm/demo",

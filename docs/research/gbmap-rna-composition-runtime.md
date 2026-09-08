@@ -22,3 +22,15 @@ percentages; unknown mass is never assigned to a lineage. All outputs are
 research-use-only and non-prescriptive. The source-admission profile remains
 `development_unfitted`, and this runtime does not promote the GBmap candidate
 to a source-derived `SUPPORTED` model.
+
+The linked stateless surfaces are:
+
+- `GET /v1/research/gbm-rna-composition/profile`
+- `GET /v1/research/gbm-rna-composition/demo`
+- `POST /v1/research/gbm-rna-composition/analyze`
+- `POST /v1/research/gbm-rna-composition/verify`
+- `glio-proteogen gbm-rna-composition profile|demo|analyze|verify`
+
+Requests and results are not persisted. The route is explicitly limited and
+caller-owned: it exposes the real solver while the licensed GBmap source and
+fitted donor-aware artifact remain admission-gated.

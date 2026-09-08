@@ -10,12 +10,12 @@ inference, proteoform/isoform inference, glioma biology, mechanism discovery,
 and clinical or treatment claims. Governed source files retain an executable
 import firewall against the research namespace.
 
-The central FastAPI composition may mount eighteen narrow research adapter
-modules exposing nineteen versioned routers. Thirteen expose distinct
+The central FastAPI composition may mount nineteen narrow research adapter
+modules exposing twenty versioned routers. Fourteen expose distinct
 scientific-inference lanes as software surfaces (not a claim that their evidence
 sources are statistically independent), one exposes an integrated KNCC
 factor-graph composition of two existing exact child engines, and five are
-compatibility facades. Typer exposes the fourteen HTTP computational surfaces
+compatibility facades. Typer exposes the fifteen HTTP computational surfaces
 plus two separate local-only exact-source tools: `cptac-gbm-cis-dosage` and
 `cptac-gbm-transcript-protein-discordance`. Neither CPTAC tool has a central
 HTTP route, and neither increases the mounted surface or operation count. The
@@ -87,6 +87,11 @@ or an additional validation source.
 primary-IDH-wildtype-GBM attestation and runs the published GBMPurity MLP through
 an artifact-locked NumPy port. It emits one malignant-cell-fraction estimate,
 not protein evidence, lineage composition, diagnosis, or clinical truth.
+`/v1/research/gbm-rna-composition` accepts a complete count vector and
+caller-supplied positive GBM lineage signatures, then runs the exact
+Dirichlet--multinomial adaptive-unknown simplex solver. It reports RNA mixture
+weights and unexplained mass only; no bundled GBmap artifact is traversed and
+the output is never relabelled as a histologic cell fraction.
 `/v1/research/immunopeptidomic-presentation` accepts exact HLA-I alleles,
 caller-owned digest-bound position matrices, terminal processing coefficients,
 and typed glioma peptide evidence. It computes an allele-aware presentation
@@ -120,20 +125,20 @@ delegated outputs into subtype, cell-fraction, recurrence-prediction, clonal,
 spatial, causal, or clinical claims.
 
 Each mounted router exposes profile, synthetic demo, analysis, and replay
-verification. The thirteen independent scientific-inference lanes plus the one
-composition surface account for fifty-six operations, while the five
-compatibility facades account for twenty, for eighteen adapter modules,
-nineteen routers, and seventy-six research operations in total. The adapters do not accept raw
+verification. The fourteen independent scientific-inference lanes plus the one
+composition surface account for sixty operations, while the five
+compatibility facades account for twenty, for nineteen adapter modules,
+twenty routers, and eighty research operations in total. The adapters do not accept raw
 mzML/FASTA bytes,
 persist requests or results, call governed modules, or promote research output
 into governed claims. Architecture
-tests inventory the exact seventy-six operations and reject any additional
+tests inventory the exact eighty operations and reject any additional
 research surface.
 
 The adapter import bridge is equally narrow. Every Python file under
-`glio_proteogen.adapters` is scanned. `api.py` may import the seventeen approved
-HTTP adapter modules that mount nineteen routers, while `cli.py` may import the
-fourteen HTTP computational-surface adapters plus the two local-only CPTAC
+`glio_proteogen.adapters` is scanned. `api.py` may import the eighteen approved
+HTTP adapter modules that mount twenty routers, while `cli.py` may import the
+fifteen HTTP computational-surface adapters plus the two local-only CPTAC
 adapters; the M09, M10, M11, M14, and M15
 compatibility facades are deliberately API-only. Only each
 narrow adapter may import its corresponding research implementation package,

@@ -24,6 +24,12 @@ separate algorithms and receipts, not scientifically independent evidence:
   clipping, exact active-ReLU local decomposition, and replay. The source
   provides one fitted network, so the lane explicitly declines to manufacture
   an uncertainty interval; and
+- `gbm-rna-composition/0.1.0`: a caller-owned, count-native
+  Dirichlet--multinomial adaptive-unknown simplex fit over positive GBM lineage
+  signatures. It reports known RNA mixture weights, unexplained mass, KKT and
+  objective-trace diagnostics, condition number, and threshold-free OOD
+  diagnostics with exact replay. It is mounted as a limited research lane;
+  no GBmap artifact is bundled and weights are never called cell fractions; and
 - `neftel-bulk-protein-programs/1.0.0`: a separately identified robust
   bulk-protein evidence model over the exact Neftel Table S2 marker identities
   and ranks; and
@@ -110,7 +116,7 @@ unchanged and remains provisional; this lane is an evolutionary evidence
 signal, not a validated tumor-evolution or treatment-response predictor.
 
 The additional `glio-ecgi-kncc-gbm-transition/1.0.0` factor-graph surface is not
-a fifteenth independent fitted model. It runs the exact PDC000514 Reactome and
+a fifteenth mounted model. It runs the exact PDC000514 Reactome and
 PDC000515 SPHINKS signature-transition child engines numerically independently
 but deterministically in serial, nests their exact receipts, and adds only a
 locked 41-node presentation topology with 39 annotation-only containment edges
@@ -169,8 +175,11 @@ donors merely to make training proceed. Exact source SHA-256 verification,
 extraction, fitting, and held-out calibration remain. The redistribution
 boundary, validation gates, and remaining blockers are recorded in
 [`gbmap-deconvolution-source-admission.md`](gbmap-deconvolution-source-admission.md).
-No fitted artifact or runtime endpoint exists for this candidate, so it does
-not increase the fourteen-lane fitted-inference inventory.
+No fitted GBmap artifact is bundled, so the source-admission candidate remains
+unfitted. The separate caller-owned `gbm-rna-composition/0.1.0` runtime is now
+mounted at `/v1/research/gbm-rna-composition` and exposed by the matching CLI;
+it increases the fourteen-lane inventory without making a source-derived GBmap
+claim.
 
 The source-independent core also exposes an explicitly named
 `gbm-rna-composition/0.1.0` caller-owned runtime. It accepts a complete count
@@ -180,8 +189,8 @@ and threshold-free OOD diagnostics, and supports deterministic replay. This is
 a limited RNA-mixture coordinate only: unknown mass is retained, lineage
 weights are never relabelled as histologic cell fractions, and no GBmap
 artifact or patient data are bundled. The development GBmap profile therefore
-remains `development_unfitted` with no source-derived `SUPPORTED` claim or
-public route.
+remains `development_unfitted` with no source-derived `SUPPORTED` claim; the
+mounted route is explicitly caller-owned and limited.
 
 ## Local M07 cis-dosage substitution boundary
 

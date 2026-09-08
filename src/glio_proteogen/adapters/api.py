@@ -46,6 +46,15 @@ from glio_proteogen.adapters.gbm_master_kinases import (
 from glio_proteogen.adapters.gbm_master_kinases import (
     router as gbm_master_kinases_router,
 )
+from glio_proteogen.adapters.gbm_rna_composition import (
+    MIXTURE_REPLAY_MAX_BYTES,
+    MIXTURE_REQUEST_MAX_BYTES,
+    MIXTURE_RESULT_MAX_BYTES,
+    MIXTURE_ROUTE_PREFIX,
+)
+from glio_proteogen.adapters.gbm_rna_composition import (
+    router as gbm_rna_composition_router,
+)
 from glio_proteogen.adapters.gbm_rna_purity import (
     GBM_RNA_PURITY_REPLAY_MAX_BYTES,
     GBM_RNA_PURITY_REQUEST_MAX_BYTES,
@@ -1758,6 +1767,14 @@ _MODEL_ROUTE_LIMITS: Final[dict[str, tuple[int, int | None]]] = {
 # are advertised with a limit larger than their strict parser accepts.
 _CENTRAL_ROUTE_LIMITS: Final[dict[str, tuple[int, int | None]]] = {
     **_MODEL_ROUTE_LIMITS,
+    f"{MIXTURE_ROUTE_PREFIX}/verify": (
+        MIXTURE_REPLAY_MAX_BYTES,
+        MIXTURE_RESULT_MAX_BYTES,
+    ),
+    MIXTURE_ROUTE_PREFIX: (
+        MIXTURE_REQUEST_MAX_BYTES,
+        MIXTURE_RESULT_MAX_BYTES,
+    ),
     f"{LONGITUDINAL_GBM_COMPLEX_TRANSITION_ROUTE_PREFIX}/verify": (
         LONGITUDINAL_GBM_COMPLEX_TRANSITION_REPLAY_MAX_BYTES,
         LONGITUDINAL_GBM_COMPLEX_TRANSITION_RESULT_MAX_BYTES,
@@ -3532,6 +3549,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
 
     app.include_router(research_state_router)
     app.include_router(immunopeptidomic_presentation_router)
+    app.include_router(gbm_rna_composition_router)
     app.include_router(gbm_functional_proteotype_router)
     app.include_router(glioma_models_router)
     app.include_router(neftel_programs_router)

@@ -238,6 +238,13 @@ class GbmMixtureResult(FrozenModel):
         return self
 
 
+class GbmMixtureReplayRequest(FrozenModel):
+    """Exact request/result envelope used by API and CLI replay verification."""
+
+    request: GbmMixtureRequest
+    result: GbmMixtureResult
+
+
 def canonical_request_digest(request: GbmMixtureRequest) -> Sha256Digest:
     canonical = _canonical_request(request)
     return sha256_digest(canonical.model_dump(mode="json"))
@@ -528,6 +535,7 @@ __all__ = [
     "MIXTURE_RELATIVE_OBJECTIVE_TOLERANCE",
     "GbmMixtureProfile",
     "GbmMixtureReference",
+    "GbmMixtureReplayRequest",
     "GbmMixtureRequest",
     "GbmMixtureResult",
     "GbmMixtureWeight",

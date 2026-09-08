@@ -95,6 +95,7 @@ from glio_proteogen.adapters.gbm_functional_proteotype import (
     cli as gbm_functional_proteotype_app,
 )
 from glio_proteogen.adapters.gbm_master_kinases import cli as gbm_master_kinases_app
+from glio_proteogen.adapters.gbm_rna_composition import cli as gbm_rna_composition_app
 from glio_proteogen.adapters.gbm_rna_purity import cli as gbm_rna_purity_app
 from glio_proteogen.adapters.glioma_models import cli as gbm_axes_app
 from glio_proteogen.adapters.immunopeptidomic_presentation import (
@@ -755,6 +756,7 @@ app.add_typer(gbm_axes_app, name="gbm-axes")
 app.add_typer(neftel_programs_app, name="neftel-programs")
 app.add_typer(gbm_master_kinases_app, name="gbm-master-kinases")
 app.add_typer(gbm_rna_purity_app, name="gbm-rna-purity")
+app.add_typer(gbm_rna_composition_app, name="gbm-rna-composition")
 app.add_typer(longitudinal_gbm_app, name="longitudinal-gbm")
 app.add_typer(longitudinal_gbm_complex_transition_app, name="complex-transition")
 app.add_typer(longitudinal_gbm_phospho_app, name="longitudinal-gbm-phospho")

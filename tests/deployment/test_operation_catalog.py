@@ -31,6 +31,11 @@ from glio_proteogen.adapters.gbm_master_kinases import (
     GBM_MASTER_KINASES_REQUEST_MAX_BYTES,
     GBM_MASTER_KINASES_RESULT_MAX_BYTES,
 )
+from glio_proteogen.adapters.gbm_rna_composition import (
+    MIXTURE_REPLAY_MAX_BYTES,
+    MIXTURE_REQUEST_MAX_BYTES,
+    MIXTURE_RESULT_MAX_BYTES,
+)
 from glio_proteogen.adapters.gbm_rna_purity import (
     GBM_RNA_PURITY_REPLAY_MAX_BYTES,
     GBM_RNA_PURITY_REQUEST_MAX_BYTES,
@@ -119,6 +124,7 @@ from glio_proteogen.research.gbm_functional_proteotype.demo import (
 from glio_proteogen.research.gbm_master_kinases import DEMO_ID as MASTER_KINASE_DEMO_ID
 from glio_proteogen.research.gbm_proteomic_axes import DEMO_ID as GBM_DEMO_ID
 from glio_proteogen.research.gbm_rna_purity.demo import DEMO_ID as GBM_RNA_PURITY_DEMO_ID
+from glio_proteogen.research.gbmap_deconvolution import synthetic_gbm_mixture_request
 from glio_proteogen.research.kncc_gbm_factor_graph.contracts import (
     DEMO_ID as FACTOR_GRAPH_DEMO_ID,
 )
@@ -159,29 +165,29 @@ def _assert_exhaustive_report(report: dict[str, object], digest: str) -> None:
     assert report == {
         "valid": True,
         "catalog_digest": digest,
-        "mounted_operation_count": 425,
-        "mounted_route_registration_count": 425,
+        "mounted_operation_count": 429,
+        "mounted_route_registration_count": 429,
         "shadowed_route_registration_count": 0,
-        "catalog_operation_count": 425,
-        "method_counts": {"GET": 197, "POST": 228},
+        "catalog_operation_count": 429,
+        "method_counts": {"GET": 199, "POST": 230},
         "safety_class_counts": {
             "S2": 157,
             "S3": 187,
             "operational": 5,
-            "research-use-only": 76,
+            "research-use-only": 80,
         },
         "request_media_type_counts": {
-            "application/json": 227,
+            "application/json": 229,
             "application/octet-stream": 1,
         },
-        "response_media_type_counts": {"application/json": 425},
-        "request_limit_declared_count": 228,
-        "result_limit_declared_count": 294,
-        "validated_example_status_counts": {"abstained": 407, "validated": 18},
+        "response_media_type_counts": {"application/json": 429},
+        "request_limit_declared_count": 230,
+        "result_limit_declared_count": 298,
+        "validated_example_status_counts": {"abstained": 410, "validated": 19},
         "validated_example_abstention_reason_counts": {
             "no_repository_validated_fixture": 139,
-            "operation_has_no_request_body": 197,
-            "requires_prior_operation_result": 71,
+            "operation_has_no_request_body": 199,
+            "requires_prior_operation_result": 72,
         },
     }
 
@@ -250,6 +256,7 @@ def _assert_research_metadata(operations: dict[tuple[str, str], dict[str, object
         _assert_m14_facade_metadata,
         _assert_m15_facade_metadata,
         _assert_immunopeptidomic_metadata,
+        _assert_gbm_rna_composition_metadata,
     ):
         assertion(operations)
 
@@ -270,6 +277,26 @@ def _assert_immunopeptidomic_metadata(
         operation = operations[("GET", f"{prefix}/{suffix}")]
         assert operation["request_max_bytes"] is None
         assert operation["result_max_bytes"] == PRESENTATION_RESULT_MAX_BYTES
+
+
+def _assert_gbm_rna_composition_metadata(
+    operations: dict[tuple[str, str], dict[str, object]],
+) -> None:
+    prefix = "/v1/research/gbm-rna-composition"
+    analyze = operations[("POST", f"{prefix}/analyze")]
+    assert analyze["request_max_bytes"] == MIXTURE_REQUEST_MAX_BYTES
+    assert analyze["result_max_bytes"] == MIXTURE_RESULT_MAX_BYTES
+    assert analyze["safety_class"] == "research-use-only"
+    assert analyze["mutability_class"] == "stateless-compute"
+    assert analyze["validated_example_status"] == "validated"
+    assert analyze["validated_example_id"] == synthetic_gbm_mixture_request().sample_id
+    verify = operations[("POST", f"{prefix}/verify")]
+    assert verify["request_max_bytes"] == MIXTURE_REPLAY_MAX_BYTES
+    assert verify["result_max_bytes"] == MIXTURE_RESULT_MAX_BYTES
+    for suffix in ("profile", "demo"):
+        operation = operations[("GET", f"{prefix}/{suffix}")]
+        assert operation["request_max_bytes"] is None
+        assert operation["result_max_bytes"] == MIXTURE_RESULT_MAX_BYTES
 
 
 def _assert_functional_proteotype_metadata(
@@ -789,6 +816,7 @@ def test_repository_validation_executes_every_typed_demo_identity(tmp_path: Path
         NEFTEL_DEMO_ID,
         MASTER_KINASE_DEMO_ID,
         GBM_RNA_PURITY_DEMO_ID,
+        synthetic_gbm_mixture_request().sample_id,
         LONGITUDINAL_DEMO_ID,
         LONGITUDINAL_PHOSPHO_DEMO_ID,
         LONGITUDINAL_KINASE_TRANSITION_DEMO_ID,
