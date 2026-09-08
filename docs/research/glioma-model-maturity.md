@@ -358,6 +358,22 @@ single-posterior ABI remains unchanged and is not silently relabeled as a
 glioma model; neither path emits subtype, kinase, diagnostic, prognostic, or
 treatment claims.
 
+## Completed M08-05 typed glioma mechanism-program lane
+
+The additive M08-05 runtime now recognizes
+`glioma-mechanism-program-irls/1.0.0`. It maps a locked glioma gene panel
+(EGFR/ERBB2/PDGFRA/PIK3CA/AKT1/MTOR, TP53/MDM2/CDKN2A/CDK4/CCND1,
+IDH1/HIF1A/VHL, STAT3/CCL2/SOX2, and OLIG2/MKI67/PCNA) into five signed
+mechanism programs. Standard-error and quality-weighted Huber coordinate
+descent fits observed and left-censored evidence with ridge stabilization,
+edge-consistency penalties, damping, an objective trace, and deterministic
+64-replicate bootstrap intervals. Directly connected unobserved programs are
+propagated only through the signed graph and retain zero measurement support.
+
+The historical caller-declared/digest-only constraint path remains unchanged.
+Typed estimates are normalized research signals with explicit program coverage
+and are not biochemical activity, diagnosis, prognosis, or treatment evidence.
+
 ## Completed M09-04 typed glioma complex stoichiometry lane
 
 The additive M09-04 runtime now recognizes the

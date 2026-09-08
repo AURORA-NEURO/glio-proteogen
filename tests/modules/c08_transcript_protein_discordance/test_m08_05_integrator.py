@@ -10,6 +10,7 @@ import pytest
 import glio_proteogen.modules.c08_transcript_protein_discordance.m08_05_mechanism_constraint_integrator.engine as engine_module
 from glio_proteogen.contracts.m08_05 import (
     M0805_BASELINE_MEDIA_TYPE,
+    M0805_GLIOMA_MODEL_FAMILY,
     ConstraintAwareEstimate,
     ConstraintEstimateKind,
     ConstraintEvaluationStatus,
@@ -167,15 +168,92 @@ def test_measured_observations_drive_robust_intervals_and_censoring() -> None:
     estimates = {item.feature_id: item for item in result.estimates}
 
     assert estimates["feature.1"].estimate_value == _OBSERVED_HIGH
-    assert (
-        estimates["feature.1"].lower_bound
-        < _OBSERVED_HIGH
-        < estimates["feature.1"].upper_bound
-    )
+    assert estimates["feature.1"].lower_bound < _OBSERVED_HIGH < estimates["feature.1"].upper_bound
     assert estimates["feature.2"].estimate_value is not None
     assert estimates["feature.2"].upper_bound == _CENSORING_LIMIT
     assert result.uncertainty.measurement.state.value == "estimated"
     assert result.uncertainty.support.probability == _EXPECTED_SUPPORT_RISK
+
+
+def test_typed_glioma_mechanism_program_graph_is_robust_and_order_invariant() -> None:
+    request = _request("conservation_hold")
+    source_artifacts = (_artifact("EGFR"), _artifact("CDK4"), _artifact("TP53"))
+    observations = (
+        ConstraintEvidenceObservation(
+            feature_id="EGFR",
+            value=1.1,
+            standard_error=0.2,
+            quality_weight=0.95,
+        ),
+        ConstraintEvidenceObservation(
+            feature_id="CDK4",
+            value=0.8,
+            standard_error=0.2,
+            quality_weight=0.9,
+        ),
+        ConstraintEvidenceObservation(
+            feature_id="TP53",
+            state=ConstraintObservationState.LEFT_CENSORED,
+            standard_error=0.2,
+            censoring_limit=0.0,
+            quality_weight=0.85,
+        ),
+    )
+    policy = request.policy.model_copy(update={"estimator_family": M0805_GLIOMA_MODEL_FAMILY})
+    request = request.model_copy(
+        update={
+            "source_artifacts": source_artifacts,
+            "policy": policy,
+            "observations": observations,
+        }
+    )
+    engine = M0805ConstraintIntegrator()
+    first = engine.integrate(request)
+    reordered = request.model_copy(
+        update={
+            "source_artifacts": tuple(reversed(source_artifacts)),
+            "observations": tuple(reversed(observations)),
+        }
+    )
+    second = engine.integrate(reordered)
+
+    assert first.result.status is ConstraintIntegratorStatus.ESTIMATED
+    assert first.result.typed_model is True
+    assert first.result.model_family == M0805_GLIOMA_MODEL_FAMILY
+    assert {item.feature_id for item in first.result.estimates} == {
+        "glioma.P53_CELL_CYCLE.mechanism",
+        "glioma.PROLIFERATION.mechanism",
+        "glioma.RTK_PI3K_AKT_MTOR.mechanism",
+    }
+    assert all(
+        item.lower_bound <= item.estimate_value <= item.upper_bound
+        for item in first.result.estimates
+    )
+    assert first.canonical_bytes == second.canonical_bytes
+
+
+def test_typed_glioma_mechanism_program_graph_abstains_without_program_coverage() -> None:
+    request = _request("conservation_hold")
+    policy = request.policy.model_copy(update={"estimator_family": M0805_GLIOMA_MODEL_FAMILY})
+    request = request.model_copy(
+        update={
+            "source_artifacts": (_artifact("EGFR"),),
+            "policy": policy,
+            "observations": (
+                ConstraintEvidenceObservation(
+                    feature_id="EGFR",
+                    value=1.0,
+                    standard_error=0.2,
+                ),
+            ),
+        }
+    )
+    result = M0805ConstraintIntegrator().integrate(request).result
+
+    assert result.status is ConstraintIntegratorStatus.ABSTAINED
+    assert not result.estimates
+    assert result.typed_model is True
+    assert result.support_decision.status is SupportStatus.REVIEW_REQUIRED
 
 
 def test_soft_numeric_glioma_constraint_damps_measured_value() -> None:

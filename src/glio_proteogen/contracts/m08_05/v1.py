@@ -43,6 +43,7 @@ M0805_OWNER: Final = "ML engineering"
 M0805_SAFETY_CLASS: Final = "S2"
 M0805_GATE: Final = "G2"
 M0805_PROVISIONAL_ABI: Final = True
+M0805_GLIOMA_MODEL_FAMILY: Final = "glioma-mechanism-program-irls/1.0.0"
 M0805_MAX_ESTIMATES: Final = 512
 M0805_MAX_CONSTRAINTS: Final = 128
 M0805_MAX_REPORTS: Final = 128
@@ -321,6 +322,8 @@ class IntegrateTranscriptProteinConstraintsResult(FrozenModel):
     provenance: ProvenanceRecord
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0805_MAX_EVIDENCE)
     limitations: tuple[Limitation, ...] = Field(min_length=1, max_length=32)
+    typed_model: bool = False
+    model_family: NonEmptyStr | None = None
 
     @model_validator(mode="after")
     def result_is_closed(self) -> IntegrateTranscriptProteinConstraintsResult:
@@ -359,6 +362,7 @@ __all__ = [
     "M0805_CONTRACT_VERSION",
     "M0805_EVIDENCE_CLAIM",
     "M0805_GATE",
+    "M0805_GLIOMA_MODEL_FAMILY",
     "M0805_MAX_CANONICAL_REQUEST_BYTES",
     "M0805_MAX_CANONICAL_RESULT_BYTES",
     "M0805_MAX_CONSTRAINTS",
