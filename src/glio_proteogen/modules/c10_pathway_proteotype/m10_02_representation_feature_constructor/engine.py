@@ -214,9 +214,13 @@ def _validate_serialized_json_request(
 
 
 def _evidence(request: ConstructProteinRnaRepresentationRequest) -> tuple[EvidenceReference, ...]:
+    artifacts = {artifact.digest: artifact for artifact in request.source_artifacts}
+    for observation in request.glioma_observations:
+        for item in observation.evidence:
+            artifacts[item.reference.digest] = item.reference
     return tuple(
-        EvidenceReference(reference=artifact, role="evidence", claim=M1002_EVIDENCE_CLAIM)
-        for artifact in request.source_artifacts
+        EvidenceReference(reference=artifacts[digest], role="evidence", claim=M1002_EVIDENCE_CLAIM)
+        for digest in sorted(artifacts)
     )
 
 
@@ -289,7 +293,7 @@ def _provenance(
         module_id=M1002_MODULE_ID,
         module_version=M1002_CONTRACT_VERSION,
         generated_at=request.context.occurred_at,
-        input_digests=tuple(artifact.digest for artifact in request.source_artifacts),
+        input_digests=tuple(item.reference.digest for item in _evidence(request)),
         configuration_digest=config_digest,
         consent_decision_id=refs.consent.decision_id,
         consent_state=refs.consent.state,
@@ -507,8 +511,13 @@ def _fit_program(  # noqa: C901,PLR0912,PLR0915
                 denominator = float(
                     np.sum(weighted * x[:, column] ** 2) + _GLIOMA_RIDGE + _GLIOMA_PRIOR_STRENGTH
                 )
+                gradient_residual = np.where(
+                    c,
+                    np.maximum(predictions - censor_limits, 0.0),
+                    predictions - y,
+                )
                 gradient = float(
-                    np.sum(weighted * x[:, column] * (predictions - y))
+                    np.sum(weighted * x[:, column] * gradient_residual)
                     + _GLIOMA_RIDGE * beta[column]
                     + _GLIOMA_PRIOR_STRENGTH * (beta[column] - prior[column])
                 )
@@ -567,8 +576,13 @@ def _fit_program(  # noqa: C901,PLR0912,PLR0915
                     denominator = float(
                         np.sum(ww * bx[:, column] ** 2) + _GLIOMA_RIDGE + _GLIOMA_PRIOR_STRENGTH
                     )
+                    gradient_residual = np.where(
+                        bc,
+                        np.maximum(pred - boot_limits, 0.0),
+                        pred - by,
+                    )
                     gradient = float(
-                        np.sum(ww * bx[:, column] * (pred - by))
+                        np.sum(ww * bx[:, column] * gradient_residual)
                         + _GLIOMA_RIDGE * boot_beta[column]
                         + _GLIOMA_PRIOR_STRENGTH * (boot_beta[column] - prior[column])
                     )
