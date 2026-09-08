@@ -7,11 +7,14 @@ from datetime import UTC, datetime
 import pytest
 
 from glio_proteogen.contracts.m07_02 import (
+    M0702_GLIOMA_MODEL_FAMILY,
     M0702_M0701_RESULT_MEDIA_TYPE,
     ConstructProteotypeAnalysisRepresentationRequest,
     ConstructProteotypeAnalysisRepresentationVerification,
     FeatureLineage,
     FeatureSpecification,
+    GliomaCopyNumberEvidenceState,
+    GliomaCopyNumberObservation,
     LeakageCheckStatus,
     ProteotypeAnalysisRepresentationResult,
     RepresentationFeature,
@@ -147,6 +150,49 @@ def _request(*, field: str = "abundance") -> ConstructProteotypeAnalysisRepresen
     )
 
 
+def _typed_observations() -> tuple[GliomaCopyNumberObservation, ...]:
+    return (
+        GliomaCopyNumberObservation(
+            observation_id="observation.m0702.egfr",
+            feature_id="feature.abundance",
+            gene="EGFR",
+            chromosome="7",
+            segment_start=55_000_000,
+            segment_end=55_300_000,
+            evidence_state=GliomaCopyNumberEvidenceState.OBSERVED,
+            log2_ratio=0.85,
+            standard_error=0.12,
+            tumor_purity=0.72,
+            minor_copy_number=1.0,
+        ),
+        GliomaCopyNumberObservation(
+            observation_id="observation.m0702.met",
+            feature_id="feature.abundance",
+            gene="MET",
+            chromosome="7",
+            segment_start=116_000_000,
+            segment_end=116_500_000,
+            evidence_state=GliomaCopyNumberEvidenceState.OBSERVED,
+            log2_ratio=0.42,
+            standard_error=0.16,
+            tumor_purity=0.72,
+            minor_copy_number=0.7,
+        ),
+        GliomaCopyNumberObservation(
+            observation_id="observation.m0702.cdkna",
+            feature_id="feature.residual",
+            gene="CDKN2A",
+            chromosome="9",
+            segment_start=21_900_000,
+            segment_end=21_950_000,
+            evidence_state=GliomaCopyNumberEvidenceState.LEFT_CENSORED,
+            standard_error=0.18,
+            tumor_purity=0.72,
+            censoring_limit=-0.65,
+        ),
+    )
+
+
 def test_representation_is_deterministic_and_lineage_complete() -> None:
     engine = M0702RepresentationEngine()
     first = engine.construct(_request())
@@ -155,6 +201,88 @@ def test_representation_is_deterministic_and_lineage_complete() -> None:
     assert len(first.result.features) == len(_request().feature_specs)
     assert first.result.features[0].lineage.feature_id == "feature.abundance"
     assert first.canonical_bytes == second.canonical_bytes
+
+
+def test_typed_glioma_copy_number_lane_is_purity_aware_and_replayable() -> None:
+    request = _request().model_copy(
+        update={"typed_observations": _typed_observations(), "bootstrap_replicates": 16}
+    )
+    engine = M0702RepresentationEngine()
+    built = engine.construct(request)
+    repeat = engine.construct(request)
+    assert built.result.status.value == "constructed"
+    assert built.result.model_family == M0702_GLIOMA_MODEL_FAMILY
+    assert built.result.optimization_diagnostics[0].status.value == "converged"
+    assert all(
+        feature.model_family == M0702_GLIOMA_MODEL_FAMILY
+        for feature in built.result.features
+    )
+    assert built.result.features[0].values[0] > 0.0
+    assert built.canonical_bytes == repeat.canonical_bytes
+    assert engine.verify(built.result, built.canonical_bytes).verified
+
+
+def test_typed_observation_order_and_purity_change_are_semantic() -> None:
+    observations = _typed_observations()
+    request = _request().model_copy(
+        update={"typed_observations": observations, "bootstrap_replicates": 16}
+    )
+    reversed_request = request.model_copy(
+        update={"typed_observations": tuple(reversed(observations))}
+    )
+    engine = M0702RepresentationEngine()
+    assert (
+        engine.construct(request).canonical_bytes
+        == engine.construct(reversed_request).canonical_bytes
+    )
+    low_purity = observations[0].model_copy(update={"tumor_purity": 0.45})
+    low_result = engine.construct(
+        request.model_copy(update={"typed_observations": (low_purity, *observations[1:])})
+    )
+    high_result = engine.construct(request)
+    assert low_result.result.features[0].values[0] > high_result.result.features[0].values[0]
+
+
+def test_typed_missing_or_unsupported_evidence_abstains_without_values() -> None:
+    missing = GliomaCopyNumberObservation(
+        observation_id="observation.m0702.missing",
+        feature_id="feature.abundance",
+        gene="EGFR",
+        chromosome="7",
+        segment_start=55_000_000,
+        segment_end=55_300_000,
+        evidence_state=GliomaCopyNumberEvidenceState.MISSING,
+        quality_weight=0.0,
+    )
+    result = M0702RepresentationEngine().construct(
+        _request().model_copy(update={"typed_observations": (missing,)})
+    )
+    assert result.result.status.value == "abstained"
+    assert not result.result.features
+    assert "insufficient" in (result.result.abstention_reason or "")
+
+
+def test_typed_observation_rejects_unresolved_or_duplicate_segments() -> None:
+    observations = _typed_observations()
+    with pytest.raises(ValueError, match="segments must be unique"):
+        _request().model_copy(
+            update={
+                "typed_observations": (
+                    observations[0],
+                    observations[0].model_copy(
+                        update={"observation_id": "observation.m0702.egfr-copy"}
+                    ),
+                )
+            }
+        ).request_is_bound()  # type: ignore[operator]
+    with pytest.raises(ValueError, match="reference requested features"):
+        _request().model_copy(
+            update={
+                "typed_observations": (
+                    observations[0].model_copy(update={"feature_id": "feature.unknown"}),
+                )
+            }
+        ).request_is_bound()  # type: ignore[operator]
 
 
 def test_replay_accepts_canonical_and_rejects_tamper() -> None:

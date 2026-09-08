@@ -396,6 +396,24 @@ traces, and replay diagnostics. The original hash-based constraint path remains
 compatibility-only; typed dosage output is a research signal and not a
 proteotype, biochemical, diagnostic, prognostic, kinase, or treatment claim.
 
+## Completed M07-02 typed glioma copy-number representation lane
+
+The additive M07-02 runtime now recognizes the
+`glioma-copy-number-purity-irls/1.0.0` model family. Typed segment evidence is
+converted from observed log2 ratios into purity-adjusted diploid-relative
+effects, then fitted per feature with a damped Huber IRLS latent-value solver
+and ridge stabilization. Left-censored segments contribute one-sided
+detection-limit loss; missing and unsupported segments carry no numeric value
+and force safe abstention when a requested feature lacks support.
+
+The representation exposes model-derived channels (latent dosage, residual
+scale, amplification/deletion fractions, allelic imbalance, mean purity, and
+focal-segment score), deterministic bootstrap stability, discordance, genomic
+drivers, and a replay-visible objective trace. The original SHA-256 constructor
+remains compatibility-only for untyped requests; typed output is a
+research-use-only representation and does not emit a clinical copy-number call
+or a parent proteotype claim.
+
 ## Completed M09-05 typed glioma mechanism-constraint lane
 
 The additive M09-05 runtime now recognizes the
