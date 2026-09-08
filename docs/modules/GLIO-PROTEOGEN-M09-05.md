@@ -50,3 +50,19 @@ The release evidence includes contract/runtime/interface tests, hard/soft/unsupp
 evaluator scenarios, deterministic benchmark output, fixture authority, traceability, and package
 import checks. These are software gates only; they do not authenticate external issuers, scientific
 measurements, ontology truth, model accuracy, calibration, transportability, or clinical utility.
+
+## Additive typed glioma research lane
+
+`glioma-mechanism-constraint-irls/1.0.0` is an additive research-only path selected whenever
+`typed_observations` are present. It accepts standardized member effects, standard errors,
+quality weights, stoichiometric weights, explicit observed/left-censored/missing/unsupported
+states, and one of five glioma programs (RTK/PI3K/AKT/mTOR, p53/DNA repair, IDH/HIF1A,
+hypoxia/angiogenesis, or cell cycle). Per-complex activity is fitted with a deterministic
+damped Huber IRLS coordinate descent. The objective contains one-sided censor loss, member
+offset ridge, stoichiometric coherence, essential-subunit bottleneck, and numeric mechanism
+constraint penalties. Sixty-four seeded stratified bootstrap perturbations (configurable up to
+256) provide replay-stable intervals; objective traces, driver members, discordance, and
+bottleneck/coherence ablations are emitted in the result. Essential members are preserved in
+every bootstrap replicate, while missing and unsupported observations contribute no negative
+signal. Unknown constraint expressions abstain in this lane. The compatibility path remains
+unchanged when typed observations are absent.

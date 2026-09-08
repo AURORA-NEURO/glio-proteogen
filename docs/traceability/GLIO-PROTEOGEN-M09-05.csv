@@ -1,5 +1,6 @@
 requirement,evidence,verification,owner,status
 responsibility:mechanism-and-constraint-integrator,docs/modules/GLIO-PROTEOGEN-M09-05.md,typed estimate and satisfaction report for complex_activity only,Quality engineering,implemented-provisional
+research:typed-glioma-mechanism-lane,contracts/m09_05 and m09_05 engine,glioma program-scoped robust IRLS with censored evidence essential bottleneck stoichiometric coherence deterministic bootstrap and ablations,Quality engineering,implemented-research
 boundary:no-kinase-all-omics-treatment,engine.py plus module docs,prohibited outputs absent and documented,Quality engineering,implemented
 inputs:content-addressed-and-no-traversal,contract and manifest,artifact references are retained without dereference,Quality engineering,implemented
 controls:consent-identity-quality-support-intended-use,engine preflight and provenance tests,denied control fails closed,Quality engineering,implemented

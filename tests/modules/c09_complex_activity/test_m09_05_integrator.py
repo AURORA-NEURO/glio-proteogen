@@ -552,3 +552,123 @@ def test_contract_negative_closures_cover_bindings_and_statuses() -> None:
     )
     with pytest.raises(ValueError, match="abstained result"):
         IntegrateComplexActivityConstraintsResult.model_validate(invalid_abstained)
+
+
+def _typed_request() -> IntegrateComplexActivityConstraintsRequest:
+    """Build a compact glioma typed request for the additive constraint lane."""
+
+    from glio_proteogen.contracts.m09_05 import (
+        GliomaComplexConstraintObservation,
+        GliomaConstraintEvidenceState,
+        GliomaConstraintMemberRole,
+        GliomaConstraintProgram,
+    )
+
+    typed = (
+        GliomaComplexConstraintObservation(
+            observation_id="typed.egfr",
+            complex_id="complex.rtk",
+            member_id="EGFR",
+            program=GliomaConstraintProgram.RTK_PI3K_AKT_MTOR,
+            member_role=GliomaConstraintMemberRole.ESSENTIAL,
+            evidence_state=GliomaConstraintEvidenceState.OBSERVED,
+            standardized_effect=0.62,
+            standard_error=0.08,
+            quality_weight=0.95,
+        ),
+        GliomaComplexConstraintObservation(
+            observation_id="typed.pik3ca",
+            complex_id="complex.rtk",
+            member_id="PIK3CA",
+            program=GliomaConstraintProgram.RTK_PI3K_AKT_MTOR,
+            member_role=GliomaConstraintMemberRole.SUPPORTING,
+            evidence_state=GliomaConstraintEvidenceState.OBSERVED,
+            standardized_effect=0.58,
+            standard_error=0.1,
+            quality_weight=0.9,
+            stoichiometric_weight=2.0,
+        ),
+        GliomaComplexConstraintObservation(
+            observation_id="typed.mtor",
+            complex_id="complex.rtk",
+            member_id="MTOR",
+            program=GliomaConstraintProgram.RTK_PI3K_AKT_MTOR,
+            member_role=GliomaConstraintMemberRole.SUPPORTING,
+            evidence_state=GliomaConstraintEvidenceState.LEFT_CENSORED,
+            standard_error=0.12,
+            censoring_limit=0.35,
+            quality_weight=0.8,
+        ),
+    )
+    base = _request("conservation_hold")
+    constraint = base.policy.constraints[0].model_copy(
+        update={"expression": "complex.rtk >= 0.3"}
+    )
+    return base.model_copy(
+        update={
+            "policy": base.policy.model_copy(
+                update={"constraints": (constraint,), "bootstrap_replicates": 16}
+            ),
+            "typed_observations": typed,
+        }
+    )
+
+
+def test_typed_glioma_constraint_fit_is_real_and_replayable() -> None:
+    from glio_proteogen.contracts.m09_05 import M0905_GLIOMA_MODEL_FAMILY
+
+    engine = M0905ConstraintIntegrator()
+    first = engine.integrate(_typed_request())
+    second = engine.integrate(_typed_request())
+
+    assert first.result.status is ConstraintIntegratorStatus.ESTIMATED
+    assert first.result.model_family == M0905_GLIOMA_MODEL_FAMILY
+    assert first.result.diagnostics[0].status.value == "converged"
+    assert first.result.diagnostics[0].objective_trace_digest is not None
+    assert first.result.estimates[0].evidence_count == 3
+    assert first.result.estimates[0].ablation_effects
+    assert first.result.estimates[0].estimate_value is not None
+    assert first.result.estimates[0].estimate_value >= 0.3
+    assert first.canonical_bytes == second.canonical_bytes
+    assert engine.verify(first.result, first.canonical_bytes, _typed_request()).verified
+
+
+def test_typed_glioma_missing_is_not_negative_and_hard_constraint_abstains() -> None:
+    from glio_proteogen.contracts.m09_05 import (
+        GliomaComplexConstraintObservation,
+        GliomaConstraintEvidenceState,
+        GliomaConstraintMemberRole,
+    )
+
+    base = _typed_request()
+    missing = GliomaComplexConstraintObservation(
+        observation_id="typed.missing",
+        complex_id="complex.empty",
+        member_id="TP53",
+        member_role=GliomaConstraintMemberRole.ESSENTIAL,
+        evidence_state=GliomaConstraintEvidenceState.MISSING,
+        quality_weight=0.0,
+    )
+    result = M0905ConstraintIntegrator().integrate(
+        base.model_copy(update={"typed_observations": (missing,)})
+    ).result
+    assert result.status is ConstraintIntegratorStatus.ABSTAINED
+    assert not result.estimates
+
+    hard = base.policy.constraints[0].model_copy(
+        update={"expression": "EGFR <= -0.9", "severity": ConstraintSeverity.HARD}
+    )
+    result = M0905ConstraintIntegrator().integrate(
+        base.model_copy(update={"policy": base.policy.model_copy(update={"constraints": (hard,)})})
+    ).result
+    assert result.status is ConstraintIntegratorStatus.ABSTAINED
+    assert "hard constraint" in (result.abstention_reason or "")
+
+
+def test_typed_glioma_input_order_does_not_change_digest() -> None:
+    request = _typed_request()
+    reordered = request.model_copy(
+        update={"typed_observations": tuple(reversed(request.typed_observations))}
+    )
+    engine = M0905ConstraintIntegrator()
+    assert engine.integrate(request).canonical_bytes == engine.integrate(reordered).canonical_bytes

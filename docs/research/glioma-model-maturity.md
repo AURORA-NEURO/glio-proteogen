@@ -268,7 +268,7 @@ posterior estimator.
 The strict 20 are a floor for counterfeit estimators, not the whole scientific
 debt inventory. M12-06's legacy scalar compatibility path remains in this
 floor, while its new typed glioma replicate lane is a real robust estimator.
-M08-03, M09-04, M09-06, M10-05, M11-03, M11-04, M12-03, M12-04, M12-06, M13-04, M15-04, and M15-05 now have typed glioma
+M08-03, M09-04, M09-05, M09-06, M10-05, M11-03, M11-04, M12-03, M12-04, M12-06, M13-04, M15-04, and M15-05 now have typed glioma
 research lanes documented below while their legacy paths remain provisional.
 Three representation constructors—M07-02, M08-02, and
 M09-02—also synthesize numeric vectors from hashes. They remain classified as
@@ -359,6 +359,27 @@ drivers, and explicit essential-bottleneck/stoichiometric-coherence ablation
 effects. The original artifact-reference estimator remains the compatibility
 path; typed activity is a research signal and does not establish biochemical
 assembly, diagnosis, prognosis, or treatment response.
+
+## Completed M09-05 typed glioma mechanism-constraint lane
+
+The additive M09-05 runtime now recognizes the
+`glioma-mechanism-constraint-irls/1.0.0` model family. Typed member evidence is
+scoped to five glioma mechanism programs and carries standardized effects,
+standard errors, quality, stoichiometric weights, member roles, and explicit
+observed/left-censored/missing/unsupported states. Each complex is fitted by a
+damped Huber IRLS coordinate descent with one-sided censor loss, member-offset
+ridge, stoichiometric coherence, essential-subunit bottleneck, and numeric
+mechanism-constraint penalties. Hard conflicts and unknown expressions abstain;
+soft conflicts remain visible in the report.
+
+Sixty-four deterministic, role-stratified bootstrap perturbations (bounded at
+256) provide replay-stable intervals. Results expose convergence traces,
+discordance, evidence counts, top member drivers, and bottleneck/coherence
+ablations. Missing and unsupported observations are excluded rather than
+treated as negative activity. The original digest-derived compatibility path
+is untouched when typed observations are absent; typed output is research-use
+only and does not establish biochemical activity, diagnosis, prognosis, or
+treatment response.
 
 ## Completed M10-03 typed glioma protein/RNA discordance lane
 

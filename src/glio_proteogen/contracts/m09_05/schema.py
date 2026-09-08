@@ -10,6 +10,7 @@ from glio_proteogen.contracts.m09_05.v1 import (
     M0905_BASELINE_MEDIA_TYPE,
     M0905_CONTRACT_VERSION,
     M0905_GATE,
+    M0905_GLIOMA_MODEL_FAMILY,
     M0905_MAX_CANONICAL_REQUEST_BYTES,
     M0905_MODULE_ID,
     M0905_OUTPUT_MEDIA_TYPE,
@@ -76,6 +77,20 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "hiddenPriorDominance": False,
         "outputMediaType": M0905_OUTPUT_MEDIA_TYPE,
         "baselineInputMediaType": M0905_BASELINE_MEDIA_TYPE,
+        "typedGliomaModelFamily": M0905_GLIOMA_MODEL_FAMILY,
+        "typedEvidenceStates": ["observed", "left_censored", "missing", "unsupported"],
+        "typedConstraintPrograms": [
+            "RTK_PI3K_AKT_MTOR",
+            "P53_DNA_REPAIR",
+            "IDH_HIF1A",
+            "HYPOXIA_ANGIOGENESIS",
+            "CELL_CYCLE",
+        ],
+        "typedEstimator": (
+            "damped_huber_irls_with_essential_bottleneck_and_"
+            "stoichiometric_coherence_and_constraint_penalties"
+        ),
+        "legacyOpaquePath": "compatibility_only",
     }
     if name == "request":
         schema["x-glio-contract"]["maxRequestBytes"] = M0905_MAX_CANONICAL_REQUEST_BYTES

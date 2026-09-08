@@ -13,9 +13,10 @@ if __package__ in {None, ""}:
     if str(_PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(_PROJECT_ROOT))
 
-from tests.modules.c09_complex_activity.test_m09_05_integrator import _request
+from tests.modules.c09_complex_activity.test_m09_05_integrator import _request, _typed_request
 
 from glio_proteogen.contracts.m09_05 import (
+    M0905_GLIOMA_MODEL_FAMILY,
     ConstraintEvidenceObservation,
     ConstraintObservationState,
 )
@@ -44,6 +45,11 @@ class EvaluationReport:
     soft_ablation_visible: bool
     measured_status: str
     measured_value_used: bool
+    typed_status: str
+    typed_model_family: str | None
+    typed_diagnostic_converged: bool
+    typed_ablation_visible: bool
+    typed_deterministic: bool
     passed: bool
 
 
@@ -73,6 +79,9 @@ def evaluate() -> EvaluationReport:
             }
         )
     )
+    typed = engine.integrate(_typed_request())
+    typed_repeat = engine.integrate(_typed_request())
+    typed_estimate = typed.result.estimates[0] if typed.result.estimates else None
     replay = engine.verify(supported.result, supported.canonical_bytes)
     tampered = engine.verify(supported.result, supported.canonical_bytes + b" ")
     soft_report = soft.result.satisfaction_report[0]
@@ -90,6 +99,13 @@ def evaluate() -> EvaluationReport:
         and measured.result.status.value == "estimated"
         and measured.result.estimates[0].estimate_value == _MEASURED_VALUE
         and measured.result.estimates[1].upper_bound == _CENSORING_LIMIT
+        and typed.result.status.value == "estimated"
+        and typed.result.model_family == M0905_GLIOMA_MODEL_FAMILY
+        and bool(typed.result.diagnostics)
+        and typed.result.diagnostics[0].status.value == "converged"
+        and typed_estimate is not None
+        and bool(typed_estimate.ablation_effects)
+        and typed.canonical_bytes == typed_repeat.canonical_bytes
     )
     return EvaluationReport(
         module_id="GLIO-PROTEOGEN-M09-05",
@@ -109,6 +125,14 @@ def evaluate() -> EvaluationReport:
             bool(measured.result.estimates)
             and measured.result.estimates[0].estimate_value == _MEASURED_VALUE
         ),
+        typed_status=typed.result.status.value,
+        typed_model_family=typed.result.model_family,
+        typed_diagnostic_converged=(
+            bool(typed.result.diagnostics)
+            and typed.result.diagnostics[0].status.value == "converged"
+        ),
+        typed_ablation_visible=bool(typed_estimate and typed_estimate.ablation_effects),
+        typed_deterministic=typed.canonical_bytes == typed_repeat.canonical_bytes,
         passed=passed,
     )
 
