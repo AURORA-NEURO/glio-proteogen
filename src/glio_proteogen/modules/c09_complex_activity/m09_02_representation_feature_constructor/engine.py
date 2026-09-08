@@ -552,6 +552,7 @@ def _typed_fit(  # noqa: C901 - aggregate fit, bootstrap, and ablation are one r
         complex_id: tuple(item for item in active if item.complex_id == complex_id)
         for complex_id in sorted({item.complex_id for item in active})
     }
+    all_complexes = {item.complex_id for item in ordered}
     weights = {
         complex_id: sum(
             item.quality_weight * item.stoichiometric_weight for item in members
@@ -667,7 +668,7 @@ def _typed_fit(  # noqa: C901 - aggregate fit, bootstrap, and ablation are one r
         upper=round(upper, 8),
         coherence=round(coherence, 8),
         bottleneck=round(bottleneck, 8),
-        coverage=round(len(grouped) / max(len(grouped), 1), 8),
+        coverage=round(len(grouped) / max(len(all_complexes), 1), 8),
         objective=round(objective, 8),
         iterations=iterations,
         convergence_gap=round(gap, 8),
