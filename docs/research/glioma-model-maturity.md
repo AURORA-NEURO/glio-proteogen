@@ -360,6 +360,29 @@ effects. The original artifact-reference estimator remains the compatibility
 path; typed activity is a research signal and does not establish biochemical
 assembly, diagnosis, prognosis, or treatment response.
 
+## Completed M10-03 typed glioma protein/RNA discordance lane
+
+The additive M10-03 runtime now recognizes the
+`glioma-protein-rna-discordance-programs/1.0.0` model family. Typed observations
+carry paired standardized protein and RNA effects, modality-specific standard
+errors, quality weights, and explicit observed, left-censored, missing, or
+unsupported states. A coupled robust Huber IRLS fit estimates feature
+discordance while shrinking each feature toward its glioma program coordinate
+(RTK/PI3K/AKT/mTOR, p53/cell-cycle, IDH/HIF1A, mesenchymal, or proliferation).
+Damping, ridge stabilization, and a recorded objective trace keep the fit
+bounded and replay-auditable.
+
+Left-censored observations contribute only when the fitted discordance exceeds
+the censoring boundary; missing and unsupported observations are excluded and
+never converted into suppression. Request-digest-seeded NumPy bootstrap
+perturbations provide interval bounds, stability, discordance magnitude, top
+protein/RNA drivers, and program/protein-only/RNA-only ablation effects. The
+typed lane abstains below two supported pairs or on non-finite/non-convergent
+fits. The original sine-wave fixture and its scalar/interval/categorical shape
+grammar remain the compatibility path, while typed output is research-use-only
+and does not establish a molecular diagnosis, prognosis, mechanism, or
+treatment response.
+
 ## Completed M09-06 typed glioma complex uncertainty lane
 
 The additive M09-06 runtime now recognizes the

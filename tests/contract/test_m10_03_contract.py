@@ -20,8 +20,11 @@ from glio_proteogen.contracts.m10_03 import (
     BaselineReplayReason,
     BaselineResultStatus,
     BaselineTuningSpec,
+    DiscordanceEvidenceState,
     EstimateProteinRnaDiscordanceBaselineVerification,
+    GliomaDiscordanceProgram,
     ProteinRnaDiscordanceBaselineResult,
+    TypedProteinRnaObservation,
     contract_json_schemas,
     result_payload_digest,
 )
@@ -59,6 +62,13 @@ def test_schema_inventory_is_strict_and_provisional() -> None:
         assert metadata["uncertaintyRequired"] is True
         assert metadata["diagnosticsRequired"] is True
         assert metadata["unsupportedToNegative"] is False
+        assert metadata["typedEvidenceStates"] == [
+            "observed",
+            "left_censored",
+            "missing",
+            "unsupported",
+        ]
+        assert metadata["typedEstimator"] == "hierarchical_damped_huber_program_shrinkage"
     assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M1003_OUTPUT_MEDIA_TYPE
     assert schemas["request"]["x-glio-contract"]["formalStateInputMediaType"] == (
         M1003_BASELINE_MEDIA_TYPE
@@ -115,6 +125,39 @@ def test_baseline_estimate_shapes_are_strict() -> None:
             unit="u",
             estimate_value=1.0,
             support_score=0.9,
+        )
+
+
+def test_typed_paired_observation_closes_state_and_program_shape() -> None:
+    observed = TypedProteinRnaObservation(
+        observation_id="obs.alpha",
+        feature_id="feature.alpha",
+        program=GliomaDiscordanceProgram.RTK_PI3K_AKT_MTOR,
+        evidence_state=DiscordanceEvidenceState.OBSERVED,
+        protein_effect=0.8,
+        rna_effect=0.2,
+        protein_standard_error=0.1,
+        rna_standard_error=0.1,
+        quality_weight=0.9,
+    )
+    assert observed.program is GliomaDiscordanceProgram.RTK_PI3K_AKT_MTOR
+    with pytest.raises(ValueError, match="active paired evidence"):
+        TypedProteinRnaObservation(
+            observation_id="obs.invalid",
+            feature_id="feature.invalid",
+            evidence_state=DiscordanceEvidenceState.OBSERVED,
+            protein_effect=0.8,
+            rna_effect=0.2,
+            protein_standard_error=0.1,
+            quality_weight=0.9,
+        )
+    with pytest.raises(ValueError, match="cannot carry a value"):
+        TypedProteinRnaObservation(
+            observation_id="obs.missing",
+            feature_id="feature.missing",
+            evidence_state=DiscordanceEvidenceState.MISSING,
+            quality_weight=0.0,
+            protein_effect=0.1,
         )
 
 
