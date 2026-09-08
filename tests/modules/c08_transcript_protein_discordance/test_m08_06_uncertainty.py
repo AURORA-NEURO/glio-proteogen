@@ -10,8 +10,12 @@ import pytest
 
 from glio_proteogen.contracts.m08_06 import (
     M0806_M0805_RESULT_MEDIA_TYPE,
+    M0806_MAX_COMPONENTS,
     DecomposeTranscriptProteinUncertaintyRequest,
+    GliomaUncertaintyProgram,
     SensitivityEnvelopeStatus,
+    TypedUncertaintyEvidenceState,
+    TypedUncertaintyObservation,
     UncertaintyDecompositionStatus,
     canonical_request_digest,
     result_payload_digest,
@@ -113,6 +117,92 @@ def test_engine_abstains_with_all_seven_explicit_uncertainty_dimensions() -> Non
     assert first.model_dump(mode="json") == second.model_dump(mode="json")
     assert first.request_digest == canonical_request_digest(first.request)
     assert first.result_digest == result_payload_digest(first)
+
+
+def test_typed_glioma_uncertainty_decomposition_is_bootstrapped_and_replayable() -> None:
+    request = _request().model_copy(
+        update={
+            "typed_observations": (
+                TypedUncertaintyObservation(
+                    observation_id="obs.egfr.rna",
+                    feature_id="EGFR",
+                    program=GliomaUncertaintyProgram.RTK_PI3K_AKT_MTOR,
+                    modality="transcript",
+                    effect=0.8,
+                    standard_error=0.2,
+                    quality_weight=0.95,
+                ),
+                TypedUncertaintyObservation(
+                    observation_id="obs.egfr.protein",
+                    feature_id="EGFR",
+                    program=GliomaUncertaintyProgram.RTK_PI3K_AKT_MTOR,
+                    modality="protein",
+                    effect=1.1,
+                    standard_error=0.25,
+                    quality_weight=0.9,
+                ),
+                TypedUncertaintyObservation(
+                    observation_id="obs.cdk4.protein",
+                    feature_id="CDK4",
+                    program=GliomaUncertaintyProgram.P53_CELL_CYCLE,
+                    modality="protein",
+                    effect=0.5,
+                    standard_error=0.2,
+                    quality_weight=0.85,
+                ),
+                TypedUncertaintyObservation(
+                    observation_id="obs.tp53.site",
+                    feature_id="TP53",
+                    program=GliomaUncertaintyProgram.P53_CELL_CYCLE,
+                    modality="phosphosite",
+                    state=TypedUncertaintyEvidenceState.LEFT_CENSORED,
+                    standard_error=0.3,
+                    censoring_limit=0.0,
+                    quality_weight=0.8,
+                ),
+            )
+        }
+    )
+    engine = M0806UncertaintyDecompositionEngine()
+    first = engine.decompose(request)
+    reordered = engine.decompose(
+        request.model_copy(
+            update={"typed_observations": tuple(reversed(request.typed_observations))}
+        )
+    )
+
+    assert first.status is UncertaintyDecompositionStatus.DECOMPOSED
+    assert first.typed_model is True
+    assert first.model_family == "glioma-uncertainty-decomposition-bootstrap/1.0.0"
+    assert first.decomposition is not None
+    assert len(first.decomposition.components) == M0806_MAX_COMPONENTS
+    assert first.sensitivity_envelope.status is SensitivityEnvelopeStatus.EVALUATED
+    assert first.uncertainty.measurement.state.value == "estimated"
+    assert engine.verify(first).model_dump(mode="json") == first.model_dump(mode="json")
+    assert reordered.model_dump(mode="json") == first.model_dump(mode="json")
+
+
+def test_typed_glioma_uncertainty_abstains_for_insufficient_supported_evidence() -> None:
+    request = _request().model_copy(
+        update={
+            "typed_observations": (
+                TypedUncertaintyObservation(
+                    observation_id="obs.missing",
+                    feature_id="EGFR",
+                    program=GliomaUncertaintyProgram.RTK_PI3K_AKT_MTOR,
+                    modality="protein",
+                    state=TypedUncertaintyEvidenceState.MISSING,
+                    quality_weight=0.0,
+                ),
+            )
+        }
+    )
+    result = M0806UncertaintyDecompositionEngine().decompose(request)
+
+    assert result.status is UncertaintyDecompositionStatus.ABSTAINED
+    assert result.typed_model is True
+    assert result.decomposition is None
+    assert result.sensitivity_envelope.status is SensitivityEnvelopeStatus.ABSTAINED
 
 
 def test_service_verify_replays_and_tamper_fails() -> None:

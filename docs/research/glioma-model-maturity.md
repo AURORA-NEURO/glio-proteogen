@@ -374,6 +374,21 @@ The historical caller-declared/digest-only constraint path remains unchanged.
 Typed estimates are normalized research signals with explicit program coverage
 and are not biochemical activity, diagnosis, prognosis, or treatment evidence.
 
+## Completed M08-06 typed glioma uncertainty lane
+
+The additive M08-06 runtime now recognizes
+`glioma-uncertainty-decomposition-bootstrap/1.0.0`. Typed observations retain
+modality, glioma program, standard error, quality, and observed,
+left-censored, missing, or unsupported state. A robust Huber location fit is
+stratified by modality and program; digest-seeded bootstrap perturbations then
+decompose measurement, sampling, parameter, model-form, identification,
+support, and transport sensitivity into all seven required dimensions.
+
+The sensitivity envelope is explicitly internal bootstrap coverage rather than
+external calibration. The original owner-review abstention path remains
+unchanged for metadata-only requests, while typed output is a research
+uncertainty diagnostic and cannot support diagnosis, prognosis, or treatment.
+
 ## Completed M09-04 typed glioma complex stoichiometry lane
 
 The additive M09-04 runtime now recognizes the

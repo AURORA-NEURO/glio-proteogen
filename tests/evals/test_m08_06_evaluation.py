@@ -3,7 +3,7 @@
 from evals.m08_06.benchmark import run_benchmark
 from evals.m08_06.run import run_evaluation
 
-_SCENARIOS = 5
+_SCENARIOS = 6
 _ITERATIONS = 3
 
 

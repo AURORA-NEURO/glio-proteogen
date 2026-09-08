@@ -30,12 +30,13 @@ is closed and duplicate artifact IDs are rejected.
 
 The deterministic runtime performs strict preflight before opening upstream
 evidence, constructs canonical request/result SHA-256 digests, records seven
-control decisions in provenance, and emits a typed non-estimable uncertainty
-profile. Without owner-confirmed calibration and synthetic, internal, and
-external coverage evidence, it returns `abstained` with `review_required`
-support, an explicit finding and abstention reason, and a sensitivity envelope
-that carries no invented coverage. Result verification validates digest,
-request binding, and exact replay.
+control decisions in provenance, and preserves a legacy typed non-estimable
+abstention path. The opt-in `glioma-uncertainty-decomposition-bootstrap/1.0.0`
+path fits robust modality/program summaries over observed and left-censored
+effects, reports all seven uncertainty dimensions, and computes a
+digest-seeded bootstrap sensitivity envelope. It remains internally sensitive,
+not externally calibrated. Result verification validates digest, request
+binding, and exact replay.
 
 HTTP and Typer adapters share the same service seam. Raw JSON is bounded,
 duplicate-key rejected, parsed strictly once, and validation diagnostics are
@@ -43,11 +44,11 @@ sanitized. Plugin execution requires an issued sealed validation token.
 
 ## Verification evidence
 
-- 23 focused tests cover contract invariants, runtime lifecycle, API/CLI/plugin
+- 19 focused tests cover contract invariants, runtime lifecycle, API/CLI/plugin
   parity, evaluator scenarios, and adversarial failure paths.
 - The executable evaluator covers safe abstention, all seven uncertainty
-  dimensions, deterministic replay, consent denial, tamper rejection, and
-  ownership claim ceilings.
+  dimensions, deterministic replay, consent denial, tamper rejection,
+  ownership claim ceilings, and typed glioma bootstrap decomposition.
 - The ten-iteration benchmark uses a frozen fixture and provisional
   2,000,000,000 ns mean / 3,000,000,000 ns p95 budgets.
 - Branch-enabled coverage over the M08-06 contract/runtime/interface scope is
@@ -57,9 +58,10 @@ sanitized. Plugin execution requires an issued sealed validation token.
 
 ## Known provisional limitations
 
-No calibrated estimator, coverage population, catalogue, or owner sign-off was
-supplied by the dossier. The implementation therefore refuses to present a
-calibrated interval or biological conclusion. Promotion from the provisional
+No externally calibrated estimator, coverage population, catalogue, or owner
+sign-off was supplied by the dossier. The legacy path therefore refuses to
+present a calibrated interval; the typed path reports internal bootstrap
+sensitivity only and no biological conclusion. Promotion from the provisional
 ABI requires owner confirmation, preregistered nominal-coverage evidence
 (85–95% acceptance around the nominal 90% target), synthetic/internal/external
 benchmark evidence, reviewer sign-off, and rollback evidence.
