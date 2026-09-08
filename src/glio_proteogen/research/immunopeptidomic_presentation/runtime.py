@@ -472,7 +472,13 @@ def analyze_immunopeptidomic_presentation(request: ImmunopeptidomicPresentationR
     else:
         support, reason = "supported", None
     ranked = sorted(rows, key=lambda row: (-(row.presentation_probability or -1.0), row.peptide_id))
-    ranks = {row.peptide_id: index for index, row in enumerate(ranked, start=1) if row.support == "supported"}
+    ranks = {
+        row.peptide_id: index
+        for index, row in enumerate(
+            (item for item in ranked if item.support == "supported"),
+            start=1,
+        )
+    }
     sealed_rows = tuple(row.model_copy(update={"rank": ranks.get(row.peptide_id)}) for row in rows)
     draft = ImmunopeptidomicPresentationResult.model_construct(
         result_id=f"presentation-{validated.sample_id}",
