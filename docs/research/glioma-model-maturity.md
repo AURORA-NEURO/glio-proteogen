@@ -270,16 +270,14 @@ posterior estimator.
 The strict 22 are a floor for counterfeit estimators, not the whole scientific
 debt inventory. M12-06's legacy scalar compatibility path remains in this
 floor, while its new typed glioma replicate lane is a real robust estimator.
-One further engine is transparently labelled a
-formula/pass-through/declaration shell rather than a fitted model: M13-04.
-M10-05, M11-03, M11-04, M12-03, M12-04, and M12-06 now have typed glioma
+M10-05, M11-03, M11-04, M12-03, M12-04, M12-06, and M13-04 now have typed glioma
 research lanes documented below while their legacy paths remain provisional.
 Three representation constructors—M07-02, M08-02, and
 M09-02—also synthesize numeric vectors from hashes. They remain classified as
 representation plumbing, but their vectors must never be described as learned
 biological features. The exhaustive partition is therefore 22 strict stand-ins,
-1 transparent scientific shell, three synthetic representation constructors,
-and 54 schema, safe-abstention, validation, registry, evidence-publisher, or
+0 transparent scientific shells, three synthetic representation constructors,
+and 55 schema, safe-abstention, validation, registry, evidence-publisher, or
 other non-estimator engines.
 
 The strict list deliberately excludes representation/schema plumbing, safe
@@ -471,6 +469,22 @@ The response reports evidence coverage, signed regulatory balance, topology
 support, and measurement/topology limitations. It does not estimate kinetics,
 spatial state, kinase ownership, prognosis, treatment response, or causality, and
 the research lane is not a governed clinical API.
+
+## Completed M13-04 typed glioma proteotype mechanism lane
+
+The additive M13-04 runtime now supports an opt-in
+`glioma-proteotype-mechanism-evidence-graph/1.0.0` family. Typed proteotype
+mechanism observations carry standardized effects, standard errors, quality
+weights, and explicit observed, left-censored, missing, or unsupported states.
+Signed activation, inhibition, and coupling relations are fitted with robust
+Huber loss, ridge stabilization, damped coordinate descent, and deterministic
+digest-seeded bootstrap posterior intervals.
+
+The original caller-declared posterior/state grammar remains compatible for
+other model families. The typed path requires two supported mechanisms and a
+signed edge, abstains on insufficient topology or convergence, and preserves
+counter-evidence. Outputs remain experimental proteotype signals—not clinical
+mechanism, diagnosis, prognosis, kinase ownership, or treatment recommendations.
 
 ## Completed M13-05 typed glioma temporal lane
 

@@ -68,6 +68,10 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "assumptionsAndAlternativesRequired": True,
         "uncertaintyRequired": True,
         "explicitAbstentionRequired": True,
+        "typedGliomaModelFamily": "glioma-proteotype-mechanism-evidence-graph/1.0.0",
+        "typedEstimator": "quality-weighted-huber-irls-signed-mechanism-graph",
+        "typedBootstrapReplicates": 64,
+        "typedMissingEvidence": "ignored-and-abstention-gated",
     }
     if name == "request":
         schema["x-glio-contract"]["maxRequestBytes"] = M1304_MAX_CANONICAL_REQUEST_BYTES

@@ -10,7 +10,7 @@
 | Operation | `infer_proteotype_mechanism` |
 | Input boundary | Opaque M13-01 hypothesis result reference, locked configuration, model/calibration references, source/counter-evidence references, identity, provenance, consent, quality, support, intended-use controls |
 | Output ceiling | Posterior or state estimate, assumptions, alternatives, counter-evidence, typed uncertainty, support, provenance, evidence, limitations, and explicit abstention |
-| Selected runtime | Deterministic caller-declared posterior/state grammar with replay-bound canonical digests |
+| Selected runtime | Opt-in typed glioma proteotype mechanism graph (robust signed Huber IRLS with deterministic bootstrap); legacy posterior/state grammar remains compatible |
 | API | `GET /v1/m13-04/schema/{name}`; `POST /v1/modules/M13-04/mechanism`; `POST /v1/modules/M13-04/verify` |
 | CLI | `m1304_app export-schema NAME`; `m1304_app infer REQUEST [--output RESULT]`; `m1304_app verify RESULT` |
 | Schemas | `request`, `output`, `estimate`, `configuration`, `finding` |
@@ -29,6 +29,16 @@ genome/transcriptome, PTM, model, calibration, or upstream result content. The
 M13-01 result is bound by media type and digest as an opaque artifact. Identity,
 lineage, consent, provenance, support, quality, approved configuration, and
 intended-use state are validated before any method or artifact traversal.
+
+When `configuration.model_family` is
+`glioma-proteotype-mechanism-evidence-graph/1.0.0`, the runtime fits typed
+standardized effects and standard errors over signed activation, inhibition,
+and coupling relations. Damped coordinate descent minimizes robust Huber
+measurement residuals, signed edge residuals, and ridge regularization;
+digest-seeded bootstrap perturbations produce replayable posterior intervals.
+Observed, left-censored, missing, and unsupported evidence states remain
+explicit, and fewer than two supported mechanisms or any missing topology
+causes abstention.
 
 ## Method and output semantics
 
@@ -60,10 +70,10 @@ mutation. External content traversal is false in every exported schema.
 
 ## Evidence and recovery
 
-The locked synthetic fixture has seven cases covering posterior inference, state
-inference, explicit and unknown-method abstention, invalid bounds, replay and
-tamper, and authorization denial. Recovery is deterministic replay plus
+The locked synthetic fixture has eight cases covering posterior inference,
+state inference, typed glioma graph inference, explicit and unknown-method
+abstention, invalid bounds, replay and tamper, and authorization denial.
+Recovery is deterministic replay plus
 explicit human review; no overwrite, persistence, or external side effect is
 performed by the runtime. Package evidence records wheel/sdist hashes,
 member counts, and isolated import verification.
-

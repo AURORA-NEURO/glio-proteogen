@@ -18,11 +18,16 @@ from typer.testing import CliRunner
 import glio_proteogen.modules.c11_protein_native_subtype.m13_04_network_state_mechanism_inference.engine as engine_module
 from glio_proteogen.adapters.m1304 import app, m1304_app
 from glio_proteogen.contracts.m13_04 import (
+    M1304_GLIOMA_MODEL_FAMILY,
     M1304_OUTPUT_MEDIA_TYPE,
     InferProteotypeMechanismRequest,
     MechanismEstimate,
     MechanismEstimateKind,
     MechanismInferenceStatus,
+    MechanismObservation,
+    MechanismObservationState,
+    MechanismRelation,
+    MechanismRelationKind,
     ProteotypeMechanismInferenceResult,
     contract_json_schema,
     contract_json_schemas,
@@ -122,6 +127,231 @@ def test_posterior_result_has_counter_evidence_and_provenance() -> None:
     assert result.provenance.module_id == "GLIO-PROTEOGEN-M13-04"
     assert result.parent_target == "proteotype"
     assert result.emits_parent is False
+
+
+def test_typed_glioma_proteotype_graph_fits_signed_evidence_and_replays() -> None:
+    base = build_scenario_request()
+    configuration = base.configuration.model_copy(
+        update={"model_family": M1304_GLIOMA_MODEL_FAMILY, "bootstrap_replicates": 16}
+    )
+    observations = (
+        MechanismObservation(
+            observation_id="obs.egfr",
+            mechanism_id="egfr",
+            label="EGFR RTK drive",
+            standardized_effect=0.8,
+            standard_error=0.2,
+        ),
+        MechanismObservation(
+            observation_id="obs.pten",
+            mechanism_id="pten",
+            label="PTEN brake",
+            standardized_effect=-0.6,
+            standard_error=0.2,
+        ),
+        MechanismObservation(
+            observation_id="obs.akt",
+            mechanism_id="akt",
+            label="AKT effector",
+            standardized_effect=0.7,
+            standard_error=0.25,
+        ),
+        MechanismObservation(
+            observation_id="obs.missing",
+            mechanism_id="unmeasured",
+            label="Unmeasured marker",
+            state=MechanismObservationState.MISSING,
+        ),
+    )
+    relations = (
+        MechanismRelation(
+            relation_id="rel.egfr-akt",
+            source_mechanism_id="egfr",
+            target_mechanism_id="akt",
+            kind=MechanismRelationKind.ACTIVATES,
+            weight=0.8,
+        ),
+        MechanismRelation(
+            relation_id="rel.egfr-pten",
+            source_mechanism_id="egfr",
+            target_mechanism_id="pten",
+            kind=MechanismRelationKind.INHIBITS,
+            weight=0.7,
+        ),
+    )
+    request = base.model_copy(
+        update={
+            "configuration": configuration,
+            "typed_observations": observations,
+            "typed_relations": relations,
+        }
+    )
+    engine = M1304MechanismEngine()
+    result = engine.infer(request)
+    assert result.status is MechanismInferenceStatus.INFERRED
+    assert result.typed_model is True
+    assert result.model_profile == M1304_GLIOMA_MODEL_FAMILY
+    assert result.solver_iterations > 0
+    assert result.solver_objective is not None
+    assert {item.mechanism_id for item in result.estimates} == {"akt", "egfr", "pten"}
+    assert engine.verify(result) == result
+
+
+def test_typed_glioma_proteotype_graph_is_order_invariant_and_abstains_without_support() -> None:
+    base = build_scenario_request()
+    configuration = base.configuration.model_copy(
+        update={"model_family": M1304_GLIOMA_MODEL_FAMILY, "bootstrap_replicates": 16}
+    )
+    observations = (
+        MechanismObservation(
+            observation_id="obs.a",
+            mechanism_id="a",
+            label="A",
+            standardized_effect=0.6,
+            standard_error=0.2,
+        ),
+        MechanismObservation(
+            observation_id="obs.b",
+            mechanism_id="b",
+            label="B",
+            standardized_effect=0.4,
+            standard_error=0.2,
+        ),
+    )
+    relation = MechanismRelation(
+        relation_id="rel.a-b",
+        source_mechanism_id="a",
+        target_mechanism_id="b",
+        kind=MechanismRelationKind.COUPLES,
+        weight=0.5,
+    )
+    request = base.model_copy(
+        update={
+            "configuration": configuration,
+            "typed_observations": observations,
+            "typed_relations": (relation,),
+        }
+    )
+    reversed_request = request.model_copy(
+        update={"typed_observations": tuple(reversed(observations))}
+    )
+    engine = M1304MechanismEngine()
+    first = engine.infer(request)
+    second = engine.infer(reversed_request)
+    assert first.request_digest == second.request_digest
+    assert first.estimates == second.estimates
+    insufficient = base.model_copy(
+        update={"configuration": configuration, "typed_observations": (observations[0],)}
+    )
+    abstained = engine.infer(insufficient)
+    assert abstained.status is MechanismInferenceStatus.ABSTAINED
+    assert not abstained.estimates
+    assert "requires two supported" in (abstained.abstention_reason or "")
+
+
+def test_typed_observation_and_relation_closure_rejects_hostile_shapes() -> None:
+    base = build_scenario_request()
+    with pytest.raises(ValueError, match="requires effect and error"):
+        MechanismObservation(
+            observation_id="obs.invalid",
+            mechanism_id="a",
+            label="A",
+            standardized_effect=0.2,
+        )
+    with pytest.raises(ValueError, match="cannot carry a value"):
+        MechanismObservation(
+            observation_id="obs.missing-value",
+            mechanism_id="a",
+            label="A",
+            standardized_effect=0.2,
+            standard_error=0.1,
+            state=MechanismObservationState.MISSING,
+        )
+    with pytest.raises(ValueError, match="self-loop"):
+        MechanismRelation(
+            relation_id="rel.loop",
+            source_mechanism_id="a",
+            target_mechanism_id="a",
+            kind=MechanismRelationKind.COUPLES,
+        )
+    observation = MechanismObservation(
+        observation_id="obs.a",
+        mechanism_id="a",
+        label="A",
+        standardized_effect=0.2,
+        standard_error=0.1,
+    )
+    duplicate = base.model_copy(update={"typed_observations": (observation, observation)})
+    with pytest.raises(ValueError, match="observation ids"):
+        InferProteotypeMechanismRequest.model_validate(duplicate.model_dump(), strict=False)
+    relation = MechanismRelation(
+        relation_id="rel.a-b",
+        source_mechanism_id="a",
+        target_mechanism_id="b",
+        kind=MechanismRelationKind.ACTIVATES,
+    )
+    unknown = base.model_copy(
+        update={"typed_observations": (observation,), "typed_relations": (relation,)}
+    )
+    with pytest.raises(ValueError, match="unknown mechanism"):
+        InferProteotypeMechanismRequest.model_validate(unknown.model_dump(), strict=False)
+    observation_b = observation.model_copy(
+        update={"observation_id": "obs.b", "mechanism_id": "b", "label": "B"}
+    )
+    duplicate_relation = base.model_copy(
+        update={
+            "typed_observations": (observation, observation_b),
+            "typed_relations": (relation.model_copy(update={"target_mechanism_id": "b"}),) * 2,
+        }
+    )
+    with pytest.raises(ValueError, match="relation ids"):
+        InferProteotypeMechanismRequest.model_validate(
+            duplicate_relation.model_dump(), strict=False
+        )
+
+
+def test_typed_graph_handles_censored_and_outlier_effects() -> None:
+    base = build_scenario_request()
+    configuration = base.configuration.model_copy(
+        update={"model_family": M1304_GLIOMA_MODEL_FAMILY, "bootstrap_replicates": 16}
+    )
+    observations = (
+        MechanismObservation(
+            observation_id="obs.outlier",
+            mechanism_id="outlier",
+            label="Outlier RTK",
+            standardized_effect=8.0,
+            standard_error=0.1,
+        ),
+        MechanismObservation(
+            observation_id="obs.censored",
+            mechanism_id="censored",
+            label="Left censored brake",
+            standardized_effect=1.0,
+            standard_error=0.2,
+            state=MechanismObservationState.LEFT_CENSORED,
+        ),
+    )
+    relation = MechanismRelation(
+        relation_id="rel.outlier-censored",
+        source_mechanism_id="outlier",
+        target_mechanism_id="censored",
+        kind=MechanismRelationKind.INHIBITS,
+        weight=0.4,
+    )
+    request = base.model_copy(
+        update={
+            "configuration": configuration,
+            "typed_observations": observations,
+            "typed_relations": (relation,),
+        }
+    )
+    result = M1304MechanismEngine().infer(request)
+    assert result.status is MechanismInferenceStatus.INFERRED
+    assert all(
+        item.lower_bound <= item.posterior_probability <= item.upper_bound
+        for item in result.estimates
+    )
 
 
 def test_request_and_result_closure_reject_forged_payloads() -> None:
@@ -283,7 +513,7 @@ def test_service_validation_and_evaluator() -> None:
     assert service.execute(request).status is MechanismInferenceStatus.INFERRED
     report = run_evaluator()
     assert report["passed"] is True
-    assert report["declared_cases"] == 7
+    assert report["declared_cases"] == 8
 
 
 def test_http_schema_infer_verify_and_sanitized_errors() -> None:

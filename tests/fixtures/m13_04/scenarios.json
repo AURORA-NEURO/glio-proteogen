@@ -8,8 +8,8 @@
     {"case_id": "unknown_method_abstention", "expected_status": "abstained"},
     {"case_id": "invalid_bounds_abstention", "expected_status": "abstained"},
     {"case_id": "replay_and_tamper", "expected_status": "verified"},
-    {"case_id": "authorization_gate", "expected_status": "rejected"}
+    {"case_id": "authorization_gate", "expected_status": "rejected"},
+    {"case_id": "typed_glioma_graph", "expected_status": "inferred"}
   ]
 }
-
 
