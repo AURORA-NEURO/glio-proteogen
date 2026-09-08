@@ -357,7 +357,6 @@ def test_typed_glioma_lane_is_order_invariant_and_preserves_censoring() -> None:
                     program=GliomaProgram.RTK_PI3K_AKT_MTOR,
                     state=GliomaRepresentationEvidenceState.LEFT_CENSORED,
                     transcript_effect=0.1,
-                    protein_effect=-0.4,
                     copy_number_effect=0.0,
                     censor_limit=-0.25,
                     protein_standard_error=0.2,

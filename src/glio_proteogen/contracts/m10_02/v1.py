@@ -176,15 +176,19 @@ class GliomaRepresentationObservation(FrozenModel):
             GliomaRepresentationEvidenceState.LEFT_CENSORED,
         }
         if active:
-            if self.protein_effect is None or self.protein_standard_error is None:
-                raise ValueError("active typed evidence requires protein effect and standard error")
-            if self.quality_weight <= 0.0:
-                raise ValueError("active typed evidence requires positive quality weight")
-            if (
-                self.state is GliomaRepresentationEvidenceState.LEFT_CENSORED
-                and self.censor_limit is None
-            ):
-                raise ValueError("left-censored evidence requires a censor limit")
+            if self.protein_standard_error is None or self.quality_weight <= 0.0:
+                raise ValueError(
+                    "active typed evidence requires protein error and positive quality"
+                )
+            if self.state is GliomaRepresentationEvidenceState.OBSERVED:
+                if self.protein_effect is None or self.censor_limit is not None:
+                    raise ValueError(
+                        "observed evidence requires a protein effect without censor limit"
+                    )
+            elif self.protein_effect is None and self.censor_limit is None:
+                raise ValueError("left-censored evidence requires a protein effect or censor limit")
+            elif self.protein_effect is not None and self.censor_limit is not None:
+                raise ValueError("left-censored evidence cannot carry both effect and censor limit")
         elif (
             any(
                 value is not None

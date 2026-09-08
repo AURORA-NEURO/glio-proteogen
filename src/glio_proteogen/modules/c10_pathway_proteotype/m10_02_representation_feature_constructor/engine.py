@@ -89,6 +89,7 @@ class _GliomaFit:
     observation: GliomaRepresentationObservation
     beta: tuple[float, float, float]
     predicted: float
+    protein_for_dosage: float
     discordance: float
     lower: float
     upper: float
@@ -611,12 +612,19 @@ def _fit_program(  # noqa: C901,PLR0912,PLR0915
                 float(beta[1]),
                 float(beta[2]),
             )
+            if item.protein_effect is None and item.censor_limit is not None:
+                discordance = max(predicted - item.censor_limit, 0.0)
+                protein_for_dosage = predicted
+            else:
+                discordance = abs(float(item.protein_effect or 0.0) - predicted)
+                protein_for_dosage = float(item.protein_effect or 0.0)
             fits.append(
                 _GliomaFit(
                     observation=item,
                     beta=beta_values,
                     predicted=predicted,
-                    discordance=abs(float(item.protein_effect or 0.0) - predicted),
+                    protein_for_dosage=protein_for_dosage,
+                    discordance=discordance,
                     lower=lower,
                     upper=upper,
                     stability=stability,
@@ -676,8 +684,7 @@ def _construct_glioma_representation(
             (fit.discordance, "protein_discordance", 0.0, max(fit.upper - fit.lower, 0.0)),
             (
                 float(
-                    (observation.protein_effect or 0.0)
-                    - fit.beta[1] * (observation.copy_number_effect or 0.0)
+                    fit.protein_for_dosage - fit.beta[1] * (observation.copy_number_effect or 0.0)
                 ),
                 "dosage_residual",
                 None,
