@@ -59,6 +59,7 @@ M1205_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
 M1205_MAX_EFFECT: Final = 20.0
 M1205_DEFAULT_BOOTSTRAP_REPLICATES: Final = 64
 M1205_MAX_BOOTSTRAP_REPLICATES: Final = 256
+M1205_GLIOMA_MODEL_FAMILY: Final = "glioma-temporal-program-graph/1.0.0"
 
 
 class TrajectoryDimension(StrEnum):
@@ -76,6 +77,7 @@ class EvolutionModelFamily(StrEnum):
     MECHANISTIC = "mechanistic"
     FOUNDATION_ASSISTED = "foundation_assisted"
     MIXTURE_OF_EXPERTS = "mixture_of_experts"
+    GLIOMA_TEMPORAL_PROGRAM_GRAPH = M1205_GLIOMA_MODEL_FAMILY
 
 
 class TrajectoryStatus(StrEnum):
@@ -520,6 +522,7 @@ __all__ = [
     "M1205_CONTRACT_VERSION",
     "M1205_DEFAULT_BOOTSTRAP_REPLICATES",
     "M1205_GATE",
+    "M1205_GLIOMA_MODEL_FAMILY",
     "M1205_M1204_RESULT_MEDIA_TYPE",
     "M1205_MAX_BOOTSTRAP_REPLICATES",
     "M1205_MAX_CANONICAL_REQUEST_BYTES",

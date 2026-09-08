@@ -10,6 +10,7 @@ from glio_proteogen.contracts.m12_05.v1 import (
     M1205_CONTRACT_VERSION,
     M1205_DEFAULT_BOOTSTRAP_REPLICATES,
     M1205_GATE,
+    M1205_GLIOMA_MODEL_FAMILY,
     M1205_M1204_RESULT_MEDIA_TYPE,
     M1205_MAX_BOOTSTRAP_REPLICATES,
     M1205_MAX_CANONICAL_REQUEST_BYTES,
@@ -90,6 +91,7 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "explicitAbstentionRequired": True,
         "reproductionWithinTolerance": True,
         "typedGliomaTemporalModel": True,
+        "typedModelFamily": M1205_GLIOMA_MODEL_FAMILY,
         "typedEvidenceStates": [
             "observed",
             "left_censored",
