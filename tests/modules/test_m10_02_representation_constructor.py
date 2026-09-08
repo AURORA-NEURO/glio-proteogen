@@ -9,6 +9,9 @@ import pytest
 
 from glio_proteogen.contracts.m10_02 import (
     ConstructProteinRnaRepresentationRequest,
+    GliomaProgram,
+    GliomaRepresentationEvidenceState,
+    GliomaRepresentationObservation,
     RepresentationConfiguration,
     RepresentationConstructionStatus,
     RepresentationFeatureValueKind,
@@ -45,6 +48,8 @@ from glio_proteogen.modules.c10_pathway_proteotype.m10_02_representation_feature
     preflight_authorization,
     validate_json_request,
 )
+
+EXPECTED_TYPED_FEATURES = 6
 
 
 def _artifact(name: str, media_type: str = "application/json") -> ArtifactReference:
@@ -254,6 +259,132 @@ def test_categorical_and_vector_values_retain_declared_shapes() -> None:
     assert categorical_result.representation.features[0].category == "factor-a"
     assert vector_result.representation is not None
     assert vector_result.representation.features[0].vector == (0.1, 0.2)
+
+
+def test_typed_glioma_lane_fits_translation_dosage_and_phospho_channels() -> None:
+    request = _request().model_copy(
+        update={
+            "input_features": (
+                _request().input_features[0],
+                RepresentationInputFeature(
+                    feature_id="protein.beta",
+                    value_kind=RepresentationFeatureValueKind.SCALAR,
+                    state=RepresentationMissingness.OBSERVED,
+                    unit="log2_ratio",
+                    scalar_value=-0.2,
+                ),
+                RepresentationInputFeature(
+                    feature_id="protein.gamma",
+                    value_kind=RepresentationFeatureValueKind.SCALAR,
+                    state=RepresentationMissingness.OBSERVED,
+                    unit="log2_ratio",
+                    scalar_value=0.1,
+                ),
+            ),
+            "glioma_observations": (
+                GliomaRepresentationObservation(
+                    observation_id="obs.egfr",
+                    input_feature_id="protein.alpha",
+                    gene="EGFR",
+                    program=GliomaProgram.RTK_PI3K_AKT_MTOR,
+                    state=GliomaRepresentationEvidenceState.OBSERVED,
+                    transcript_effect=0.8,
+                    protein_effect=1.0,
+                    copy_number_effect=0.4,
+                    phosphosite_effect=1.2,
+                    protein_standard_error=0.2,
+                ),
+                GliomaRepresentationObservation(
+                    observation_id="obs.pten",
+                    input_feature_id="protein.beta",
+                    gene="PTEN",
+                    program=GliomaProgram.RTK_PI3K_AKT_MTOR,
+                    state=GliomaRepresentationEvidenceState.OBSERVED,
+                    transcript_effect=-0.3,
+                    protein_effect=-0.2,
+                    copy_number_effect=-0.8,
+                    phosphosite_effect=-0.5,
+                    protein_standard_error=0.25,
+                ),
+                GliomaRepresentationObservation(
+                    observation_id="obs.missing",
+                    input_feature_id="protein.gamma",
+                    gene="CDKN2A",
+                    program=GliomaProgram.P53_CELL_CYCLE,
+                    state=GliomaRepresentationEvidenceState.MISSING,
+                    quality_weight=0.0,
+                ),
+            ),
+            "bootstrap_replicates": 16,
+        }
+    )
+    result = construct_protein_rna_representation(request)
+    assert result.status is RepresentationConstructionStatus.CONSTRUCTED
+    assert result.model_family == "glioma-dosage-translation-phospho-irls/1.0.0"
+    assert result.representation is not None
+    assert len(result.representation.features) == EXPECTED_TYPED_FEATURES
+    translation = next(
+        feature
+        for feature in result.representation.features
+        if feature.channel == "translation_index"
+    )
+    assert translation.gene == "EGFR"
+    assert translation.stability is not None
+    assert translation.lower_bound is not None
+    assert translation.upper_bound is not None
+    assert any("IRLS converged" in item.message for item in result.diagnostics)
+    assert verify_result_replay(result)
+
+
+def test_typed_glioma_lane_is_order_invariant_and_preserves_censoring() -> None:
+    base = _request().model_copy(
+        update={
+            "input_features": (
+                _request().input_features[0],
+                RepresentationInputFeature(
+                    feature_id="protein.beta",
+                    value_kind=RepresentationFeatureValueKind.SCALAR,
+                    state=RepresentationMissingness.OBSERVED,
+                    unit="log2_ratio",
+                    scalar_value=0.0,
+                ),
+            ),
+            "glioma_observations": (
+                GliomaRepresentationObservation(
+                    observation_id="obs.egfr",
+                    input_feature_id="protein.alpha",
+                    gene="EGFR",
+                    program=GliomaProgram.RTK_PI3K_AKT_MTOR,
+                    state=GliomaRepresentationEvidenceState.LEFT_CENSORED,
+                    transcript_effect=0.1,
+                    protein_effect=-0.4,
+                    copy_number_effect=0.0,
+                    censor_limit=-0.25,
+                    protein_standard_error=0.2,
+                ),
+                GliomaRepresentationObservation(
+                    observation_id="obs.met",
+                    input_feature_id="protein.beta",
+                    gene="MET",
+                    program=GliomaProgram.RTK_PI3K_AKT_MTOR,
+                    state=GliomaRepresentationEvidenceState.OBSERVED,
+                    transcript_effect=0.3,
+                    protein_effect=0.2,
+                    copy_number_effect=0.4,
+                    protein_standard_error=0.2,
+                ),
+            ),
+            "bootstrap_replicates": 16,
+        }
+    )
+    reordered = base.model_copy(
+        update={"glioma_observations": tuple(reversed(base.glioma_observations))}
+    )
+    first = construct_protein_rna_representation(base)
+    second = construct_protein_rna_representation(reordered)
+    assert first.model_dump(mode="json") == second.model_dump(mode="json")
+    assert first.representation is not None
+    assert any(feature.discordance is not None for feature in first.representation.features)
 
 
 def test_preflight_rejects_hostile_and_incomplete_candidates() -> None:
