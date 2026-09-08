@@ -596,7 +596,7 @@ def _clamp_probability(value: float) -> float:
     return _quantize(max(0.0, min(1.0, value)))
 
 
-def _typed_outputs(  # noqa: PLR0913 - explicit result construction keeps the ABI visible.
+def _typed_outputs(  # noqa: PLR0913, PLR0917 - explicit result construction keeps the ABI visible.
     request: ModelBiomarkerPanelLongitudinalEvolutionRequest,
     terms: tuple[_TypedTerm, ...],
     kind: str,
