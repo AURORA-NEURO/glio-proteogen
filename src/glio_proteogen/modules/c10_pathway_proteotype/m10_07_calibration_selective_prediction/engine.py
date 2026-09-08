@@ -4,32 +4,39 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from hashlib import sha256
+from math import exp, hypot, isfinite, log
 from typing import Final
 
+import numpy as np
 from pydantic import TypeAdapter, ValidationError
 
 from glio_proteogen.contracts.m10_07 import (
     M1007_CONTRACT_VERSION,
     M1007_MAX_CANONICAL_RESULT_BYTES,
     M1007_MAX_COVERAGE,
+    M1007_MIN_CALIBRATION_OBSERVATIONS,
     M1007_MIN_COVERAGE,
     M1007_MODULE_ID,
     M1007_NOMINAL_COVERAGE,
+    M1007_TYPED_MODEL_FAMILY,
     CalibratedEstimate,
     CalibrateProteinRnaDiscordanceSelectivePredictionRequest,
     CalibrationDiagnostic,
     CalibrationDiagnosticStatus,
+    CalibrationEvidenceState,
     CalibrationFindingCode,
     CalibrationObservation,
     CalibrationStatus,
     PredictionSet,
     ProteinRnaDiscordanceSelectivePredictionResult,
+    TypedDiscordanceCalibrationObservation,
+    TypedDiscordanceQuery,
     canonical_request_digest,
     expected_evidence,
     expected_uncertainty,
     result_payload_digest,
 )
-from glio_proteogen.kernel.canonical import canonical_json_bytes
+from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
 from glio_proteogen.kernel.models import (
     ConsentState,
     ControlDecisionRecord,
@@ -51,6 +58,27 @@ _ZERO_DIGEST: Final = "sha256:" + ("0" * 64)
 _CONFORMAL_ALPHA: Final = 1.0 - M1007_NOMINAL_COVERAGE
 _SUBGROUP_DISPARITY_LIMIT: Final = 0.2
 _DISCORDANCE_DECISION_THRESHOLD: Final = 0.5
+_TYPED_MAX_ITERATIONS: Final = 64
+_TYPED_TOLERANCE: Final = 1e-6
+_TYPED_DAMPING: Final = 0.7
+_TYPED_RIDGE: Final = 0.08
+_TYPED_HUBER_K: Final = 1.5
+_TYPED_MAX_Z: Final = 12.0
+_TYPED_MIN_CLASSES: Final = 2
+_TYPED_CLASS_THRESHOLD: Final = 0.5
+_TYPED_MIN_WEIGHT: Final = 1e-10
+
+
+@dataclass(frozen=True, slots=True)
+class _TypedCalibrationFit:
+    intercept: float
+    slope: float
+    query_score: float
+    transformed_observations: tuple[CalibrationObservation, ...]
+    objective: float
+    iterations: int
+    convergence_gap: float
+    objective_trace: tuple[float, ...]
 
 
 def _predicted_label(score: float) -> str:
@@ -230,6 +258,174 @@ def _score(request: CalibrateProteinRnaDiscordanceSelectivePredictionRequest, di
     return round(int.from_bytes(sha256(seed.encode()).digest()[:8], "big") / 2**64, 8)
 
 
+def _typed_active(
+    observation: TypedDiscordanceCalibrationObservation | TypedDiscordanceQuery,
+) -> bool:
+    return observation.evidence_state in {
+        CalibrationEvidenceState.OBSERVED,
+        CalibrationEvidenceState.LEFT_CENSORED,
+    }
+
+
+def _typed_delta(
+    observation: TypedDiscordanceCalibrationObservation | TypedDiscordanceQuery,
+) -> float:
+    if (
+        observation.protein_effect is None
+        or observation.rna_effect is None
+        or observation.protein_standard_error is None
+        or observation.rna_standard_error is None
+    ):
+        raise ValueError from None
+    uncertainty = hypot(observation.protein_standard_error, observation.rna_standard_error)
+    if not isfinite(uncertainty) or uncertainty <= 0.0:
+        raise ValueError from None
+    return float(
+        np.clip(
+            (observation.protein_effect - observation.rna_effect) / uncertainty,
+            -_TYPED_MAX_Z,
+            _TYPED_MAX_Z,
+        )
+    )
+
+
+def _sigmoid(value: float) -> float:
+    bounded = float(np.clip(value, -30.0, 30.0))
+    if bounded >= 0.0:
+        return 1.0 / (1.0 + exp(-bounded))
+    positive = exp(bounded)
+    return positive / (1.0 + positive)
+
+
+def _typed_logistic_fit(  # noqa: C901, PLR0911, PLR0912, PLR0915 - deterministic IRLS gate.
+    observations: tuple[TypedDiscordanceCalibrationObservation, ...],
+) -> tuple[float, float, float, int, float, tuple[float, ...]] | None:
+    active = tuple(item for item in observations if _typed_active(item))
+    if len(active) < M1007_MIN_CALIBRATION_OBSERVATIONS:
+        return None
+    labels = tuple(item.observed_label for item in active)
+    if any(label is None for label in labels):
+        return None
+    numeric_labels = np.asarray(
+        [1.0 if label == "discordant" else 0.0 for label in labels], dtype=np.float64
+    )
+    if len(set(numeric_labels.tolist())) < _TYPED_MIN_CLASSES:
+        return None
+    try:
+        values = np.asarray([_typed_delta(item) for item in active], dtype=np.float64)
+    except ValueError:
+        return None
+    qualities = np.asarray([item.quality_weight for item in active], dtype=np.float64)
+    if not (
+        np.all(np.isfinite(values))
+        and np.all(np.isfinite(qualities))
+        and np.all(qualities > 0.0)
+    ):
+        return None
+    weighted_rate = float(np.average(numeric_labels, weights=qualities))
+    intercept = log((weighted_rate + 0.01) / (1.01 - weighted_rate))
+    beta = np.asarray([intercept, 0.0], dtype=np.float64)
+    design = np.column_stack((np.ones(len(values), dtype=np.float64), values))
+    objective_trace: list[float] = []
+    convergence_gap = float("inf")
+    iterations = 0
+    for iteration in range(_TYPED_MAX_ITERATIONS):
+        iterations = iteration + 1
+        probabilities = np.asarray([_sigmoid(float(value)) for value in design @ beta])
+        variance = np.maximum(probabilities * (1.0 - probabilities), 1e-8)
+        standardized = (numeric_labels - probabilities) / np.sqrt(variance)
+        robust = np.minimum(1.0, _TYPED_HUBER_K / np.maximum(1.0, np.abs(standardized)))
+        eligible = np.ones(len(active), dtype=bool)
+        for index, item in enumerate(active):
+            if item.evidence_state is not CalibrationEvidenceState.LEFT_CENSORED:
+                continue
+            if (
+                numeric_labels[index] >= _TYPED_CLASS_THRESHOLD
+                and probabilities[index] >= _TYPED_CLASS_THRESHOLD
+            ) or (
+                numeric_labels[index] < _TYPED_CLASS_THRESHOLD
+                and probabilities[index] <= _TYPED_CLASS_THRESHOLD
+            ):
+                eligible[index] = False
+        robust[~eligible] = 0.0
+        weights = qualities * probabilities * (1.0 - probabilities) * robust
+        if float(np.sum(weights)) <= _TYPED_MIN_WEIGHT:
+            return None
+        hessian = design.T @ (weights[:, None] * design)
+        hessian += _TYPED_RIDGE * np.eye(2, dtype=np.float64)
+        gradient = design.T @ (qualities * robust * eligible * (numeric_labels - probabilities))
+        gradient -= _TYPED_RIDGE * beta
+        try:
+            step = np.linalg.solve(hessian, gradient)
+        except np.linalg.LinAlgError:
+            return None
+        updated = beta + step
+        damped = _TYPED_DAMPING * updated + (1.0 - _TYPED_DAMPING) * beta
+        convergence_gap = float(np.max(np.abs(damped - beta)))
+        beta = damped
+        objective = 0.0
+        probabilities = np.asarray([_sigmoid(float(value)) for value in design @ beta])
+        for index, probability in enumerate(probabilities):
+            if not eligible[index]:
+                continue
+            objective -= float(qualities[index]) * (
+                numeric_labels[index] * log(max(probability, 1e-12))
+                + (1.0 - numeric_labels[index]) * log(max(1.0 - probability, 1e-12))
+            )
+        objective += 0.5 * _TYPED_RIDGE * float(np.sum(beta * beta))
+        objective_trace.append(round(objective, 10))
+        if convergence_gap <= _TYPED_TOLERANCE:
+            break
+    if not objective_trace or not np.isfinite(objective_trace[-1]) or not np.all(np.isfinite(beta)):
+        return None
+    return (
+        float(beta[0]),
+        float(beta[1]),
+        objective_trace[-1],
+        iterations,
+        convergence_gap,
+        tuple(objective_trace),
+    )
+
+
+def _typed_calibration_fit(
+    request: CalibrateProteinRnaDiscordanceSelectivePredictionRequest,
+) -> _TypedCalibrationFit | None:
+    if request.typed_query is None:
+        return None
+    fitted = _typed_logistic_fit(request.typed_calibration_observations)
+    if fitted is None or not _typed_active(request.typed_query):
+        return None
+    intercept, slope, objective, iterations, gap, trace = fitted
+    transformed: list[CalibrationObservation] = []
+    for item in request.typed_calibration_observations:
+        if not _typed_active(item) or item.observed_label is None:
+            continue
+        score = _sigmoid(intercept + slope * _typed_delta(item))
+        transformed.append(
+            CalibrationObservation(
+                observation_id=item.observation_id,
+                score=round(score, 8),
+                observed_label=item.observed_label,
+                subgroup=item.subgroup,
+                evidence=item.evidence,
+            )
+        )
+    if len(transformed) < M1007_MIN_CALIBRATION_OBSERVATIONS:
+        return None
+    query_score = _sigmoid(intercept + slope * _typed_delta(request.typed_query))
+    return _TypedCalibrationFit(
+        intercept=round(intercept, 8),
+        slope=round(slope, 8),
+        query_score=round(query_score, 8),
+        transformed_observations=tuple(transformed),
+        objective=round(objective, 8),
+        iterations=iterations,
+        convergence_gap=round(gap, 8),
+        objective_trace=trace,
+    )
+
+
 def _nonconformity(score: float, label: str, observed_label: str) -> float:
     """Return the probability-score nonconformity for one candidate label."""
 
@@ -273,8 +469,12 @@ def _measured_calibration(
     request: CalibrateProteinRnaDiscordanceSelectivePredictionRequest,
     score: float,
     evidence: tuple[EvidenceReference, ...],
+    observations: tuple[CalibrationObservation, ...] | None = None,
+    query_subgroup: str | None = None,
 ) -> _MeasuredCalibration:
-    observations = request.calibration_observations
+    observations = (
+        request.calibration_observations if observations is None else observations
+    )
     labels = ("discordant", "concordant")
     p_values = {
         label: _conformal_p_value(observations, score, label) for label in labels
@@ -324,7 +524,7 @@ def _measured_calibration(
             ),
             metric_name="subgroup_disparity",
             metric_value=round(disparity, 8),
-            subgroup=request.query_subgroup,
+            subgroup=request.query_subgroup if query_subgroup is None else query_subgroup,
             message="Maximum absolute subgroup coverage disparity in the calibration lane.",
             evidence=evidence,
         ),
@@ -387,8 +587,8 @@ def _measured_calibration(
     )
 
 
-def _limitations() -> tuple[Limitation, ...]:
-    return (
+def _limitations(*, typed: bool = False) -> tuple[Limitation, ...]:
+    base = [
         Limitation(
             code="provisional_abi",
             statement=(
@@ -416,7 +616,18 @@ def _limitations() -> tuple[Limitation, ...]:
                 "recommendation, or parent claim."
             ),
         ),
-    )
+    ]
+    if typed:
+        base.append(
+            Limitation(
+                code="typed_glioma_calibration_research_only",
+                statement=(
+                    "Typed protein/RNA calibration is a reviewable molecular signal; it is not "
+                    "a diagnostic subtype, prognosis, causal response, or treatment claim."
+                ),
+            )
+        )
+    return tuple(base)
 
 
 def _build(
@@ -424,15 +635,35 @@ def _build(
 ) -> ProteinRnaDiscordanceSelectivePredictionResult:
     digest = canonical_request_digest(request)
     evidence = _evidence(request)
-    score = _score(request, digest)
-    measured = (
-        _measured_calibration(request, score, evidence)
-        if request.calibration_observations
-        else None
-    )
+    typed_fit = _typed_calibration_fit(request) if request.typed_query is not None else None
+    if typed_fit is None and request.typed_query is not None:
+        score = 0.0
+        measured = None
+    elif typed_fit is not None:
+        score = typed_fit.query_score
+        measured = _measured_calibration(
+            request,
+            score,
+            evidence,
+            typed_fit.transformed_observations,
+            request.typed_query.subgroup if request.typed_query is not None else None,
+        )
+    else:
+        score = _score(request, digest)
+        measured = (
+            _measured_calibration(request, score, evidence)
+            if request.calibration_observations
+            else None
+        )
     reason: str | None = None
     finding: CalibrationFindingCode | None = None
-    if any("unsupported" in item.media_type.casefold() for item in request.source_artifacts):
+    if typed_fit is None and request.typed_query is not None:
+        reason, finding = (
+            "typed calibration requires at least eight supported paired observations "
+            "with both discordance classes",
+            CalibrationFindingCode.SUPPORT_THRESHOLD_NOT_MET,
+        )
+    elif any("unsupported" in item.media_type.casefold() for item in request.source_artifacts):
         reason, finding = (
             "source evidence declares an unsupported media type",
             CalibrationFindingCode.OOD_UNSUPPORTED,
@@ -451,6 +682,37 @@ def _build(
         )
     diagnostics: tuple[CalibrationDiagnostic, ...]
     findings: tuple[CalibrationFindingCode, ...]
+    typed_diagnostic = (
+        CalibrationDiagnostic(
+            diagnostic_id="diagnostic.typed_logistic",
+            status=(
+                CalibrationDiagnosticStatus.PASS
+                if typed_fit is not None
+                else CalibrationDiagnosticStatus.NOT_EVALUABLE
+            ),
+            metric_name="typed_logistic_objective",
+            metric_value=(
+                round(typed_fit.objective / (1.0 + typed_fit.objective), 8)
+                if typed_fit is not None
+                else None
+            ),
+            subgroup=request.typed_query.subgroup if request.typed_query is not None else None,
+            message=(
+                "Quality-weighted damped robust logistic discordance fit converged."
+                if typed_fit is not None
+                else "Typed calibration did not have enough supported paired evidence."
+            ),
+            model_family=M1007_TYPED_MODEL_FAMILY,
+            objective_trace_digest=(
+                sha256_digest({"trace": typed_fit.objective_trace})
+                if typed_fit is not None
+                else None
+            ),
+            evidence=evidence,
+        )
+        if request.typed_query is not None
+        else None
+    )
     if reason is None:
         predicted_discordance = measured.predicted_label if measured is not None else "discordant"
         calibrated_confidence = measured.confidence if measured is not None else 0.9
@@ -470,7 +732,12 @@ def _build(
             nominal_coverage=M1007_NOMINAL_COVERAGE,
             evidence=evidence,
         )
-        diagnostics = measured.diagnostics if measured is not None else (
+        measured_diagnostics = measured.diagnostics if measured is not None else ()
+        diagnostics = (
+            ((typed_diagnostic,) if typed_diagnostic is not None else ()) + measured_diagnostics
+            if typed_diagnostic is not None
+            else measured_diagnostics
+        ) or (
             CalibrationDiagnostic(
                 diagnostic_id="diagnostic.coverage",
                 status=CalibrationDiagnosticStatus.PASS,
@@ -509,7 +776,12 @@ def _build(
         if finding is None:
             raise M1007InputError("missing_finding")
         estimate, prediction_set = None, None
-        diagnostics = measured.diagnostics if measured is not None else (
+        measured_diagnostics = measured.diagnostics if measured is not None else ()
+        diagnostics = (
+            ((typed_diagnostic,) if typed_diagnostic is not None else ()) + measured_diagnostics
+            if typed_diagnostic is not None
+            else measured_diagnostics
+        ) or (
             CalibrationDiagnostic(
                 diagnostic_id="diagnostic.abstention",
                 status=CalibrationDiagnosticStatus.NOT_EVALUABLE,
@@ -549,7 +821,7 @@ def _build(
         uncertainty=_uncertainty(digest),
         provenance=_provenance(request, digest),
         evidence=evidence,
-        limitations=_limitations(),
+        limitations=_limitations(typed=request.typed_query is not None),
         human_review_required=review,
     )
     payload = draft.model_dump(mode="python")

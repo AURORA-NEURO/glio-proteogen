@@ -10,12 +10,16 @@ from pydantic import ValidationError
 from glio_proteogen.contracts.m10_07 import (
     CalibrateProteinRnaDiscordanceSelectivePredictionRequest,
     CalibrationConfiguration,
+    CalibrationEvidenceState,
     CalibrationFindingCode,
     CalibrationMethod,
     CalibrationObservation,
     CalibrationScope,
     CalibrationStatus,
+    GliomaCalibrationProgram,
     PredictionSet,
+    TypedDiscordanceCalibrationObservation,
+    TypedDiscordanceQuery,
     contract_json_schemas,
 )
 from glio_proteogen.kernel.models import (
@@ -45,6 +49,8 @@ _CONTROL_COUNT = 7
 _SCHEMA_COUNT = 7
 _CALIBRATION_SPLIT = 10
 _MIN_CONFIDENCE = 0.1
+_TYPED_OBSERVATION_COUNT = 20
+_SCORE_MIDPOINT = 0.5
 
 
 def _artifact(name: str, media_type: str = _MEDIA) -> ArtifactReference:
@@ -155,6 +161,58 @@ def _measured_request(
     )
 
 
+def _typed_request() -> CalibrateProteinRnaDiscordanceSelectivePredictionRequest:
+    evidence = EvidenceReference(
+        reference=_artifact("typed-calibration-observations"),
+        role="evidence",
+        claim="Synthetic glioma paired protein/RNA calibration observation.",
+    )
+    observations = tuple(
+        TypedDiscordanceCalibrationObservation(
+            observation_id=f"typed-observation.{index:02d}",
+            feature_id=f"feature.{index:02d}",
+            program=(
+                GliomaCalibrationProgram.RTK_PI3K_AKT_MTOR
+                if index % 2 == 0
+                else GliomaCalibrationProgram.MESENCHYMAL_PROGRAM
+            ),
+            evidence_state=CalibrationEvidenceState.OBSERVED,
+            protein_effect=(index - 10) * 0.12,
+            rna_effect=-(index - 10) * 0.08,
+            protein_standard_error=0.12,
+            rna_standard_error=0.10,
+            quality_weight=0.85,
+            observed_label=(
+                "discordant" if index >= _CALIBRATION_SPLIT else "concordant"
+            ),
+            subgroup="adult_glioma",
+            evidence=(evidence,),
+        )
+        for index in range(_TYPED_OBSERVATION_COUNT)
+    )
+    query = TypedDiscordanceQuery(
+        feature_id="feature.query",
+        program=GliomaCalibrationProgram.RTK_PI3K_AKT_MTOR,
+        evidence_state=CalibrationEvidenceState.OBSERVED,
+        protein_effect=1.0,
+        rna_effect=-0.4,
+        protein_standard_error=0.12,
+        rna_standard_error=0.10,
+        quality_weight=0.9,
+        subgroup="adult_glioma",
+        evidence=(evidence,),
+    )
+    request = _request()
+    return type(request).model_validate(
+        request.model_dump(mode="python")
+        | {
+            "typed_calibration_observations": observations,
+            "typed_query": query,
+        },
+        strict=True,
+    )
+
+
 def test_supported_runtime_is_scoped_calibrated_and_replayable() -> None:
     service = M1007Service()
     first = service.execute(_request())
@@ -189,6 +247,57 @@ def test_measured_runtime_uses_conformal_rank_enrichment() -> None:
         for diagnostic in built.result.diagnostics
     )
     assert M1007CalibrationEngine().verify(built.result, built.canonical_bytes).verified is True
+
+
+def test_typed_glioma_calibration_fits_discordance_and_replays() -> None:
+    built = M1007CalibrationEngine().execute(_typed_request())
+    assert built.result.status is CalibrationStatus.CALIBRATED
+    assert built.result.estimate is not None
+    assert built.result.estimate.score > _SCORE_MIDPOINT
+    assert built.result.estimate.predicted_discordance == "discordant"
+    typed_diagnostic = next(
+        diagnostic
+        for diagnostic in built.result.diagnostics
+        if diagnostic.diagnostic_id == "diagnostic.typed_logistic"
+    )
+    assert typed_diagnostic.model_family == "glioma-discordance-selective-calibration/1.0.0"
+    assert typed_diagnostic.objective_trace_digest is not None
+    assert M1007CalibrationEngine().verify(built.result, built.canonical_bytes).verified is True
+
+
+def test_typed_calibration_excludes_missing_and_censored_values() -> None:
+    request = _typed_request()
+    evidence = request.typed_calibration_observations[0].evidence
+    censored = request.typed_calibration_observations[0].model_copy(
+        update={
+            "evidence_state": CalibrationEvidenceState.LEFT_CENSORED,
+            "observed_label": "discordant",
+        }
+    )
+    missing = TypedDiscordanceCalibrationObservation(
+        observation_id="typed-observation.missing",
+        feature_id="feature.missing",
+        evidence_state=CalibrationEvidenceState.MISSING,
+        quality_weight=0.0,
+        subgroup="adult_glioma",
+        evidence=evidence,
+    )
+    observations = (
+        censored,
+        *request.typed_calibration_observations[1:],
+        missing,
+    )
+    checked = type(request).model_validate(
+        request.model_dump(mode="python")
+        | {"typed_calibration_observations": observations},
+        strict=True,
+    )
+    built = M1007CalibrationEngine().execute(checked)
+    assert built.result.status is CalibrationStatus.CALIBRATED
+    assert built.result.estimate is not None
+    assert "typed_glioma_calibration_research_only" in {
+        item.code for item in built.result.limitations
+    }
 
 
 def test_measured_runtime_abstains_for_out_of_domain_query() -> None:

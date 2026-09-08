@@ -383,6 +383,27 @@ grammar remain the compatibility path, while typed output is research-use-only
 and does not establish a molecular diagnosis, prognosis, mechanism, or
 treatment response.
 
+## Completed M10-07 typed glioma discordance calibration lane
+
+The additive M10-07 runtime now recognizes the
+`glioma-discordance-selective-calibration/1.0.0` model family. Typed calibration
+observations carry paired protein/RNA effects, propagated modality standard
+errors, quality weights, a glioma program, explicit evidence state, subgroup,
+and a discordant/concordant label. A quality-weighted damped robust logistic
+IRLS fit learns the score-to-label relationship from those measurements rather
+than deriving a query score from a digest. The fit records a bounded objective
+trace and is replay-bound to the request digest.
+
+The fitted scores feed the existing leave-one-out conformal rank calibration,
+OOD range check, and subgroup coverage disparity gate. Left-censored points are
+penalized only while their fitted class remains on the unsupported side of the
+censoring boundary; missing and unsupported points are excluded. Fewer than
+eight supported labeled observations, a single observed class, non-finite
+uncertainty, or a non-evaluable query abstains. The original digest-derived
+score path remains compatibility-only, and typed output is an experimental
+research calibration signal rather than a diagnosis, prognosis, mechanism, or
+treatment recommendation.
+
 ## Completed M09-06 typed glioma complex uncertainty lane
 
 The additive M09-06 runtime now recognizes the

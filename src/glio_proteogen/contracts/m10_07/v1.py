@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 from hashlib import sha256
+from math import isfinite
 from typing import Final, Literal
 
 from pydantic import Field, model_validator
@@ -65,6 +66,9 @@ M1007_EVIDENCE_CLAIM: Final = (
     "Caller-declared M10-06 uncertainty and calibration evidence; issuer authority "
     "is not authenticated."
 )
+M1007_MAX_TYPED_OBSERVATIONS: Final = 256
+M1007_MAX_TYPED_EFFECT: Final = 20.0
+M1007_TYPED_MODEL_FAMILY: Final = "glioma-discordance-selective-calibration/1.0.0"
 
 
 class CalibrationMethod(StrEnum):
@@ -91,6 +95,25 @@ class CalibrationDiagnosticStatus(StrEnum):
     WARNING = "warning"
     FAIL = "fail"
     NOT_EVALUABLE = "not_evaluable"
+
+
+class CalibrationEvidenceState(StrEnum):
+    """How a paired protein/RNA calibration measurement contributes."""
+
+    OBSERVED = "observed"
+    LEFT_CENSORED = "left_censored"
+    MISSING = "missing"
+    UNSUPPORTED = "unsupported"
+
+
+class GliomaCalibrationProgram(StrEnum):
+    """Reviewable glioma programs used by the typed calibration lane."""
+
+    RTK_PI3K_AKT_MTOR = "RTK_PI3K_AKT_MTOR"
+    P53_CELL_CYCLE = "P53_CELL_CYCLE"
+    IDH_HIF1A = "IDH_HIF1A"
+    MESENCHYMAL_PROGRAM = "MESENCHYMAL_PROGRAM"
+    PROLIFERATION = "PROLIFERATION"
 
 
 class CalibrationFindingCode(StrEnum):
@@ -126,6 +149,123 @@ class CalibrationObservation(FrozenModel):
     def observation_is_closed(self) -> CalibrationObservation:
         if any(item.role != "evidence" for item in self.evidence):
             raise ValueError("calibration observation evidence must use the evidence role")
+        return self
+
+
+class TypedDiscordanceCalibrationObservation(FrozenModel):
+    """A labeled paired protein/RNA measurement for typed calibration."""
+
+    observation_id: Identifier
+    feature_id: Identifier
+    program: GliomaCalibrationProgram | None = None
+    evidence_state: CalibrationEvidenceState
+    protein_effect: float | None = Field(
+        default=None, ge=-M1007_MAX_TYPED_EFFECT, le=M1007_MAX_TYPED_EFFECT
+    )
+    rna_effect: float | None = Field(
+        default=None, ge=-M1007_MAX_TYPED_EFFECT, le=M1007_MAX_TYPED_EFFECT
+    )
+    protein_standard_error: float | None = Field(
+        default=None, gt=0.0, le=M1007_MAX_TYPED_EFFECT
+    )
+    rna_standard_error: float | None = Field(default=None, gt=0.0, le=M1007_MAX_TYPED_EFFECT)
+    quality_weight: float = Field(default=1.0, ge=0.0, le=1.0)
+    observed_label: Literal["discordant", "concordant"] | None = None
+    subgroup: NonEmptyStr
+    evidence: tuple[EvidenceReference, ...] = Field(
+        min_length=1,
+        max_length=M1007_MAX_EVIDENCE,
+    )
+
+    @model_validator(mode="after")
+    def measurement_shape_is_closed(self) -> TypedDiscordanceCalibrationObservation:
+        active = self.evidence_state in {
+            CalibrationEvidenceState.OBSERVED,
+            CalibrationEvidenceState.LEFT_CENSORED,
+        }
+        if active:
+            if (
+                self.program is None
+                or self.protein_effect is None
+                or self.rna_effect is None
+                or self.protein_standard_error is None
+                or self.rna_standard_error is None
+                or self.observed_label is None
+            ):
+                raise ValueError(
+                    "active typed calibration evidence requires program, paired effects, "
+                    "standard errors, and a label"
+                )
+            if self.quality_weight <= 0.0:
+                raise ValueError("active typed calibration evidence requires positive quality")
+        elif (
+            self.program is not None
+            or self.protein_effect is not None
+            or self.rna_effect is not None
+            or self.protein_standard_error is not None
+            or self.rna_standard_error is not None
+            or self.quality_weight != 0.0
+            or self.observed_label is not None
+        ):
+            raise ValueError("missing or unsupported typed calibration evidence cannot carry value")
+        if any(item.role != "evidence" for item in self.evidence):
+            raise ValueError("typed calibration evidence must use the evidence role")
+        return self
+
+
+class TypedDiscordanceQuery(FrozenModel):
+    """A paired query measurement scored by the typed calibration fit."""
+
+    feature_id: Identifier
+    program: GliomaCalibrationProgram | None = None
+    evidence_state: CalibrationEvidenceState
+    protein_effect: float | None = Field(
+        default=None, ge=-M1007_MAX_TYPED_EFFECT, le=M1007_MAX_TYPED_EFFECT
+    )
+    rna_effect: float | None = Field(
+        default=None, ge=-M1007_MAX_TYPED_EFFECT, le=M1007_MAX_TYPED_EFFECT
+    )
+    protein_standard_error: float | None = Field(
+        default=None, gt=0.0, le=M1007_MAX_TYPED_EFFECT
+    )
+    rna_standard_error: float | None = Field(default=None, gt=0.0, le=M1007_MAX_TYPED_EFFECT)
+    quality_weight: float = Field(default=1.0, ge=0.0, le=1.0)
+    subgroup: NonEmptyStr
+    evidence: tuple[EvidenceReference, ...] = Field(
+        min_length=1,
+        max_length=M1007_MAX_EVIDENCE,
+    )
+
+    @model_validator(mode="after")
+    def query_shape_is_closed(self) -> TypedDiscordanceQuery:
+        active = self.evidence_state in {
+            CalibrationEvidenceState.OBSERVED,
+            CalibrationEvidenceState.LEFT_CENSORED,
+        }
+        if active:
+            if (
+                self.program is None
+                or self.protein_effect is None
+                or self.rna_effect is None
+                or self.protein_standard_error is None
+                or self.rna_standard_error is None
+            ):
+                raise ValueError(
+                    "active typed query requires program, paired effects, and standard errors"
+                )
+            if self.quality_weight <= 0.0:
+                raise ValueError("active typed query requires positive quality")
+        elif (
+            self.program is not None
+            or self.protein_effect is not None
+            or self.rna_effect is not None
+            or self.protein_standard_error is not None
+            or self.rna_standard_error is not None
+            or self.quality_weight != 0.0
+        ):
+            raise ValueError("missing or unsupported typed query cannot carry value")
+        if any(item.role != "evidence" for item in self.evidence):
+            raise ValueError("typed query evidence must use the evidence role")
         return self
 
 
@@ -183,7 +323,15 @@ class CalibrationDiagnostic(FrozenModel):
     metric_value: float | None = Field(default=None, ge=0.0, le=1.0)
     subgroup: NonEmptyStr | None = None
     message: NonEmptyStr
+    model_family: NonEmptyStr | None = None
+    objective_trace_digest: Sha256Digest | None = None
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1007_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def diagnostic_metric_is_finite(self) -> CalibrationDiagnostic:
+        if self.metric_value is not None and not isfinite(self.metric_value):
+            raise ValueError("calibration diagnostic metric must be finite")
+        return self
 
 
 class CalibrateProteinRnaDiscordanceSelectivePredictionVerification(FrozenModel):
@@ -223,12 +371,17 @@ class CalibrateProteinRnaDiscordanceSelectivePredictionRequest(FrozenModel):
         default=(),
         max_length=M1007_MAX_CALIBRATION_OBSERVATIONS,
     )
+    typed_calibration_observations: tuple[TypedDiscordanceCalibrationObservation, ...] = Field(
+        default=(),
+        max_length=M1007_MAX_TYPED_OBSERVATIONS,
+    )
+    typed_query: TypedDiscordanceQuery | None = None
     query_score: float | None = Field(default=None, ge=0.0, le=1.0)
     query_subgroup: NonEmptyStr | None = None
     supersedes_result_digest: Sha256Digest | None = None
 
     @model_validator(mode="after")
-    def request_is_bound(
+    def request_is_bound(  # noqa: PLR0912 - the compatibility and typed gates are explicit.
         self,
     ) -> CalibrateProteinRnaDiscordanceSelectivePredictionRequest:
         if self.uncertainty_result.media_type != M1007_UNCERTAINTY_MEDIA_TYPE:
@@ -236,7 +389,7 @@ class CalibrateProteinRnaDiscordanceSelectivePredictionRequest(FrozenModel):
         observation_ids = tuple(item.observation_id for item in self.calibration_observations)
         if len(observation_ids) != len(set(observation_ids)):
             raise ValueError("calibration observation identifiers must be unique")
-        if self.calibration_observations and self.query_score is None:
+        if self.calibration_observations and self.query_score is None and self.typed_query is None:
             raise ValueError("measured calibration requires a query score")
         if (
             self.calibration_observations
@@ -249,6 +402,34 @@ class CalibrateProteinRnaDiscordanceSelectivePredictionRequest(FrozenModel):
             raise ValueError("a measured query score requires a query subgroup")
         if self.query_score is None and self.query_subgroup is not None:
             raise ValueError("query subgroup cannot be supplied without a query score")
+        typed_ids = tuple(
+            item.observation_id for item in self.typed_calibration_observations
+        )
+        if len(typed_ids) != len(set(typed_ids)):
+            raise ValueError("typed calibration observation identifiers must be unique")
+        if self.typed_calibration_observations and self.calibration_observations:
+            raise ValueError("typed and opaque calibration observations cannot be mixed")
+        if self.typed_calibration_observations and len(self.typed_calibration_observations) < (
+            M1007_MIN_CALIBRATION_OBSERVATIONS
+        ):
+            raise ValueError("typed calibration requires at least eight labeled observations")
+        if self.typed_query is not None and not self.typed_calibration_observations:
+            raise ValueError("typed query requires typed calibration observations")
+        if self.typed_query is not None and self.query_score is not None:
+            raise ValueError("typed query and query score cannot be supplied together")
+        if self.typed_query is not None and self.query_subgroup is not None:
+            raise ValueError("typed query supplies its own subgroup")
+        if self.typed_calibration_observations:
+            return self.model_copy(
+                update={
+                    "typed_calibration_observations": tuple(
+                        sorted(
+                            self.typed_calibration_observations,
+                            key=lambda item: item.observation_id,
+                        )
+                    )
+                }
+            )
         return self
 
 
@@ -346,7 +527,13 @@ def expected_evidence(
         for observation in request.calibration_observations
         for evidence in observation.evidence
     )
-    return tuple(dict.fromkeys(references + observations))
+    typed_observations = tuple(
+        evidence
+        for observation in request.typed_calibration_observations
+        for evidence in observation.evidence
+    )
+    typed_query = request.typed_query.evidence if request.typed_query is not None else ()
+    return tuple(dict.fromkeys(references + observations + typed_observations + typed_query))
 
 
 def expected_input_digests(
@@ -365,6 +552,17 @@ def expected_input_digests(
                     evidence.reference.digest
                     for observation in request.calibration_observations
                     for evidence in observation.evidence
+                ),
+                *(
+                    evidence.reference.digest
+                    for observation in request.typed_calibration_observations
+                    for evidence in observation.evidence
+                ),
+                *(
+                    evidence.reference.digest
+                    for evidence in (
+                        request.typed_query.evidence if request.typed_query is not None else ()
+                    )
                 ),
             }
         )
@@ -489,6 +687,8 @@ __all__ = [
     "M1007_MAX_EVIDENCE",
     "M1007_MAX_PREDICTION_SET",
     "M1007_MAX_SCOPES",
+    "M1007_MAX_TYPED_EFFECT",
+    "M1007_MAX_TYPED_OBSERVATIONS",
     "M1007_MEAN_BUDGET_NS",
     "M1007_MIN_CALIBRATION_OBSERVATIONS",
     "M1007_MIN_COVERAGE",
@@ -501,6 +701,7 @@ __all__ = [
     "M1007_PARENT",
     "M1007_PROVISIONAL_ABI",
     "M1007_SAFETY_CLASS",
+    "M1007_TYPED_MODEL_FAMILY",
     "M1007_UNCERTAINTY_MEDIA_TYPE",
     "CalibrateProteinRnaDiscordanceSelectivePredictionRequest",
     "CalibrateProteinRnaDiscordanceSelectivePredictionVerification",
@@ -508,14 +709,18 @@ __all__ = [
     "CalibrationConfiguration",
     "CalibrationDiagnostic",
     "CalibrationDiagnosticStatus",
+    "CalibrationEvidenceState",
     "CalibrationFindingCode",
     "CalibrationMethod",
     "CalibrationObservation",
     "CalibrationReplayReason",
     "CalibrationScope",
     "CalibrationStatus",
+    "GliomaCalibrationProgram",
     "PredictionSet",
     "ProteinRnaDiscordanceSelectivePredictionResult",
+    "TypedDiscordanceCalibrationObservation",
+    "TypedDiscordanceQuery",
     "expected_evidence",
     "expected_input_digests",
     "expected_uncertainty",
