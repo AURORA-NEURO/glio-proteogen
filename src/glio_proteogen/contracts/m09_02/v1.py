@@ -265,7 +265,10 @@ class RepresentationPolicy(FrozenModel):
 
     @field_validator("covariates")
     @classmethod
-    def covariates_are_unique(cls, values: tuple[NonEmptyStr, ...]) -> tuple[NonEmptyStr, ...]:
+    def covariates_are_unique(
+        cls, values: tuple[NonEmptyStr, ...]
+    ) -> tuple[NonEmptyStr, ...]:
+        _ = cls
         if len(values) != len(set(values)):
             raise ValueError("representation policy covariates must be unique")
         return tuple(sorted(values))
