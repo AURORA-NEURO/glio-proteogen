@@ -11,6 +11,7 @@ from glio_proteogen.contracts.m15_05.v1 import (
     M1505_DOSSIER_SHA256,
     M1505_DOSSIER_SLICE,
     M1505_GATE,
+    M1505_GLIOMA_MODEL_FAMILY,
     M1505_M1504_RESULT_MEDIA_TYPE,
     M1505_MAX_CANONICAL_REQUEST_BYTES,
     M1505_MODULE_ID,
@@ -94,6 +95,10 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "uncertaintyRequired": True,
         "explicitAbstentionRequired": True,
         "reproductionWithinTolerance": True,
+        "typedResearchModelFamily": M1505_GLIOMA_MODEL_FAMILY,
+        "typedSignedProgramGraph": True,
+        "typedMissingEvidence": "excluded",
+        "typedResearchOnly": True,
     }
     if name == "request":
         schema["x-glio-contract"]["maxRequestBytes"] = M1505_MAX_CANONICAL_REQUEST_BYTES
@@ -114,4 +119,3 @@ __all__ = [
     "contract_json_schema",
     "contract_json_schemas",
 ]
-
