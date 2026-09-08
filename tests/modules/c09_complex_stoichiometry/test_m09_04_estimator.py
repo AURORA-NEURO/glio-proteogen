@@ -9,9 +9,13 @@ from fastapi.testclient import TestClient
 
 from glio_proteogen.contracts.m09_04 import (
     M0904_BASELINE_MEDIA_TYPE,
+    ComplexEvidenceState,
+    ComplexMemberObservation,
+    ComplexMemberRole,
     EstimateComplexActivityProbabilisticRequest,
     EstimateComplexActivityProbabilisticResult,
     EstimatorConstraint,
+    GliomaComplexProgram,
     OptimizationDiagnostic,
     OptimizationDiagnosticStatus,
     ProbabilisticEstimatorConfiguration,
@@ -26,6 +30,7 @@ from glio_proteogen.kernel.models import (
     ConsentReference,
     ConsentState,
     ContextReferences,
+    EstimateState,
     EvidenceReference,
     ExecutionContext,
     IdentityLineageReference,
@@ -53,6 +58,10 @@ _EXPECTED_ESTIMATES = 2
 _EXPECTED_DIAGNOSTICS = 2
 _EXPECTED_POSTERIOR_MASS = 0.9
 _EGFR_ACTIVITY_THRESHOLD = 0.8
+_ACTIVITY_NEUTRAL = 0.5
+_TYPED_MEMBER_COUNT = 3
+_TYPED_SUPPORTED_COUNT = 2
+_TYPED_LOW_ACTIVITY = 0.35
 
 
 def _artifact(name: str, media_type: str = "application/json") -> ArtifactReference:
@@ -150,6 +159,54 @@ def _request(*expressions: str) -> EstimateComplexActivityProbabilisticRequest:
             reference=_artifact("model-reference.1"),
         ),
         source_artifacts=(_artifact("feature.1"), _artifact("feature.2")),
+    )
+
+
+def _typed_member(  # noqa: PLR0913 - helper exposes every typed observation field.
+    observation_id: str,
+    complex_id: str,
+    member_id: str,
+    effect: float | None,
+    *,
+    role: ComplexMemberRole = ComplexMemberRole.SUPPORTING,
+    state: ComplexEvidenceState = ComplexEvidenceState.OBSERVED,
+) -> ComplexMemberObservation:
+    active = state in {
+        ComplexEvidenceState.OBSERVED,
+        ComplexEvidenceState.LEFT_CENSORED,
+    }
+    return ComplexMemberObservation(
+        observation_id=observation_id,
+        complex_id=complex_id,
+        member_id=member_id,
+        program=(GliomaComplexProgram.RTK_PI3K_AKT_MTOR if active else None),
+        member_role=role,
+        evidence_state=state,
+        standardized_effect=effect if active else None,
+        standard_error=0.12 if active else None,
+        quality_weight=0.9 if active else 0.0,
+    )
+
+
+def _typed_request(
+    *observations: ComplexMemberObservation,
+) -> EstimateComplexActivityProbabilisticRequest:
+    base = _request("stable_support")
+    configuration = ProbabilisticEstimatorConfiguration.model_validate(
+        base.configuration.model_dump(mode="python")
+        | {
+            "estimator_family": ProbabilisticEstimatorFamily.MECHANISM_GUIDED,
+            "objective": "glioma_complex_stoichiometric_activity",
+            "bootstrap_replicates": 16,
+            "max_iterations": 48,
+        }
+    )
+    return EstimateComplexActivityProbabilisticRequest.model_validate(
+        base.model_dump(mode="python")
+        | {
+            "configuration": configuration,
+            "typed_observations": observations,
+        }
     )
 
 
@@ -396,3 +453,98 @@ def test_api_schema_validate_estimate_and_verify() -> None:
     assert estimated.json()["result"]["status"] == "estimated"
     assert verified.status_code == HTTPStatus.OK
     assert verified.json()["verified"] is True
+
+
+def test_typed_glioma_complex_fit_is_member_driven_and_replayable() -> None:
+    request = _typed_request(
+        _typed_member(
+            "observation.egfr", "complex.egfr-mtor", "EGFR", 1.35,
+            role=ComplexMemberRole.ESSENTIAL,
+        ),
+        _typed_member("observation.pik3ca", "complex.egfr-mtor", "PIK3CA", 0.92),
+        _typed_member("observation.akt1", "complex.egfr-mtor", "AKT1", 0.81),
+    )
+    engine = M0904ProbabilisticEstimator()
+    first = engine.build(request)
+    second = engine.build(request)
+    estimate = first.result.estimates[0]
+
+    assert first.canonical_bytes == second.canonical_bytes
+    assert engine.verify(first.result, first.canonical_bytes, request).verified
+    assert estimate.feature_id == "complex.egfr-mtor"
+    assert _ACTIVITY_NEUTRAL < estimate.estimate_value < 1.0
+    assert estimate.lower_bound <= estimate.estimate_value <= estimate.upper_bound
+    assert estimate.evidence_count == _TYPED_MEMBER_COUNT
+    assert estimate.top_drivers
+    assert estimate.ablation_effects
+    assert first.result.diagnostics[0].model_family == "glioma-complex-stoichiometric-irls/1.0.0"
+    assert first.result.uncertainty.measurement.state is EstimateState.ESTIMATED
+
+
+def test_typed_complex_bottleneck_and_coherence_are_visible() -> None:
+    request = _typed_request(
+        _typed_member(
+            "observation.essential", "complex.chromatin", "SMARCA4", -0.65,
+            role=ComplexMemberRole.ESSENTIAL,
+        ),
+        _typed_member("observation.supporting", "complex.chromatin", "SMARCB1", 1.20),
+    )
+    estimate = M0904ProbabilisticEstimator().estimate(request).estimates[0]
+
+    assert estimate.estimate_value < _ACTIVITY_NEUTRAL
+    assert any(
+        item.startswith("essential_bottleneck_delta=") for item in estimate.ablation_effects
+    )
+    assert any(
+        item.startswith("stoichiometric_coherence_delta=") for item in estimate.ablation_effects
+    )
+
+
+def test_typed_missing_and_left_censored_members_never_become_negative_observations() -> None:
+    request = _typed_request(
+        _typed_member(
+            "observation.essential", "complex.hif", "HIF1A", -0.15,
+            role=ComplexMemberRole.ESSENTIAL,
+            state=ComplexEvidenceState.LEFT_CENSORED,
+        ),
+        _typed_member("observation.supporting", "complex.hif", "EPAS1", 0.35),
+        _typed_member(
+            "observation.missing", "complex.hif", "ARNT", None,
+            state=ComplexEvidenceState.MISSING,
+        ),
+        _typed_member(
+            "observation.unsupported", "complex.hif", "VEGFA", None,
+            state=ComplexEvidenceState.UNSUPPORTED,
+        ),
+    )
+    estimate = M0904ProbabilisticEstimator().estimate(request).estimates[0]
+
+    assert estimate.evidence_count == _TYPED_SUPPORTED_COUNT
+    assert estimate.estimate_value > _TYPED_LOW_ACTIVITY
+    assert all("ARNT" not in item for item in estimate.top_drivers)
+    assert all("VEGFA" not in item for item in estimate.top_drivers)
+
+
+def test_typed_complex_rejects_duplicate_members_and_insufficient_support() -> None:
+    first = _typed_member(
+        "observation.one", "complex.cell-cycle", "CDK4", 0.8,
+        role=ComplexMemberRole.ESSENTIAL,
+    )
+    duplicate = first.model_copy(update={"observation_id": "observation.two"})
+    with pytest.raises(ValueError, match="unique per complex"):
+        _typed_request(first, duplicate)
+
+    insufficient = _typed_request(
+        _typed_member(
+            "observation.only", "complex.cell-cycle", "CDK4", 0.8,
+            role=ComplexMemberRole.ESSENTIAL,
+        ),
+        _typed_member(
+            "observation.absent", "complex.cell-cycle", "RB1", None,
+            state=ComplexEvidenceState.MISSING,
+        ),
+    )
+    result = M0904ProbabilisticEstimator().estimate(insufficient)
+    assert result.status is ProbabilisticResultStatus.ABSTAINED
+    assert result.estimates == ()
+    assert result.support_decision.status is SupportStatus.REVIEW_REQUIRED

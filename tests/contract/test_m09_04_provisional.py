@@ -5,8 +5,13 @@ from typing import Final
 import pytest
 
 from glio_proteogen.contracts.m09_04 import (
+    M0904_GLIOMA_MODEL_FAMILY,
     M0904_OUTPUT_MEDIA_TYPE,
+    ComplexEvidenceState,
+    ComplexMemberObservation,
+    ComplexMemberRole,
     EstimateComplexActivityProbabilisticVerification,
+    GliomaComplexProgram,
     OptimizationDiagnostic,
     OptimizationDiagnosticStatus,
     PosteriorEstimate,
@@ -32,6 +37,9 @@ def test_provisional_schemas_are_strict_and_owner_pending() -> None:
     assert all(schema["x-glio-contract"]["provisionalAbi"] for schema in schemas.values())
     assert all(schema["x-glio-contract"]["pendingOwnerConfirmation"] for schema in schemas.values())
     assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M0904_OUTPUT_MEDIA_TYPE
+    metadata = schemas["request"]["x-glio-contract"]
+    assert metadata["typedGliomaModelFamily"] == M0904_GLIOMA_MODEL_FAMILY
+    assert "typed_observations" in schemas["request"]["properties"]
 
 
 def test_posterior_shape_and_preflight_fail_closed() -> None:
@@ -122,3 +130,36 @@ def test_schema_contract_closures_and_provenance_projection() -> None:
             reason=ProbabilisticReplayReason.INVALID_RESULT,
         )
     assert expected_uncertainty().support.state.value == "not_estimable"
+
+
+def test_typed_member_contract_preserves_explicit_evidence_states() -> None:
+    observed = ComplexMemberObservation(
+        observation_id="observation.egfr",
+        complex_id="complex.egfr",
+        member_id="EGFR",
+        program=GliomaComplexProgram.RTK_PI3K_AKT_MTOR,
+        member_role=ComplexMemberRole.ESSENTIAL,
+        evidence_state=ComplexEvidenceState.OBSERVED,
+        standardized_effect=1.1,
+        standard_error=0.2,
+        quality_weight=0.8,
+    )
+    assert observed.evidence_state is ComplexEvidenceState.OBSERVED
+    with pytest.raises(ValueError, match="active complex evidence"):
+        ComplexMemberObservation(
+            observation_id="observation.bad",
+            complex_id="complex.egfr",
+            member_id="PIK3CA",
+            program=GliomaComplexProgram.RTK_PI3K_AKT_MTOR,
+            evidence_state=ComplexEvidenceState.OBSERVED,
+            standardized_effect=0.4,
+        )
+    with pytest.raises(ValueError, match="cannot carry a value"):
+        ComplexMemberObservation(
+            observation_id="observation.missing",
+            complex_id="complex.egfr",
+            member_id="AKT1",
+            evidence_state=ComplexEvidenceState.MISSING,
+            standardized_effect=0.0,
+            quality_weight=0.0,
+        )

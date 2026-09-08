@@ -245,7 +245,7 @@ those 80 identifies 22 engines with unmistakable numerical stand-ins:
 M06-04
 M07-04 M07-05
 M08-03 M08-04 M08-05
-M09-03 M09-04 M09-05 M09-06
+M09-03 M09-05 M09-06
 M10-03 M10-07
 M11-05 (legacy opaque path)
 M11-06
@@ -268,7 +268,7 @@ posterior estimator.
 The strict 20 are a floor for counterfeit estimators, not the whole scientific
 debt inventory. M12-06's legacy scalar compatibility path remains in this
 floor, while its new typed glioma replicate lane is a real robust estimator.
-M08-03, M09-06, M10-05, M11-03, M11-04, M12-03, M12-04, M12-06, M13-04, M15-04, and M15-05 now have typed glioma
+M08-03, M09-04, M09-06, M10-05, M11-03, M11-04, M12-03, M12-04, M12-06, M13-04, M15-04, and M15-05 now have typed glioma
 research lanes documented below while their legacy paths remain provisional.
 Three representation constructors—M07-02, M08-02, and
 M09-02—also synthesize numeric vectors from hashes. They remain classified as
@@ -340,6 +340,25 @@ remain indeterminate rather than becoming negative evidence; insufficient
 support abstains. The original statistical, pathway-weighted, and median
 compatibility architectures remain unchanged. Typed output is a research
 diagnostic, not a clinical subtype probability, prognosis, or treatment claim.
+
+## Completed M09-04 typed glioma complex stoichiometry lane
+
+The additive M09-04 runtime now recognizes the
+`glioma-complex-stoichiometric-irls/1.0.0` model family. Typed requests carry
+explicit member-level standardized effects, standard errors, quality weights,
+essential/supporting roles, stoichiometric weights, and glioma program
+identifiers. An alternating latent-effect/member-offset Huber IRLS fit keeps
+member-specific departures visible while an essential-subunit bottleneck
+prevents a strong supporting protein from masking a weak required member.
+
+The fit uses one-sided loss for left-censored members, excludes missing and
+unsupported members, and requires at least two supported members, an essential
+member, and a consistent program per complex. Request-digest-seeded bootstrap
+perturbations provide activity intervals, stability, discordance, top member
+drivers, and explicit essential-bottleneck/stoichiometric-coherence ablation
+effects. The original artifact-reference estimator remains the compatibility
+path; typed activity is a research signal and does not establish biochemical
+assembly, diagnosis, prognosis, or treatment response.
 
 ## Completed M09-06 typed glioma complex uncertainty lane
 

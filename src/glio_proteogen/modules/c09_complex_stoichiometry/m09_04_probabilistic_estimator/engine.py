@@ -16,13 +16,19 @@ from dataclasses import dataclass
 from math import erf, exp, isfinite, sqrt
 from typing import Final
 
+import numpy as np
 from pydantic import TypeAdapter, ValidationError
 
 from glio_proteogen.contracts.m09_04 import (
     M0904_CONTRACT_VERSION,
     M0904_EVIDENCE_CLAIM,
+    M0904_GLIOMA_MODEL_FAMILY,
     M0904_MAX_CANONICAL_RESULT_BYTES,
+    M0904_MAX_TYPED_EFFECT,
     M0904_PARENT,
+    ComplexEvidenceState,
+    ComplexMemberObservation,
+    ComplexMemberRole,
     EstimateComplexActivityProbabilisticRequest,
     EstimateComplexActivityProbabilisticResult,
     EstimateComplexActivityProbabilisticVerification,
@@ -91,6 +97,18 @@ _NUMERIC_CONSTRAINT_PATTERN: Final = re.compile(
     re.IGNORECASE,
 )
 
+# Typed lane constants are intentionally separate from the compatibility
+# estimator.  They are part of the model-family description and therefore
+# participate in the evidence rationale and deterministic replay surface.
+_TYPED_MAX_ITERATIONS: Final = 96
+_TYPED_TOLERANCE: Final = 1e-5
+_TYPED_DAMPING: Final = 0.65
+_TYPED_OFFSET_RIDGE: Final = 0.18
+_TYPED_COHERENCE_PENALTY: Final = 0.35
+_TYPED_BOTTLENECK_PENALTY: Final = 0.80
+_TYPED_ACTIVITY_SCALE: Final = 1.0
+_MIN_TYPED_MEMBERS: Final = 2
+
 
 @dataclass(frozen=True, slots=True)
 class _PriorSummary:
@@ -110,6 +128,27 @@ class _ActivityFit:
     iterations: int
     convergence_gap: float
     rationale: str
+
+
+@dataclass(frozen=True, slots=True)
+class _TypedComplexFit:
+    """Numerical fit and diagnostics for one explicitly observed complex."""
+
+    complex_id: str
+    program: str
+    value: float
+    lower: float
+    upper: float
+    posterior_mass: float
+    objective: float
+    iterations: int
+    convergence_gap: float
+    stability: float
+    discordance: float
+    evidence_count: int
+    top_drivers: tuple[str, ...]
+    ablation_effects: tuple[str, ...]
+    objective_trace: tuple[float, ...]
 
 
 class M0904AuthorizationError(PermissionError):
@@ -184,10 +223,16 @@ def preflight_m0904_authorization(candidate: object) -> None:
 def _evidence(
     request: EstimateComplexActivityProbabilisticRequest,
 ) -> tuple[EvidenceReference, ...]:
-    return tuple(
+    artifact_evidence = tuple(
         EvidenceReference(reference=artifact, role="evidence", claim=M0904_EVIDENCE_CLAIM)
         for artifact in request.source_artifacts
     )
+    typed_evidence = tuple(
+        evidence
+        for observation in request.typed_observations
+        for evidence in observation.evidence
+    )
+    return artifact_evidence + typed_evidence
 
 
 def _control_decisions(
@@ -231,7 +276,7 @@ def _provenance(
     )
 
 
-def _uncertainty(*, estimated: bool) -> UncertaintyProfile:
+def _uncertainty(*, estimated: bool, typed: bool = False) -> UncertaintyProfile:
     if not estimated:
         estimate = UncertaintyEstimate(
             state=EstimateState.NOT_ESTIMABLE,
@@ -258,23 +303,56 @@ def _uncertainty(*, estimated: bool) -> UncertaintyProfile:
         )
 
     return UncertaintyProfile(
-        measurement=_dimension(0.12, "Assay-scale uncertainty from reduced summary precision."),
-        sampling=_dimension(0.08, "Sampling uncertainty from the declared source count."),
-        parameter=_dimension(0.10, "Parameter uncertainty from the declared prior family."),
-        model_form=_dimension(0.18, "Model-form uncertainty remains provisional."),
+        measurement=_dimension(
+            0.12,
+            (
+                "Member-level standard-error uncertainty from typed glioma effects."
+                if typed
+                else "Assay-scale uncertainty from reduced summary precision."
+            ),
+        ),
+        sampling=_dimension(
+            0.08,
+            (
+                "Deterministic member bootstrap perturbation uncertainty."
+                if typed
+                else "Sampling uncertainty from the declared source count."
+            ),
+        ),
+        parameter=_dimension(
+            0.10,
+            (
+                "Latent activity and member-offset parameter uncertainty."
+                if typed
+                else "Parameter uncertainty from the declared prior family."
+            ),
+        ),
+        model_form=_dimension(
+            0.18,
+            (
+                "Essential-member and stoichiometric-coherence model form remains research-only."
+                if typed
+                else "Model-form uncertainty remains provisional."
+            ),
+        ),
         identification=_dimension(0.06, "Identity control was accepted upstream."),
         support=_dimension(0.05, "Support control and source markers passed."),
         transport=_dimension(0.20, "Transport uncertainty is bounded but not calibrated."),
         sensitivity_notes=(
             (
-                "Probabilities are deterministic provisional diagnostics, not calibrated "
-                "clinical risk."
+                (
+                    "Typed intervals use request-digest-seeded perturbations; they are not "
+                    "calibrated clinical confidence or treatment evidence."
+                    if typed
+                    else "Probabilities are deterministic provisional diagnostics, not calibrated "
+                    "clinical risk."
+                )
             ),
         ),
     )
 
 
-def _limitations() -> tuple[Limitation, ...]:
+def _limitations(*, typed: bool = False) -> tuple[Limitation, ...]:
     return (
         Limitation(
             code="provisional_abi",
@@ -303,6 +381,21 @@ def _limitations() -> tuple[Limitation, ...]:
                 "Uncertainty values are explicit deterministic proxies and are not a claim "
                 "of calibrated 90% coverage until locked benchmark evidence exists."
             ),
+        ),
+        *(
+            (
+                Limitation(
+                    code="typed_glioma_complex_research_only",
+                    statement=(
+                        "Typed activity is a research-only latent complex-effect estimate; "
+                        "essential-subunit bottlenecks and stoichiometric coherence do not "
+                        "establish biochemical assembly, diagnosis, prognosis, or treatment "
+                        "response."
+                    ),
+                ),
+            )
+            if typed
+            else ()
         ),
     )
 
@@ -514,6 +607,341 @@ def _fit_activity(
     )
 
 
+def _typed_active(observation: ComplexMemberObservation) -> bool:
+    return observation.evidence_state in {
+        ComplexEvidenceState.OBSERVED,
+        ComplexEvidenceState.LEFT_CENSORED,
+    }
+
+
+def _typed_effect(observation: ComplexMemberObservation) -> float:
+    value = observation.standardized_effect
+    if value is None:
+        raise ValueError from None
+    return float(value)
+
+
+def _typed_error(observation: ComplexMemberObservation) -> float:
+    value = observation.standard_error
+    if value is None:
+        raise ValueError from None
+    return float(value)
+
+
+def _activity_from_latent(value: float) -> float:
+    """Map a standardized complex effect to the unit activity ABI."""
+
+    clipped = float(np.clip(value, -M0904_MAX_TYPED_EFFECT, M0904_MAX_TYPED_EFFECT))
+    if clipped >= 0.0:
+        scale = exp(-_TYPED_ACTIVITY_SCALE * clipped)
+        return 1.0 / (1.0 + scale)
+    scale = exp(_TYPED_ACTIVITY_SCALE * clipped)
+    return scale / (1.0 + scale)
+
+
+def _weighted_median(values: np.ndarray, weights: np.ndarray) -> float:
+    order = np.argsort(values, kind="stable")
+    ordered_values = values[order]
+    ordered_weights = weights[order]
+    cutoff = 0.5 * float(np.sum(ordered_weights))
+    position = int(np.searchsorted(np.cumsum(ordered_weights), cutoff, side="left"))
+    return float(ordered_values[min(position, len(ordered_values) - 1)])
+
+
+def _typed_huber_loss(standardized: float) -> float:
+    magnitude = abs(standardized)
+    if magnitude <= _HUBER_K:
+        return 0.5 * magnitude * magnitude
+    return _HUBER_K * magnitude - 0.5 * _HUBER_K * _HUBER_K
+
+
+def _typed_objective(
+    observations: tuple[ComplexMemberObservation, ...],
+    latent: float,
+    offsets: np.ndarray,
+    *,
+    include_bottleneck: bool,
+    include_coherence: bool,
+) -> float:
+    weights = np.asarray(
+        [item.quality_weight * item.stoichiometric_weight for item in observations],
+        dtype=np.float64,
+    )
+    residuals = latent + offsets - np.asarray(
+        [_typed_effect(item) for item in observations], dtype=np.float64
+    )
+    scales = np.asarray(
+        [_typed_error(item) for item in observations], dtype=np.float64
+    )
+    total = 0.0
+    for index, item in enumerate(observations):
+        residual = float(residuals[index])
+        if item.evidence_state is ComplexEvidenceState.LEFT_CENSORED and residual <= 0.0:
+            continue
+        total += float(weights[index]) * _typed_huber_loss(residual / float(scales[index]))
+    total += _TYPED_OFFSET_RIDGE * float(np.sum(offsets * offsets))
+    if include_coherence:
+        center = float(np.average(offsets, weights=weights))
+        total += _TYPED_COHERENCE_PENALTY * float(
+            np.sum(weights * (offsets - center) ** 2)
+        )
+    if include_bottleneck:
+        essential = [
+            _typed_effect(item)
+            for item in observations
+            if item.member_role is ComplexMemberRole.ESSENTIAL
+        ]
+        if essential:
+            total += _TYPED_BOTTLENECK_PENALTY * max(0.0, latent - min(essential)) ** 2
+    return float(total)
+
+
+def _fit_typed_latent(
+    observations: tuple[ComplexMemberObservation, ...],
+    *,
+    max_iterations: int,
+    include_bottleneck: bool = True,
+    include_coherence: bool = True,
+) -> tuple[float, np.ndarray, float, int, float, tuple[float, ...]] | None:
+    """Fit one latent complex effect with alternating robust coordinates.
+
+    The latent activity and member-specific offsets are updated separately.
+    Offsets absorb stoichiometric departures while the essential-member penalty
+    prevents a well-measured supporting protein from masking a weak required
+    subunit.  Left-censored observations only exert force above their limit.
+    """
+
+    if not observations or any(not _typed_active(item) for item in observations):
+        return None
+    effects = np.asarray(
+        [_typed_effect(item) for item in observations], dtype=np.float64
+    )
+    errors = np.asarray(
+        [_typed_error(item) for item in observations], dtype=np.float64
+    )
+    weights = np.asarray(
+        [item.quality_weight * item.stoichiometric_weight for item in observations],
+        dtype=np.float64,
+    )
+    if not (
+        np.all(np.isfinite(effects))
+        and np.all(np.isfinite(errors))
+        and np.all(np.isfinite(weights))
+        and np.all(errors > 0.0)
+        and np.all(weights > 0.0)
+    ):
+        return None
+    latent = float(
+        np.clip(
+            _weighted_median(effects, weights),
+            -M0904_MAX_TYPED_EFFECT,
+            M0904_MAX_TYPED_EFFECT,
+        )
+    )
+    offsets = np.zeros(len(observations), dtype=np.float64)
+    trace: list[float] = []
+    max_update = float("inf")
+    iterations = 0
+    for iteration in range(min(max_iterations, _TYPED_MAX_ITERATIONS)):
+        iterations = iteration + 1
+        prediction = latent + offsets
+        residual = prediction - effects
+        active = np.asarray(
+            [
+                not (
+                    item.evidence_state is ComplexEvidenceState.LEFT_CENSORED
+                    and residual[index] <= 0.0
+                )
+                for index, item in enumerate(observations)
+            ],
+            dtype=bool,
+        )
+        standardized = np.divide(residual, errors, out=np.zeros_like(residual), where=active)
+        robust = np.ones_like(residual)
+        robust[active] = np.minimum(
+            1.0,
+            _HUBER_K / np.maximum(1.0, np.abs(standardized[active])),
+        )
+        robust[~active] = 0.0
+        precision = weights * robust / (errors * errors)
+        safe_precision = np.maximum(precision, 1e-12)
+        target_offsets = effects - latent
+        weighted_target = float(np.sum(safe_precision * target_offsets) / np.sum(safe_precision))
+        coherence_penalty = _TYPED_COHERENCE_PENALTY if include_coherence else 0.0
+        offset_candidate = (
+            safe_precision * target_offsets
+            + coherence_penalty * weighted_target
+        ) / (safe_precision + _TYPED_OFFSET_RIDGE + coherence_penalty)
+        offset_candidate[~active] = 0.0
+        new_offsets = _TYPED_DAMPING * offset_candidate + (1.0 - _TYPED_DAMPING) * offsets
+
+        adjusted = effects - new_offsets
+        target_precision = weights * robust / (errors * errors)
+        numerator = float(np.sum(target_precision * adjusted))
+        denominator = float(np.sum(target_precision))
+        essential_targets = [
+            _typed_effect(item)
+            for item in observations
+            if item.member_role is ComplexMemberRole.ESSENTIAL
+        ]
+        if include_bottleneck and essential_targets:
+            bottleneck_target = min(essential_targets)
+            numerator += _TYPED_BOTTLENECK_PENALTY * bottleneck_target
+            denominator += _TYPED_BOTTLENECK_PENALTY
+        candidate_latent = numerator / max(denominator, 1e-12)
+        candidate_latent = float(
+            np.clip(candidate_latent, -M0904_MAX_TYPED_EFFECT, M0904_MAX_TYPED_EFFECT)
+        )
+        new_latent = _TYPED_DAMPING * candidate_latent + (1.0 - _TYPED_DAMPING) * latent
+        max_update = max(
+            abs(new_latent - latent),
+            float(np.max(np.abs(new_offsets - offsets))),
+        )
+        latent, offsets = new_latent, new_offsets
+        objective = _typed_objective(
+            observations,
+            latent,
+            offsets,
+            include_bottleneck=include_bottleneck,
+            include_coherence=include_coherence,
+        )
+        trace.append(round(objective, 10))
+        if max_update <= _TYPED_TOLERANCE:
+            break
+    if not trace or not np.isfinite(trace[-1]) or not np.isfinite(max_update):
+        return None
+    return latent, offsets, trace[-1], iterations, max_update, tuple(trace)
+
+
+def _typed_fit_complex(  # noqa: C901 - coupled latent/member coordinates are intentional.
+    complex_id: str,
+    observations: tuple[ComplexMemberObservation, ...],
+    request: EstimateComplexActivityProbabilisticRequest,
+    request_digest: str,
+) -> _TypedComplexFit | None:
+    active = tuple(item for item in observations if _typed_active(item))
+    if len(active) < _MIN_TYPED_MEMBERS:
+        return None
+    if not any(item.member_role is ComplexMemberRole.ESSENTIAL for item in active):
+        return None
+    programs = {item.program.value for item in active if item.program is not None}
+    if len(programs) != 1:
+        return None
+    max_iterations = request.configuration.max_iterations
+    fitted = _fit_typed_latent(active, max_iterations=max_iterations)
+    if fitted is None:
+        return None
+    latent, offsets, objective, iterations, gap, trace = fitted
+    seed = int(
+        sha256_digest(
+            {
+                "request": request_digest,
+                "complex_id": complex_id,
+                "model": M0904_GLIOMA_MODEL_FAMILY,
+            }
+        ).removeprefix("sha256:")[:16],
+        16,
+    )
+    rng = np.random.default_rng(seed)
+    bootstrap_values: list[float] = []
+    replicates = request.configuration.bootstrap_replicates
+    for _ in range(replicates):
+        indexes = rng.integers(0, len(active), size=len(active))
+        perturbed: list[ComplexMemberObservation] = []
+        for index in indexes:
+            item = active[int(index)]
+            effect = _typed_effect(item) + 0.5 * _typed_error(item) * float(rng.normal())
+            perturbed.append(
+                item.model_copy(
+                    update={
+                        "standardized_effect": float(
+                            np.clip(effect, -M0904_MAX_TYPED_EFFECT, M0904_MAX_TYPED_EFFECT)
+                        )
+                    }
+                )
+            )
+        replicate = _fit_typed_latent(
+            tuple(perturbed),
+            max_iterations=max_iterations,
+        )
+        if replicate is not None:
+            bootstrap_values.append(_activity_from_latent(replicate[0]))
+    if len(bootstrap_values) < max(8, replicates // 2):
+        return None
+    center = _activity_from_latent(latent)
+    lower, upper = np.quantile(np.asarray(bootstrap_values, dtype=np.float64), (0.05, 0.95))
+    lower = float(np.clip(min(lower, center), 0.0, 1.0))
+    upper = float(np.clip(max(upper, center), 0.0, 1.0))
+    prediction = latent + offsets
+    standardized_residuals = np.asarray(
+        [
+            (prediction[index] - _typed_effect(item)) / _typed_error(item)
+            for index, item in enumerate(active)
+            if not (
+                item.evidence_state is ComplexEvidenceState.LEFT_CENSORED
+                and prediction[index] <= _typed_effect(item)
+            )
+        ],
+        dtype=np.float64,
+    )
+    discordance = float(
+        np.clip(
+            np.median(np.abs(standardized_residuals)) / 3.0
+            if len(standardized_residuals)
+            else 1.0,
+            0.0,
+            1.0,
+        )
+    )
+    contributions = [
+        (
+            float(item.quality_weight * item.stoichiometric_weight)
+            * abs(prediction[index] - _typed_effect(item)),
+            item.member_id,
+        )
+        for index, item in enumerate(active)
+    ]
+    drivers = tuple(f"member:{member}" for _, member in sorted(contributions, reverse=True)[:4])
+    without_bottleneck = _fit_typed_latent(
+        active,
+        max_iterations=max_iterations,
+        include_bottleneck=False,
+    )
+    without_coherence = _fit_typed_latent(
+        active,
+        max_iterations=max_iterations,
+        include_coherence=False,
+    )
+    ablations: list[str] = []
+    if without_bottleneck is not None:
+        ablations.append(
+            "essential_bottleneck_delta="
+            f"{abs(center - _activity_from_latent(without_bottleneck[0])):.8f}"
+        )
+    if without_coherence is not None:
+        ablations.append(
+            "stoichiometric_coherence_delta="
+            f"{abs(center - _activity_from_latent(without_coherence[0])):.8f}"
+        )
+    return _TypedComplexFit(
+        complex_id=complex_id,
+        program=next(iter(programs)),
+        value=round(center, 8),
+        lower=round(lower, 8),
+        upper=round(upper, 8),
+        posterior_mass=0.9,
+        objective=round(objective, 8),
+        iterations=iterations,
+        convergence_gap=round(gap, 8),
+        stability=round(float(np.clip(1.0 - (upper - lower), 0.0, 1.0)), 8),
+        discordance=round(discordance, 8),
+        evidence_count=len(active),
+        top_drivers=drivers,
+        ablation_effects=tuple(ablations),
+        objective_trace=trace,
+    )
+
+
 def _diagnostic(  # noqa: PLR0913 - diagnostic envelope has six independent locked fields
     request: EstimateComplexActivityProbabilisticRequest,
     request_digest: str,
@@ -539,7 +967,135 @@ def _diagnostic(  # noqa: PLR0913 - diagnostic envelope has six independent lock
     )
 
 
-def _build_result(
+def _typed_result(
+    request: EstimateComplexActivityProbabilisticRequest,
+    request_digest: str,
+) -> EstimateComplexActivityProbabilisticResult:
+    """Build the additive research result from explicit member observations."""
+
+    evidence = _evidence(request)
+    groups: dict[str, list[ComplexMemberObservation]] = {}
+    for observation in request.typed_observations:
+        groups.setdefault(observation.complex_id, []).append(observation)
+    fits: list[_TypedComplexFit] = []
+    failure_reasons: list[str] = []
+    for complex_id in sorted(groups):
+        fit = _typed_fit_complex(
+            complex_id,
+            tuple(sorted(groups[complex_id], key=lambda item: item.observation_id)),
+            request,
+            request_digest,
+        )
+        if fit is None:
+            failure_reasons.append(
+                f"complex {complex_id} needs at least two supported members, one essential "
+                "member, and one consistent glioma program"
+            )
+        else:
+            fits.append(fit)
+    diagnostics: tuple[OptimizationDiagnostic, ...]
+    if failure_reasons or not fits:
+        message = "; ".join(failure_reasons) or "typed complex observations were not evaluable"
+        diagnostics = (
+            OptimizationDiagnostic(
+                diagnostic_id=(
+                    f"diagnostic.{request_digest.removeprefix('sha256:')}.typed-complex"
+                ),
+                status=OptimizationDiagnosticStatus.NOT_EVALUABLE,
+                objective="glioma_complex_stoichiometric_activity",
+                iteration_count=0,
+                message=message,
+                model_family=M0904_GLIOMA_MODEL_FAMILY,
+                evidence=evidence,
+            ),
+        )
+        status = ProbabilisticResultStatus.ABSTAINED
+        estimates: tuple[PosteriorEstimate, ...] = ()
+        support = SupportDecision(
+            status=SupportStatus.REVIEW_REQUIRED,
+            reason_code="m0904_typed_complex_not_evaluable",
+            rationale=message,
+        )
+        abstention_reason: str | None = message
+        uncertainty = _uncertainty(estimated=False, typed=True)
+        limitations = _limitations(typed=True)
+    else:
+        diagnostics = tuple(
+            OptimizationDiagnostic(
+                diagnostic_id=(
+                    f"diagnostic.{request_digest.removeprefix('sha256:')}.{fit.complex_id}"
+                ),
+                status=OptimizationDiagnosticStatus.CONVERGED,
+                objective="glioma_complex_stoichiometric_activity",
+                iteration_count=fit.iterations,
+                objective_value=fit.objective,
+                convergence_gap=fit.convergence_gap,
+                message=(
+                    f"{M0904_GLIOMA_MODEL_FAMILY} fit converged for {fit.complex_id}; "
+                    "alternating latent-effect/member-offset Huber IRLS"
+                ),
+                model_family=M0904_GLIOMA_MODEL_FAMILY,
+                objective_trace_digest=sha256_digest(
+                    {"complex": fit.complex_id, "trace": fit.objective_trace}
+                ),
+                evidence=evidence,
+            )
+            for fit in fits
+        )
+        estimates = tuple(
+            PosteriorEstimate(
+                feature_id=fit.complex_id,
+                kind=PosteriorEstimateKind.INTERVAL,
+                unit="complex-activity",
+                estimate_value=fit.value,
+                lower_bound=fit.lower,
+                upper_bound=fit.upper,
+                posterior_mass=fit.posterior_mass,
+                evidence_count=fit.evidence_count,
+                stability=fit.stability,
+                discordance=fit.discordance,
+                top_drivers=fit.top_drivers,
+                ablation_effects=fit.ablation_effects,
+                evidence=evidence,
+            )
+            for fit in fits
+        )
+        status = ProbabilisticResultStatus.ESTIMATED
+        support = SupportDecision(
+            status=SupportStatus.SUPPORTED,
+            reason_code="m0904_typed_complex_irls_support",
+            rationale=(
+                "Explicit glioma complex-member effects were fitted with essential-subunit "
+                "bottleneck and stoichiometric-coherence penalties; missing and unsupported "
+                "members were excluded."
+            ),
+        )
+        abstention_reason = None
+        uncertainty = _uncertainty(estimated=True, typed=True)
+        limitations = _limitations(typed=True)
+    draft = EstimateComplexActivityProbabilisticResult.model_construct(
+        result_id=f"result.{request_digest.removeprefix('sha256:')}",
+        result_version=M0904_CONTRACT_VERSION,
+        request_digest=request_digest,
+        result_digest=_ZERO_DIGEST,
+        request=request,
+        status=status,
+        estimates=estimates,
+        diagnostics=diagnostics,
+        abstention_reason=abstention_reason,
+        parent_target=M0904_PARENT,
+        support_decision=support,
+        uncertainty=uncertainty,
+        provenance=_provenance(request, request_digest),
+        evidence=evidence,
+        limitations=limitations,
+    )
+    payload = draft.model_dump(mode="python")
+    payload["result_digest"] = result_payload_digest(draft)
+    return _RESULT_ADAPTER.validate_python(payload, strict=True)
+
+
+def _build_result(  # noqa: PLR0915 - compatibility and typed lanes share one ABI envelope.
     request: EstimateComplexActivityProbabilisticRequest,
 ) -> EstimateComplexActivityProbabilisticResult:
     request_digest = canonical_request_digest(request)
@@ -557,6 +1113,9 @@ def _build_result(
     ]
     if hard_constraints:
         blocked.extend(item.constraint_id for item in hard_constraints)
+
+    if not blocked and not failed and request.typed_observations:
+        return _typed_result(request, request_digest)
 
     diagnostics: tuple[OptimizationDiagnostic, ...]
     if blocked or failed:
@@ -712,8 +1271,17 @@ class M0904ProbabilisticEstimator:
 
     @staticmethod
     def validate_request(request: object) -> EstimateComplexActivityProbabilisticRequest:
-        preflight_m0904_authorization(request)
-        return _REQUEST_ADAPTER.validate_python(request, strict=True)
+        typed = _REQUEST_ADAPTER.validate_python(request, strict=True)
+        preflight_m0904_authorization(typed)
+        if typed.typed_observations:
+            typed = typed.model_copy(
+                update={
+                    "typed_observations": tuple(
+                        sorted(typed.typed_observations, key=lambda item: item.observation_id)
+                    )
+                }
+            )
+        return typed
 
     def estimate(self, request: object) -> EstimateComplexActivityProbabilisticResult:
         return self.build(request).result
