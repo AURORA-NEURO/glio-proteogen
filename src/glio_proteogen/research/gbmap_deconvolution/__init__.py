@@ -1,4 +1,10 @@
-"""Unfitted GBmap numerical/fitting core; no analysis runtime is exported."""
+"""GBmap numerical/fitting core and caller-owned RNA-mixture runtime.
+
+The source-admission profile remains unfitted and cannot authorize a bundled
+GBmap artifact. The explicitly named runtime export only evaluates
+caller-supplied reference signatures and never makes cell-fraction or clinical
+claims.
+"""
 
 from .aggregate import (
     MIN_CELLS_PER_DONOR_LABEL,
@@ -119,6 +125,31 @@ from .profile import (
     GbmapDevelopmentProfile,
     development_profile,
 )
+from .runtime import (
+    EXPECTED_NUMPY_VERSION as MIXTURE_EXPECTED_NUMPY_VERSION,
+)
+from .runtime import (
+    MAX_MIXTURE_FEATURES,
+    MAX_MIXTURE_ITERATIONS,
+    MAX_MIXTURE_LINEAGES,
+    MAX_MIXTURE_REQUEST_BYTES,
+    MAX_MIXTURE_RESULT_BYTES,
+    MIXTURE_ALGORITHM_ID,
+    MIXTURE_ALGORITHM_VERSION,
+    MIXTURE_KKT_TOLERANCE,
+    MIXTURE_L1_STEP_TOLERANCE,
+    MIXTURE_PROFILE_ID,
+    MIXTURE_RELATIVE_OBJECTIVE_TOLERANCE,
+    GbmMixtureProfile,
+    GbmMixtureReference,
+    GbmMixtureRequest,
+    GbmMixtureResult,
+    GbmMixtureWeight,
+    analyze_gbm_mixture,
+    mixture_profile,
+    synthetic_gbm_mixture_request,
+    verify_gbm_mixture_replay,
+)
 from .selection import (
     MAD_SCALE,
     MAX_GENES_PER_LABEL,
@@ -217,6 +248,11 @@ __all__ = [
     "MAD_SCALE",
     "MAXIMUM_CONCENTRATION",
     "MAX_GENES_PER_LABEL",
+    "MAX_MIXTURE_FEATURES",
+    "MAX_MIXTURE_ITERATIONS",
+    "MAX_MIXTURE_LINEAGES",
+    "MAX_MIXTURE_REQUEST_BYTES",
+    "MAX_MIXTURE_RESULT_BYTES",
     "MAX_REFERENCE_DONORS",
     "MAX_REFERENCE_STUDIES",
     "MAX_SHRINKAGE_CANDIDATES",
@@ -235,6 +271,13 @@ __all__ = [
     "MIN_STUDIES_PER_LINEAGE",
     "MIN_STUDY_POSITIVE_MEDIAN_FRACTION",
     "MIN_UMIS_PER_DONOR_LABEL",
+    "MIXTURE_ALGORITHM_ID",
+    "MIXTURE_ALGORITHM_VERSION",
+    "MIXTURE_EXPECTED_NUMPY_VERSION",
+    "MIXTURE_KKT_TOLERANCE",
+    "MIXTURE_L1_STEP_TOLERANCE",
+    "MIXTURE_PROFILE_ID",
+    "MIXTURE_RELATIVE_OBJECTIVE_TOLERANCE",
     "PRODUCTION_CELL_COUNT",
     "PRODUCTION_FEATURE_COUNT",
     "PRODUCTION_GROUPED_DONOR_CATEGORY_COUNT",
@@ -269,6 +312,11 @@ __all__ = [
     "FeatureIdentitySource",
     "FoldAbstentionReason",
     "FoldEvaluationState",
+    "GbmMixtureProfile",
+    "GbmMixtureReference",
+    "GbmMixtureRequest",
+    "GbmMixtureResult",
+    "GbmMixtureWeight",
     "GbmapDeconvolutionError",
     "GbmapDevelopmentProfile",
     "GbmapDonorCrosswalk",
@@ -311,6 +359,7 @@ __all__ = [
     "ValidationSplitReceipt",
     "aggregate_sparse_count_blocks",
     "aitchison_residual",
+    "analyze_gbm_mixture",
     "build_feature_identity_crosswalk",
     "build_validation_split_plan",
     "calibrate_unknown_mass_threshold",
@@ -333,6 +382,7 @@ __all__ = [
     "lineage_hierarchy_gradient",
     "lineage_hierarchy_objective",
     "load_feature_identity_crosswalk_bytes",
+    "mixture_profile",
     "normalized_dm_deviance",
     "parse_hgnc_complete_set",
     "pinned_cellxgene_snapshot",
@@ -356,9 +406,11 @@ __all__ = [
     "stable_gene_score",
     "standardized_dm_pearson_residual",
     "study_balanced_global_signature",
+    "synthetic_gbm_mixture_request",
     "train_development_candidate",
     "trigamma",
     "verify_cellxgene_metadata",
+    "verify_gbm_mixture_replay",
     "verify_hierarchy_trace",
     "verify_objective_trace",
 ]

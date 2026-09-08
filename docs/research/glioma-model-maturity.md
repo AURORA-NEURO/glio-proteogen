@@ -172,6 +172,17 @@ boundary, validation gates, and remaining blockers are recorded in
 No fitted artifact or runtime endpoint exists for this candidate, so it does
 not increase the fourteen-lane fitted-inference inventory.
 
+The source-independent core also exposes an explicitly named
+`gbm-rna-composition/0.1.0` caller-owned runtime. It accepts a complete count
+vector and positive reference signatures, solves the adaptive-unknown
+Dirichlet--multinomial simplex objective, reports KKT/objective-trace closure
+and threshold-free OOD diagnostics, and supports deterministic replay. This is
+a limited RNA-mixture coordinate only: unknown mass is retained, lineage
+weights are never relabelled as histologic cell fractions, and no GBmap
+artifact or patient data are bundled. The development GBmap profile therefore
+remains `development_unfitted` with no source-derived `SUPPORTED` claim or
+public route.
+
 ## Local M07 cis-dosage substitution boundary
 
 `m07-cptac-gbm-cis-dosage-cohort-evidence/1.0.0` now provides an exact local
