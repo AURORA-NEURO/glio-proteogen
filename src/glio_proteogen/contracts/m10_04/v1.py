@@ -60,6 +60,7 @@ M1004_EVIDENCE_CLAIM: Final = (
     "Caller-declared M10-03 baseline and probabilistic-estimator evidence; "
     "issuer authority is not authenticated."
 )
+M1004_GLIOMA_MODEL_FAMILY: Final = "glioma-proteotype-factor-irls/1.0.0"
 
 
 class ProbabilisticEstimatorFamily(StrEnum):
@@ -216,6 +217,7 @@ class OptimizationDiagnostic(FrozenModel):
     iteration_count: int = Field(ge=0)
     objective_value: float | None = None
     convergence_gap: float | None = Field(default=None, ge=0.0)
+    model_family: NonEmptyStr | None = None
     message: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1004_MAX_EVIDENCE)
 
@@ -426,6 +428,7 @@ __all__ = [
     "M1004_CONTRACT_VERSION",
     "M1004_EVIDENCE_CLAIM",
     "M1004_GATE",
+    "M1004_GLIOMA_MODEL_FAMILY",
     "M1004_MAX_CANONICAL_REQUEST_BYTES",
     "M1004_MAX_CANONICAL_RESULT_BYTES",
     "M1004_MAX_CONSTRAINTS",

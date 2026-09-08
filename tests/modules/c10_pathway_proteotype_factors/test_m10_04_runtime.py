@@ -29,6 +29,7 @@ from glio_proteogen.kernel.models import (
     SupportStatus,
 )
 from glio_proteogen.modules.c10_pathway_proteotype_factors.m10_04_probabilistic_advanced_estimator import (  # noqa: E501
+    M1004_GLIOMA_IRLS_OPTIMIZER,
     M1004Plugin,
     M1004ProbabilisticEstimatorAuthorizationError,
     M1004ProbabilisticEstimatorEngine,
@@ -97,6 +98,77 @@ def test_measured_observation_requires_declared_prior() -> None:
                 }
             )
         )
+
+
+def test_locked_glioma_factor_fit_uses_signed_program_edges_and_replays() -> None:
+    base = build_request()
+    genes = (("egfr", 1.2), ("pik3ca", 0.8), ("tp53", -0.5), ("mki67", 1.0))
+    priors = tuple(
+        ProbabilisticPrior(
+            prior_id=f"prior.{gene}",
+            version="0.1.0",
+            kind=ProbabilisticPriorKind.NORMAL,
+            parameters=(0.0, 1.0),
+        )
+        for gene, _value in genes
+    )
+    request = base.model_copy(
+        update={
+            "configuration": base.configuration.model_copy(
+                update={"optimizer": M1004_GLIOMA_IRLS_OPTIMIZER, "priors": priors}
+            ),
+            "observations": tuple(
+                ProbabilisticObservation(
+                    feature_id=f"prior.{gene}",
+                    value=value,
+                    standard_error=0.2,
+                    quality_weight=0.9,
+                )
+                for gene, value in genes
+            ),
+        }
+    )
+    service = M1004Service()
+    result = service.execute(request)
+    assert result.status is ProbabilisticResultStatus.ESTIMATED
+    assert len(result.estimates) == len(genes)
+    diagnostic = result.diagnostics[0]
+    assert diagnostic.model_family == "glioma-proteotype-factor-irls/1.0.0"
+    assert diagnostic.iteration_count > 1
+    assert diagnostic.objective_value is not None
+    assert diagnostic.objective_value > 0
+    assert service.verify(result).model_dump_json() == result.model_dump_json()
+
+
+def test_locked_glioma_factor_fit_abstains_without_program_support() -> None:
+    base = build_request()
+    genes = ("egfr", "pik3ca", "unknown_a", "unknown_b")
+    priors = tuple(
+        ProbabilisticPrior(
+            prior_id=f"prior.{gene}",
+            version="0.1.0",
+            kind=ProbabilisticPriorKind.NORMAL,
+            parameters=(0.0, 1.0),
+        )
+        for gene in genes
+    )
+    request = base.model_copy(
+        update={
+            "configuration": base.configuration.model_copy(
+                update={"optimizer": M1004_GLIOMA_IRLS_OPTIMIZER, "priors": priors}
+            ),
+            "observations": tuple(
+                ProbabilisticObservation(
+                    feature_id=f"prior.{gene}", value=0.4, standard_error=0.2
+                )
+                for gene in genes
+            ),
+        }
+    )
+    result = M1004Service().execute(request)
+    assert result.status is ProbabilisticResultStatus.ABSTAINED
+    assert result.estimates == ()
+    assert result.human_review_required is True
 
 
 def test_non_normal_prior_abstains_without_negative_inference() -> None:

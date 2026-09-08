@@ -38,6 +38,7 @@ from glio_proteogen.kernel.models import (
 )
 from glio_proteogen.kernel.strict_json import StrictJsonError, strict_json_loads
 from glio_proteogen.modules.c10_pathway_proteotype_factors.m10_04_probabilistic_advanced_estimator import (  # noqa: E501
+    M1004_GLIOMA_IRLS_OPTIMIZER,
     M1004ProbabilisticEstimatorAuthorizationError,
     M1004ReplayVerificationError,
     M1004Service,
@@ -197,6 +198,51 @@ def evaluate() -> dict[str, object]:
                 and measured_result.diagnostics[0].status.value == "converged"
             ),
             detail="quality/error-weighted measured discordance produces a replayable interval",
+        )
+    )
+    genes = (("egfr", 1.2), ("pik3ca", 0.8), ("tp53", -0.5), ("mki67", 1.0))
+    typed_base = build_request()
+    typed_request = typed_base.model_copy(
+        update={
+            "configuration": typed_base.configuration.model_copy(
+                update={
+                    "optimizer": M1004_GLIOMA_IRLS_OPTIMIZER,
+                    "priors": tuple(
+                        ProbabilisticPrior(
+                            prior_id=f"prior.{gene}",
+                            version="0.1.0",
+                            kind=ProbabilisticPriorKind.NORMAL,
+                            parameters=(0.0, 1.0),
+                        )
+                        for gene, _value in genes
+                    ),
+                }
+            ),
+            "observations": tuple(
+                ProbabilisticObservation(
+                    feature_id=f"prior.{gene}",
+                    value=value,
+                    standard_error=0.2,
+                    quality_weight=0.9,
+                )
+                for gene, value in genes
+            ),
+        }
+    )
+    typed_result = service.execute(typed_request)
+    checks.append(
+        _check(
+            "locked_glioma_factor_graph_is_estimated",
+            passed=(
+                typed_result.status.value == "estimated"
+                and len(typed_result.estimates) == len(genes)
+                and typed_result.diagnostics[0].model_family
+                == "glioma-proteotype-factor-irls/1.0.0"
+                and typed_result.diagnostics[0].iteration_count > 1
+                and service.verify(typed_result).model_dump_json()
+                == typed_result.model_dump_json()
+            ),
+            detail="GBM marker observations are jointly fit with signed program factors",
         )
     )
     replay = service.verify(result)

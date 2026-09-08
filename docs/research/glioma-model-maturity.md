@@ -506,6 +506,21 @@ grammar remain the compatibility path, while typed output is research-use-only
 and does not establish a molecular diagnosis, prognosis, mechanism, or
 treatment response.
 
+## Completed M10-04 typed glioma proteotype-factor lane
+
+The additive M10-04 runtime now exposes the
+`glioma-proteotype-factor-irls/1.0.0` model family through the locked
+`locked_glioma_proteotype_factor_irls_v1` optimizer. A repository-owned GBM
+marker panel maps EGFR/PI3K/AKT/mTOR, p53/cell-cycle, IDH/HIF1A, mesenchymal,
+and proliferation proteins to latent programs. Robust Huber-IRLS coordinate
+descent jointly fits those states with signed program edges and feature-specific
+Normal priors, emitting deterministic 90% intervals and convergence diagnostics.
+The lane requires four markers across two programs and abstains without that
+topology support; it never falls back to independent posteriors. Existing
+M10-04 metadata and measured-observation behavior remain compatibility paths,
+and this research-only factor estimate is not a diagnosis, prognosis, or
+treatment-response claim.
+
 ## Completed M10-07 typed glioma discordance calibration lane
 
 The additive M10-07 runtime now recognizes the

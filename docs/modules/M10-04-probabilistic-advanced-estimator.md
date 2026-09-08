@@ -40,6 +40,18 @@ the request digest, result payload digest, and exact request replay. The plugin
 uses a sealed parse-once token. FastAPI and Typer share duplicate-key,
 non-finite-number, byte-limit, and sanitized-validation behavior.
 
+The opt-in optimizer `locked_glioma_proteotype_factor_irls_v1` adds a
+glioma-specific pathway-factor lane. It maps a locked GBM marker panel (EGFR,
+PDGFRA, PI3K/AKT/mTOR, TP53/cell-cycle, IDH/HIF1A, mesenchymal, and
+proliferation markers) to five latent programs and fits them jointly with
+Huber-IRLS coordinate descent. Signed RTK→proliferation, RTK↛p53/cell-cycle,
+IDH↛mesenchymal, and mesenchymal→proliferation edges are regularized alongside
+feature-specific Normal priors. The fit abstains unless at least four markers
+cover two programs, emits robust 90% intervals and convergence diagnostics,
+and never falls back to independent posteriors when topology support is
+insufficient. Its model family is `glioma-proteotype-factor-irls/1.0.0` and is
+research-only.
+
 ## Evidence and release gates
 
 The fixture manifest binds the exact dossier digest and line slice. Contract,
