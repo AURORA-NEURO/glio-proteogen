@@ -366,11 +366,14 @@ def _evidence(
     )
 
 
-def _uncertainty() -> UncertaintyProfile:
+def _uncertainty(*, glioma_program: bool = False) -> UncertaintyProfile:
     estimate = UncertaintyEstimate(
         state=EstimateState.NOT_ESTIMABLE,
         rationale=(
-            "M06-04 calibration and uncertainty decomposition are not frozen; "
+            "The coupled glioma program lane emits deterministic analytic intervals; "
+            "external calibration is not claimed."
+            if glioma_program
+            else "M06-04 calibration and uncertainty decomposition are not frozen; "
             "no probability is emitted by this provisional boundary."
         ),
     )
@@ -383,7 +386,12 @@ def _uncertainty() -> UncertaintyProfile:
         support=estimate,
         transport=estimate,
         sensitivity_notes=(
-            "Deterministic proxy intervals are not calibrated posterior intervals.",
+            (
+                "Coupled program intervals are deterministic research intervals, not "
+                "calibrated biological probabilities."
+                if glioma_program
+                else "Deterministic proxy intervals are not calibrated posterior intervals."
+            ),
         ),
     )
 
@@ -1008,13 +1016,16 @@ class M0604ProbabilisticEstimatorEngine:
             parent_target="biomarker_panel",
             emits_parent=False,
             support_decision=_support(status, reason),
-            uncertainty=_uncertainty(),
+            uncertainty=_uncertainty(
+                glioma_program=(
+                    canonical.configuration.optimizer == M0604_GLIOMA_PROGRAM_IRLS_OPTIMIZER
+                )
+            ),
             provenance=_provenance(canonical, request_hash),
             evidence=_evidence(canonical),
             limitations=_limitations(
                 glioma_program=(
                     canonical.configuration.optimizer == M0604_GLIOMA_PROGRAM_IRLS_OPTIMIZER
-                    and status is ProbabilisticResultStatus.ESTIMATED
                 )
             ),
         )
@@ -1032,6 +1043,7 @@ def estimate_protein_abundance_probabilistic(
 
 
 __all__ = [
+    "M0604_GLIOMA_PROGRAM_IRLS_OPTIMIZER",
     "M0604_PROXY_OPTIMIZER",
     "M0604ProbabilisticEstimatorEngine",
     "ProbabilisticEstimatorAuthorizationError",
