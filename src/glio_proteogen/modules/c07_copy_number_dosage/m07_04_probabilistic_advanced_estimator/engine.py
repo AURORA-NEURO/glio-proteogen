@@ -1,12 +1,11 @@
-"""Deterministic, replay-verifiable M07-04 estimator boundary.
+"""Deterministic, replay-verifiable M07-04 GBM dosage estimator boundary.
 
-The dossier describes an advanced probabilistic estimator but does not freeze
-the model registry, weights, feature catalogue, posterior semantics, or
-endpoint ABI.  This implementation therefore executes a deliberately small
-declaration-only proxy: a locked mechanism-guided configuration may project
-finite caller-declared scalar/interval observations into typed estimates.
-Every other family, optimizer, categorical observation, or malformed transport
-is rejected or safely abstained.  No artifact is opened and no calibrated
+The runtime executes a bounded, marker-aware copy-number model: finite
+caller-declared scalar/interval observations are fit with robust Huber-IRLS,
+feature-matched GBM dosage priors, repeated-assay pooling, and explicit hard
+domain constraints.  The historical declaration-only optimizer name remains a
+compatibility alias, but it follows this same locked model rather than a
+digest-derived placeholder.  No artifact is opened and no calibrated clinical
 probability is emitted.
 """
 
