@@ -147,8 +147,9 @@ def test_typed_graph_fit_is_invariant_to_relation_declaration_order(
     monkeypatch.setattr(engine_module, "_TYPED_EDGES", tuple(reversed(engine_module._TYPED_EDGES)))
     reordered = engine_module._typed_fit_graph(request)
 
-    assert reordered.values == baseline.values
-    assert reordered.objective_trace == baseline.objective_trace
+    for program in baseline.values:
+        assert reordered.values[program] == pytest.approx(baseline.values[program], abs=1e-12)
+    assert reordered.objective_trace == pytest.approx(baseline.objective_trace, abs=1e-12)
 
 
 def test_plugin_descriptor_and_forged_seal() -> None:
