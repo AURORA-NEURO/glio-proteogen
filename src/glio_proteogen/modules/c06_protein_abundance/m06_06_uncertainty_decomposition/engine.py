@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from math import isfinite, sqrt
 from typing import Final
@@ -53,6 +54,23 @@ from glio_proteogen.modules.c06_protein_abundance.m06_06_uncertainty_decompositi
 )
 
 _REQUEST_ADAPTER: Final = TypeAdapter(DecomposeProteinAbundanceUncertaintyRequest)
+_GLIOMA_MARKER_PATTERN: Final = re.compile(r"[a-z0-9]+")
+_GLIOMA_COMPOUND_PATTERN: Final = re.compile(r"[a-z0-9]+(?:[-_][a-z0-9]+)+")
+_GLIOMA_MARKERS: Final = frozenset(
+    {
+        "egfr",
+        "pdgfra",
+        "met",
+        "cdk4",
+        "mdm2",
+        "mycn",
+        "cdkn2a",
+        "cdkn2b",
+        "pten",
+        "nf1",
+        "chr10",
+    }
+)
 _RESULT_ADAPTER: Final = TypeAdapter(ProteinAbundanceUncertaintyDecompositionResult)
 _ZERO_DIGEST: Final = "sha256:" + ("0" * 64)
 
@@ -185,6 +203,18 @@ def _median(values: list[float]) -> float:
     return (ordered[middle - 1] + ordered[middle]) / 2.0
 
 
+def _is_glioma_marker(feature_id: str) -> bool:
+    """Match complete GBM marker tokens, including compound HGNC spellings."""
+
+    normalized = feature_id.casefold()
+    tokens = set(_GLIOMA_MARKER_PATTERN.findall(normalized))
+    tokens.update(
+        compound.replace("-", "").replace("_", "")
+        for compound in _GLIOMA_COMPOUND_PATTERN.findall(normalized)
+    )
+    return bool(tokens & _GLIOMA_MARKERS)
+
+
 def _uncertainty_probabilities(
     request: DecomposeProteinAbundanceUncertaintyRequest,
 ) -> dict[UncertaintyDimension, float]:
@@ -229,21 +259,8 @@ def _uncertainty_probabilities(
         + 0.15 * (1.0 if upstream.support_decision.status.value != "supported" else 0.0)
     )
 
-    glioma_markers = (
-        "egfr",
-        "pdgfra",
-        "met",
-        "cdk4",
-        "mdm2",
-        "mycn",
-        "cdkn2a",
-        "cdkn2b",
-        "pten",
-        "nf1",
-        "chr10",
-    )
     marker_hits = sum(
-        any(marker in feature_id.casefold() for marker in glioma_markers)
+        _is_glioma_marker(feature_id)
         for feature_id in (str(item.feature_id) for item in estimates)
     )
     transport = _clip_probability(0.35 - 0.20 * (marker_hits / feature_count))

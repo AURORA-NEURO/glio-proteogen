@@ -19,6 +19,9 @@ from glio_proteogen.modules.c06_protein_abundance.m06_05_mechanism_constraint_in
 from glio_proteogen.modules.c06_protein_abundance.m06_06_uncertainty_decomposition import (
     M0606UncertaintyDecompositionEngine,
 )
+from glio_proteogen.modules.c06_protein_abundance.m06_06_uncertainty_decomposition import (
+    engine as m0606_engine,
+)
 from tests.modules.c06_protein_abundance.test_m06_05_constraint_integrator import _request
 
 if TYPE_CHECKING:
@@ -93,3 +96,14 @@ def test_m0606_preserves_upstream_abstention() -> None:
     )
     assert result.status is UncertaintyDecompositionStatus.ABSTAINED
     assert result.decomposition is None
+
+
+def test_glioma_transport_marker_matching_is_token_exact() -> None:
+    assert m0606_engine._is_glioma_marker("protein.EGFR") is True
+    assert m0606_engine._is_glioma_marker("protein.MKI-67") is False
+    assert m0606_engine._is_glioma_marker("protein.notegfr") is False
+
+
+def test_glioma_transport_marker_matching_normalizes_compound_hgnc() -> None:
+    assert m0606_engine._is_glioma_marker("protein.CDKN-2A") is True
+    assert m0606_engine._is_glioma_marker("protein.CDKN_2B") is True
