@@ -610,6 +610,20 @@ is untouched when typed observations are absent; typed output is research-use
 only and does not establish biochemical activity, diagnosis, prognosis, or
 treatment response.
 
+## Completed M10-02 typed glioma representation lane
+
+The additive M10-02 runtime fits protein effects from transcript, copy-number,
+and phosphosite predictors with locked program-specific priors, robust Huber
+coordinate descent, one-sided protein censoring, ridge stabilization, and
+explicit modality ablations. Missing predictors are masked from the data term
+instead of imputed as negative values. Bootstrap replicates now perturb observed
+protein effects and censor limits separately, so detection-limit uncertainty is
+visible in replay-stable intervals and stability summaries.
+
+The historical transformation-only representation remains compatibility-only;
+typed output is a research signal and does not emit a clinical, diagnostic,
+prognostic, kinase, or treatment claim.
+
 ## Completed M10-03 typed glioma protein/RNA discordance lane
 
 The additive M10-03 runtime now recognizes the

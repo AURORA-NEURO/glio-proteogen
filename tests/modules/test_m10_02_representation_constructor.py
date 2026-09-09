@@ -386,6 +386,58 @@ def test_typed_glioma_lane_is_order_invariant_and_preserves_censoring() -> None:
     assert any(feature.discordance is not None for feature in first.representation.features)
 
 
+def test_typed_censor_limit_changes_bootstrap_receipt() -> None:
+    base = _request().model_copy(
+        update={
+            "input_features": (
+                _request().input_features[0],
+                RepresentationInputFeature(
+                    feature_id="protein.beta",
+                    value_kind=RepresentationFeatureValueKind.SCALAR,
+                    state=RepresentationMissingness.OBSERVED,
+                    unit="log2_ratio",
+                    scalar_value=0.0,
+                ),
+            ),
+            "glioma_observations": (
+                GliomaRepresentationObservation(
+                    observation_id="obs.egfr",
+                    input_feature_id="protein.alpha",
+                    gene="EGFR",
+                    program=GliomaProgram.RTK_PI3K_AKT_MTOR,
+                    state=GliomaRepresentationEvidenceState.LEFT_CENSORED,
+                    transcript_effect=0.1,
+                    copy_number_effect=0.0,
+                    censor_limit=-0.25,
+                    protein_standard_error=0.2,
+                ),
+                GliomaRepresentationObservation(
+                    observation_id="obs.met",
+                    input_feature_id="protein.beta",
+                    gene="MET",
+                    program=GliomaProgram.RTK_PI3K_AKT_MTOR,
+                    state=GliomaRepresentationEvidenceState.OBSERVED,
+                    transcript_effect=0.3,
+                    protein_effect=0.2,
+                    copy_number_effect=0.4,
+                    protein_standard_error=0.2,
+                ),
+            ),
+            "bootstrap_replicates": 16,
+        }
+    )
+    shifted = base.glioma_observations[0].model_copy(update={"censor_limit": -0.45})
+    baseline = construct_protein_rna_representation(base)
+    changed = construct_protein_rna_representation(
+        base.model_copy(update={"glioma_observations": (shifted, base.glioma_observations[1])})
+    )
+    assert baseline.representation is not None
+    assert changed.representation is not None
+    assert baseline.representation.model_dump(mode="json") != changed.representation.model_dump(
+        mode="json"
+    )
+
+
 def test_preflight_rejects_hostile_and_incomplete_candidates() -> None:
     with pytest.raises(RepresentationAuthorizationError):
         preflight_authorization(object())

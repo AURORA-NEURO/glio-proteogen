@@ -556,12 +556,17 @@ def _fit_program(  # noqa: C901,PLR0912,PLR0915
                 0.0, _GLIOMA_BOOTSTRAP_SCALE * np.maximum(standard_error[list(indices)], 1e-3)
             )
             boot_beta = prior.copy()
+            sampled_censored = c[sampled]
+            sampled_targets = y[sampled] + np.where(~sampled_censored, perturb, 0.0)
+            sampled_limits = censor_limits[sampled] + np.where(
+                sampled_censored, perturb, 0.0
+            )
             bx, bm, by, bc, boot_limits, bw = (
                 x[sampled],
                 mask[sampled],
-                y[sampled] + perturb,
-                c[sampled],
-                censor_limits[sampled],
+                sampled_targets,
+                sampled_censored,
+                sampled_limits,
                 w[sampled],
             )
             for _ in range(24):
