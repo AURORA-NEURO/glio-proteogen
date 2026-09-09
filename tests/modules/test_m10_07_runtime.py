@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from itertools import pairwise
 
 import pytest
 from pydantic import ValidationError
@@ -42,6 +43,9 @@ from glio_proteogen.modules.c10_pathway_proteotype.m10_07_calibration_selective_
     M1007Service,
     M1007TokenError,
 )
+from glio_proteogen.modules.c10_pathway_proteotype.m10_07_calibration_selective_prediction import (
+    engine as m1007_engine,
+)
 
 _DIGEST = "sha256:" + ("a" * 64)
 _MEDIA = "application/vnd.glio-proteogen.fixture+json"
@@ -51,6 +55,7 @@ _CALIBRATION_SPLIT = 10
 _MIN_CONFIDENCE = 0.1
 _TYPED_OBSERVATION_COUNT = 20
 _SCORE_MIDPOINT = 0.5
+_FIRST_CANDIDATE_OBJECTIVE_CALL = 2
 
 
 def _artifact(name: str, media_type: str = _MEDIA) -> ArtifactReference:
@@ -317,6 +322,29 @@ def test_typed_calibration_excludes_missing_and_censored_values() -> None:
     assert "typed_glioma_calibration_research_only" in {
         item.code for item in built.result.limitations
     }
+
+
+def test_typed_logistic_fit_backtracks_non_monotone_objective(monkeypatch) -> None:
+    request = _typed_request()
+    original = m1007_engine._typed_objective
+    calls = 0
+
+    def objective(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == _FIRST_CANDIDATE_OBJECTIVE_CALL else value
+
+    monkeypatch.setattr(m1007_engine, "_typed_objective", objective)
+    fitted = m1007_engine._typed_logistic_fit(request.typed_calibration_observations)
+
+    assert fitted is not None
+    assert calls > _FIRST_CANDIDATE_OBJECTIVE_CALL
+    trace = fitted[-1]
+    assert all(
+        after <= before + m1007_engine._TYPED_OBJECTIVE_TOLERANCE
+        for before, after in pairwise(trace)
+    )
 
 
 def test_measured_runtime_abstains_for_out_of_domain_query() -> None:

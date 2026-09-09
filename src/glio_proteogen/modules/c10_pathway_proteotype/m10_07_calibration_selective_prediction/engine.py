@@ -61,6 +61,9 @@ _SUBGROUP_DISPARITY_LIMIT: Final = 0.2
 _DISCORDANCE_DECISION_THRESHOLD: Final = 0.5
 _TYPED_MAX_ITERATIONS: Final = 64
 _TYPED_TOLERANCE: Final = 1e-6
+_TYPED_OBJECTIVE_TOLERANCE: Final = 1e-10
+_TYPED_BACKTRACKING_STEPS: Final = 8
+_TYPED_BACKTRACKING_FACTOR: Final = 0.5
 _TYPED_DAMPING: Final = 0.7
 _TYPED_RIDGE: Final = 0.08
 _TYPED_HUBER_K: Final = 1.5
@@ -322,6 +325,59 @@ def _typed_design(
     return rows
 
 
+def _typed_eligible(
+    probabilities: np.ndarray,
+    numeric_labels: np.ndarray,
+    active: tuple[TypedDiscordanceCalibrationObservation, ...],
+) -> np.ndarray:
+    """Return the observations contributing to the censored one-sided loss.
+
+    A left-censored label contributes only while the fitted probability remains
+    on the wrong side of the decision boundary.  Missing values are filtered
+    before this helper is called and therefore cannot become implicit negatives.
+    """
+
+    eligible = np.ones(len(active), dtype=bool)
+    for index, item in enumerate(active):
+        if item.evidence_state is not CalibrationEvidenceState.LEFT_CENSORED:
+            continue
+        if (
+            numeric_labels[index] >= _TYPED_CLASS_THRESHOLD
+            and probabilities[index] >= _TYPED_CLASS_THRESHOLD
+        ) or (
+            numeric_labels[index] < _TYPED_CLASS_THRESHOLD
+            and probabilities[index] <= _TYPED_CLASS_THRESHOLD
+        ):
+            eligible[index] = False
+    return eligible
+
+
+def _typed_objective(
+    beta: np.ndarray,
+    design: np.ndarray,
+    numeric_labels: np.ndarray,
+    qualities: np.ndarray,
+    active: tuple[TypedDiscordanceCalibrationObservation, ...],
+) -> float:
+    """Evaluate the robust typed calibration objective at a coefficient vector."""
+
+    if not np.all(np.isfinite(beta)):
+        return float("inf")
+    probabilities = np.asarray([_sigmoid(float(value)) for value in design @ beta])
+    if not np.all(np.isfinite(probabilities)):
+        return float("inf")
+    eligible = _typed_eligible(probabilities, numeric_labels, active)
+    objective = 0.5 * _TYPED_RIDGE * float(np.sum(beta * beta))
+    for index, probability in enumerate(probabilities):
+        if not eligible[index]:
+            continue
+        objective -= float(qualities[index]) * (
+            numeric_labels[index] * log(max(probability, 1e-12))
+            + (1.0 - numeric_labels[index]) * log(max(1.0 - probability, 1e-12))
+        )
+    return float(objective) if isfinite(objective) else float("inf")
+
+
 def _typed_logistic_fit(  # noqa: C901, PLR0911, PLR0912, PLR0915 - deterministic IRLS gate.
     observations: tuple[TypedDiscordanceCalibrationObservation, ...],
 ) -> tuple[tuple[float, ...], float, int, float, tuple[float, ...]] | None:
@@ -353,52 +409,69 @@ def _typed_logistic_fit(  # noqa: C901, PLR0911, PLR0912, PLR0915 - deterministi
     beta = np.zeros(design.shape[1], dtype=np.float64)
     beta[0] = intercept
     objective_trace: list[float] = []
+    initial_objective = _typed_objective(
+        beta, design, numeric_labels, qualities, active
+    )
+    if not isfinite(initial_objective):
+        return None
+    objective_trace.append(round(initial_objective, 10))
     convergence_gap = float("inf")
     iterations = 0
     for iteration in range(_TYPED_MAX_ITERATIONS):
         iterations = iteration + 1
-        probabilities = np.asarray([_sigmoid(float(value)) for value in design @ beta])
+        previous_beta = beta.copy()
+        previous_objective = objective_trace[-1]
+        probabilities = np.asarray([_sigmoid(float(value)) for value in design @ previous_beta])
         variance = np.maximum(probabilities * (1.0 - probabilities), 1e-8)
         standardized = (numeric_labels - probabilities) / np.sqrt(variance)
         robust = np.minimum(1.0, _TYPED_HUBER_K / np.maximum(1.0, np.abs(standardized)))
-        eligible = np.ones(len(active), dtype=bool)
-        for index, item in enumerate(active):
-            if item.evidence_state is not CalibrationEvidenceState.LEFT_CENSORED:
-                continue
-            if (
-                numeric_labels[index] >= _TYPED_CLASS_THRESHOLD
-                and probabilities[index] >= _TYPED_CLASS_THRESHOLD
-            ) or (
-                numeric_labels[index] < _TYPED_CLASS_THRESHOLD
-                and probabilities[index] <= _TYPED_CLASS_THRESHOLD
-            ):
-                eligible[index] = False
+        eligible = _typed_eligible(probabilities, numeric_labels, active)
         robust[~eligible] = 0.0
         weights = qualities * probabilities * (1.0 - probabilities) * robust
         if float(np.sum(weights)) <= _TYPED_MIN_WEIGHT:
             return None
         hessian = design.T @ (weights[:, None] * design)
         hessian += _TYPED_RIDGE * np.eye(design.shape[1], dtype=np.float64)
-        gradient = design.T @ (qualities * robust * eligible * (numeric_labels - probabilities))
-        gradient -= _TYPED_RIDGE * beta
+        gradient = design.T @ (
+            qualities * robust * eligible * (numeric_labels - probabilities)
+        )
+        gradient -= _TYPED_RIDGE * previous_beta
         try:
             step = np.linalg.solve(hessian, gradient)
         except np.linalg.LinAlgError:
             return None
-        updated = beta + step
-        damped = _TYPED_DAMPING * updated + (1.0 - _TYPED_DAMPING) * beta
-        convergence_gap = float(np.max(np.abs(damped - beta)))
-        beta = damped
-        objective = 0.0
-        probabilities = np.asarray([_sigmoid(float(value)) for value in design @ beta])
-        for index, probability in enumerate(probabilities):
-            if not eligible[index]:
-                continue
-            objective -= float(qualities[index]) * (
-                numeric_labels[index] * log(max(probability, 1e-12))
-                + (1.0 - numeric_labels[index]) * log(max(1.0 - probability, 1e-12))
-            )
-        objective += 0.5 * _TYPED_RIDGE * float(np.sum(beta * beta))
+        updated = previous_beta + step
+        damped = _TYPED_DAMPING * updated + (1.0 - _TYPED_DAMPING) * previous_beta
+        delta = damped - previous_beta
+        candidate = damped
+        objective = _typed_objective(
+            candidate, design, numeric_labels, qualities, active
+        )
+        if not isfinite(objective) or objective > previous_objective + _TYPED_OBJECTIVE_TOLERANCE:
+            # Robust breakpoints and censored eligibility changes can make a
+            # full IRLS step overshoot. Backtrack the complete coefficient
+            # vector so the replay trace remains deterministic and monotone.
+            accepted = False
+            step_scale = _TYPED_BACKTRACKING_FACTOR
+            for _ in range(_TYPED_BACKTRACKING_STEPS):
+                trial = previous_beta + step_scale * delta
+                trial_objective = _typed_objective(
+                    trial, design, numeric_labels, qualities, active
+                )
+                if isfinite(trial_objective) and (
+                    trial_objective <= previous_objective + _TYPED_OBJECTIVE_TOLERANCE
+                ):
+                    candidate = trial
+                    objective = trial_objective
+                    accepted = True
+                    break
+                step_scale *= _TYPED_BACKTRACKING_FACTOR
+            if not accepted:
+                beta = previous_beta
+                convergence_gap = 0.0
+                break
+        beta = candidate
+        convergence_gap = float(np.max(np.abs(beta - previous_beta)))
         objective_trace.append(round(objective, 10))
         if convergence_gap <= _TYPED_TOLERANCE:
             break

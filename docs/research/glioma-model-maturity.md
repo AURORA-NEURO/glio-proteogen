@@ -741,8 +741,11 @@ observations carry paired protein/RNA effects, propagated modality standard
 errors, quality weights, a glioma program, explicit evidence state, subgroup,
 and a discordant/concordant label. A quality-weighted damped robust logistic
 IRLS fit learns the score-to-label relationship from those measurements rather
-than deriving a query score from a digest. The fit records a bounded objective
-trace and is replay-bound to the request digest. Its design matrix adds
+than deriving a query score from a digest. The fit records a bounded, monotone
+objective trace with a finite initial state, frozen-parent coordinate proposals,
+and deterministic full-vector backtracking when robust breakpoints or censor
+eligibility would increase the objective. It is replay-bound to the request
+digest. Its design matrix adds
 ridge-regularized one-hot offsets for the five locked GBM programs, so sparse
 program evidence shrinks toward the global calibration while program context
 still changes the fitted score.
