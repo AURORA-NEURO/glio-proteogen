@@ -413,3 +413,16 @@ def test_typed_censor_only_complex_initialization_is_neutral_for_positive_limit(
     )
 
     assert engine_module._initial_typed_complex_state((censored,)) == pytest.approx(0.0)
+
+
+def test_typed_censor_influence_is_zero_when_complex_is_below_limit() -> None:
+    observed = _typed_request().typed_observations[0]
+    censored = observed.model_copy(
+        update={
+            "evidence_state": GliomaComplexEvidenceState.LEFT_CENSORED,
+            "censoring_limit": 0.2,
+        }
+    )
+
+    assert engine_module._typed_censor_activation(0.0, censored) == pytest.approx(0.0)
+    assert engine_module._typed_censor_activation(0.3, censored) == pytest.approx(1.0)

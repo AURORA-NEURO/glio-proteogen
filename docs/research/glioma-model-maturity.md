@@ -547,6 +547,12 @@ the lane abstains with review required. The original SHA-256-derived baseline
 is retained as compatibility-only behavior, and the typed signal is not a
 biochemical assay, diagnosis, prognosis, kinase estimate, or treatment claim.
 
+The M09-02 and M09-03 solvers apply the censoring loss exactly: a left-censor
+bound contributes no gradient anywhere in its feasible region and activates only
+when the latent state exceeds that bound. This removes the small logistic-ramp
+pull that could otherwise turn a satisfied detection limit into a weak negative
+observation while preserving the existing request/result digests and replay ABI.
+
 ## Completed M07-05 typed glioma dosage constraint lane
 
 The additive M07-05 runtime now recognizes the

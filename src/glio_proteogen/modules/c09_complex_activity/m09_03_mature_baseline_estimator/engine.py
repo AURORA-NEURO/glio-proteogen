@@ -469,13 +469,18 @@ def _initial_typed_state(observations: tuple[GliomaBaselineObservation, ...]) ->
 
 
 def _typed_censor_activation(state: float, observation: GliomaBaselineObservation) -> float:
-    """Smoothly activate the one-sided censored loss near its detection limit."""
+    """Return exact one-sided influence for a left-censored observation.
+
+    A detection limit is an upper bound rather than an observed location.  The
+    feasible region therefore has zero gradient; only a state above the limit
+    contributes a one-sided residual.  This prevents a smooth surrogate from
+    turning censoring into a weak negative observation.
+    """
 
     if observation.evidence_state is not GliomaBaselineEvidenceState.LEFT_CENSORED:
         return 1.0
     limit = cast("float", observation.censoring_limit)
-    scaled = np.clip((state - limit) / 0.1, -50.0, 50.0)
-    return float(1.0 / (1.0 + np.exp(-scaled)))
+    return 1.0 if state > limit else 0.0
 
 
 def _typed_residual(state: float, observation: GliomaBaselineObservation) -> float:

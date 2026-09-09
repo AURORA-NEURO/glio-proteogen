@@ -405,10 +405,18 @@ def _typed_huber(value: float) -> float:
 
 
 def _typed_censor_activation(state: float, observation: GliomaComplexObservation) -> float:
+    """Return the exact one-sided influence for a censored member.
+
+    A left-censored value is an upper bound, not a noisy target.  Its
+    contribution must therefore be absent throughout the feasible region and
+    become active only when the latent complex exceeds the detection limit.
+    The previous logistic ramp introduced a small but deterministic pull
+    toward the limit even when the bound was already satisfied.
+    """
+
     if observation.evidence_state is not GliomaComplexEvidenceState.LEFT_CENSORED:
         return 1.0
-    scaled = np.clip((state - _typed_target(observation)) / 0.1, -50.0, 50.0)
-    return float(1.0 / (1.0 + np.exp(-scaled)))
+    return 1.0 if state > _typed_target(observation) else 0.0
 
 
 def _typed_objective(

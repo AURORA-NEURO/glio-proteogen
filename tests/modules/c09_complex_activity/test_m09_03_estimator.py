@@ -203,6 +203,19 @@ def test_typed_censor_only_initialization_is_neutral_when_bound_is_positive() ->
     assert engine_module._initial_typed_state((censored,)) == pytest.approx(0.0)
 
 
+def test_typed_censor_influence_is_zero_when_state_is_feasible() -> None:
+    observed = _typed_observations()[0]
+    censored = observed.model_copy(
+        update={
+            "evidence_state": GliomaBaselineEvidenceState.LEFT_CENSORED,
+            "censoring_limit": 0.2,
+        }
+    )
+
+    assert engine_module._typed_censor_activation(0.0, censored) == pytest.approx(0.0)
+    assert engine_module._typed_censor_activation(0.3, censored) == pytest.approx(1.0)
+
+
 def test_typed_baseline_abstains_when_program_support_is_insufficient() -> None:
     observations = (
         GliomaBaselineObservation(
