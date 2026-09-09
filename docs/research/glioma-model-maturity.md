@@ -923,7 +923,9 @@ bounded posterior-like research scores. Deterministic request-digest bootstrap
 draws provide intervals, stability, discordance, evidence counts, top drivers,
 and numerical measurement/topology leave-one-family-out ablation effects;
 missing and unsupported observations are excluded rather than treated as
-negative evidence.
+negative evidence. Left-censored observations seed feasible upper-bound starts:
+observed centers are clamped to their tightest limit and censor-only programs
+start at the ridge-neutral feasible value.
 
 The opaque posterior/state grammar remains compatibility-only and the typed lane
 is review-gated. It does not claim causal mechanism, clinical probability,

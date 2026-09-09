@@ -44,7 +44,9 @@ positive controls must be recovered, negative controls rejected, and mature
 baselines exceeded. The typed lane also reports numerical leave-one-family-out
 ablation deltas: removing typed observations exposes topology-only propagation,
 while removing signed edges exposes measurement-only support. These are
-research diagnostics, not causal effect sizes.
+research diagnostics, not causal effect sizes. Typed graph initialization treats
+left-censored effects as upper bounds: observed centers are clamped to feasible
+limits and censor-only programs start at the ridge-neutral feasible value.
 
 ## Interfaces and release evidence
 

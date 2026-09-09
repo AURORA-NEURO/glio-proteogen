@@ -194,6 +194,34 @@ def test_typed_glioma_network_solver_bootstrap_and_replay() -> None:
     assert engine.verify(result) == result
 
 
+def test_typed_initialization_keeps_left_censored_limits_feasible() -> None:
+    """Mechanism starts use observed centers and feasible censor bounds."""
+
+    terms = {
+        GliomaMechanismProgram.RTK_PI3K_AKT_MTOR: [
+            engine_module._TypedTerm(
+                observation_id="observed",
+                program=GliomaMechanismProgram.RTK_PI3K_AKT_MTOR,
+                state=MechanismEvidenceState.OBSERVED,
+                effect=1.2,
+                standard_error=0.2,
+                quality_weight=1.0,
+            ),
+            engine_module._TypedTerm(
+                observation_id="censored",
+                program=GliomaMechanismProgram.RTK_PI3K_AKT_MTOR,
+                state=MechanismEvidenceState.LEFT_CENSORED,
+                effect=0.4,
+                standard_error=0.2,
+                quality_weight=1.0,
+            ),
+        ],
+    }
+    values = engine_module._initial_typed_values(terms)
+    position = list(GliomaMechanismProgram).index(GliomaMechanismProgram.RTK_PI3K_AKT_MTOR)
+    assert values[position] == 0.4
+
+
 def test_typed_network_all_missing_abstains_without_negative_state() -> None:
     base = build_scenario_request()
     request = base.model_copy(
