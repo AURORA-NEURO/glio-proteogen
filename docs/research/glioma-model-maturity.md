@@ -354,6 +354,19 @@ available for compatibility. Typed program states are research-use-only normaliz
 signals and do not establish measurement truth, diagnosis, prognosis, or treatment
 response.
 
+## Completed glioma immunopeptidomic presentation workbench lane
+
+The caller-owned `glioma-immunopeptidomic-presentation/0.1.0` runtime is now
+linked end to end in the scientific workbench. The UI validates exact HLA
+identifiers, peptide evidence states, digest-bound caller PSSMs, and the
+three-supported-peptide release gate before execution. Ranked allele-aware
+presentation probabilities, seeded bootstrap intervals, binding/processing/
+expression/variant ablations, model digests, limitations, and replay receipts
+are rendered from backend results rather than synthesized in the browser. This
+remains a licensed-model integration boundary: GLIO-PROTEOGEN ships no NetMHC
+weights, does not claim cell-surface presentation or T-cell recognition, and
+emits no neoantigen, clinical, or treatment recommendation.
+
 ## Completed M06-04 coupled glioma abundance lane
 
 The additive M06-04 runtime now includes the locked

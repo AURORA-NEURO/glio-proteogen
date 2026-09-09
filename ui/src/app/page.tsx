@@ -243,6 +243,21 @@ import {
   validateMicroenvironmentGraphResultHeaders,
   validateMicroenvironmentGraphVerification,
 } from "@/lib/gbm-microenvironment-graph";
+import {
+  IMMUNOPEPTIDOMIC_PRESENTATION_PROFILE_ID,
+  presentationRequestStats,
+  validatePresentationDemo,
+  validatePresentationProfile,
+  validatePresentationRequest,
+  validatePresentationResult,
+  validatePresentationResultHeaders,
+  validatePresentationVerification,
+} from "@/lib/immunopeptidomic-presentation";
+import {
+  ImmunopeptidomicPresentationAuditPanels,
+  ImmunopeptidomicPresentationEvidencePanel,
+  ImmunopeptidomicPresentationResultPanels,
+} from "@/components/immunopeptidomic-presentation-panels";
 
 const MIB = 1024 * 1024;
 const HEALTH_RESPONSE_LIMIT_BYTES = 16 * 1024;
@@ -254,7 +269,7 @@ const PROBE_TIMEOUT_MS = 5_000;
 type ProbeState = "checking" | "online" | "degraded" | "offline";
 type Probe = { state: ProbeState; detail: string; latency: number | null };
 type View = "results" | "network" | "evidence" | "audit";
-type WorkbenchMode = "evidence-graph" | "gbm-proteomic-axes" | "neftel-programs" | "gbm-master-kinases" | "gbm-functional-proteotype" | "gbm-rna-purity" | "gbm-microenvironment-graph" | "longitudinal-gbm" | "longitudinal-gbm-phospho" | "longitudinal-gbm-kinase-transition" | "longitudinal-gbm-reactome-transition" | "longitudinal-gbm-neftel-transition" | "longitudinal-gbm-complex-transition" | "gbm-factor-graph";
+type WorkbenchMode = "evidence-graph" | "gbm-proteomic-axes" | "neftel-programs" | "gbm-master-kinases" | "gbm-functional-proteotype" | "gbm-rna-purity" | "gbm-microenvironment-graph" | "immunopeptidomic-presentation" | "longitudinal-gbm" | "longitudinal-gbm-phospho" | "longitudinal-gbm-kinase-transition" | "longitudinal-gbm-reactome-transition" | "longitudinal-gbm-neftel-transition" | "longitudinal-gbm-complex-transition" | "gbm-factor-graph";
 type ComplexBottleneck = { complex: NormalizedState; member: NormalizedState | null; essential: boolean; memberCount: number; gap: number | null };
 
 type LaneConfig = {
@@ -341,6 +356,14 @@ const LANES: Record<WorkbenchMode, LaneConfig> = {
     replayLimitBytes: 8 * MIB,
     requestLabel: "GBM microenvironment graph request JSON",
     defaultProfileId: GBM_MICROENVIRONMENT_GRAPH_PROFILE_ID,
+  },
+  "immunopeptidomic-presentation": {
+    apiBase: "/backend/v1/research/immunopeptidomic-presentation",
+    requestLimitBytes: 2 * MIB,
+    resultLimitBytes: 4 * MIB,
+    replayLimitBytes: 6 * MIB,
+    requestLabel: "Glioma immunopeptidomic presentation request JSON",
+    defaultProfileId: IMMUNOPEPTIDOMIC_PRESENTATION_PROFILE_ID,
   },
   "longitudinal-gbm": {
     apiBase: "/backend/v1/research/longitudinal-gbm",
@@ -527,6 +550,24 @@ const LANE_COPY: Record<WorkbenchMode, LaneCopy> = {
     receiptLabel: "Sample",
     receiptKey: "sample_id",
   },
+  "immunopeptidomic-presentation": {
+    demoLoaded: "Synthetic glioma immunopeptidome loaded. Validate or run the caller-owned HLA presentation scorer.",
+    running: "Scoring allele-specific binding, processing, expression, variant effects, bootstrap intervals, and ablations…",
+    complete: "Immunopeptidomic presentation analysis complete. Probabilities remain model coordinates, not proof of surface presentation or T-cell recognition.",
+    replayVerified: "Replay verified: request, caller model digests, profile, result digest, and semantics match.",
+    reset: "Synthetic glioma immunopeptidome reset to its caller-owned demonstration.",
+    heroEyebrow: "GLIO / CALLER-OWNED HLA-AWARE IMMUNOPEPTIDOMICS",
+    heroLead: "Rank glioma peptide candidates.",
+    heroBoundary: "Keep recognition claims bounded.",
+    heroIntro: "A deterministic HLA-I presentation scorer for licensed caller-supplied position matrices and processing coefficients. Allele aggregation, expression censoring, variant contributions, seeded bootstrap intervals, component ablations, and fail-closed support thresholds remain visible without bundling NetMHC weights or making clinical neoantigen claims.",
+    inputTitle: "HLA presentation request",
+    emptyMark: "HLA",
+    emptyTitle: "The caller-owned HLA models are ready for peptide evidence.",
+    emptyBody: "Run the synthetic glioma-like demonstration or edit peptide sequences, HLA alleles, expression evidence, and digest-bound model coefficients to inspect ranked presentation coordinates and uncertainty.",
+    emptyTags: ["PSSM", "HLA-I", "bootstrap", "ablations"],
+    receiptLabel: "Sample",
+    receiptKey: "sample_id",
+  },
   "longitudinal-gbm": {
     demoLoaded: "Synthetic ordered GBM protein series loaded. Validate or run paired transitions and change-point sensitivity.",
     running: "Running paired protein-transition concordance, covariance-aware uncertainty, frozen-model ablations, and duration-normalized rate PELT…",
@@ -668,6 +709,7 @@ function validateModeRequest(mode: WorkbenchMode, request: JsonObject): string[]
     case "gbm-functional-proteotype": return validateFunctionalProteotypeRequest(request);
     case "gbm-rna-purity": return validateGbmRnaPurityRequest(request);
     case "gbm-microenvironment-graph": return validateMicroenvironmentGraphRequest(request);
+    case "immunopeptidomic-presentation": return validatePresentationRequest(request);
     case "longitudinal-gbm": return validateLongitudinalRequest(request);
     case "longitudinal-gbm-phospho": return validateLongitudinalPhosphoRequest(request);
     case "longitudinal-gbm-kinase-transition": return validateKinaseTransitionRequest(request);
@@ -719,6 +761,7 @@ function usesSeriesTimeout(mode: WorkbenchMode): boolean {
     case "gbm-functional-proteotype":
     case "gbm-rna-purity":
     case "gbm-microenvironment-graph":
+    case "immunopeptidomic-presentation":
       return false;
     default:
       return assertNever(mode);
@@ -1334,6 +1377,9 @@ export default function ResearchWorkbench() {
           } else if (mode === "gbm-microenvironment-graph") {
             const profileErrors = validateMicroenvironmentGraphProfile(payload);
             if (profileErrors.length) throw new Error(`The microenvironment graph profile failed closed:\n${profileErrors.join("\n")}`);
+          } else if (mode === "immunopeptidomic-presentation") {
+            const profileErrors = validatePresentationProfile(payload);
+            if (profileErrors.length) throw new Error(`The immunopeptidomic profile failed closed:\n${profileErrors.join("\n")}`);
           }
           return payload;
         }),
@@ -1412,6 +1458,9 @@ export default function ResearchWorkbench() {
               admittedProfile,
             );
             if (demoErrors.length) throw new Error(`The microenvironment graph demo failed closed:\n${demoErrors.join("\n")}`);
+          } else if (mode === "immunopeptidomic-presentation") {
+            const demoErrors = validatePresentationDemo(demoResponse.value.payload, admittedProfile);
+            if (demoErrors.length) throw new Error(`The immunopeptidomic demo failed closed:\n${demoErrors.join("\n")}`);
           }
           setEditor(pretty(demoResponse.value.payload));
           setMessage(LANE_COPY[mode].demoLoaded);
@@ -1473,6 +1522,7 @@ export default function ResearchWorkbench() {
   const complexTransitionStats = parsedEditor ? complexTransitionRequestStats(parsedEditor) : { timePoints: 0, transitions: 0, observations: 0, active: 0, genes: 0 };
   const factorGraphStats = parsedEditor ? factorGraphRequestStats(parsedEditor) : { reactomeTimePoints: 0, reactomeActive: 0, kinaseTimePoints: 0, kinaseActive: 0, childTransitions: 0 };
   const microenvironmentStats = parsedEditor ? microenvironmentGraphRequestStats(parsedEditor) : { observations: 0, active: 0, programs: 7 };
+  const presentationStats = parsedEditor ? presentationRequestStats(parsedEditor) : { peptides: 0, informative: 0, alleles: 0, models: 0 };
   const microenvironment = useMemo(() => mode === "gbm-microenvironment-graph" && result
     ? normalizeMicroenvironmentGraphResult(result)
     : { graphResult: null, graphRequest: null, sourceResult: null, axisResult: null, sourcePrograms: [], axisSignatures: [] }, [mode, result]);
@@ -1633,6 +1683,9 @@ export default function ResearchWorkbench() {
       } else if (mode === "gbm-microenvironment-graph") {
         const currentStats = microenvironmentGraphRequestStats(parsed);
         setMessage(`Valid GBM microenvironment request · ${currentStats.active} active Neftel protein observations · ${currentStats.programs} graph programs.`);
+      } else if (mode === "immunopeptidomic-presentation") {
+        const currentStats = presentationRequestStats(parsed);
+        setMessage(`Valid glioma presentation request · ${currentStats.informative}/${currentStats.peptides} informative peptides · ${currentStats.alleles} HLA alleles · ${currentStats.models} caller models.`);
       } else if (mode === "longitudinal-gbm") {
         const currentStats = longitudinalRequestStats(parsed);
         setMessage(`Valid longitudinal GBM request · ${currentStats.timePoints} ordered time points · ${currentStats.active} active protein observations.`);
@@ -1744,6 +1797,12 @@ export default function ResearchWorkbench() {
           ...validateMicroenvironmentGraphResultHeaders(response.headers, payload),
         ];
         if (resultErrors.length) throw new Error(`The microenvironment graph result failed closed:\n${resultErrors.join("\n")}`);
+      } else if (mode === "immunopeptidomic-presentation") {
+        const resultErrors = [
+          ...validatePresentationResult(payload, parsed, profile),
+          ...validatePresentationResultHeaders(response.headers, payload),
+        ];
+        if (resultErrors.length) throw new Error(`The immunopeptidomic result failed closed:\n${resultErrors.join("\n")}`);
       } else if (mode === "longitudinal-gbm-neftel-transition") {
         const resultErrors = [
           ...validateNeftelTransitionResult(payload),
@@ -1876,6 +1935,11 @@ export default function ResearchWorkbench() {
           ? validateMicroenvironmentGraphVerification(payload, result, request, profile)
           : ["The admitted microenvironment graph profile is unavailable."];
         if (verificationErrors.length) throw new Error(`The microenvironment graph replay response failed closed:\n${verificationErrors.join("\n")}`);
+      } else if (mode === "immunopeptidomic-presentation") {
+        const verificationErrors = profile
+          ? validatePresentationVerification(payload, result, request, profile)
+          : ["The admitted immunopeptidomic profile is unavailable."];
+        if (verificationErrors.length) throw new Error(`The immunopeptidomic replay response failed closed:\n${verificationErrors.join("\n")}`);
       }
       setVerification(payload);
       setMessage(payload.verified === true ? copy.replayVerified : "Replay completed with one or more mismatches.");
@@ -1964,6 +2028,9 @@ export default function ResearchWorkbench() {
       } else if (mode === "gbm-microenvironment-graph") {
         const demoErrors = validateMicroenvironmentGraphDemo(payload, profile);
         if (demoErrors.length) throw new Error(`The microenvironment graph demo failed closed:\n${demoErrors.join("\n")}`);
+      } else if (mode === "immunopeptidomic-presentation") {
+        const demoErrors = validatePresentationDemo(payload, profile);
+        if (demoErrors.length) throw new Error(`The immunopeptidomic demo failed closed:\n${demoErrors.join("\n")}`);
       }
       setEditor(pretty(payload));
       setRequest(null);
@@ -2067,6 +2134,13 @@ export default function ResearchWorkbench() {
           <span>09</span><b>GBM microenvironment graph</b><small>Neftel program bridge · signed microenvironment topology</small>
         </button>
         <button
+          aria-pressed={mode === "immunopeptidomic-presentation"}
+          className={mode === "immunopeptidomic-presentation" ? "active" : ""}
+          onClick={() => switchMode("immunopeptidomic-presentation")}
+        >
+          <span>10</span><b>Glioma immunopeptidomics</b><small>Caller HLA models · ranked peptides · ablation receipts</small>
+        </button>
+        <button
           aria-pressed={mode === "longitudinal-gbm-reactome-transition"}
           className={mode === "longitudinal-gbm-reactome-transition" ? "active" : ""}
           onClick={() => switchMode("longitudinal-gbm-reactome-transition")}
@@ -2137,6 +2211,11 @@ export default function ResearchWorkbench() {
               <div><dt>Graph programs</dt><dd>7 signed GBM microenvironment nodes</dd></div>
               <div><dt>Projected families</dt><dd>MES-like · OPC-like only</dd></div>
               <div><dt>Claim ceiling</dt><dd className="warn">no cell fractions · research only</dd></div>
+            </> : mode === "immunopeptidomic-presentation" ? <>
+              <div><dt>Scoring model</dt><dd>allele PSSM + processing logit</dd></div>
+              <div><dt>Candidate cap</dt><dd>256 peptides · 16 alleles</dd></div>
+              <div><dt>Support gate</dt><dd>≥ 3 supported peptides</dd></div>
+              <div><dt>Claim ceiling</dt><dd className="warn">model coordinate · no recognition claim</dd></div>
             </> : mode === "longitudinal-gbm" ? <>
               <div><dt>Source transitions</dt><dd>{profileCounts ? numberAt(profileCounts, ["strict_paired_transition_count"]) ?? 104 : 104} strict pairs</dd></div>
               <div><dt>Frozen feature axis</dt><dd>{profileCounts ? numberAt(profileCounts, ["fitted_feature_count"]) ?? 0 : "—"} proteins</dd></div>
@@ -2199,6 +2278,8 @@ export default function ResearchWorkbench() {
               <span><b>{gbmRnaPurityStats.suppliedGenes.toLocaleString("en-US")}</b> genes</span><span><b>{gbmRnaPurityStats.nonzeroGenes.toLocaleString("en-US")}</b> nonzero</span><span><b>5,829</b> model features</span>
             </> : mode === "gbm-microenvironment-graph" ? <>
               <span><b>{microenvironmentStats.observations}</b> protein observations</span><span><b>{microenvironmentStats.active}</b> active</span><span><b>{microenvironmentStats.programs}</b> graph programs</span>
+            </> : mode === "immunopeptidomic-presentation" ? <>
+              <span><b>{presentationStats.peptides}</b> peptides</span><span><b>{presentationStats.informative}</b> informative</span><span><b>{presentationStats.alleles}</b> HLA alleles · {presentationStats.models} models</span>
             </> : mode === "longitudinal-gbm" ? <>
               <span><b>{longitudinalStats.timePoints}</b> time points</span><span><b>{longitudinalStats.genes}</b> genes</span><span><b>{longitudinalStats.active}</b> active</span>
             </> : mode === "longitudinal-gbm-phospho" ? <>
@@ -2237,7 +2318,7 @@ export default function ResearchWorkbench() {
             <span>{error || message}</span>
           </div>
           <div className="input-boundary">
-            <p>{mode === "gbm-rna-purity" ? "Raw-count and context contract" : mode === "gbm-factor-graph" ? "Independent nested evidence contracts" : mode === "gbm-microenvironment-graph" ? "Nested Neftel source contract" : "Explicit evidence states"}</p>
+            <p>{mode === "gbm-rna-purity" ? "Raw-count and context contract" : mode === "gbm-factor-graph" ? "Independent nested evidence contracts" : mode === "gbm-microenvironment-graph" ? "Nested Neftel source contract" : mode === "immunopeptidomic-presentation" ? "Caller-owned sequence and HLA model contract" : "Explicit evidence states"}</p>
             {mode === "gbm-rna-purity"
               ? <><span>raw counts</span><span>bulk RNA-seq</span><span>primary IDH-wildtype GBM</span><span>research only</span></>
               : <><span>observed</span><span>left_censored</span><span>missing</span><span>unsupported</span></>}
@@ -2248,6 +2329,7 @@ export default function ResearchWorkbench() {
             {mode === "gbm-functional-proteotype" && <strong>GPM, MTC, NEU, and PPR are jointly constrained source-cohort concordance axes—not patient subtype labels, probabilities, winners, diagnoses, or treatment assignments. Table 2e pathways are context only and never sample pathway activity.</strong>}
             {mode === "gbm-rna-purity" && <strong>Only exact primary IDH-wildtype GBM bulk RNA-seq raw counts are in scope. The output is one published-model malignant-cell-fraction estimate—not histology, immune composition, diagnosis, prognosis, or treatment guidance.</strong>}
             {mode === "gbm-microenvironment-graph" && <strong>MES-like and OPC-like bulk-program evidence is projected into a signed graph. This lane does not estimate cell fractions, cellular abundance, diagnosis, prognosis, or treatment response.</strong>}
+            {mode === "immunopeptidomic-presentation" && <strong>Presentation probabilities require licensed caller-supplied HLA/processing coefficients. They are not NetMHC predictions, proof of surface display, T-cell recognition, neoantigen ranking, or treatment guidance.</strong>}
             {mode === "longitudinal-gbm" && <strong>Transition direction means source-cohort T2−T1 concordance—not patient evolution, recurrence prediction, prognosis, or treatment guidance.</strong>}
             {mode === "longitudinal-gbm-phospho" && <strong>Raw phosphosite concordance is not occupancy, kinase activity, protein/phosphosite fusion, recurrence prediction, or clinical guidance. Composite source site groups remain indivisible.</strong>}
             {mode === "longitudinal-gbm-kinase-transition" && <strong>These are same-assay SPHINKS signature-transition concordance coordinates—not kinase activity, biochemical activity, causal effects, independent validation, patient evolution, recurrence prediction, or clinical guidance. Every estimable output is LIMITED.</strong>}
@@ -2300,6 +2382,9 @@ export default function ResearchWorkbench() {
               </> : mode === "gbm-microenvironment-graph" ? <>
                 <div><span>METHODS</span><b className="ok">Neftel → signed ECGI bridge</b></div>
                 <div><span>SUPPORT</span><b>{supportedCount} graph states · {microenvironmentSupportedFamilyCount(microenvironment.sourceResult)} source families</b></div>
+              </> : mode === "immunopeptidomic-presentation" ? <>
+                <div><span>METHODS</span><b className="ok">HLA PSSM + processing logit</b></div>
+                <div><span>SUPPORT</span><b>{String(result.supported_peptide_count ?? 0)} supported · {String(result.support ?? "abstained")}</b></div>
               </> : mode === "longitudinal-gbm" ? <>
                 <div><span>METHODS</span><b className="ok">paired axis + PELT</b></div>
                 <div><span>SUPPORT</span><b>{supportedTransitionCount} full · {estimatedTransitionCount} estimated</b></div>
@@ -2454,6 +2539,10 @@ export default function ResearchWorkbench() {
             </div>
           )}
 
+          {mode === "immunopeptidomic-presentation" && result && view === "results" && (
+            <ImmunopeptidomicPresentationResultPanels result={result} />
+          )}
+
           {mode === "longitudinal-gbm" && result && request && view === "results" && (
             <div className="panel-stack">
               <div className="summary-grid">
@@ -2543,6 +2632,10 @@ export default function ResearchWorkbench() {
               </section>
               <JsonPanel title="External KINOPHOS agreement" eyebrow="NON-OVERRIDING COMPARISON" value={kinophos ? safeJson(kinophos) : null} empty="No external KINOPHOS profile was supplied. Local kinase estimates remain explicitly experimental." />
             </div>
+          )}
+
+          {mode === "immunopeptidomic-presentation" && result && request && view === "evidence" && (
+            <ImmunopeptidomicPresentationEvidencePanel request={request} />
           )}
 
           {mode === "gbm-proteomic-axes" && result && view === "evidence" && (
@@ -2777,6 +2870,10 @@ export default function ResearchWorkbench() {
               <section className="result-panel limitations-panel"><div className="panel-title-row"><div><p className="eyebrow">BOUNDARIES</p><h3>Master-kinase concordance limitations</h3></div></div><ul>{limitations.map((item, index) => <li key={index}>{typeof item === "string" ? item : pretty(item)}</li>)}</ul><p>This independent signature-concordance output is not an exact SPHINKS port, calibrated kinase activity, subtype probability, diagnosis, prognosis, or treatment recommendation.</p></section>
               <JsonPanel title="Raw concordance receipt" eyebrow="IMMUTABLE PAYLOAD" value={safeJson(result)} empty="No result is available." />
             </div>
+          )}
+
+          {mode === "immunopeptidomic-presentation" && result && view === "audit" && (
+            <ImmunopeptidomicPresentationAuditPanels result={result} profile={profile} verification={verification} />
           )}
 
           {mode === "gbm-functional-proteotype" && result && view === "audit" && (

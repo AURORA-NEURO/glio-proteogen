@@ -406,6 +406,18 @@ h1 { font-size: 14px; letter-spacing: .02em; }
 .summary-grid span, .summary-grid small { display: block; color: var(--faint); font-size: 7px; letter-spacing: .1em; }
 .summary-grid b { display: block; margin: 9px 0 6px; color: var(--ink); font-size: 25px; font-weight: 400; letter-spacing: -.04em; }
 .summary-grid small { letter-spacing: 0; }
+.metric-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0 0 15px; }
+.metric-strip article { padding: 11px 12px; border: 1px solid rgba(165, 182, 193, .09); border-radius: 4px; background: rgba(255, 255, 255, .012); }
+.metric-strip span, .metric-strip small { display: block; color: var(--faint); font-size: 7px; letter-spacing: .08em; }
+.metric-strip b { display: block; margin: 7px 0 4px; color: var(--ink); font-family: monospace; font-size: 18px; font-weight: 400; }
+.metric-strip small { letter-spacing: 0; }
+.driver-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.driver-grid > article { min-width: 0; padding: 12px; border: 1px solid rgba(165, 182, 193, .09); border-radius: 5px; background: rgba(255, 255, 255, .012); }
+.driver-grid header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-bottom: 9px; border-bottom: 1px solid rgba(165, 182, 193, .08); }
+.driver-grid header b, .driver-grid header small { display: block; }
+.driver-grid header b { color: var(--ink); font-family: monospace; font-size: 9px; font-weight: 500; }
+.driver-grid header small { margin-top: 4px; color: var(--faint); font-size: 7px; }
+.driver-grid header strong { color: var(--accent); font-family: monospace; font-size: 10px; font-weight: 400; }
 .result-panel { min-width: 0; padding: 18px; border: 1px solid var(--line); border-radius: 6px; background: rgba(13, 22, 28, .72); }
 .panel-title-row { margin-bottom: 15px; }
 .panel-title-row .count-chip { display: grid; min-width: 26px; height: 24px; place-items: center; border: 1px solid var(--line); border-radius: 100px; color: var(--muted); font-size: 8px; }
@@ -880,6 +892,7 @@ h1 { font-size: 14px; letter-spacing: .02em; }
   .reactome-coverage-grid { grid-template-columns: 1fr; }
   .reactome-evaluation-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .zero-fill-explainer { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .metric-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .master-subtype-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .factor-topology { grid-template-columns: 1fr; }
   .factor-block-phosphosite_sphinks .factor-node-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -905,6 +918,7 @@ h1 { font-size: 14px; letter-spacing: .02em; }
   .mechanism-grid { grid-template-columns: 1fr; }
   .topology-source-list { grid-template-columns: 1fr; }
   .gbm-driver-grid { grid-template-columns: 1fr; }
+  .driver-grid { grid-template-columns: 1fr; }
   .neftel-explanation-grid { grid-template-columns: 1fr; }
   .master-subtype-grid, .master-explanation-grid, .longitudinal-explanation-grid { grid-template-columns: 1fr; }
   .reactome-global-grid, .reactome-evaluation-grid { grid-template-columns: 1fr; }
