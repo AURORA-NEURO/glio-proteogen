@@ -27,7 +27,8 @@ finding, infer kinase activity, perform generic all-omics fusion, or recommend
 treatment.
 
 Typed effect observations use their supplied assay standard errors and quality
-weights in the robust trajectory fit. For a left-censored point whose assay
+weights in the robust trajectory fit, whose MAD scale uses midpoint medians for
+even residual counts. For a left-censored point whose assay
 error is omitted, the runtime derives a fallback from the median observed error
 within that same history (averaging the two middle values when the count is
 even). This keeps the censoring loss one-sided without inventing a fixed

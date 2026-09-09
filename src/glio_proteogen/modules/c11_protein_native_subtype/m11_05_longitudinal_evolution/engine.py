@@ -217,6 +217,16 @@ def _measurements(
     return tuple(values)
 
 
+def _midpoint_median(values: Sequence[float]) -> float:
+    """Return the conventional midpoint median for deterministic robust scales."""
+
+    ordered = sorted(values)
+    midpoint = len(ordered) // 2
+    if len(ordered) % 2:
+        return ordered[midpoint]
+    return 0.5 * (ordered[midpoint - 1] + ordered[midpoint])
+
+
 def _weighted_huber_location(values: Sequence[_Measurement]) -> tuple[float, float]:
     """Fit a robust local level with precision and quality weighting.
 
@@ -241,7 +251,7 @@ def _weighted_huber_location(values: Sequence[_Measurement]) -> tuple[float, flo
             else min(0.0, item.value - estimate)
             for item in values
         ]
-        mad = sorted(abs(item) for item in residuals)[len(residuals) // 2]
+        mad = _midpoint_median(tuple(abs(item) for item in residuals))
         scale = max(
             _MAD_SCALE_FACTOR * mad,
             sum(item.standard_error for item in values) / len(values),

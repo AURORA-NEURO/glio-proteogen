@@ -310,6 +310,10 @@ def test_left_censored_without_error_uses_same_history_observed_scale() -> None:
     )
 
 
+def test_longitudinal_huber_mad_uses_midpoint_median() -> None:
+    assert m1105_engine._midpoint_median((-3.0, -1.0, 2.0, 10.0)) == pytest.approx(0.5)
+
+
 def test_censored_only_history_without_error_abstains() -> None:
     base = _request()
     censored = tuple(
