@@ -698,6 +698,10 @@ Digest-seeded bootstrap perturbations produce per-mechanism posterior
 intervals, while missing and unsupported observations are excluded from the
 objective and cannot become negative evidence.
 
+Typed relations must have an explicitly supplied finite weight. The provisional
+schema default is retained for compatibility, but omitted relation strength is
+not treated as an asserted unit-strength edge in the research fit.
+
 The original closed posterior/state method grammar remains compatible for all
 other model families. The typed lane requires at least two supported mechanisms
 and a signed relation, and abstains with review required when topology or
@@ -736,6 +740,9 @@ activation, inhibition, and coupling relations are fitted with robust Huber
 loss, ridge stabilization, and damped coordinate descent; deterministic
 digest-seeded bootstrap perturbations produce posterior intervals per panel
 mechanism.
+
+Typed relations must have an explicitly supplied finite weight; the compatibility
+default is never promoted to research evidence.
 
 The original closed posterior/state grammar remains compatible for other model
 families. The typed path requires two supported mechanisms and a signed edge,

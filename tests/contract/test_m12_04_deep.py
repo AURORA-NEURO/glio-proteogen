@@ -231,6 +231,48 @@ def test_typed_glioma_panel_graph_fits_and_replays() -> None:
     assert engine.verify(result) == result
 
 
+def test_typed_relation_default_weight_is_not_treated_as_asserted_evidence() -> None:
+    base = _request()
+    typed = base.model_copy(
+        update={
+            "configuration": base.configuration.model_copy(
+                update={
+                    "model_family": M1204_GLIOMA_MODEL_FAMILY,
+                    "bootstrap_replicates": 16,
+                }
+            ),
+            "typed_observations": (
+                MechanismObservation(
+                    observation_id="obs.a",
+                    mechanism_id="a",
+                    label="A",
+                    standardized_effect=0.6,
+                    standard_error=0.2,
+                ),
+                MechanismObservation(
+                    observation_id="obs.b",
+                    mechanism_id="b",
+                    label="B",
+                    standardized_effect=0.4,
+                    standard_error=0.2,
+                ),
+            ),
+            "typed_relations": (
+                MechanismRelation(
+                    relation_id="rel.a-b-unweighted",
+                    source_mechanism_id="a",
+                    target_mechanism_id="b",
+                    kind=MechanismRelationKind.COUPLES,
+                ),
+            ),
+        }
+    )
+    result = M1204MechanismEngine().infer(typed)
+    assert result.status is MechanismInferenceStatus.ABSTAINED
+    assert not result.estimates
+    assert result.human_review_required
+
+
 def test_state_method_preserves_alternatives_and_counter_evidence() -> None:
     result = M1204MechanismEngine().infer(_request("state:mechanism-b:State mechanism:active"))
     assert result.status is MechanismInferenceStatus.INFERRED
