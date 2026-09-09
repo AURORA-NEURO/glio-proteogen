@@ -36,6 +36,7 @@ from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
     m14_05_protein_subtype_evolution as m1405,
 )
 from glio_proteogen.modules.c14_microenvironment_protein_deconvolution.m14_05_protein_subtype_evolution.engine import (  # noqa: E501
+    _bootstrap_class_support,
     _initial_temporal_values,
     _TypedTerm,
 )
@@ -235,6 +236,13 @@ def test_typed_initialization_keeps_left_censored_limits_feasible() -> None:
 
     values = _initial_temporal_values(grouped, 2)
     assert values == [-0.3, 0.4]
+
+
+def test_typed_posterior_probability_is_bootstrap_class_support() -> None:
+    """Typed support is empirical class agreement, not a fixed confidence."""
+
+    assert _bootstrap_class_support(0.4, (0.3, 0.4, 0.1, -0.2)) == pytest.approx(0.5)
+    assert _bootstrap_class_support(0.0, (0.1, 0.2, 0.3, -0.2)) == pytest.approx(0.75)
 
 
 def test_typed_temporal_missing_and_unsupported_evidence_abstain_safely() -> None:

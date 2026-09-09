@@ -644,6 +644,23 @@ def _classify_interval(lower: float, upper: float) -> str:
     return "indeterminate"
 
 
+def _bootstrap_class_support(value: float, samples: tuple[float, ...]) -> float:
+    """Return empirical bootstrap support for the fitted state's threshold class."""
+
+    if not samples:
+        return 0.0
+    label = _classify_interval(value, value)
+    if label == "activated":
+        supported = sum(sample > _STATE_THRESHOLD for sample in samples)
+    elif label == "suppressed":
+        supported = sum(sample < -_STATE_THRESHOLD for sample in samples)
+    elif label == "neutral":
+        supported = sum(-_STATE_THRESHOLD <= sample <= _STATE_THRESHOLD for sample in samples)
+    else:
+        return 0.0
+    return _quantize(supported / len(samples))
+
+
 def _typed_trajectory(
     request: ModelProteinSubtypeLongitudinalEvolutionRequest,
     evidence: tuple[EvidenceReference, ...],
@@ -719,7 +736,7 @@ def _typed_trajectory(
                 state_id=f"state.m1405.{prefix}.{observation.sequence}",
                 sequence=observation.sequence,
                 label=f"{program_for_sequence.value}:{label}",
-                posterior_probability=0.9,
+                posterior_probability=_bootstrap_class_support(fit.values[position], samples),
                 observation_ids=(observation.observation_id,),
                 evidence=evidence[:1],
                 standardized_state=fit.values[position],

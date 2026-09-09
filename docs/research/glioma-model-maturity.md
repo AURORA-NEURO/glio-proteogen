@@ -889,8 +889,10 @@ smoothing, curvature control, and one-sided left-censoring. Initialization uses
 quality-weighted observed centers while clamping to tightest censor limits;
 censor-only cells start at the ridge-neutral feasible value instead of treating
 an upper bound as an exact measurement. Deterministic perturbations produce
-replayable intervals and change-point evidence. The legacy metadata-replay path
-remains compatible, and typed trajectories are research-use-only signals.
+replayable intervals, and each trajectory state reports empirical bootstrap
+support for its threshold class rather than a fixed confidence. The legacy
+metadata-replay path remains compatible, and typed trajectories are
+research-use-only signals.
 
 ## Completed M14-06 typed glioma perturbation lane
 
