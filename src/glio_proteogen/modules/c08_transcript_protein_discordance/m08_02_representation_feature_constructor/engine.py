@@ -404,26 +404,6 @@ def _typed_component_residual(
     return max(0.0, state - _typed_component_target(observation, modality))
 
 
-def _typed_component_activation(
-    state: float,
-    observation: GliomaTranscriptProteinObservation,
-    modality: str,
-) -> float:
-    effect = (
-        observation.transcript_effect
-        if modality == "transcript"
-        else observation.protein_effect
-    )
-    if effect is not None:
-        return 1.0
-    scaled = np.clip(
-        (state - _typed_component_target(observation, modality)) / 0.1,
-        -50.0,
-        50.0,
-    )
-    return float(1.0 / (1.0 + np.exp(-scaled)))
-
-
 def _typed_huber(value: float) -> float:
     magnitude = abs(value)
     return (
@@ -464,6 +444,36 @@ def _typed_pair_objective(  # noqa: PLR0913 - explicit modality ablations stay v
     return float(total)
 
 
+def _initial_typed_component_state(
+    observations: tuple[GliomaTranscriptProteinObservation, ...],
+    modality: str,
+) -> float:
+    """Build an observed-only feasible start for one assay modality."""
+
+    effect_name = f"{modality}_effect"
+    observed: list[tuple[float, float]] = []
+    limits: list[float] = []
+    for item in observations:
+        effect = getattr(item, effect_name)
+        target = _typed_component_target(item, modality)
+        if effect is None:
+            limits.append(target)
+            continue
+        error = _typed_component_error(item, modality)
+        weight = item.quality_weight / max(error**2, 1e-12)
+        if weight > 0.0:
+            observed.append((float(effect), weight))
+    weight_total = sum(weight for _, weight in observed)
+    value = (
+        sum(effect * weight for effect, weight in observed) / weight_total
+        if weight_total > 0.0
+        else 0.0
+    )
+    if limits:
+        value = min(value, *limits)
+    return float(np.clip(value, -M0802_MAX_TYPED_EFFECT, M0802_MAX_TYPED_EFFECT))
+
+
 def _fit_typed_pair(  # noqa: C901, PLR0912, PLR0915 - explicit IRLS safeguards.
     observations: tuple[GliomaTranscriptProteinObservation, ...],
     *,
@@ -475,32 +485,8 @@ def _fit_typed_pair(  # noqa: C901, PLR0912, PLR0915 - explicit IRLS safeguards.
     active = tuple(item for item in observations if _typed_active(item))
     if len(active) < _TYPED_MIN_OBSERVATIONS or not (include_transcript or include_protein):
         return None
-    transcript_weights = np.asarray(
-        [
-            item.quality_weight / max(_typed_component_error(item, "transcript") ** 2, 1e-12)
-            for item in active
-        ],
-        dtype=np.float64,
-    )
-    protein_weights = np.asarray(
-        [
-            item.quality_weight / max(_typed_component_error(item, "protein") ** 2, 1e-12)
-            for item in active
-        ],
-        dtype=np.float64,
-    )
-    transcript = float(
-        np.average(
-            [_typed_component_target(item, "transcript") for item in active],
-            weights=transcript_weights,
-        )
-    )
-    protein = float(
-        np.average(
-            [_typed_component_target(item, "protein") for item in active],
-            weights=protein_weights,
-        )
-    )
+    transcript = _initial_typed_component_state(active, "transcript")
+    protein = _initial_typed_component_state(active, "protein")
     if not include_transcript:
         transcript = 0.0
     if not include_protein:
@@ -527,6 +513,8 @@ def _fit_typed_pair(  # noqa: C901, PLR0912, PLR0915 - explicit IRLS safeguards.
             for item in active:
                 error = _typed_component_error(item, "transcript")
                 residual = _typed_component_residual(transcript, item, "transcript")
+                if item.transcript_effect is None and residual <= 0.0:
+                    continue
                 standardized = residual / error
                 robust = (
                     1.0
@@ -535,7 +523,6 @@ def _fit_typed_pair(  # noqa: C901, PLR0912, PLR0915 - explicit IRLS safeguards.
                 )
                 precision = (
                     item.quality_weight
-                    * _typed_component_activation(transcript, item, "transcript")
                     * robust
                     / max(error**2, 1e-12)
                 )
@@ -553,6 +540,8 @@ def _fit_typed_pair(  # noqa: C901, PLR0912, PLR0915 - explicit IRLS safeguards.
             for item in active:
                 error = _typed_component_error(item, "protein")
                 residual = _typed_component_residual(protein, item, "protein")
+                if item.protein_effect is None and residual <= 0.0:
+                    continue
                 standardized = residual / error
                 robust = (
                     1.0
@@ -561,7 +550,6 @@ def _fit_typed_pair(  # noqa: C901, PLR0912, PLR0915 - explicit IRLS safeguards.
                 )
                 precision = (
                     item.quality_weight
-                    * _typed_component_activation(protein, item, "protein")
                     * robust
                     / max(error**2, 1e-12)
                 )

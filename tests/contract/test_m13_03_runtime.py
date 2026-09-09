@@ -52,6 +52,7 @@ from glio_proteogen.modules.c11_protein_native_subtype.m13_03_mechanistic_featur
     _ENTITY_INDEX,
     _initial_values,
     _ObservationTerm,
+    _signed_observation_balance,
 )
 
 M1303Plugin = m1303.M1303Plugin
@@ -348,6 +349,25 @@ def test_left_censored_initialization_respects_upper_bound_not_exact_location() 
         )
     )
     assert mixed[_ENTITY_INDEX["EGFR"]] <= _CENSORED_LIMIT
+
+
+def test_regulation_balance_ignores_censor_limits_as_measurements() -> None:
+    observed = _ObservationTerm(
+        entity_id="EGFR",
+        state=MechanisticEvidenceState.OBSERVED,
+        value=1.0,
+        standard_error=0.2,
+        quality_weight=1.0,
+    )
+    censored = _ObservationTerm(
+        entity_id="PTEN",
+        state=MechanisticEvidenceState.LEFT_CENSORED,
+        value=-8.0,
+        standard_error=0.2,
+        quality_weight=1.0,
+    )
+    assert _signed_observation_balance((observed, censored)) == pytest.approx(1.0)
+    assert _signed_observation_balance((censored,)) == pytest.approx(0.0)
 
 
 def test_opaque_or_fully_missing_requests_abstain_instead_of_fabricating_features() -> None:

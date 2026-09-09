@@ -427,6 +427,22 @@ support abstains. The original statistical, pathway-weighted, and median
 compatibility architectures remain unchanged. Typed output is a research
 diagnostic, not a clinical subtype probability, prognosis, or treatment claim.
 
+## Completed M08-02 typed glioma discordance representation lane
+
+The additive M08-02 runtime fits paired transcript/protein effects with a
+bounded translation prior, robust Huber coordinate descent, and explicit
+one-sided censoring. Initial states are formed from observed assay effects only
+and projected onto the tightest censor boundary; censor-only modalities remain
+at the ridge-neutral feasible value. Censored residuals contribute only when a
+candidate violates their upper bound, so detection limits cannot manufacture a
+negative discordance. Deterministic bootstrap draws perturb both observed
+effects and censor limits under the request-derived seed, with transcript-only,
+protein-only, and translation-prior ablations retained in the receipt.
+
+The historical hash-based representation path remains compatibility-only for
+untyped requests. Typed output is research-use-only and does not emit a
+diagnostic, prognostic, kinase, subtype, or treatment claim.
+
 ## Completed M08-04 typed glioma discordance lane
 
 The additive M08-04 runtime now recognizes
@@ -563,7 +579,10 @@ and force safe abstention when a requested feature lacks support.
 The representation exposes model-derived channels (latent dosage, residual
 scale, amplification/deletion fractions, allelic imbalance, mean purity, and
 focal-segment score), deterministic bootstrap stability, discordance, genomic
-drivers, and a replay-visible objective trace. The original SHA-256 constructor
+drivers, and a replay-visible objective trace. Robust starts use observed
+evidence only and project onto the tightest feasible censor boundary; bootstrap
+replicates perturb both measured effects and detection limits under the same
+request-derived seed. The original SHA-256 constructor
 remains compatibility-only for untyped requests; typed output is a
 research-use-only representation and does not emit a clinical copy-number call
 or a parent proteotype claim.

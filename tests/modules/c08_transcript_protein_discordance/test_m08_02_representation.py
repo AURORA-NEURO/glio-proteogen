@@ -312,6 +312,8 @@ def _typed_request(*, reverse: bool = False) -> ConstructTranscriptProteinRepres
 
 EXPECTED_TYPED_FEATURES = 2
 EXPECTED_TYPED_GENES_PER_FEATURE = 4
+NEGATIVE_TRANSCRIPT_LIMIT = -0.4
+NEGATIVE_PROTEIN_LIMIT = -0.3
 
 
 def test_typed_glioma_discordance_is_evidence_driven_and_replay_bound() -> None:
@@ -376,6 +378,43 @@ def test_typed_left_censored_evidence_is_preserved_one_sided() -> None:
     assert result.features[0].evidence_count == EXPECTED_TYPED_GENES_PER_FEATURE
     assert result.features[0].lower_bound is not None
     assert result.features[0].upper_bound is not None
+
+
+def test_typed_initial_state_uses_observed_center_and_censor_bound() -> None:
+    request = _typed_request()
+    censored = request.typed_observations[0].model_copy(
+        update={
+            "evidence_state": GliomaTranscriptProteinEvidenceState.LEFT_CENSORED,
+            "transcript_effect": None,
+            "protein_effect": None,
+            "transcript_censoring_limit": -0.4,
+            "protein_censoring_limit": -0.3,
+        }
+    )
+    items = (censored, *request.typed_observations[1:4])
+    transcript = m0802.engine._initial_typed_component_state(items, "transcript")
+    protein = m0802.engine._initial_typed_component_state(items, "protein")
+    assert transcript <= NEGATIVE_TRANSCRIPT_LIMIT
+    assert protein <= NEGATIVE_PROTEIN_LIMIT
+
+
+def test_censor_only_initial_state_stays_neutral_when_limit_is_positive() -> None:
+    request = _typed_request()
+    censored = request.typed_observations[0].model_copy(
+        update={
+            "evidence_state": GliomaTranscriptProteinEvidenceState.LEFT_CENSORED,
+            "transcript_effect": None,
+            "protein_effect": None,
+            "transcript_censoring_limit": 0.4,
+            "protein_censoring_limit": 0.3,
+        }
+    )
+    assert m0802.engine._initial_typed_component_state(
+        (censored,), "transcript"
+    ) == pytest.approx(0.0)
+    assert m0802.engine._initial_typed_component_state(
+        (censored,), "protein"
+    ) == pytest.approx(0.0)
 
 
 def test_typed_duplicate_gene_and_unknown_feature_are_rejected() -> None:

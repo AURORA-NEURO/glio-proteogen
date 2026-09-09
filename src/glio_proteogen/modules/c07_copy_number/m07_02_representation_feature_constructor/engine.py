@@ -363,6 +363,39 @@ def _typed_objective(
     return float(objective)
 
 
+def _initial_typed_feature_value(
+    items: tuple[GliomaCopyNumberObservation, ...],
+    targets: tuple[float, ...],
+) -> float:
+    """Find a robust feasible start for the one-dimensional typed fit.
+
+    Left-censored observations define upper bounds, not pseudo-measurements.
+    The observed weighted center is therefore projected onto the tightest
+    bound; when only censored evidence is available, the ridge-neutral point
+    (zero) is retained whenever it is feasible.
+    """
+
+    observed = tuple(
+        (target, _typed_weight(item))
+        for item, target in zip(items, targets, strict=True)
+        if not _typed_censored(item) and _typed_weight(item) > 0.0
+    )
+    weight_total = sum(weight for _, weight in observed)
+    value = (
+        sum(target * weight for target, weight in observed) / weight_total
+        if weight_total > 0.0
+        else 0.0
+    )
+    censor_bounds = tuple(
+        target
+        for item, target in zip(items, targets, strict=True)
+        if _typed_censored(item)
+    )
+    if censor_bounds:
+        value = min(value, *censor_bounds)
+    return max(-M0702_MAX_TYPED_EFFECT, min(M0702_MAX_TYPED_EFFECT, value))
+
+
 def _fit_typed_feature(
     items: tuple[GliomaCopyNumberObservation, ...],
     *,
@@ -373,18 +406,7 @@ def _fit_typed_feature(
     if not active:
         return _TypedFeatureFit(0.0, 0.0, 0, 0.0, (0.0,), ())
     effective_targets = targets or tuple(_typed_target(item) for item in active)
-    observed = tuple(
-        (target, _typed_weight(item))
-        for item, target in zip(active, effective_targets, strict=True)
-        if not _typed_censored(item)
-    )
-    if observed and sum(weight for _, weight in observed) > 0.0:
-        value = sum(target * weight for target, weight in observed) / sum(
-            weight for _, weight in observed
-        )
-    else:
-        value = min(effective_targets) - 0.25
-    value = max(-M0702_MAX_TYPED_EFFECT, min(M0702_MAX_TYPED_EFFECT, value))
+    value = _initial_typed_feature_value(active, effective_targets)
     trace = [_typed_objective(value, active, effective_targets)]
     gap = float("inf")
     damping = _TYPED_DAMPING
@@ -560,8 +582,6 @@ def _build_typed_result(  # noqa: PLR0915
             replicate_items = tuple(active[int(index)] for index in indices)
             perturbations = tuple(
                 target + float(rng.normal(0.0, item.standard_error or 1.0) * 0.5)
-                if not _typed_censored(item)
-                else target
                 for item, target in zip(
                     replicate_items,
                     (targets[int(index)] for index in indices),

@@ -47,6 +47,9 @@ from glio_proteogen.modules.c07_copy_number.m07_02_representation_feature_constr
     construct_proteotype_analysis_representation,
 )
 from glio_proteogen.modules.c07_copy_number.m07_02_representation_feature_constructor import (
+    engine as m0702_engine,
+)
+from glio_proteogen.modules.c07_copy_number.m07_02_representation_feature_constructor import (
     service as m0702_service,
 )
 
@@ -220,6 +223,25 @@ def test_typed_glioma_copy_number_lane_is_purity_aware_and_replayable() -> None:
     assert built.result.features[0].values[0] > 0.0
     assert built.canonical_bytes == repeat.canonical_bytes
     assert engine.verify(built.result, built.canonical_bytes).verified
+
+
+def test_typed_initializer_projects_observed_center_to_censor_bound() -> None:
+    observations = _typed_observations()
+    observed = observations[0]
+    censored = observations[2].model_copy(update={"feature_id": observed.feature_id})
+    items = (observed, censored)
+    targets = tuple(m0702_engine._typed_target(item) for item in items)
+    initial = m0702_engine._initial_typed_feature_value(items, targets)
+    assert initial == pytest.approx(targets[1])
+    assert initial <= targets[1]
+
+
+def test_typed_initializer_keeps_censor_only_fit_at_neutral_when_feasible() -> None:
+    censored = _typed_observations()[2]
+    items = (censored,)
+    target = m0702_engine._typed_target(censored)
+    initial = m0702_engine._initial_typed_feature_value(items, (target,))
+    assert initial == pytest.approx(min(0.0, target))
 
 
 def test_typed_observation_order_and_purity_change_are_semantic() -> None:

@@ -815,6 +815,12 @@ def _quantile(values: tuple[float, ...], probability: float) -> float:
 
 
 def _signed_observation_balance(observations: tuple[_ObservationTerm, ...]) -> float:
+    # A left-censored term is an upper bound, not a signed measurement.  Keep
+    # this compact explanatory feature consistent with the one-sided solver
+    # objective instead of letting detection limits create apparent repression.
+    observations = tuple(
+        item for item in observations if item.state is MechanisticEvidenceState.OBSERVED
+    )
     signed = {
         "PTEN": -1.0,
         "NF1": -1.0,
