@@ -69,6 +69,9 @@ _GLIOMA_DAMPING: Final = 0.65
 _GLIOMA_HUBER_K: Final = 1.5
 _GLIOMA_MAX_ITERATIONS: Final = 160
 _GLIOMA_TOLERANCE: Final = 1e-4
+_GLIOMA_OBJECTIVE_TOLERANCE: Final = 1e-10
+_GLIOMA_BACKTRACKING_STEPS: Final = 18
+_GLIOMA_BACKTRACKING_FACTOR: Final = 0.5
 _GLIOMA_MIN_OBSERVATIONS: Final = 3
 _GLIOMA_MIN_PROGRAMS: Final = 2
 _GLIOMA_BOOTSTRAP_REPLICATES: Final = 64
@@ -546,7 +549,10 @@ def _fit_glioma_programs(  # noqa: C901, PLR0912, PLR0915
     converged = False
     iterations = _GLIOMA_MAX_ITERATIONS
     for iteration in range(1, _GLIOMA_MAX_ITERATIONS + 1):
+        # Freeze the parent vector for a synchronous (Jacobi) sweep. This
+        # prevents the order of the five GBM programs from changing the fit.
         previous = values.copy()
+        proposals = previous.copy()
         previous_objective = trace[-1]
         for program, position in index.items():
             numerator = _GLIOMA_RIDGE * 0.0
@@ -554,7 +560,7 @@ def _fit_glioma_programs(  # noqa: C901, PLR0912, PLR0915
             for row_program, target, standard_error, quality, censoring_limit in rows:
                 if row_program != program:
                     continue
-                current = values[position]
+                current = previous[position]
                 if censoring_limit is not None and current <= censoring_limit:
                     continue
                 residual = (
@@ -565,35 +571,48 @@ def _fit_glioma_programs(  # noqa: C901, PLR0912, PLR0915
                 denominator += weight
             for source, destination, sign, weight in _GLIOMA_EDGES:
                 if source == program and destination in index:
-                    residual = values[index[destination]] - sign * values[position]
+                    residual = previous[index[destination]] - sign * current
                     edge_weight = weight * _glioma_huber_weight(residual)
-                    numerator += edge_weight * sign * values[index[destination]]
+                    numerator += edge_weight * sign * previous[index[destination]]
                     denominator += edge_weight
                 elif destination == program and source in index:
-                    residual = values[position] - sign * values[index[source]]
+                    residual = current - sign * previous[index[source]]
                     edge_weight = weight * _glioma_huber_weight(residual)
-                    numerator += edge_weight * sign * values[index[source]]
+                    numerator += edge_weight * sign * previous[index[source]]
                     denominator += edge_weight
             proposal = numerator / max(denominator, 1e-12)
-            values[position] = np.clip(
-                values[position] + _GLIOMA_DAMPING * (proposal - values[position]),
+            proposals[position] = np.clip(
+                current + _GLIOMA_DAMPING * (proposal - current),
                 -_GLIOMA_MAX_ABUNDANCE,
                 _GLIOMA_MAX_ABUNDANCE,
             )
-        objective = _glioma_objective(programs, values, rows)
-        if objective > previous_objective:
-            stalled = (
-                objective - previous_objective <= _GLIOMA_TOLERANCE * 10.0
-                or float(np.max(np.abs(values - previous))) <= _GLIOMA_TOLERANCE * 10.0
-            )
-            values = previous
+
+        candidate = proposals
+        objective = _glioma_objective(programs, candidate, rows)
+        accepted = candidate
+        if objective > previous_objective + _GLIOMA_OBJECTIVE_TOLERANCE:
+            # Huber influence changes at the robust breakpoints. Backtrack the
+            # entire graph step so a boundary crossing cannot enter the trace.
+            accepted = previous
             objective = previous_objective
-            iterations = iteration
-            trace.append(float(f"{objective:.8f}"))
-            converged = stalled
-            break
+            delta = candidate - previous
+            step = _GLIOMA_DAMPING
+            for _ in range(_GLIOMA_BACKTRACKING_STEPS):
+                step *= _GLIOMA_BACKTRACKING_FACTOR
+                trial = np.clip(
+                    previous + step * delta,
+                    -_GLIOMA_MAX_ABUNDANCE,
+                    _GLIOMA_MAX_ABUNDANCE,
+                )
+                trial_objective = _glioma_objective(programs, trial, rows)
+                if trial_objective <= previous_objective + _GLIOMA_OBJECTIVE_TOLERANCE:
+                    accepted = trial
+                    objective = trial_objective
+                    break
+        values = accepted
+        update = float(np.max(np.abs(values - previous)))
         trace.append(float(f"{objective:.8f}"))
-        if abs(previous_objective - objective) <= _GLIOMA_TOLERANCE:
+        if update <= _GLIOMA_TOLERANCE and abs(previous_objective - objective) <= _GLIOMA_TOLERANCE:
             converged = True
             iterations = iteration
             break

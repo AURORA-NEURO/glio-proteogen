@@ -489,7 +489,10 @@ gene keys. The same normalized identity map drives fitting, bootstrap, evidence,
 and support accounting. Standard-error and
 quality-weighted Huber coordinate descent fits observed and left-censored
 evidence with ridge stabilization, edge-consistency penalties, damping, an
-objective trace, and deterministic 64-replicate bootstrap intervals. Censored
+objective trace, and deterministic 64-replicate bootstrap intervals. Each
+iteration is a frozen-parent sweep with a deterministic backtracking line
+search, keeping the objective trace monotone and invariant to observation
+order. Censored
 program starts use observed effects only and project onto the tightest
 detection bound; censor-only programs start neutral on the feasible side.
 Bootstrap draws perturb the one-sided detection boundary itself, preserving

@@ -58,6 +58,7 @@ _EXPECTED_SUPPORT_RISK = 0.15
 _BOOTSTRAP_CENSORING_LIMIT = 0.1
 _BOOTSTRAP_SHIFT = 0.4
 _BOOTSTRAP_SHIFTED_LIMIT = 0.5
+_FIRST_CANDIDATE_CALL = 2
 
 
 def _artifact(name: str, media_type: str = "application/json") -> ArtifactReference:
@@ -233,6 +234,39 @@ def test_typed_glioma_mechanism_program_graph_is_robust_and_order_invariant() ->
         for item in first.result.estimates
     )
     assert first.canonical_bytes == second.canonical_bytes
+
+
+def test_typed_program_solver_backtracks_an_objective_increasing_sweep(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    observations = (
+        ConstraintEvidenceObservation(
+            feature_id="EGFR", value=1.1, standard_error=0.2, quality_weight=0.95
+        ),
+        ConstraintEvidenceObservation(
+            feature_id="CDK4", value=0.8, standard_error=0.2, quality_weight=0.9
+        ),
+        ConstraintEvidenceObservation(
+            feature_id="TP53",
+            state=ConstraintObservationState.LEFT_CENSORED,
+            standard_error=0.2,
+            censoring_limit=0.0,
+            quality_weight=0.85,
+        ),
+    )
+    original = engine_module._glioma_objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == _FIRST_CANDIDATE_CALL else value
+
+    monkeypatch.setattr(engine_module, "_glioma_objective", objective)
+    fit = engine_module._fit_glioma_programs(observations)
+    assert fit is not None
+    assert fit.converged is True
+    assert calls > _FIRST_CANDIDATE_CALL
+    assert all(after <= before + engine_module._GLIOMA_OBJECTIVE_TOLERANCE for before, after in zip(fit.trace[:-1], fit.trace[1:], strict=True))
 
 
 def test_typed_glioma_mechanism_program_graph_abstains_without_program_coverage() -> None:
