@@ -341,6 +341,36 @@ def _typed_objective(
     return objective
 
 
+def _initial_typed_values(
+    grouped: dict[GliomaFeatureProgram, list[_TypedTerm]],
+) -> list[float]:
+    """Build a feasible graph start without treating censor limits as values."""
+
+    values = [0.0] * len(_PROGRAM_ORDER)
+    index = {program: position for position, program in enumerate(_PROGRAM_ORDER)}
+    for program, program_terms in grouped.items():
+        observed = tuple(
+            term for term in program_terms if term.state is MechanisticEvidenceState.OBSERVED
+        )
+        limits = tuple(
+            term.effect
+            for term in program_terms
+            if term.state is MechanisticEvidenceState.LEFT_CENSORED
+        )
+        if observed:
+            total = sum(term.quality_weight for term in observed)
+            center = sum(term.quality_weight * term.effect for term in observed) / max(
+                _MIN_SCALE, total
+            )
+            initial = min((center, *limits)) if limits else center
+        elif limits:
+            initial = min((0.0, *limits))
+        else:
+            continue
+        values[index[program]] = max(-M1503_MAX_EFFECT, min(M1503_MAX_EFFECT, initial))
+    return values
+
+
 def _fit_typed(  # noqa: C901 - explicit coordinate updates keep signed edges auditable.
     terms: tuple[_TypedTerm, ...], *, include_edges: bool = True
 ) -> _TypedFit:
@@ -348,11 +378,7 @@ def _fit_typed(  # noqa: C901 - explicit coordinate updates keep signed edges au
     grouped: dict[GliomaFeatureProgram, list[_TypedTerm]] = defaultdict(list)
     for term in terms:
         grouped[term.program].append(term)
-    values = [0.0] * len(_PROGRAM_ORDER)
-    for program, program_terms in grouped.items():
-        values[index[program]] = sum(
-            term.quality_weight * term.effect for term in program_terms
-        ) / max(_MIN_SCALE, sum(term.quality_weight for term in program_terms))
+    values = _initial_typed_values(grouped)
     previous = _typed_objective(values, terms, include_edges=include_edges)
     trace = [_quantize(previous)]
     converged = False

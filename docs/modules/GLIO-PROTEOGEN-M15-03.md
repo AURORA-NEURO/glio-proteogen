@@ -51,7 +51,10 @@ to evidence-role references. Canonical result bytes are checked for replay and t
 
 The runtime is deterministic and caller-declared: source digests make reconstruction and tamper
 checks possible but do not authenticate an assay, reviewer, laboratory, model, or scientific
-claim. Human review is required for safe abstention; release promotion, support overrides,
+claim. In the typed graph lane, left-censored effects seed feasible upper-bound starts (observed
+centers are clamped to the tightest limit; censor-only programs start at the ridge-neutral
+feasible value) rather than being treated as exact measurements. Human review is required for
+safe abstention; release promotion, support overrides,
 novel/OOD states, unresolved biological conflict, and critical discrepancies remain governed
 outside this implementation.
 

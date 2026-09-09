@@ -243,6 +243,36 @@ def test_typed_glioma_feature_network_derives_uncertainty_aware_program_features
     assert engine.verify(result) == result
 
 
+def test_typed_initialization_keeps_left_censored_limits_feasible() -> None:
+    """Feature graph starts use observed centers and feasible censor bounds."""
+
+    first = build_scenario_request().candidate_features[0]
+    observed = first.model_copy(
+        update={
+            "feature_id": "feature.observed",
+            "program": GliomaFeatureProgram.RTK_PI3K_AKT_MTOR,
+            "evidence_state": MechanisticEvidenceState.OBSERVED,
+            "numeric_value": 1.2,
+            "standard_error": 0.2,
+            "quality_weight": 1.0,
+        }
+    )
+    censored = first.model_copy(
+        update={
+            "feature_id": "feature.censored",
+            "program": GliomaFeatureProgram.RTK_PI3K_AKT_MTOR,
+            "evidence_state": MechanisticEvidenceState.LEFT_CENSORED,
+            "numeric_value": 0.4,
+            "standard_error": 0.2,
+            "quality_weight": 1.0,
+        }
+    )
+    terms = engine_module._typed_terms((observed, censored))
+    grouped = {GliomaFeatureProgram.RTK_PI3K_AKT_MTOR: list(terms)}
+    values = engine_module._initial_typed_values(grouped)
+    assert values[list(GliomaFeatureProgram).index(GliomaFeatureProgram.RTK_PI3K_AKT_MTOR)] == 0.4
+
+
 def test_typed_feature_request_with_only_missing_evidence_abstains() -> None:
     base = build_scenario_request()
     feature = base.candidate_features[0].model_copy(
