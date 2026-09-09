@@ -42,6 +42,10 @@ from glio_proteogen.kernel.models import (
 from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
     m14_03_mechanistic_feature_constructor as m1403,
 )
+from glio_proteogen.modules.c14_microenvironment_protein_deconvolution.m14_03_mechanistic_feature_constructor.engine import (  # noqa: E501
+    _initial_typed_values,
+    _TypedTerm,
+)
 
 _FEATURE_COUNT = 7
 _RELATION_COUNT = 6
@@ -396,6 +400,48 @@ def test_typed_glioma_microenvironment_graph_constructs_intervals_and_signed_edg
         item.code == "typed_glioma_microenvironment_graph" for item in result.limitations
     )
     assert service.verify(result).model_dump(mode="json") == result.model_dump(mode="json")
+
+
+def test_typed_initialization_keeps_left_censored_limits_feasible() -> None:
+    """Mechanistic starts use observed centers and feasible censor bounds."""
+
+    grouped = {
+        GliomaMicroenvironmentProgram.HYPOXIA: [
+            _TypedTerm(
+                observation_id="censored",
+                program=GliomaMicroenvironmentProgram.HYPOXIA,
+                state=MechanisticEvidenceState.LEFT_CENSORED,
+                effect=-0.3,
+                standard_error=0.2,
+                quality_weight=1.0,
+            )
+        ],
+        GliomaMicroenvironmentProgram.MYELOID: [
+            _TypedTerm(
+                observation_id="observed",
+                program=GliomaMicroenvironmentProgram.MYELOID,
+                state=MechanisticEvidenceState.OBSERVED,
+                effect=1.2,
+                standard_error=0.2,
+                quality_weight=1.0,
+            ),
+            _TypedTerm(
+                observation_id="limit",
+                program=GliomaMicroenvironmentProgram.MYELOID,
+                state=MechanisticEvidenceState.LEFT_CENSORED,
+                effect=0.4,
+                standard_error=0.2,
+                quality_weight=1.0,
+            ),
+        ],
+    }
+
+    values = _initial_typed_values(grouped)
+    order = list(GliomaMicroenvironmentProgram)
+    left_censor_limit = -0.3
+    mixed_censor_limit = 0.4
+    assert values[order.index(GliomaMicroenvironmentProgram.HYPOXIA)] == left_censor_limit
+    assert values[order.index(GliomaMicroenvironmentProgram.MYELOID)] == mixed_censor_limit
 
 
 def test_typed_missing_and_unsupported_evidence_abstain_without_negative_observations() -> None:
