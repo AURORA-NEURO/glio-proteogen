@@ -13,6 +13,7 @@ from glio_proteogen.research.gbm_microenvironment_graph import (
     synthetic_microenvironment_graph_request,
     verify_microenvironment_graph_replay,
 )
+from glio_proteogen.research.gbm_microenvironment_graph.runtime import result_payload_digest
 from glio_proteogen.research.neftel_protein_programs import synthetic_demo_request
 from glio_proteogen.research.proteogenomic_state import EvidenceState
 
@@ -21,6 +22,11 @@ def test_profile_binds_both_child_engines() -> None:
     profile = microenvironment_graph_profile()
     assert profile.source_profile_digest.startswith("sha256:")
     assert profile.graph_profile_digest.startswith("sha256:")
+    assert profile.auxiliary_source_engine == "gbm-proteomic-axes/1.0.0"
+    assert (
+        profile.auxiliary_projection_policy
+        == "independent_published_gbm_axes_as_secondary_observations_v1"
+    )
     assert profile.supported_source_families == (
         "mesenchymal_like",
         "oligodendrocyte_progenitor_like",
@@ -57,6 +63,11 @@ def test_synthetic_bridge_projects_supported_mes_and_opc_evidence() -> None:
         node_by_id["pathway.gbm_microenvironment.opc_like"].classification.value
         == "suppressed"
     )
+    assert result.axis_result is not None
+    axis_ids = {str(item.signature_id) for item in result.axis_result.signatures}
+    assert {"WINTER_HYPOXIA_UP", "VERHAAK_GLIOBLASTOMA_MESENCHYMAL"}.issubset(axis_ids)
+    assert result.graph_request.observations[-2].observation_id.endswith("axis.hypoxia")
+    assert result.graph_request.observations[-1].observation_id.endswith("axis.mesenchymal")
 
 
 def test_missing_source_families_remain_missing() -> None:
@@ -88,3 +99,15 @@ def test_replay_is_exact_and_sample_binding_is_strict() -> None:
         MicroenvironmentGraphRequest(
             sample_id="different-sample", source_request=request.source_request
         )
+
+
+def test_replay_rejects_axis_presence_mismatch() -> None:
+    request = synthetic_microenvironment_graph_request()
+    result = analyze_microenvironment_graph(request)
+    forged = result.model_copy(update={"axis_result": None})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    replay = verify_microenvironment_graph_replay(
+        MicroenvironmentGraphReplayRequest(request=request, result=forged)
+    )
+    assert replay.axis_replay_match is False
+    assert replay.verified is False

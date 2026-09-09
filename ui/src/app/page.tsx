@@ -1475,7 +1475,7 @@ export default function ResearchWorkbench() {
   const microenvironmentStats = parsedEditor ? microenvironmentGraphRequestStats(parsedEditor) : { observations: 0, active: 0, programs: 7 };
   const microenvironment = useMemo(() => mode === "gbm-microenvironment-graph" && result
     ? normalizeMicroenvironmentGraphResult(result)
-    : { graphResult: null, graphRequest: null, sourceResult: null, sourcePrograms: [] }, [mode, result]);
+    : { graphResult: null, graphRequest: null, sourceResult: null, axisResult: null, sourcePrograms: [], axisSignatures: [] }, [mode, result]);
   const states = useMemo(() => {
     if (mode === "evidence-graph" && result) return normalizeStates(result);
     if (mode === "gbm-microenvironment-graph" && microenvironment.graphResult) return normalizeStates(microenvironment.graphResult);
@@ -2133,6 +2133,7 @@ export default function ResearchWorkbench() {
               <div><dt>Intended context</dt><dd>primary IDH-wildtype GBM bulk RNA</dd></div>
             </> : mode === "gbm-microenvironment-graph" ? <>
               <div><dt>Source bridge</dt><dd>Neftel Table S2 protein programs</dd></div>
+              <div><dt>Secondary evidence</dt><dd>7 published GBM proteomic axes</dd></div>
               <div><dt>Graph programs</dt><dd>7 signed GBM microenvironment nodes</dd></div>
               <div><dt>Projected families</dt><dd>MES-like · OPC-like only</dd></div>
               <div><dt>Claim ceiling</dt><dd className="warn">no cell fractions · research only</dd></div>
@@ -2444,6 +2445,7 @@ export default function ResearchWorkbench() {
                   {microenvironment.sourcePrograms.map((program) => <tr key={program.id}><td><b>{program.id}</b><small>{program.sourcePrograms.join(" · ")}</small></td><td><StateBadge value={program.classification} /></td><td className="mono-cell">{formatSigned(program.locationScore)}<small>[{formatNumber(program.locationLower)}, {formatNumber(program.locationUpper)}]</small></td><td className="mono-cell">{formatNumber(program.qValue, 4)}</td><td className="mono-cell">{formatNumber(program.activeCoverage * 100, 1)}%<small>{program.observedMarkers} / {program.eligibleMarkers} markers</small></td><td><span className={`support-badge ${program.support}`}>{program.support}</span><small className="warning-copy">{program.reasons[0] ?? "source evidence"}</small></td></tr>)}
                 </tbody></table></div>
               </section>
+              {microenvironment.axisSignatures.length > 0 && <GbmSignatureTable signatures={microenvironment.axisSignatures} />}
               <div className="mechanism-grid">
                 <JsonPanel title="Graph solver diagnostics" eyebrow="DIRECTED IRLS / BOOTSTRAP" value={microenvironment.graphResult ? objectAt(microenvironment.graphResult, ["solver"]) : null} empty="No graph solver diagnostics were returned." />
                 <JsonPanel title="Topology provenance" eyebrow="PUBLIC CONTEXT / SYNTHETIC ABSTRACTION" value={microenvironment.graphRequest ? objectAt(microenvironment.graphRequest, ["topology_provenance"]) : null} empty="No topology provenance was returned." />

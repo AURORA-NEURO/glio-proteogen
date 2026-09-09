@@ -33,7 +33,13 @@ S2 while applying a separately identified repository-native evidence model.
 `/v1/research/gbm-microenvironment-graph` projects supported Neftel
 mesenchymal-like and oligodendrocyte-progenitor-like bulk-protein evidence into
 a signed GBM microenvironment graph solved by ECGI. Missing source families stay
-missing; the surface never reports cell fractions or clinical states.
+missing; the surface never reports cell fractions or clinical states. An
+optional secondary observation lane may carry the independently computed Winter
+hypoxia and Verhaak mesenchymal scores from
+`gbm-proteomic-axes/1.0.0`; these are separately digested, replayed, and
+explicitly prevented from overriding Neftel evidence. This experimental axis
+lane is research-only and does not transfer kinase ownership into governed
+modules.
 `/v1/research/gbm-master-kinases` accepts standardized phosphosite contrasts and
 computes independently authored concordance against 24 source-locked
 subtype-specific SPHINKS/MK signatures.

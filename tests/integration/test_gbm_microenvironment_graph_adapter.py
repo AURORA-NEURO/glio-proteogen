@@ -40,6 +40,7 @@ def test_bridge_http_demo_analyze_verify_round_trip(tmp_path: Path) -> None:
         assert result.status_code == HTTP_OK
         body = result.json()
         assert body["source_result"]["output_semantics"] == "bulk_protein_program_evidence"
+        assert body["axis_result"]["profile_id"] == "gbm-proteomic-axes/1.0.0"
         assert len(body["graph_result"]["node_states"]) == GRAPH_NODE_COUNT
         verified = client.post(
             f"{adapter.MICROENVIRONMENT_GRAPH_ROUTE_PREFIX}/verify",
@@ -47,6 +48,7 @@ def test_bridge_http_demo_analyze_verify_round_trip(tmp_path: Path) -> None:
         )
         assert verified.status_code == HTTP_OK
         assert verified.json()["verified"] is True
+        assert verified.json()["axis_replay_match"] is True
 
 
 def test_bridge_rejects_non_json_and_tampered_receipt(tmp_path: Path) -> None:

@@ -17,6 +17,16 @@ from pydantic import Field, model_validator
 
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import FrozenModel, Identifier, NonEmptyStr, Sha256Digest
+from glio_proteogen.research.gbm_proteomic_axes import (
+    GbmProteomicAxesRequest,
+    GbmProteomicAxesResult,
+    GbmReplayVerificationRequest,
+    analyze_gbm_proteomic_axes,
+    verify_gbm_proteomic_axes_replay,
+)
+from glio_proteogen.research.gbm_proteomic_axes import (
+    synthetic_demo_request as gbm_axes_demo_request,
+)
 from glio_proteogen.research.neftel_protein_programs import (
     ProteinEvidenceState,
     ProteinProgramObservation,
@@ -94,6 +104,10 @@ _GRAPH_EDGES: Final = (
     ("opc_like", "mesenchymal", -1),
     ("angiogenic", "endothelial", 1),
 )
+_AXIS_MAP: Final = (
+    ("WINTER_HYPOXIA_UP", "hypoxia"),
+    ("VERHAAK_GLIOBLASTOMA_MESENCHYMAL", "mesenchymal"),
+)
 
 
 class MicroenvironmentGraphProfile(FrozenModel):
@@ -106,12 +120,18 @@ class MicroenvironmentGraphProfile(FrozenModel):
         "neftel-bulk-protein-programs/1.0.0"
     )
     graph_engine: Literal["glio-ecgi/1.0.0"] = "glio-ecgi/1.0.0"
+    auxiliary_source_engine: Literal["gbm-proteomic-axes/1.0.0"] = (
+        "gbm-proteomic-axes/1.0.0"
+    )
     source_profile_digest: Sha256Digest
     graph_profile_digest: Sha256Digest
     topology_digest: Sha256Digest
     projection_policy: Literal["supported_bulk_programs_to_signed_microenvironment_graph_v1"] = (
         "supported_bulk_programs_to_signed_microenvironment_graph_v1"
     )
+    auxiliary_projection_policy: Literal[
+        "independent_published_gbm_axes_as_secondary_observations_v1"
+    ] = "independent_published_gbm_axes_as_secondary_observations_v1"
     supported_source_families: tuple[Literal["mesenchymal_like", "oligodendrocyte_progenitor_like"], ...] = (
         "mesenchymal_like",
         "oligodendrocyte_progenitor_like",
@@ -134,11 +154,14 @@ class MicroenvironmentGraphRequest(FrozenModel):
     profile_id: Literal["gbm-microenvironment-graph/1.0.0"] = PROFILE_ID
     sample_id: Identifier
     source_request: ProteinProgramRequest
+    axis_request: GbmProteomicAxesRequest | None = None
 
     @model_validator(mode="after")
     def sample_id_matches_source(self) -> Self:
         if self.sample_id != self.source_request.sample_id:
             raise ValueError("sample_id must match the nested Neftel source request")
+        if self.axis_request is not None and self.sample_id != self.axis_request.sample_id:
+            raise ValueError("sample_id must match the nested GBM axes request")
         return self
 
     @property
@@ -155,6 +178,7 @@ class MicroenvironmentGraphResult(FrozenModel):
     result_digest: Sha256Digest
     sample_id: Identifier
     source_result: ProteinProgramResult
+    axis_result: GbmProteomicAxesResult | None = None
     graph_request: ProteogenomicStateRequest
     graph_result: ProteogenomicStateResult
     limitations: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=12)
@@ -165,6 +189,8 @@ class MicroenvironmentGraphResult(FrozenModel):
     def receipt_is_closed(self) -> Self:
         if self.sample_id != self.source_result.sample_id or self.sample_id != self.graph_result.sample_id:
             raise ValueError("all bridge receipts must use one sample identifier")
+        if self.axis_result is not None and self.axis_result.sample_id != self.sample_id:
+            raise ValueError("axis result must use the bridge sample identifier")
         if self.graph_request.request_digest != self.graph_result.request_digest:
             raise ValueError("graph request and graph result digests do not match")
         if self.result_digest != result_payload_digest(self):
@@ -181,6 +207,7 @@ class MicroenvironmentGraphReplayResult(FrozenModel):
     verified: bool
     request_digest_match: bool
     source_replay_match: bool
+    axis_replay_match: bool
     graph_replay_match: bool
     result_digest_match: bool
     semantic_match: bool
@@ -195,6 +222,11 @@ def canonical_request_digest(request: MicroenvironmentGraphRequest) -> Sha256Dig
             "profile_id": PROFILE_ID,
             "sample_id": request.sample_id,
             "source_request": request.source_request.model_dump(mode="json"),
+            "axis_request": (
+                None
+                if request.axis_request is None
+                else request.axis_request.model_dump(mode="json")
+            ),
         }
     )
 
@@ -221,10 +253,12 @@ def microenvironment_graph_profile() -> MicroenvironmentGraphProfile:
         "algorithm_version": ALGORITHM_VERSION,
         "source_engine": "neftel-bulk-protein-programs/1.0.0",
         "graph_engine": "glio-ecgi/1.0.0",
+        "auxiliary_source_engine": "gbm-proteomic-axes/1.0.0",
         "source_profile_digest": source.profile_digest,
         "graph_profile_digest": graph.profile_digest,
         "topology_digest": _bridge_topology_digest(),
         "projection_policy": "supported_bulk_programs_to_signed_microenvironment_graph_v1",
+        "auxiliary_projection_policy": "independent_published_gbm_axes_as_secondary_observations_v1",
         "supported_source_families": tuple(item[0] for item in _PROGRAM_MAP),
         "missing_families_are_not_negative": True,
         "cell_fraction_claim_permitted": False,
@@ -237,10 +271,12 @@ def microenvironment_graph_profile() -> MicroenvironmentGraphProfile:
         algorithm_version=ALGORITHM_VERSION,
         source_engine="neftel-bulk-protein-programs/1.0.0",
         graph_engine="glio-ecgi/1.0.0",
+        auxiliary_source_engine="gbm-proteomic-axes/1.0.0",
         source_profile_digest=source.profile_digest,
         graph_profile_digest=graph.profile_digest,
         topology_digest=_bridge_topology_digest(),
         projection_policy="supported_bulk_programs_to_signed_microenvironment_graph_v1",
+        auxiliary_projection_policy="independent_published_gbm_axes_as_secondary_observations_v1",
         supported_source_families=("mesenchymal_like", "oligodendrocyte_progenitor_like"),
         missing_families_are_not_negative=True,
         cell_fraction_claim_permitted=False,
@@ -338,6 +374,7 @@ def _topology_provenance() -> TopologyProvenance:
 def _graph_request(
     request: MicroenvironmentGraphRequest,
     source: ProteinProgramResult,
+    axes: GbmProteomicAxesResult | None,
 ) -> ProteogenomicStateRequest:
     nodes = _graph_nodes()
     edges = _graph_edges()
@@ -379,6 +416,32 @@ def _graph_request(
                 provenance_digest=source.result_digest,
             )
         )
+    if axes is not None:
+        by_signature = {str(item.signature_id): item for item in axes.signatures}
+        for signature_id, graph_program in _AXIS_MAP:
+            estimate = by_signature.get(signature_id)
+            if estimate is None or estimate.published_score is None:
+                continue
+            axis_lower = estimate.lower_bound
+            axis_upper = estimate.upper_bound
+            standard_error = (
+                0.35
+                if axis_lower is None or axis_upper is None
+                else max(0.05, abs(float(axis_upper) - float(axis_lower)) / 3.29)
+            )
+            quality = 0.9 if estimate.support.value == "supported" else 0.55
+            observations.append(
+                EvidenceObservation(
+                    observation_id=f"observation.gbm_microenvironment.axis.{graph_program}",
+                    node_id=_node_id(graph_program),
+                    modality=EvidenceModality.PROTEOMICS,
+                    state=EvidenceState.OBSERVED,
+                    standardized_effect=float(estimate.published_score),
+                    standard_error=standard_error,
+                    quality_weight=quality,
+                    provenance_digest=axes.result_digest,
+                )
+            )
     graph_request = ProteogenomicStateRequest(
         sample_id=request.sample_id,
         nodes=nodes,
@@ -395,7 +458,12 @@ def analyze_microenvironment_graph(request: MicroenvironmentGraphRequest) -> Mic
 
     request = MicroenvironmentGraphRequest.model_validate(request, strict=True)
     source = analyze_neftel_protein_programs(request.source_request)
-    graph_request = _graph_request(request, source)
+    axes = (
+        None
+        if request.axis_request is None
+        else analyze_gbm_proteomic_axes(request.axis_request)
+    )
+    graph_request = _graph_request(request, source, axes)
     graph_result = analyze_proteogenomic_state(graph_request)
     profile = microenvironment_graph_profile()
     draft = MicroenvironmentGraphResult.model_construct(
@@ -404,11 +472,13 @@ def analyze_microenvironment_graph(request: MicroenvironmentGraphRequest) -> Mic
         result_digest=_ZERO_DIGEST,
         sample_id=request.sample_id,
         source_result=source,
+        axis_result=axes,
         graph_request=graph_request,
         graph_result=graph_result,
         limitations=(
             "The source engine estimates bulk protein program evidence, not cell fractions.",
             "Only mesenchymal-like and oligodendrocyte-progenitor-like families are projected; missing families remain missing.",
+            "Published GBM proteomic-axis scores are independent secondary observations for hypoxia and mesenchymal nodes; they never override Neftel evidence.",
             "The signed graph describes research associations and does not establish causality, prognosis, or treatment response.",
             "All outputs are research-use-only and non-prescriptive.",
         ),
@@ -430,6 +500,14 @@ def verify_microenvironment_graph_replay(
             result=provided.source_result,
         )
     )
+    axis_replay_match = request.axis_request is None and provided.axis_result is None
+    if request.axis_request is not None and provided.axis_result is not None:
+        axis_replay_match = verify_gbm_proteomic_axes_replay(
+            GbmReplayVerificationRequest(
+                request=request.axis_request,
+                result=provided.axis_result,
+            )
+        ).semantic_match
     graph_replay = verify_proteogenomic_replay(
         EcgiReplayVerificationRequest(
             request=provided.graph_request,
@@ -439,11 +517,12 @@ def verify_microenvironment_graph_replay(
     request_match = provided.request_digest == request.request_digest == recomputed.request_digest
     result_match = provided.result_digest == result_payload_digest(provided) == recomputed.result_digest
     semantic_match = provided.model_dump(mode="json") == recomputed.model_dump(mode="json")
-    verified = request_match and source_replay.semantic_match and graph_replay.semantic_match and result_match and semantic_match
+    verified = request_match and source_replay.semantic_match and axis_replay_match and graph_replay.semantic_match and result_match and semantic_match
     return MicroenvironmentGraphReplayResult(
         verified=verified,
         request_digest_match=request_match,
         source_replay_match=source_replay.semantic_match,
+        axis_replay_match=axis_replay_match,
         graph_replay_match=graph_replay.semantic_match,
         result_digest_match=result_match,
         semantic_match=semantic_match,
@@ -504,7 +583,12 @@ def synthetic_microenvironment_graph_request() -> MicroenvironmentGraphRequest:
         for index, symbol in enumerate(opc_markers, start=1)
     )
     source = source.model_copy(update={"observations": source.observations + bridge_observations})
-    return MicroenvironmentGraphRequest(sample_id=source.sample_id, source_request=source)
+    axes = gbm_axes_demo_request().model_copy(update={"sample_id": source.sample_id})
+    return MicroenvironmentGraphRequest(
+        sample_id=source.sample_id,
+        source_request=source,
+        axis_request=axes,
+    )
 
 
 __all__ = [

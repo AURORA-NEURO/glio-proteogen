@@ -38,7 +38,8 @@ separate algorithms and receipts, not scientifically independent evidence:
   like bulk-protein evidence into a signed GBM microenvironment graph. It
   preserves missing families as missing, propagates uncertainty through the
   directed graph, and explicitly does not estimate cell fractions or clinical
-  states; and
+  states. It may carry independently digested Winter hypoxia and Verhaak
+  mesenchymal proteomic-axis scores as secondary observations; and
 - `sphinks-gbm-master-kinase-concordance/1.0.0`: an independently authored,
   source-locked phosphosite concordance model over the 24 subtype-specific
   master-kinase signatures published by Migliozzi et al., with robust one-sided

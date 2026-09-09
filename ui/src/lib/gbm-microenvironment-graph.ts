@@ -14,6 +14,7 @@ import {
   normalizeNeftelPrograms,
   validateNeftelRequest,
 } from "./neftel-programs";
+import { normalizeGbmSignatures, validateGbmRequest } from "./gbm-proteomic-axes";
 
 export const GBM_MICROENVIRONMENT_GRAPH_PROFILE_ID =
   "gbm-microenvironment-graph/1.0.0";
@@ -27,10 +28,12 @@ const PROFILE_FIELDS = new Set([
   "algorithm_version",
   "source_engine",
   "graph_engine",
+  "auxiliary_source_engine",
   "source_profile_digest",
   "graph_profile_digest",
   "topology_digest",
   "projection_policy",
+  "auxiliary_projection_policy",
   "supported_source_families",
   "missing_families_are_not_negative",
   "cell_fraction_claim_permitted",
@@ -38,6 +41,7 @@ const PROFILE_FIELDS = new Set([
   "profile_digest",
 ]);
 const REQUEST_FIELDS = new Set(["profile_id", "sample_id", "source_request"]);
+const REQUEST_OPTIONAL_FIELDS = new Set(["axis_request"]);
 const RESULT_FIELDS = new Set([
   "profile_id",
   "profile_digest",
@@ -45,16 +49,19 @@ const RESULT_FIELDS = new Set([
   "result_digest",
   "sample_id",
   "source_result",
+  "axis_result",
   "graph_request",
   "graph_result",
   "limitations",
   "research_use_only",
   "non_prescriptive",
 ]);
+const RESULT_OPTIONAL_FIELDS = new Set(["axis_result"]);
 const REPLAY_FIELDS = new Set([
   "verified",
   "request_digest_match",
   "source_replay_match",
+  "axis_replay_match",
   "graph_replay_match",
   "result_digest_match",
   "semantic_match",
@@ -64,9 +71,15 @@ const REPLAY_FIELDS = new Set([
 ]);
 export type HeaderReader = { get(name: string): string | null };
 
-function exactFields(source: JsonObject, expected: ReadonlySet<string>, path: string, errors: string[]): void {
+function exactFields(
+  source: JsonObject,
+  expected: ReadonlySet<string>,
+  path: string,
+  errors: string[],
+  optional: ReadonlySet<string> = new Set(),
+): void {
   const missing = [...expected].filter((field) => !Object.prototype.hasOwnProperty.call(source, field));
-  const unknown = Object.keys(source).filter((field) => !expected.has(field));
+  const unknown = Object.keys(source).filter((field) => !expected.has(field) && !optional.has(field));
   if (missing.length) errors.push(`${path} is missing required fields: ${missing.join(", ")}.`);
   if (unknown.length) errors.push(`${path} contains unsupported fields: ${unknown.join(", ")}.`);
 }
@@ -81,6 +94,10 @@ function requireText(value: unknown, path: string, errors: string[]): void {
 
 function nestedSourceRequest(request: JsonObject): JsonObject | null {
   return isJsonObject(request.source_request) ? request.source_request : null;
+}
+
+function nestedAxisRequest(request: JsonObject): JsonObject | null {
+  return isJsonObject(request.axis_request) ? request.axis_request : null;
 }
 
 export type MicroenvironmentGraphRequestStats = {
@@ -106,7 +123,9 @@ export function validateMicroenvironmentGraphProfile(profile: JsonObject): strin
   ) errors.push("profile algorithm identity is invalid.");
   if (profile.source_engine !== "neftel-bulk-protein-programs/1.0.0") errors.push("profile.source_engine is invalid.");
   if (profile.graph_engine !== "glio-ecgi/1.0.0") errors.push("profile.graph_engine is invalid.");
+  if (profile.auxiliary_source_engine !== "gbm-proteomic-axes/1.0.0") errors.push("profile.auxiliary_source_engine is invalid.");
   if (profile.projection_policy !== "supported_bulk_programs_to_signed_microenvironment_graph_v1") errors.push("profile.projection_policy is invalid.");
+  if (profile.auxiliary_projection_policy !== "independent_published_gbm_axes_as_secondary_observations_v1") errors.push("profile.auxiliary_projection_policy is invalid.");
   if (!Array.isArray(profile.supported_source_families) || profile.supported_source_families.join(",") !== "mesenchymal_like,oligodendrocyte_progenitor_like") {
     errors.push("profile.supported_source_families must contain the two supported GBM families in profile order.");
   }
@@ -119,7 +138,7 @@ export function validateMicroenvironmentGraphProfile(profile: JsonObject): strin
 
 export function validateMicroenvironmentGraphRequest(request: JsonObject): string[] {
   const errors: string[] = [];
-  exactFields(request, REQUEST_FIELDS, "request", errors);
+  exactFields(request, REQUEST_FIELDS, "request", errors, REQUEST_OPTIONAL_FIELDS);
   if (request.profile_id !== GBM_MICROENVIRONMENT_GRAPH_PROFILE_ID) errors.push(`request.profile_id must equal ${GBM_MICROENVIRONMENT_GRAPH_PROFILE_ID}.`);
   if (typeof request.sample_id !== "string" || request.sample_id.trim() === "") errors.push("request.sample_id must be non-empty text.");
   const source = nestedSourceRequest(request);
@@ -128,6 +147,12 @@ export function validateMicroenvironmentGraphRequest(request: JsonObject): strin
   } else {
     errors.push(...validateNeftelRequest(source).map((error) => `request.source_request: ${error}`));
     if (source.sample_id !== request.sample_id) errors.push("request.sample_id must match request.source_request.sample_id.");
+  }
+  const axis = nestedAxisRequest(request);
+  if (request.axis_request !== undefined && !axis) errors.push("request.axis_request must be an object when supplied.");
+  if (axis) {
+    errors.push(...validateGbmRequest(axis).map((error) => `request.axis_request: ${error}`));
+    if (axis.sample_id !== request.sample_id) errors.push("request.sample_id must match request.axis_request.sample_id.");
   }
   return errors;
 }
@@ -148,7 +173,7 @@ export function validateMicroenvironmentGraphResult(
   profile?: JsonObject | null,
 ): string[] {
   const errors: string[] = [];
-  exactFields(result, RESULT_FIELDS, "result", errors);
+  exactFields(result, RESULT_FIELDS, "result", errors, RESULT_OPTIONAL_FIELDS);
   if (result.profile_id !== GBM_MICROENVIRONMENT_GRAPH_PROFILE_ID) errors.push("result.profile_id is invalid.");
   for (const field of ["profile_digest", "request_digest", "result_digest"]) requireDigest(result[field], `result.${field}`, errors);
   if (typeof result.sample_id !== "string" || result.sample_id.trim() === "") errors.push("result.sample_id must be non-empty text.");
@@ -157,14 +182,22 @@ export function validateMicroenvironmentGraphResult(
   if (profile && result.profile_digest !== profile.profile_digest) errors.push("result.profile_digest does not match the admitted bridge profile.");
   const graphRequest = isJsonObject(result.graph_request) ? result.graph_request : null;
   const graphResult = isJsonObject(result.graph_result) ? result.graph_result : null;
+  const axisResult = isJsonObject(result.axis_result) ? result.axis_result : null;
   if (!graphRequest) errors.push("result.graph_request must be an object.");
   if (!graphResult) errors.push("result.graph_result must be an object.");
+  if (result.axis_result !== undefined && !axisResult) errors.push("result.axis_result must be an object when supplied.");
   if (graphRequest) errors.push(...validateEcgiResultRequestBinding(graphResult ?? {}, graphRequest));
   if (graphResult) {
     errors.push(...validateEcgiResult(graphResult).map((error) => `result.graph_result: ${error}`));
     if (profile && graphResult.profile_digest !== profile.graph_profile_digest) {
       errors.push("result.graph_result.profile_digest does not match profile.graph_profile_digest.");
     }
+  }
+  if (axisResult) {
+    if (axisResult.profile_id !== "gbm-proteomic-axes/1.0.0") errors.push("result.axis_result.profile_id is invalid.");
+    for (const field of ["profile_digest", "request_digest", "result_digest"]) requireDigest(axisResult[field], `result.axis_result.${field}`, errors);
+    if (typeof axisResult.sample_id !== "string" || axisResult.sample_id !== result.sample_id) errors.push("result.axis_result.sample_id does not match the bridge sample.");
+    if (!Array.isArray(axisResult.signatures) || axisResult.signatures.length < 1) errors.push("result.axis_result.signatures must be a non-empty array.");
   }
   if (request) {
     if (result.sample_id !== request.sample_id) errors.push("result.sample_id does not match the executed request.");
@@ -195,9 +228,10 @@ export function validateMicroenvironmentGraphVerification(
   for (const field of ["request_digest_match", "source_replay_match", "graph_replay_match", "result_digest_match", "semantic_match"] as const) {
     if (typeof verification[field] !== "boolean") errors.push(`verification.${field} must be a boolean.`);
   }
+  if (typeof verification.axis_replay_match !== "boolean") errors.push("verification.axis_replay_match must be a boolean.");
   for (const field of ["recomputed_request_digest", "recomputed_result_digest"]) requireDigest(verification[field], `verification.${field}`, errors);
   requireText(verification.message, "verification.message", errors);
-  if (verification.verified === true && ["request_digest_match", "source_replay_match", "graph_replay_match", "result_digest_match", "semantic_match"].some((field) => verification[field] !== true)) errors.push("verification.verified requires every replay check to pass.");
+  if (verification.verified === true && ["request_digest_match", "source_replay_match", "axis_replay_match", "graph_replay_match", "result_digest_match", "semantic_match"].some((field) => verification[field] !== true)) errors.push("verification.verified requires every replay check to pass.");
   if (result.profile_digest !== profile.profile_digest) errors.push("result.profile_digest does not match the admitted bridge profile.");
   if (result.sample_id !== request.sample_id) errors.push("result.sample_id does not match the executed request.");
   return errors;
@@ -207,16 +241,21 @@ export function normalizeMicroenvironmentGraphResult(result: JsonObject): {
   graphResult: JsonObject | null;
   graphRequest: JsonObject | null;
   sourceResult: JsonObject | null;
+  axisResult: JsonObject | null;
   sourcePrograms: ReturnType<typeof normalizeNeftelPrograms>;
+  axisSignatures: ReturnType<typeof normalizeGbmSignatures>;
 } {
   const graphResult = objectAt(result, ["graph_result"]);
   const graphRequest = objectAt(result, ["graph_request"]);
   const sourceResult = objectAt(result, ["source_result"]);
+  const axisResult = objectAt(result, ["axis_result"]);
   return {
     graphResult,
     graphRequest,
     sourceResult,
+    axisResult,
     sourcePrograms: sourceResult ? normalizeNeftelPrograms(sourceResult) : [],
+    axisSignatures: axisResult ? normalizeGbmSignatures(axisResult) : [],
   };
 }
 

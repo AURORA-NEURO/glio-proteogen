@@ -20,6 +20,10 @@ import {
   neftelAnalysisResult,
   neftelDemoRequest,
 } from "../fixtures/neftel-programs";
+import {
+  gbmAnalysisResult,
+  gbmDemoRequest,
+} from "../fixtures/gbm-proteomic-axes";
 
 const DIGEST = `sha256:${"a".repeat(64)}`;
 
@@ -51,10 +55,12 @@ function profile(): Record<string, unknown> {
     algorithm_version: "1.0.0",
     source_engine: "neftel-bulk-protein-programs/1.0.0",
     graph_engine: "glio-ecgi/1.0.0",
+    auxiliary_source_engine: "gbm-proteomic-axes/1.0.0",
     source_profile_digest: DIGEST,
     graph_profile_digest: DIGEST,
     topology_digest: DIGEST,
     projection_policy: "supported_bulk_programs_to_signed_microenvironment_graph_v1",
+    auxiliary_projection_policy: "independent_published_gbm_axes_as_secondary_observations_v1",
     supported_source_families: ["mesenchymal_like", "oligodendrocyte_progenitor_like"],
     missing_families_are_not_negative: true,
     cell_fraction_claim_permitted: false,
@@ -85,10 +91,12 @@ describe("GBM microenvironment graph UI contract", () => {
       graph_result: { node_states: [{ node_id: "pathway.one", kind: "pathway", activity: 0.5, classification: "activated" }] },
       graph_request: { nodes: [], edges: [], observations: [] },
       source_result: { program_evidence: [] },
+      axis_result: { signatures: gbmAnalysisResult.signatures },
     });
     expect(normalized.graphResult?.node_states).toHaveLength(1);
     expect(normalized.graphRequest?.nodes).toEqual([]);
     expect(normalized.sourcePrograms).toEqual([]);
+    expect(normalized.axisSignatures).toHaveLength(7);
   });
 
   it("admits the complete bridge receipt and replay envelope", () => {
@@ -96,6 +104,7 @@ describe("GBM microenvironment graph UI contract", () => {
       profile_id: GBM_MICROENVIRONMENT_GRAPH_PROFILE_ID,
       sample_id: neftelDemoRequest.sample_id,
       source_request: neftelDemoRequest,
+      axis_request: { ...gbmDemoRequest, sample_id: neftelDemoRequest.sample_id },
     };
     const bridgeProfile = {
       ...profile(),
@@ -108,6 +117,7 @@ describe("GBM microenvironment graph UI contract", () => {
       result_digest: DIGEST,
       sample_id: neftelDemoRequest.sample_id,
       source_result: neftelAnalysisResult,
+      axis_result: { ...gbmAnalysisResult, sample_id: neftelDemoRequest.sample_id },
       graph_request: demoRequest,
       graph_result: { ...analysisResult, profile_digest: algorithmProfile.profile_digest },
       limitations: ["synthetic bridge evidence"],
@@ -126,6 +136,7 @@ describe("GBM microenvironment graph UI contract", () => {
       verified: true,
       request_digest_match: true,
       source_replay_match: true,
+      axis_replay_match: true,
       graph_replay_match: true,
       result_digest_match: true,
       semantic_match: true,
