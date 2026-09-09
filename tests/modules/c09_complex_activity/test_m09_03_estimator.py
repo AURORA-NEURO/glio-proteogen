@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import UTC, datetime
+from itertools import pairwise
 
 import pytest
 
@@ -35,6 +36,7 @@ from glio_proteogen.modules.c09_complex_activity import (
 
 _DIGEST = "sha256:" + ("a" * 64)
 _M0902_MEDIA_TYPE = "application/vnd.glio-proteogen.m09-02+json"
+_FIRST_CANDIDATE_CALL = 2
 
 
 def _artifact(name: str, media_type: str = "application/json") -> ArtifactReference:
@@ -164,6 +166,27 @@ def test_typed_glioma_baseline_fits_program_relations_and_bootstrap() -> None:
     assert first.result.optimization_diagnostics[0].status.value == "converged"
     assert first.result.optimization_diagnostics[0].objective_trace_digest is not None
     assert engine.verify(first.result, first.canonical_bytes, request)
+
+
+def test_typed_baseline_solver_backtracks_objective_increasing_sweep(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    original = engine_module._typed_objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == _FIRST_CANDIDATE_CALL else value
+
+    monkeypatch.setattr(engine_module, "_typed_objective", objective)
+    fitted = engine_module._fit_typed_states(_typed_observations(), max_iterations=128)
+    assert fitted is not None
+    _states, _objective, _iterations, _gap, trace = fitted
+    assert calls > _FIRST_CANDIDATE_CALL
+    assert all(
+        after <= before + engine_module._TYPED_OBJECTIVE_TOLERANCE
+        for before, after in pairwise(trace)
+    )
 
 
 def test_typed_baseline_is_input_order_invariant_and_missing_is_neutral() -> None:

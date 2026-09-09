@@ -552,7 +552,9 @@ The additive M09-03 runtime now recognizes the
 protein effects are fitted across RTK/PI3K/AKT/mTOR, p53/DNA repair,
 IDH/HIF1A, hypoxia/angiogenesis, and cell-cycle programs with quality and
 standard-error weighting, robust Huber IRLS coordinate descent, ridge
-stabilization, and signed program relations. Left-censored evidence uses a
+stabilization, and signed program relations. The Jacobi update is followed by a
+deterministic backtracking line search, so the recorded objective trace is
+monotone under robust breakpoint crossings. Left-censored evidence uses a
 one-sided detection-limit loss; missing and unsupported observations are
 excluded and never become negative evidence. Program starts are computed from
 observed effects only and projected onto the tightest left-censor bound;

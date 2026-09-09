@@ -94,6 +94,9 @@ _TYPED_DAMPING: Final = 0.62
 _TYPED_RIDGE: Final = 0.15
 _TYPED_RELATION_STRENGTH: Final = 0.22
 _TYPED_TOLERANCE: Final = 1e-5
+_TYPED_OBJECTIVE_TOLERANCE: Final = 1e-10
+_TYPED_BACKTRACKING_STEPS: Final = 18
+_TYPED_BACKTRACKING_FACTOR: Final = 0.5
 _TYPED_MAX_ITERATIONS: Final = 128
 _MIN_TYPED_OBSERVATIONS: Final = 3
 _MIN_TYPED_PROGRAMS: Final = 2
@@ -523,7 +526,7 @@ def _typed_objective(
     return float(total)
 
 
-def _fit_typed_states(  # noqa: C901, PLR0912 - coordinate descent intentionally has explicit safeguards.
+def _fit_typed_states(  # noqa: C901, PLR0912, PLR0915 - coordinate descent safeguards are explicit.
     observations: tuple[GliomaBaselineObservation, ...],
     *,
     max_iterations: int,
@@ -544,11 +547,16 @@ def _fit_typed_states(  # noqa: C901, PLR0912 - coordinate descent intentionally
         )
         if members:
             states[index] = _initial_typed_state(members)
-    trace: list[float] = []
+    initial_objective = _typed_objective(observations, states, include_relations=include_relations)
+    if not isfinite(initial_objective):
+        return None
+    trace: list[float] = [round(initial_objective, 10)]
     gap = float("inf")
     iterations = 0
     for iteration in range(min(max_iterations, _TYPED_MAX_ITERATIONS)):
         iterations = iteration + 1
+        previous = states.copy()
+        previous_objective = trace[-1]
         updated = states.copy()
         for index, program in enumerate(_PROGRAMS):
             members = tuple(
@@ -588,13 +596,36 @@ def _fit_typed_states(  # noqa: C901, PLR0912 - coordinate descent intentionally
                         denominator += _TYPED_RELATION_STRENGTH
             proposal = numerator / max(denominator, 1e-12)
             updated[index] = _TYPED_DAMPING * proposal + (1.0 - _TYPED_DAMPING) * states[index]
-        gap = float(np.max(np.abs(updated - states)))
-        states = np.clip(updated, -M0903_MAX_TYPED_EFFECT, M0903_MAX_TYPED_EFFECT)
-        objective = _typed_objective(observations, states, include_relations=include_relations)
+        candidate = np.clip(updated, -M0903_MAX_TYPED_EFFECT, M0903_MAX_TYPED_EFFECT)
+        objective = _typed_objective(observations, candidate, include_relations=include_relations)
+        accepted = candidate
+        if objective > previous_objective + _TYPED_OBJECTIVE_TOLERANCE:
+            # Huber influence changes at the censor boundary. Backtrack the
+            # complete Jacobi step so the audit trace cannot increase.
+            accepted = previous
+            objective = previous_objective
+            delta = candidate - previous
+            step = _TYPED_DAMPING
+            for _ in range(_TYPED_BACKTRACKING_STEPS):
+                step *= _TYPED_BACKTRACKING_FACTOR
+                trial = np.clip(
+                    previous + step * delta,
+                    -M0903_MAX_TYPED_EFFECT,
+                    M0903_MAX_TYPED_EFFECT,
+                )
+                trial_objective = _typed_objective(
+                    observations, trial, include_relations=include_relations
+                )
+                if trial_objective <= previous_objective + _TYPED_OBJECTIVE_TOLERANCE:
+                    accepted = trial
+                    objective = trial_objective
+                    break
+        states = accepted
+        gap = float(np.max(np.abs(states - previous)))
         if not isfinite(objective):
             return None
         trace.append(round(objective, 10))
-        if gap <= _TYPED_TOLERANCE:
+        if gap <= _TYPED_TOLERANCE and abs(previous_objective - objective) <= _TYPED_TOLERANCE:
             break
     if not trace or not isfinite(gap):
         return None
