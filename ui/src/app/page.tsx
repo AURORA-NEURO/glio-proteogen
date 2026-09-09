@@ -258,6 +258,21 @@ import {
   ImmunopeptidomicPresentationEvidencePanel,
   ImmunopeptidomicPresentationResultPanels,
 } from "@/components/immunopeptidomic-presentation-panels";
+import {
+  GBM_RNA_COMPOSITION_PROFILE_ID,
+  gbmRnaCompositionRequestStats,
+  validateGbmMixtureDemo,
+  validateGbmMixtureProfile,
+  validateGbmMixtureRequest,
+  validateGbmMixtureResult,
+  validateGbmMixtureResultHeaders,
+  validateGbmMixtureVerification,
+} from "@/lib/gbm-rna-composition";
+import {
+  GbmRnaCompositionAuditPanels,
+  GbmRnaCompositionEvidencePanel,
+  GbmRnaCompositionResultPanels,
+} from "@/components/gbm-rna-composition-panels";
 
 const MIB = 1024 * 1024;
 const HEALTH_RESPONSE_LIMIT_BYTES = 16 * 1024;
@@ -269,7 +284,7 @@ const PROBE_TIMEOUT_MS = 5_000;
 type ProbeState = "checking" | "online" | "degraded" | "offline";
 type Probe = { state: ProbeState; detail: string; latency: number | null };
 type View = "results" | "network" | "evidence" | "audit";
-type WorkbenchMode = "evidence-graph" | "gbm-proteomic-axes" | "neftel-programs" | "gbm-master-kinases" | "gbm-functional-proteotype" | "gbm-rna-purity" | "gbm-microenvironment-graph" | "immunopeptidomic-presentation" | "longitudinal-gbm" | "longitudinal-gbm-phospho" | "longitudinal-gbm-kinase-transition" | "longitudinal-gbm-reactome-transition" | "longitudinal-gbm-neftel-transition" | "longitudinal-gbm-complex-transition" | "gbm-factor-graph";
+type WorkbenchMode = "evidence-graph" | "gbm-proteomic-axes" | "neftel-programs" | "gbm-master-kinases" | "gbm-functional-proteotype" | "gbm-rna-purity" | "gbm-rna-composition" | "gbm-microenvironment-graph" | "immunopeptidomic-presentation" | "longitudinal-gbm" | "longitudinal-gbm-phospho" | "longitudinal-gbm-kinase-transition" | "longitudinal-gbm-reactome-transition" | "longitudinal-gbm-neftel-transition" | "longitudinal-gbm-complex-transition" | "gbm-factor-graph";
 type ComplexBottleneck = { complex: NormalizedState; member: NormalizedState | null; essential: boolean; memberCount: number; gap: number | null };
 
 type LaneConfig = {
@@ -348,6 +363,14 @@ const LANES: Record<WorkbenchMode, LaneConfig> = {
     replayLimitBytes: 8 * MIB,
     requestLabel: "GBM RNA purity request JSON",
     defaultProfileId: GBM_RNA_PURITY_PROFILE_ID,
+  },
+  "gbm-rna-composition": {
+    apiBase: "/backend/v1/research/gbm-rna-composition",
+    requestLimitBytes: 2 * MIB,
+    resultLimitBytes: 4 * MIB,
+    replayLimitBytes: 6 * MIB,
+    requestLabel: "GBM RNA composition request JSON",
+    defaultProfileId: GBM_RNA_COMPOSITION_PROFILE_ID,
   },
   "gbm-microenvironment-graph": {
     apiBase: "/backend/v1/research/gbm-microenvironment-graph",
@@ -532,6 +555,24 @@ const LANE_COPY: Record<WorkbenchMode, LaneCopy> = {
     receiptLabel: "Sample",
     receiptKey: "sample_id",
   },
+  "gbm-rna-composition": {
+    demoLoaded: "Synthetic GBM RNA mixture loaded. Validate or run the caller-owned simplex solver.",
+    running: "Fitting the Dirichlet–multinomial adaptive-unknown simplex and closing KKT diagnostics…",
+    complete: "GBM RNA composition analysis complete. Weights remain RNA mixture coordinates, not histologic fractions.",
+    replayVerified: "Replay verified: request, profile, solver trace, and result digests match.",
+    reset: "Synthetic GBM RNA mixture reset to its caller-owned demonstration.",
+    heroEyebrow: "GLIO / CALLER-OWNED GBM RNA COMPOSITION",
+    heroLead: "Resolve glioma mixtures.",
+    heroBoundary: "Keep unknown mass explicit.",
+    heroIntro: "A count-native Dirichlet–multinomial simplex solver for caller-supplied glioma lineage signatures. Adaptive unknown background, KKT closure, condition diagnostics, and replay-stable objectives remain visible; outputs are RNA mixture weights, never GBmap or histologic cell fractions.",
+    inputTitle: "RNA mixture request",
+    emptyMark: "RNA∑",
+    emptyTitle: "The caller-owned RNA simplex is ready.",
+    emptyBody: "Run the synthetic glioma-like marker mixture or edit raw counts and positive reference signatures to inspect lineage coordinates, unexplained mass, identifiability, OOD diagnostics, and solver closure.",
+    emptyTags: ["Dirichlet–multinomial", "adaptive unknown", "KKT", "replay"],
+    receiptLabel: "Sample",
+    receiptKey: "sample_id",
+  },
   "gbm-microenvironment-graph": {
     demoLoaded: "Synthetic GBM microenvironment graph loaded. Validate or run the source-locked bridge.",
     running: "Running Neftel program inference, signed microenvironment graph propagation, bootstrap, kinase enrichment, and ablations…",
@@ -708,6 +749,7 @@ function validateModeRequest(mode: WorkbenchMode, request: JsonObject): string[]
     case "gbm-master-kinases": return validateMasterKinaseRequest(request);
     case "gbm-functional-proteotype": return validateFunctionalProteotypeRequest(request);
     case "gbm-rna-purity": return validateGbmRnaPurityRequest(request);
+    case "gbm-rna-composition": return validateGbmMixtureRequest(request);
     case "gbm-microenvironment-graph": return validateMicroenvironmentGraphRequest(request);
     case "immunopeptidomic-presentation": return validatePresentationRequest(request);
     case "longitudinal-gbm": return validateLongitudinalRequest(request);
@@ -760,6 +802,7 @@ function usesSeriesTimeout(mode: WorkbenchMode): boolean {
     case "gbm-master-kinases":
     case "gbm-functional-proteotype":
     case "gbm-rna-purity":
+    case "gbm-rna-composition":
     case "gbm-microenvironment-graph":
     case "immunopeptidomic-presentation":
       return false;
@@ -1380,6 +1423,9 @@ export default function ResearchWorkbench() {
           } else if (mode === "immunopeptidomic-presentation") {
             const profileErrors = validatePresentationProfile(payload);
             if (profileErrors.length) throw new Error(`The immunopeptidomic profile failed closed:\n${profileErrors.join("\n")}`);
+          } else if (mode === "gbm-rna-composition") {
+            const profileErrors = validateGbmMixtureProfile(payload);
+            if (profileErrors.length) throw new Error(`The GBM RNA composition profile failed closed:\n${profileErrors.join("\n")}`);
           }
           return payload;
         }),
@@ -1461,6 +1507,9 @@ export default function ResearchWorkbench() {
           } else if (mode === "immunopeptidomic-presentation") {
             const demoErrors = validatePresentationDemo(demoResponse.value.payload, admittedProfile);
             if (demoErrors.length) throw new Error(`The immunopeptidomic demo failed closed:\n${demoErrors.join("\n")}`);
+          } else if (mode === "gbm-rna-composition") {
+            const demoErrors = validateGbmMixtureDemo(demoResponse.value.payload, admittedProfile, demoResponse.value.headers);
+            if (demoErrors.length) throw new Error(`The GBM RNA composition demo failed closed:\n${demoErrors.join("\n")}`);
           }
           setEditor(pretty(demoResponse.value.payload));
           setMessage(LANE_COPY[mode].demoLoaded);
@@ -1514,6 +1563,7 @@ export default function ResearchWorkbench() {
   const masterKinaseStats = parsedEditor ? masterKinaseRequestStats(parsedEditor) : { observations: 0, active: 0, phosphosites: 0, signatures: 24 };
   const functionalProteotypeStats = parsedEditor ? functionalProteotypeRequestStats(parsedEditor) : { observations: 0, active: 0, observed: 0, leftCensored: 0, genes: 0, axes: 4 };
   const gbmRnaPurityStats = parsedEditor ? gbmRnaPurityRequestStats(parsedEditor) : { suppliedGenes: 0, uniqueGenes: 0, nonzeroGenes: 0, totalRawCount: 0 };
+  const gbmRnaCompositionStats = parsedEditor ? gbmRnaCompositionRequestStats(parsedEditor) : { features: 0, nonzero: 0, references: 0, depth: 0 };
   const longitudinalStats = parsedEditor ? longitudinalRequestStats(parsedEditor) : { timePoints: 0, observations: 0, active: 0, genes: 0 };
   const longitudinalPhosphoStats = parsedEditor ? longitudinalPhosphoRequestStats(parsedEditor) : { timePoints: 0, observations: 0, active: 0, phosphosites: 0 };
   const kinaseTransitionStats = parsedEditor ? kinaseTransitionRequestStats(parsedEditor) : { timePoints: 0, transitions: 0, observations: 0, active: 0, phosphosites: 0 };
@@ -1680,6 +1730,9 @@ export default function ResearchWorkbench() {
       } else if (mode === "gbm-rna-purity") {
         const currentStats = gbmRnaPurityRequestStats(parsed);
         setMessage(`Valid GBMPurity request · ${currentStats.suppliedGenes.toLocaleString("en-US")} unique raw-count genes · ${currentStats.nonzeroGenes.toLocaleString("en-US")} nonzero.`);
+      } else if (mode === "gbm-rna-composition") {
+        const currentStats = gbmRnaCompositionRequestStats(parsed);
+        setMessage(`Valid GBM RNA composition request · ${currentStats.features} features · ${currentStats.references} caller references · depth ${currentStats.depth.toLocaleString("en-US")}.`);
       } else if (mode === "gbm-microenvironment-graph") {
         const currentStats = microenvironmentGraphRequestStats(parsed);
         setMessage(`Valid GBM microenvironment request · ${currentStats.active} active Neftel protein observations · ${currentStats.programs} graph programs.`);
@@ -1803,6 +1856,12 @@ export default function ResearchWorkbench() {
           ...validatePresentationResultHeaders(response.headers, payload),
         ];
         if (resultErrors.length) throw new Error(`The immunopeptidomic result failed closed:\n${resultErrors.join("\n")}`);
+      } else if (mode === "gbm-rna-composition") {
+        const resultErrors = [
+          ...validateGbmMixtureResult(payload, parsed, profile),
+          ...validateGbmMixtureResultHeaders(response.headers, payload),
+        ];
+        if (resultErrors.length) throw new Error(`The GBM RNA composition result failed closed:\n${resultErrors.join("\n")}`);
       } else if (mode === "longitudinal-gbm-neftel-transition") {
         const resultErrors = [
           ...validateNeftelTransitionResult(payload),
@@ -1940,6 +1999,11 @@ export default function ResearchWorkbench() {
           ? validatePresentationVerification(payload, result, request, profile)
           : ["The admitted immunopeptidomic profile is unavailable."];
         if (verificationErrors.length) throw new Error(`The immunopeptidomic replay response failed closed:\n${verificationErrors.join("\n")}`);
+      } else if (mode === "gbm-rna-composition") {
+        const verificationErrors = profile
+          ? validateGbmMixtureVerification(payload, result, request, profile)
+          : ["The admitted GBM RNA composition profile is unavailable."];
+        if (verificationErrors.length) throw new Error(`The GBM RNA composition replay response failed closed:\n${verificationErrors.join("\n")}`);
       }
       setVerification(payload);
       setMessage(payload.verified === true ? copy.replayVerified : "Replay completed with one or more mismatches.");
@@ -2031,6 +2095,9 @@ export default function ResearchWorkbench() {
       } else if (mode === "immunopeptidomic-presentation") {
         const demoErrors = validatePresentationDemo(payload, profile);
         if (demoErrors.length) throw new Error(`The immunopeptidomic demo failed closed:\n${demoErrors.join("\n")}`);
+      } else if (mode === "gbm-rna-composition") {
+        const demoErrors = validateGbmMixtureDemo(payload, profile, response.headers);
+        if (demoErrors.length) throw new Error(`The GBM RNA composition demo failed closed:\n${demoErrors.join("\n")}`);
       }
       setEditor(pretty(payload));
       setRequest(null);
@@ -2127,6 +2194,13 @@ export default function ResearchWorkbench() {
           <span>08</span><b>GBM RNA purity</b><small>Published GBMPurity MLP · exact 5,829-gene forward pass</small>
         </button>
         <button
+          aria-pressed={mode === "gbm-rna-composition"}
+          className={mode === "gbm-rna-composition" ? "active" : ""}
+          onClick={() => switchMode("gbm-rna-composition")}
+        >
+          <span>09</span><b>GBM RNA composition</b><small>Caller-owned count simplex · adaptive unknown background</small>
+        </button>
+        <button
           aria-pressed={mode === "gbm-microenvironment-graph"}
           className={mode === "gbm-microenvironment-graph" ? "active" : ""}
           onClick={() => switchMode("gbm-microenvironment-graph")}
@@ -2180,7 +2254,7 @@ export default function ResearchWorkbench() {
           <div><span>ALGORITHM PROFILE</span><b>{profileId}</b></div>
           <dl>
             <div><dt>Profile digest</dt><dd>{shortDigest(profileDigest)}</dd></div>
-            {mode === "gbm-rna-purity"
+            {mode === "gbm-rna-purity" || mode === "gbm-rna-composition"
               ? <div><dt>Uncertainty</dt><dd>not available · single fitted model</dd></div>
               : mode === "gbm-factor-graph"
                 ? <div><dt>Execution</dt><dd>2 independent children · deterministic sequence</dd></div>
@@ -2205,6 +2279,11 @@ export default function ResearchWorkbench() {
               <div><dt>Released network</dt><dd>5,829 → 32 → 16 → 1</dd></div>
               <div><dt>Coverage gate</dt><dd>80% minimum · 99% full support</dd></div>
               <div><dt>Intended context</dt><dd>primary IDH-wildtype GBM bulk RNA</dd></div>
+            </> : mode === "gbm-rna-composition" ? <>
+              <div><dt>Solver</dt><dd>Dirichlet–multinomial adaptive simplex</dd></div>
+              <div><dt>Caller limits</dt><dd>512 features · 32 references</dd></div>
+              <div><dt>Output semantics</dt><dd>RNA weights + unknown mass</dd></div>
+              <div><dt>Claim ceiling</dt><dd className="warn">no histologic fractions · research only</dd></div>
             </> : mode === "gbm-microenvironment-graph" ? <>
               <div><dt>Source bridge</dt><dd>Neftel Table S2 protein programs</dd></div>
               <div><dt>Secondary evidence</dt><dd>7 published GBM proteomic axes</dd></div>
@@ -2276,6 +2355,8 @@ export default function ResearchWorkbench() {
               <span><b>{functionalProteotypeStats.genes}</b> proteins</span><span><b>{functionalProteotypeStats.active}</b> active</span><span><b>{functionalProteotypeStats.axes}</b> constrained axes</span>
             </> : mode === "gbm-rna-purity" ? <>
               <span><b>{gbmRnaPurityStats.suppliedGenes.toLocaleString("en-US")}</b> genes</span><span><b>{gbmRnaPurityStats.nonzeroGenes.toLocaleString("en-US")}</b> nonzero</span><span><b>5,829</b> model features</span>
+            </> : mode === "gbm-rna-composition" ? <>
+              <span><b>{gbmRnaCompositionStats.features}</b> features</span><span><b>{gbmRnaCompositionStats.nonzero}</b> nonzero</span><span><b>{gbmRnaCompositionStats.references}</b> references</span>
             </> : mode === "gbm-microenvironment-graph" ? <>
               <span><b>{microenvironmentStats.observations}</b> protein observations</span><span><b>{microenvironmentStats.active}</b> active</span><span><b>{microenvironmentStats.programs}</b> graph programs</span>
             </> : mode === "immunopeptidomic-presentation" ? <>
@@ -2318,9 +2399,10 @@ export default function ResearchWorkbench() {
             <span>{error || message}</span>
           </div>
           <div className="input-boundary">
-            <p>{mode === "gbm-rna-purity" ? "Raw-count and context contract" : mode === "gbm-factor-graph" ? "Independent nested evidence contracts" : mode === "gbm-microenvironment-graph" ? "Nested Neftel source contract" : mode === "immunopeptidomic-presentation" ? "Caller-owned sequence and HLA model contract" : "Explicit evidence states"}</p>
+            <p>{mode === "gbm-rna-purity" ? "Raw-count and context contract" : mode === "gbm-rna-composition" ? "Raw-count and reference-simplex contract" : mode === "gbm-factor-graph" ? "Independent nested evidence contracts" : mode === "gbm-microenvironment-graph" ? "Nested Neftel source contract" : mode === "immunopeptidomic-presentation" ? "Caller-owned sequence and HLA model contract" : "Explicit evidence states"}</p>
             {mode === "gbm-rna-purity"
               ? <><span>raw counts</span><span>bulk RNA-seq</span><span>primary IDH-wildtype GBM</span><span>research only</span></>
+              : mode === "gbm-rna-composition" ? <><span>raw counts</span><span>positive signatures</span><span>unknown mass</span><span>research only</span></>
               : <><span>observed</span><span>left_censored</span><span>missing</span><span>unsupported</span></>}
             {mode === "gbm-proteomic-axes" && <strong>Unmeasured model features follow the published numeric zero-fill convention; they are not negative observations.</strong>}
             {mode === "evidence-graph" && <strong>Every estimate is capped LIMITED because caller-curated and synthetic-abstraction graphs are not validated glioma models.</strong>}
@@ -2328,6 +2410,7 @@ export default function ResearchWorkbench() {
             {mode === "gbm-master-kinases" && <strong>This is an independent signature-concordance engine—not an exact SPHINKS port, calibrated kinase activity, or patient subtype classification.</strong>}
             {mode === "gbm-functional-proteotype" && <strong>GPM, MTC, NEU, and PPR are jointly constrained source-cohort concordance axes—not patient subtype labels, probabilities, winners, diagnoses, or treatment assignments. Table 2e pathways are context only and never sample pathway activity.</strong>}
             {mode === "gbm-rna-purity" && <strong>Only exact primary IDH-wildtype GBM bulk RNA-seq raw counts are in scope. The output is one published-model malignant-cell-fraction estimate—not histology, immune composition, diagnosis, prognosis, or treatment guidance.</strong>}
+            {mode === "gbm-rna-composition" && <strong>Counts and reference signatures are caller supplied. Unknown mass is retained as an unexplained RNA channel; weights are not GBmap or histologic cell fractions.</strong>}
             {mode === "gbm-microenvironment-graph" && <strong>MES-like and OPC-like bulk-program evidence is projected into a signed graph. This lane does not estimate cell fractions, cellular abundance, diagnosis, prognosis, or treatment response.</strong>}
             {mode === "immunopeptidomic-presentation" && <strong>Presentation probabilities require licensed caller-supplied HLA/processing coefficients. They are not NetMHC predictions, proof of surface display, T-cell recognition, neoantigen ranking, or treatment guidance.</strong>}
             {mode === "longitudinal-gbm" && <strong>Transition direction means source-cohort T2−T1 concordance—not patient evolution, recurrence prediction, prognosis, or treatment guidance.</strong>}
@@ -2379,6 +2462,9 @@ export default function ResearchWorkbench() {
               </> : mode === "gbm-rna-purity" ? <>
                 <div><span>MODEL</span><b className="ok">exact published MLP</b></div>
                 <div><span>SUPPORT</span><b>{gbmRnaPurityEvidence?.support ?? "not parsed"} · {gbmRnaPurityEvidence ? `${formatNumber(gbmRnaPurityEvidence.coverage.coverageFraction * 100, 1)}% coverage` : "no coverage"}</b></div>
+              </> : mode === "gbm-rna-composition" ? <>
+                <div><span>METHODS</span><b className="ok">Dirichlet–multinomial simplex</b></div>
+                <div><span>SUPPORT</span><b>{String(result.support ?? "abstained")} · {String(result.known_weights ? arrayAt(result, ["known_weights"]).length : 0)} references</b></div>
               </> : mode === "gbm-microenvironment-graph" ? <>
                 <div><span>METHODS</span><b className="ok">Neftel → signed ECGI bridge</b></div>
                 <div><span>SUPPORT</span><b>{supportedCount} graph states · {microenvironmentSupportedFamilyCount(microenvironment.sourceResult)} source families</b></div>
@@ -2513,6 +2599,10 @@ export default function ResearchWorkbench() {
 
           {mode === "gbm-rna-purity" && result && gbmRnaPurityEvidence && view === "results" && (
             <GbmRnaPurityResultPanels evidence={gbmRnaPurityEvidence} />
+          )}
+
+          {mode === "gbm-rna-composition" && result && view === "results" && (
+            <GbmRnaCompositionResultPanels result={result} />
           )}
 
           {mode === "gbm-microenvironment-graph" && result && view === "results" && (
@@ -2753,6 +2843,10 @@ export default function ResearchWorkbench() {
             <GbmRnaPurityEvidencePanel request={request} evidence={gbmRnaPurityEvidence} />
           )}
 
+          {mode === "gbm-rna-composition" && result && request && view === "evidence" && (
+            <GbmRnaCompositionEvidencePanel request={request} result={result} />
+          )}
+
           {mode === "longitudinal-gbm" && result && request && view === "evidence" && (
             <LongitudinalEvidencePanel
               request={request}
@@ -2902,6 +2996,10 @@ export default function ResearchWorkbench() {
               <section className="result-panel limitations-panel"><div className="panel-title-row"><div><p className="eyebrow">BOUNDARIES</p><h3>GBMPurity limitations</h3></div></div><ul>{limitations.map((item, index) => <li key={index}>{typeof item === "string" ? item : pretty(item)}</li>)}</ul><p>This single published-model estimate is research-use-only. It is not histologic truth, immune/stromal composition, diagnosis, prognosis, treatment-response prediction, or treatment guidance, and it carries no fabricated calibrated interval.</p></section>
               <JsonPanel title="Raw GBMPurity receipt" eyebrow="IMMUTABLE PAYLOAD" value={safeJson(result)} empty="No result is available." />
             </div>
+          )}
+
+          {mode === "gbm-rna-composition" && result && view === "audit" && (
+            <GbmRnaCompositionAuditPanels result={result} profile={profile} verification={verification} />
           )}
 
           {mode === "longitudinal-gbm" && result && view === "audit" && (

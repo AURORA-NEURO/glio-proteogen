@@ -367,6 +367,18 @@ remains a licensed-model integration boundary: GLIO-PROTEOGEN ships no NetMHC
 weights, does not claim cell-surface presentation or T-cell recognition, and
 emits no neoantigen, clinical, or treatment recommendation.
 
+## Completed GBM RNA composition workbench lane
+
+The caller-owned `gbm-rna-composition/0.1.0` count-native runtime is now linked
+end to end in the scientific workbench. Users can load or edit a bounded raw
+count vector and positive lineage signatures, validate the exact simplex
+contract, run the Dirichlet--multinomial adaptive-unknown solver, and inspect
+lineage RNA weights, unexplained gene mass, KKT/objective-trace closure,
+condition-number identifiability, and OOD diagnostics. Replay verification and
+source-digest receipts are rendered from backend results. The lane never
+relabels mixture weights as GBmap or histologic cell fractions and does not
+bundle a fitted GBmap artifact or patient data.
+
 ## Completed M06-04 coupled glioma abundance lane
 
 The additive M06-04 runtime now includes the locked
