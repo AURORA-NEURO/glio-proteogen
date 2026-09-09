@@ -741,7 +741,9 @@ explicit observed, left-censored, missing, or unsupported states. Signed
 activation, inhibition, and coupling relations are fitted with robust Huber
 loss, ridge stabilization, and damped coordinate descent; deterministic
 digest-seeded bootstrap perturbations produce posterior intervals per panel
-mechanism.
+mechanism. Initialization treats left-censored effects as upper bounds: observed
+centers are clamped to feasible limits and censor-only mechanisms start at the
+ridge-neutral feasible value.
 
 The original closed posterior/state grammar remains compatible for other model
 families. The typed path requires two supported mechanisms and a signed edge,

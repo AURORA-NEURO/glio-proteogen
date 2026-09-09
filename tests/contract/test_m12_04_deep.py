@@ -231,6 +231,19 @@ def test_typed_glioma_panel_graph_fits_and_replays() -> None:
     assert engine.verify(result) == result
 
 
+def test_typed_initialization_keeps_left_censored_limits_feasible() -> None:
+    """Mechanism starts use observed centers and feasible censor bounds."""
+
+    observations = [
+        (0, 1.2, 0.2, 1.0, MechanismObservationState.OBSERVED),
+        (0, 0.4, 0.2, 1.0, MechanismObservationState.LEFT_CENSORED),
+        (1, -0.3, 0.2, 1.0, MechanismObservationState.LEFT_CENSORED),
+    ]
+
+    values = engine_module._initial_typed_values(observations, 2)
+    assert values == [0.4, -0.3]
+
+
 def test_state_method_preserves_alternatives_and_counter_evidence() -> None:
     result = M1204MechanismEngine().infer(_request("state:mechanism-b:State mechanism:active"))
     assert result.status is MechanismInferenceStatus.INFERRED

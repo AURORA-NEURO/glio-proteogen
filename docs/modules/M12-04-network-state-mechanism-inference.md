@@ -45,7 +45,10 @@ uncertainty dimensions, and machine-readable limitations. Unsupported or
 missing evidence is never converted to a negative mechanism finding.
 
 Every inferred estimate retains at least one assumption, alternative, and
-counter-evidence reference. Every result carries seven uncertainty dimensions
+counter-evidence reference. Typed graph starts treat left-censored effects as
+upper bounds (observed centers are clamped to feasible limits; censor-only
+mechanisms start at the ridge-neutral feasible value), never as exact evidence.
+Every result carries seven uncertainty dimensions
 (measurement, sampling, parameter, model-form, identification, support,
 transport), sensitivity notes, seven control-decision provenance records,
 canonical request digest, and canonical result digest. Replay reconstructs the

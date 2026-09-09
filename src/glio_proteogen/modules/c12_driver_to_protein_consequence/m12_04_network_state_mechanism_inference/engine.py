@@ -304,6 +304,36 @@ def _relation_coefficient(kind: MechanismRelationKind, weight: float) -> float:
     return math.copysign(magnitude, weight if abs(weight) > _M1204_MIN_SCALE else 1.0)
 
 
+def _initial_typed_values(
+    observations: list[tuple[int, float, float, float, MechanismObservationState]],
+    mechanism_count: int,
+) -> list[float]:
+    """Build a feasible graph start without treating censor limits as values."""
+
+    values = [0.0] * mechanism_count
+    for position in range(mechanism_count):
+        terms = [item for item in observations if item[0] == position]
+        observed = tuple(
+            item for item in terms if item[4] is MechanismObservationState.OBSERVED
+        )
+        limits = tuple(
+            item[1] for item in terms if item[4] is MechanismObservationState.LEFT_CENSORED
+        )
+        if observed:
+            total = sum(item[3] / max(_M1204_MIN_SCALE, item[2] ** 2) for item in observed)
+            center = sum(
+                item[1] * item[3] / max(_M1204_MIN_SCALE, item[2] ** 2)
+                for item in observed
+            ) / max(_M1204_MIN_SCALE, total)
+            initial = min((center, *limits)) if limits else center
+        elif limits:
+            initial = min((0.0, *limits))
+        else:
+            continue
+        values[position] = initial
+    return values
+
+
 def _fit_typed(  # noqa: C901, PLR0912 - explicit coordinate updates are auditable.
     request: InferBiomarkerPanelMechanismRequest,
     *,
@@ -348,13 +378,7 @@ def _fit_typed(  # noqa: C901, PLR0912 - explicit coordinate updates are auditab
     )
     if not relations:
         return None
-    values = [0.0] * len(mechanism_ids)
-    for position in range(len(values)):
-        terms = [item for item in observations if item[0] == position]
-        total = sum(item[3] / max(_M1204_MIN_SCALE, item[2] ** 2) for item in terms)
-        values[position] = sum(
-            item[1] * item[3] / max(_M1204_MIN_SCALE, item[2] ** 2) for item in terms
-        ) / max(_M1204_MIN_SCALE, total)
+    values = _initial_typed_values(observations, len(mechanism_ids))
     objective = float("inf")
     for iteration in range(1, _M1204_SOLVER_ITERATIONS + 1):
         previous = values.copy()
