@@ -846,9 +846,10 @@ The additive M12-04 runtime now supports an opt-in
 observations carry standardized effects, standard errors, quality weights, and
 explicit observed, left-censored, missing, or unsupported states. Signed
 activation, inhibition, and coupling relations are fitted with robust Huber
-loss, ridge stabilization, and damped coordinate descent; deterministic
-digest-seeded bootstrap perturbations produce posterior intervals per panel
-mechanism. Initialization treats left-censored effects as upper bounds: observed
+loss, ridge stabilization, and frozen-parent damped Jacobi coordinate descent;
+objective-safe backtracking preserves a monotone replay-auditable trace.
+Deterministic digest-seeded bootstrap perturbations produce posterior intervals
+per panel mechanism. Initialization treats left-censored effects as upper bounds: observed
 centers are clamped to feasible limits and censor-only mechanisms start at the
 ridge-neutral feasible value.
 

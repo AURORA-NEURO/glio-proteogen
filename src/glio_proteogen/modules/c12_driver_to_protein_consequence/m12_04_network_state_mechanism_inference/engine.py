@@ -61,6 +61,9 @@ _M1204_DAMPING: Final = 0.72
 _M1204_HUBER_DELTA: Final = 1.5
 _M1204_SOLVER_ITERATIONS: Final = 160
 _M1204_SOLVER_TOLERANCE: Final = 1e-6
+_M1204_OBJECTIVE_TOLERANCE: Final = 1e-10
+_M1204_BACKTRACKING_STEPS: Final = 18
+_M1204_BACKTRACKING_FACTOR: Final = 0.5
 _M1204_MIN_SCALE: Final = 1e-6
 _M1204_MIN_TYPED_MECHANISMS: Final = 2
 
@@ -72,6 +75,7 @@ class _TypedFit:
     objective: float
     iterations: int
     converged: bool
+    trace: tuple[float, ...]
 
 
 class M1204MechanismAuthorizationError(PermissionError):
@@ -334,7 +338,29 @@ def _initial_typed_values(
     return values
 
 
-def _fit_typed(  # noqa: C901, PLR0912 - explicit coordinate updates are auditable.
+def _typed_objective(
+    values: list[float],
+    observations: list[tuple[int, float, float, float, MechanismObservationState]],
+    relations: tuple[tuple[int, int, float], ...],
+) -> float:
+    objective = _M1204_RIDGE * sum(value * value for value in values)
+    objective += sum(
+        quality
+        * _huber(
+            max(0.0, (values[index] - target) / max(_M1204_MIN_SCALE, uncertainty))
+            if state is MechanismObservationState.LEFT_CENSORED
+            else (values[index] - target) / max(_M1204_MIN_SCALE, uncertainty)
+        )
+        for index, target, uncertainty, quality, state in observations
+    )
+    objective += sum(
+        0.5 * (values[target] - coefficient * values[source]) ** 2
+        for source, target, coefficient in relations
+    )
+    return objective
+
+
+def _fit_typed(  # noqa: C901, PLR0912, PLR0915 - solver safeguards are explicit.
     request: InferBiomarkerPanelMechanismRequest,
     *,
     perturbation: Mapping[str, float] | None = None,
@@ -379,10 +405,15 @@ def _fit_typed(  # noqa: C901, PLR0912 - explicit coordinate updates are auditab
     if not relations:
         return None
     values = _initial_typed_values(observations, len(mechanism_ids))
-    objective = float("inf")
+    initial_objective = _typed_objective(values, observations, relations)
+    if not math.isfinite(initial_objective):
+        return None
+    trace = [round(initial_objective, 10)]
     for iteration in range(1, _M1204_SOLVER_ITERATIONS + 1):
         previous = values.copy()
-        for position, current in enumerate(values):
+        previous_objective = trace[-1]
+        proposals = previous.copy()
+        for position, current in enumerate(previous):
             gradient = 2.0 * _M1204_RIDGE * current
             hessian = 2.0 * _M1204_RIDGE
             for index_value, target, uncertainty, quality, state in observations:
@@ -404,34 +435,48 @@ def _fit_typed(  # noqa: C901, PLR0912 - explicit coordinate updates are auditab
                 hessian += information
             for source, target, coefficient in relations:
                 if position == source:
-                    residual = values[target] - coefficient * current
+                    residual = previous[target] - coefficient * current
                     gradient -= coefficient * residual
                     hessian += coefficient * coefficient
                 elif position == target:
-                    residual = current - coefficient * values[source]
+                    residual = current - coefficient * previous[source]
                     gradient += residual
                     hessian += 1.0
             proposal = current - gradient / max(_M1204_MIN_SCALE, hessian)
-            values[position] = current + _M1204_DAMPING * (proposal - current)
-        next_objective = _M1204_RIDGE * sum(value * value for value in values)
-        next_objective += sum(
-            quality
-            * _huber(
-                max(0.0, (value - target) / max(_M1204_MIN_SCALE, uncertainty))
-                if state is MechanismObservationState.LEFT_CENSORED
-                else (value - target) / max(_M1204_MIN_SCALE, uncertainty)
-            )
-            for index_value, target, uncertainty, quality, state in observations
-            for value in (values[index_value],)
-        )
-        next_objective += sum(
-            0.5 * (values[target] - coefficient * values[source]) ** 2
-            for source, target, coefficient in relations
-        )
+            proposals[position] = current + _M1204_DAMPING * (proposal - current)
+        next_objective = _typed_objective(proposals, observations, relations)
+        accepted = proposals
+        if not math.isfinite(next_objective) or (
+            next_objective > previous_objective + _M1204_OBJECTIVE_TOLERANCE
+        ):
+            # Robust breakpoints and signed cycles can make a full Jacobi sweep
+            # overshoot. Backtrack the complete vector update to preserve a
+            # deterministic, replay-auditable monotone objective trace.
+            accepted = previous.copy()
+            next_objective = previous_objective
+            delta = [after - before for after, before in zip(proposals, previous, strict=True)]
+            step = _M1204_DAMPING
+            for _ in range(_M1204_BACKTRACKING_STEPS):
+                step *= _M1204_BACKTRACKING_FACTOR
+                trial = [
+                    before + step * change
+                    for before, change in zip(previous, delta, strict=True)
+                ]
+                trial_objective = _typed_objective(trial, observations, relations)
+                if math.isfinite(trial_objective) and (
+                    trial_objective <= previous_objective + _M1204_OBJECTIVE_TOLERANCE
+                ):
+                    accepted = trial
+                    next_objective = trial_objective
+                    break
+            else:
+                return None
+        values = accepted
+        trace.append(round(next_objective, 10))
         update = max(abs(after - before) for after, before in zip(values, previous, strict=True))
         if (
             update <= _M1204_SOLVER_TOLERANCE
-            and abs(objective - next_objective) <= 2.0 * _M1204_SOLVER_TOLERANCE
+            and abs(previous_objective - next_objective) <= _M1204_SOLVER_TOLERANCE
         ):
             return _TypedFit(
                 mechanism_ids=mechanism_ids,
@@ -439,14 +484,15 @@ def _fit_typed(  # noqa: C901, PLR0912 - explicit coordinate updates are auditab
                 objective=float(f"{next_objective:.8f}"),
                 iterations=iteration,
                 converged=True,
+                trace=tuple(float(f"{value:.8f}") for value in trace),
             )
-        objective = next_objective
     return _TypedFit(
         mechanism_ids=mechanism_ids,
         values=tuple(float(f"{value:.8f}") for value in values),
-        objective=float(f"{objective:.8f}"),
+        objective=float(f"{trace[-1]:.8f}"),
         iterations=_M1204_SOLVER_ITERATIONS,
         converged=False,
+        trace=tuple(float(f"{value:.8f}") for value in trace),
     )
 
 

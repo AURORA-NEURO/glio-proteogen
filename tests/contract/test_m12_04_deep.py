@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from itertools import pairwise
 from typing import Any
 
 import pytest
@@ -229,6 +230,62 @@ def test_typed_glioma_panel_graph_fits_and_replays() -> None:
         > 0.5
     )
     assert engine.verify(result) == result
+
+
+def test_typed_panel_solver_backtracks_objective_increase(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    base = _request()
+    request = base.model_copy(
+        update={
+            "configuration": base.configuration.model_copy(
+                update={"model_family": M1204_GLIOMA_MODEL_FAMILY, "bootstrap_replicates": 8}
+            ),
+            "typed_observations": (
+                MechanismObservation(
+                    observation_id="obs.egfr",
+                    mechanism_id="egfr",
+                    label="EGFR signaling",
+                    standardized_effect=1.1,
+                    standard_error=0.2,
+                    quality_weight=0.95,
+                ),
+                MechanismObservation(
+                    observation_id="obs.pten",
+                    mechanism_id="pten",
+                    label="PTEN brake",
+                    standardized_effect=-0.7,
+                    standard_error=0.25,
+                    quality_weight=0.9,
+                ),
+            ),
+            "typed_relations": (
+                MechanismRelation(
+                    relation_id="rel.egfr-pten",
+                    source_mechanism_id="egfr",
+                    target_mechanism_id="pten",
+                    kind=MechanismRelationKind.INHIBITS,
+                    weight=0.7,
+                ),
+            ),
+        }
+    )
+    original = engine_module._typed_objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == 2 else value
+
+    monkeypatch.setattr(engine_module, "_typed_objective", objective)
+    fit = engine_module._fit_typed(request)
+    assert fit is not None
+    assert fit.converged
+    assert calls > 2
+    assert all(
+        after <= before + engine_module._M1204_OBJECTIVE_TOLERANCE
+        for before, after in pairwise(fit.trace)
+    )
 
 
 def test_typed_initialization_keeps_left_censored_limits_feasible() -> None:
