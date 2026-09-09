@@ -673,7 +673,9 @@ digest-seeded bootstrap intervals, top drivers, and signed-edge ablation effects
 for every supported program.
 
 The original closed true/false and numeric constraint evaluator, hard/soft
-semantics, and replay envelope remain compatible. If the typed graph has no
+semantics, and replay envelope remain compatible. Strict `>`/`<` comparisons
+now reject equality, and a left-censored limit must be strictly inside a `<`
+bound before it can satisfy that constraint. If the typed graph has no
 supported evidence or fails to converge, the service abstains with review
 required rather than manufacturing a score. Program states are research-use
 only signals and do not represent clinical mechanism, diagnosis, prognosis, or

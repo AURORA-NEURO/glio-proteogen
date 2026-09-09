@@ -254,6 +254,32 @@ def test_left_censored_upper_bound_can_satisfy_numeric_constraint() -> None:
     assert result.evaluations[0].outcome is ConstraintEvaluationOutcome.SATISFIED
 
 
+def test_strict_numeric_constraints_respect_equality_and_censoring_boundaries() -> None:
+    observed = build_request(hard_expression="feature.pathway > 0.8", measured=True)
+    observed_result = M1005Service().execute(observed)
+
+    assert observed_result.status.value == "abstained"
+    assert observed_result.evaluations[0].outcome is ConstraintEvaluationOutcome.VIOLATED
+
+    censored = build_request(hard_expression="feature.pathway < 0.8", measured=True).model_copy(
+        update={
+            "feature_observations": (
+                observed.feature_observations[0].model_copy(
+                    update={
+                        "state": FeatureObservationState.LEFT_CENSORED,
+                        "value": None,
+                        "censoring_limit": 0.8,
+                    }
+                ),
+            )
+        }
+    )
+    censored_result = M1005Service().execute(censored)
+
+    assert censored_result.status.value == "abstained"
+    assert censored_result.evaluations[0].outcome is ConstraintEvaluationOutcome.NOT_EVALUABLE
+
+
 @pytest.mark.parametrize("expression", ["always_false", "x < 0"])
 def test_hard_constraint_violation_abstains(expression: str) -> None:
     result = M1005Service().execute(build_request(hard_expression=expression))

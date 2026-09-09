@@ -17,7 +17,8 @@ evaluated against the measured value with an assay-error-scaled residual and a
 continuous Gaussian satisfaction strength. Left-censored evidence is used only
 when its bound proves an upper constraint; missing or unsupported evidence remains
 `not_evaluable` and is never made negative. Other caller expressions safely
-abstain.
+abstain. Strict `>`/`<` comparisons reject equality; a censored bound proves a
+strict upper constraint only when it is strictly below the threshold.
 
 Hard constraints cannot carry weights and a hard violation always produces a
 review-required abstention. Soft constraints require an explicit weight and

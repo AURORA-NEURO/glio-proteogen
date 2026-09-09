@@ -211,7 +211,9 @@ def _numeric_constraint_result(  # noqa: PLR0911
         limit = observation.censoring_limit
         if limit is None:
             return ConstraintEvaluationOutcome.NOT_EVALUABLE, 1.0, 0.0
-        if operator in {"<=", "<"} and limit <= threshold:
+        if operator == "<=" and limit <= threshold:
+            return ConstraintEvaluationOutcome.SATISFIED, 0.0, 1.0
+        if operator == "<" and limit < threshold:
             return ConstraintEvaluationOutcome.SATISFIED, 0.0, 1.0
         return ConstraintEvaluationOutcome.NOT_EVALUABLE, 1.0, 0.0
     if observation.state is not FeatureObservationState.OBSERVED or observation.value is None:
@@ -221,8 +223,8 @@ def _numeric_constraint_result(  # noqa: PLR0911
         "==": abs(value - threshold),
         ">=": max(0.0, threshold - value),
         "<=": max(0.0, value - threshold),
-        ">": max(0.0, threshold - value),
-        "<": max(0.0, value - threshold),
+        ">": (max(threshold - value, 2.0 * _MINIMUM_SCALE) if value <= threshold else 0.0),
+        "<": (max(value - threshold, 2.0 * _MINIMUM_SCALE) if value >= threshold else 0.0),
     }[operator]
     scale = max(observation.standard_error or 0.1, _MINIMUM_SCALE)
     residual = violation / scale
