@@ -69,6 +69,9 @@ _TYPED_DAMPING: Final = 0.65
 _TYPED_HUBER_K: Final = 1.5
 _TYPED_MAX_ITERATIONS: Final = 160
 _TYPED_TOLERANCE: Final = 1e-6
+_TYPED_OBJECTIVE_TOLERANCE: Final = 1e-10
+_TYPED_BACKTRACKING_STEPS: Final = 18
+_TYPED_BACKTRACKING_FACTOR: Final = 0.5
 _TYPED_MIN_OBSERVATIONS: Final = 3
 _TYPED_MIN_PROGRAMS: Final = 2
 _TYPED_LOW_QUANTILE: Final = 0.05
@@ -509,7 +512,7 @@ def _initial_typed_values(
     return values
 
 
-def _fit_typed(  # noqa: C901, PLR0912 - explicit coordinate updates are audit-visible.
+def _fit_typed(  # noqa: C901, PLR0912, PLR0915 - explicit solver steps are audit-visible.
     observations: tuple[TypedTranscriptProteinObservation, ...],
     *,
     perturbations: Mapping[str, float] | None = None,
@@ -539,9 +542,14 @@ def _fit_typed(  # noqa: C901, PLR0912 - explicit coordinate updates are audit-v
     objective = _typed_objective(tuple(values), active, program_ids, perturbations)
     trace.append(objective)
     for iteration in range(1, _TYPED_MAX_ITERATIONS + 1):
-        previous = values.copy()
+        # Freeze the parent state for every coordinate.  This Jacobi sweep keeps
+        # the result invariant to the declaration order of programs and makes
+        # each accepted trace entry a complete graph update rather than a mix of
+        # partially updated coordinates.
+        previous = tuple(values)
+        proposals = list(previous)
         for position, program in enumerate(program_ids):
-            current = values[position]
+            current = previous[position]
             gradient = 2.0 * _TYPED_RIDGE * current
             hessian = 2.0 * _TYPED_RIDGE
             for observation in active:
@@ -564,18 +572,40 @@ def _fit_typed(  # noqa: C901, PLR0912 - explicit coordinate updates are audit-v
                 hessian += information
             for source, edge_target, coefficient in _TYPED_PROGRAM_EDGES:
                 if program == source and edge_target in index:
-                    gradient += -coefficient * (values[index[edge_target]] - coefficient * current)
+                    gradient += -coefficient * (
+                        previous[index[edge_target]] - coefficient * current
+                    )
                     hessian += coefficient * coefficient
                 elif program == edge_target and source in index:
-                    gradient += current - coefficient * values[index[source]]
+                    gradient += current - coefficient * previous[index[source]]
                     hessian += 1.0
             proposal = current - gradient / max(1e-6, hessian)
-            values[position] = current + _TYPED_DAMPING * (proposal - current)
-        update = max(abs(after - before) for after, before in zip(values, previous, strict=True))
-        next_objective = _typed_objective(tuple(values), active, program_ids, perturbations)
-        if next_objective > objective + 1e-10:
-            values = previous
+            proposals[position] = current + _TYPED_DAMPING * (proposal - current)
+
+        candidate = tuple(proposals)
+        next_objective = _typed_objective(candidate, active, program_ids, perturbations)
+        accepted = candidate
+        if next_objective > objective + _TYPED_OBJECTIVE_TOLERANCE:
+            # Robust Huber weights can change sharply around a censor boundary.
+            # Backtrack the full synchronous step so a single difficult marker
+            # cannot make the recorded objective oscillate.
+            accepted = previous
             next_objective = objective
+            step = _TYPED_DAMPING
+            delta = tuple(after - before for after, before in zip(candidate, previous, strict=True))
+            for _ in range(_TYPED_BACKTRACKING_STEPS):
+                step *= _TYPED_BACKTRACKING_FACTOR
+                trial = tuple(
+                    before + step * change
+                    for before, change in zip(previous, delta, strict=True)
+                )
+                trial_objective = _typed_objective(trial, active, program_ids, perturbations)
+                if trial_objective <= objective + _TYPED_OBJECTIVE_TOLERANCE:
+                    accepted = trial
+                    next_objective = trial_objective
+                    break
+        values = list(accepted)
+        update = max(abs(after - before) for after, before in zip(accepted, previous, strict=True))
         trace.append(next_objective)
         if update <= _TYPED_TOLERANCE and abs(objective - next_objective) <= 2.0 * _TYPED_TOLERANCE:
             return _TypedFit(

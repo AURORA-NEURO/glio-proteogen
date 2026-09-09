@@ -460,7 +460,10 @@ The additive M08-04 runtime now recognizes
 transcript/protein effects are fitted across RTK/PI3K/AKT/mTOR, p53/cell-cycle,
 IDH/HIF1A, mesenchymal, and proliferation programs with signed coupling,
 quality/standard-error weighting, robust Huber coordinate descent, and a
-digest-seeded bootstrap interval. Protein left-censoring contributes a
+digest-seeded bootstrap interval. Each iteration is a frozen-parent (Jacobi)
+sweep over the signed program graph followed by a deterministic full-step
+backtracking line search, so the objective trace is monotone and independent of
+observation/program declaration order. Protein left-censoring contributes a
 one-sided loss; missing and unsupported evidence is excluded rather than
 treated as a negative observation.
 

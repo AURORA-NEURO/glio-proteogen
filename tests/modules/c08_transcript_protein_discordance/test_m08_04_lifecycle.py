@@ -38,6 +38,7 @@ from glio_proteogen.modules.c08_transcript_protein_discordance import (
 )
 
 _EXPECTED_ESTIMATES = 2
+_FIRST_CANDIDATE_CALL = 2
 _TYPED_ESTIMATE_COUNT = 3
 _POSTERIOR_MIDPOINT = 0.5
 
@@ -300,6 +301,62 @@ def test_typed_glioma_discordance_graph_bootstraps_and_replays() -> None:
     assert service.replay(request, result) == result
     reordered = request.model_copy(update={"typed_observations": tuple(reversed(typed))})
     assert service.execute(reordered) == result
+
+
+def test_typed_solver_backtracks_an_objective_increasing_sweep(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    typed = (
+        TypedTranscriptProteinObservation(
+            observation_id="obs.egfr",
+            feature_id="EGFR",
+            gene="EGFR",
+            program=GliomaDiscordanceProgram.RTK_PI3K_AKT_MTOR,
+            state=TypedDiscordanceEvidenceState.OBSERVED,
+            transcript_effect=0.4,
+            protein_effect=1.1,
+            transcript_standard_error=0.15,
+            protein_standard_error=0.2,
+        ),
+        TypedTranscriptProteinObservation(
+            observation_id="obs.cdk4",
+            feature_id="CDK4",
+            gene="CDK4",
+            program=GliomaDiscordanceProgram.PROLIFERATION,
+            state=TypedDiscordanceEvidenceState.OBSERVED,
+            transcript_effect=0.6,
+            protein_effect=1.0,
+            transcript_standard_error=0.15,
+            protein_standard_error=0.2,
+        ),
+        TypedTranscriptProteinObservation(
+            observation_id="obs.tp53",
+            feature_id="TP53",
+            gene="TP53",
+            program=GliomaDiscordanceProgram.P53_CELL_CYCLE,
+            state=TypedDiscordanceEvidenceState.LEFT_CENSORED,
+            transcript_effect=0.2,
+            protein_censor_limit=0.0,
+            transcript_standard_error=0.15,
+            protein_standard_error=0.2,
+        ),
+    )
+    original = engine_module._typed_objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == _FIRST_CANDIDATE_CALL else value
+
+    monkeypatch.setattr(engine_module, "_typed_objective", objective)
+    fit = engine_module._fit_typed(typed)
+    assert fit is not None
+    assert fit.converged is True
+    assert calls > _FIRST_CANDIDATE_CALL
+    assert all(
+        after <= before + engine_module._TYPED_OBJECTIVE_TOLERANCE
+        for before, after in zip(fit.trace[:-1], fit.trace[1:], strict=True)
+    )
 
 
 def test_typed_initialization_respects_left_censor_bounds() -> None:
