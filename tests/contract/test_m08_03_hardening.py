@@ -12,6 +12,9 @@ from glio_proteogen.contracts.m08_03 import (
     EstimateProteinSubtypeBaselineRequest,
     GliomaEvidenceState,
 )
+from glio_proteogen.modules.c08_transcript_protein.m08_03_mature_baseline_estimator import (
+    engine as engine_module,
+)
 from glio_proteogen.modules.c08_transcript_protein.m08_03_mature_baseline_estimator.engine import (
     M0803BaselineEngine,
     _initial_typed_program_value,
@@ -123,6 +126,29 @@ def test_typed_censor_only_program_starts_neutral_for_positive_limit() -> None:
     )
 
     assert _initial_typed_program_value((censored,), None) == pytest.approx(0.0)
+
+
+def test_typed_graph_fit_keeps_an_objective_safe_trace() -> None:
+    fit = engine_module._typed_fit_graph(typed_request())
+
+    assert fit.objective_trace
+    assert fit.objective == pytest.approx(fit.objective_trace[-1], abs=1e-12)
+    assert all(
+        later <= earlier + engine_module._TYPED_OBJECTIVE_TOLERANCE
+        for earlier, later in zip(fit.objective_trace, fit.objective_trace[1:], strict=False)
+    )
+
+
+def test_typed_graph_fit_is_invariant_to_relation_declaration_order(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request = typed_request()
+    baseline = engine_module._typed_fit_graph(request)
+    monkeypatch.setattr(engine_module, "_TYPED_EDGES", tuple(reversed(engine_module._TYPED_EDGES)))
+    reordered = engine_module._typed_fit_graph(request)
+
+    assert reordered.values == baseline.values
+    assert reordered.objective_trace == baseline.objective_trace
 
 
 def test_plugin_descriptor_and_forged_seal() -> None:

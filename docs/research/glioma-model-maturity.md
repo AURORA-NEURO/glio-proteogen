@@ -430,6 +430,13 @@ support abstains. The original statistical, pathway-weighted, and median
 compatibility architectures remain unchanged. Typed output is a research
 diagnostic, not a clinical subtype probability, prognosis, or treatment claim.
 
+The typed solver now evaluates every signed-program sweep from one frozen
+parent snapshot and applies Huber influence to both measurement and relation
+residuals. A deterministic backtracking line search rejects objective-increasing
+updates, and the accepted objective trace is digest-bound alongside the result.
+This makes the fit invariant to relation declaration order and keeps robust
+topology propagation auditable under strongly discordant protein evidence.
+
 ## Completed M08-02 typed glioma discordance representation lane
 
 The additive M08-02 runtime fits paired transcript/protein effects with a

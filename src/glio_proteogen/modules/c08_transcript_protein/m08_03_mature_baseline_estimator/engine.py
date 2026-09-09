@@ -59,6 +59,10 @@ _TYPED_RIDGE: Final = 0.08
 _TYPED_RELATION_WEIGHT: Final = 0.35
 _TYPED_MAX_ITERATIONS: Final = 128
 _TYPED_TOLERANCE: Final = 1e-8
+_TYPED_OBJECTIVE_TOLERANCE: Final = 1e-12
+_TYPED_BACKTRACKING_STEPS: Final = 18
+_TYPED_BACKTRACKING_FACTOR: Final = 0.5
+_TYPED_DAMPING: Final = 0.65
 _TYPED_BOOTSTRAP_LOW: Final = 0.05
 _TYPED_BOOTSTRAP_HIGH: Final = 0.95
 _TYPED_MAX_EFFECT: Final = 8.0
@@ -81,6 +85,7 @@ class _TypedFit:
     iterations: int
     maximum_update: float
     trace_digest: str
+    objective_trace: tuple[float, ...]
 
 
 class M0803BaselineAuthorizationError(PermissionError):
@@ -359,11 +364,17 @@ def _initial_typed_program_value(
     return float(max(-_TYPED_MAX_EFFECT, min(_TYPED_MAX_EFFECT, value)))
 
 
-def _typed_fit_graph(  # noqa: C901
+def _typed_fit_graph(  # noqa: C901, PLR0912, PLR0915
     request: EstimateProteinSubtypeBaselineRequest,
     overrides: Mapping[str, float] | None = None,
 ) -> _TypedFit:
-    """Fit the signed glioma program graph by damped robust coordinate descent."""
+    """Fit the signed glioma program graph with frozen-parent robust IRLS.
+
+    Every sweep computes all program proposals from one parent snapshot.  The
+    accepted step is then checked against the full Huber objective and reduced
+    deterministically when necessary.  This preserves graph-order invariance
+    while keeping the trace tied to objective-safe iterates.
+    """
 
     observations = tuple(
         observation
@@ -378,20 +389,23 @@ def _typed_fit_graph(  # noqa: C901
         if grouped:
             values[program] = _initial_typed_program_value(grouped, overrides)
     trace: list[str] = []
+    objective_trace: list[float] = []
     objective = float("inf")
     maximum_update = float("inf")
     iterations = 0
     for iteration in range(_TYPED_MAX_ITERATIONS):
         iterations = iteration + 1
         previous = values.copy()
+        baseline_objective = _typed_objective(request, previous, overrides)
+        proposal = previous.copy()
         for program in GliomaProgram:
-            numerator = _TYPED_RIDGE * 0.0
+            numerator = 0.0
             denominator = _TYPED_RIDGE
             for observation in observations:
                 if observation.program is not program:
                     continue
                 observed = _typed_value(observation, overrides)
-                residual = values[program] - observed
+                residual = previous[program] - observed
                 if (
                     observation.state is GliomaEvidenceState.LEFT_CENSORED
                     and residual <= 0.0
@@ -410,19 +424,60 @@ def _typed_fit_graph(  # noqa: C901
                 denominator += weight
             for source, target, sign in _TYPED_EDGES:
                 if target is program:
-                    numerator += _TYPED_RELATION_WEIGHT * sign * values[source]
-                    denominator += _TYPED_RELATION_WEIGHT
+                    residual = previous[program] - sign * previous[source]
+                    influence = min(1.0, _TYPED_HUBER_K / max(1.0, abs(residual)))
+                    weight = _TYPED_RELATION_WEIGHT * influence
+                    numerator += weight * sign * previous[source]
+                    denominator += weight
                 elif source is program:
-                    numerator += _TYPED_RELATION_WEIGHT * sign * values[target]
-                    denominator += _TYPED_RELATION_WEIGHT
-            proposal = numerator / denominator
-            values[program] = 0.65 * proposal + 0.35 * values[program]
-            values[program] = max(-_TYPED_MAX_EFFECT, min(_TYPED_MAX_EFFECT, values[program]))
+                    residual = previous[program] - sign * previous[target]
+                    influence = min(1.0, _TYPED_HUBER_K / max(1.0, abs(residual)))
+                    weight = _TYPED_RELATION_WEIGHT * influence
+                    numerator += weight * sign * previous[target]
+                    denominator += weight
+            program_proposal = numerator / denominator
+            proposal[program] = max(
+                -_TYPED_MAX_EFFECT,
+                min(
+                    _TYPED_MAX_EFFECT,
+                    _TYPED_DAMPING * program_proposal
+                    + (1.0 - _TYPED_DAMPING) * previous[program],
+                ),
+            )
+        candidate_objective = _typed_objective(request, proposal, overrides)
+        accepted = proposal
+        objective = candidate_objective
+        if candidate_objective > baseline_objective + _TYPED_OBJECTIVE_TOLERANCE:
+            direction = {
+                program: proposal[program] - previous[program] for program in GliomaProgram
+            }
+            step = _TYPED_BACKTRACKING_FACTOR
+            accepted = previous
+            objective = baseline_objective
+            for _ in range(_TYPED_BACKTRACKING_STEPS):
+                trial = {
+                    program: max(
+                        -_TYPED_MAX_EFFECT,
+                        min(
+                            _TYPED_MAX_EFFECT,
+                            previous[program] + step * direction[program],
+                        ),
+                    )
+                    for program in GliomaProgram
+                }
+                trial_objective = _typed_objective(request, trial, overrides)
+                if trial_objective <= baseline_objective + _TYPED_OBJECTIVE_TOLERANCE:
+                    accepted = trial
+                    objective = trial_objective
+                    break
+                step *= _TYPED_BACKTRACKING_FACTOR
+        values = accepted
         maximum_update = max(abs(values[p] - previous[p]) for p in GliomaProgram)
-        objective = _typed_objective(request, values, overrides)
+        objective_trace.append(float(objective))
         trace.append(
             ",".join(f"{program.value}={values[program]:.10f}" for program in GliomaProgram)
-            + f";objective={objective:.10f}"
+            + f";baseline={baseline_objective:.10f};candidate={candidate_objective:.10f}"
+            + f";accepted={objective:.10f}"
         )
         if maximum_update <= _TYPED_TOLERANCE:
             break
@@ -433,6 +488,7 @@ def _typed_fit_graph(  # noqa: C901
         iterations=iterations,
         maximum_update=maximum_update,
         trace_digest=trace_digest,
+        objective_trace=tuple(objective_trace),
     )
 
 
@@ -456,7 +512,7 @@ def _typed_objective(
             float(observation.standard_error or 1.0),
         )
     total += _TYPED_RELATION_WEIGHT * sum(
-        (values[target] - sign * values[source]) ** 2
+        _huber_loss(values[target] - sign * values[source], 1.0)
         for source, target, sign in _TYPED_EDGES
     )
     return float(total)
@@ -725,7 +781,7 @@ def _typed_result(
 
 
 class M0803BaselineEngine:
-    """Compute a transparent mean-based baseline without raw-source traversal."""
+    """Compute the transparent baseline or the opt-in typed glioma graph fit."""
 
     __slots__ = ()
 
