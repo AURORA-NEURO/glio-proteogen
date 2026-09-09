@@ -762,6 +762,17 @@ def _fit_feature_posterior(  # noqa: PLR0915 - shared-latent fit is intentionall
         mean = updated
         if gap <= _CONVERGENCE_TOLERANCE:
             break
+    # Recompute the influence weights at the returned fixed point.  The last
+    # coordinate update was formed from the previous iterate, so retaining
+    # those stale weights would understate the contribution of a converged
+    # repeat (especially when one assay is an outlier).
+    for index, (value, scale) in enumerate(typed_likelihoods):
+        residual = (value - mean) / scale
+        if not isfinite(residual):
+            return None
+        robust_weights[index] = (
+            1.0 if abs(residual) <= _HUBER_K else _HUBER_K / abs(residual)
+        )
     posterior_variance = 1.0 / (
         1.0 / prior_variance
         + sum(
