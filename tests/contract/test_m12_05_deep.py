@@ -242,6 +242,41 @@ def test_typed_missing_and_left_censored_evidence_is_not_negative() -> None:
     assert all(state.label != "suppressed" for state in result.trajectory)
 
 
+def test_typed_initialization_respects_left_censor_bounds() -> None:
+    grouped = {
+        0: [
+            engine_module._TypedTerm(
+                sequence=0,
+                program=GliomaTrajectoryProgram.RTK_PI3K_AKT_MTOR,
+                state=LongitudinalEvidenceState.OBSERVED,
+                value=0.6,
+                standard_error=0.2,
+                quality_weight=1.0,
+            ),
+            engine_module._TypedTerm(
+                sequence=0,
+                program=GliomaTrajectoryProgram.RTK_PI3K_AKT_MTOR,
+                state=LongitudinalEvidenceState.LEFT_CENSORED,
+                value=0.2,
+                standard_error=0.2,
+                quality_weight=1.0,
+            ),
+        ],
+        2: [
+            engine_module._TypedTerm(
+                sequence=2,
+                program=GliomaTrajectoryProgram.RTK_PI3K_AKT_MTOR,
+                state=LongitudinalEvidenceState.LEFT_CENSORED,
+                value=-0.3,
+                standard_error=0.2,
+                quality_weight=1.0,
+            ),
+        ],
+    }
+    values = engine_module._initial_temporal_values(grouped, 3)
+    assert values.tolist() == pytest.approx([0.2, -0.05, -0.3])
+
+
 def test_typed_change_point_and_insufficient_support_are_explicit() -> None:
     detected = M1205LongitudinalEngine().infer(
         _typed_request(

@@ -371,6 +371,50 @@ def _median(values: tuple[float, ...]) -> float:
     return 0.5 * (ordered[middle - 1] + ordered[middle])
 
 
+def _initial_temporal_values(
+    grouped: dict[int, list[_TypedTerm]],
+    sequence_count: int,
+) -> np.ndarray:
+    """Build a feasible temporal start without treating censor limits as values."""
+
+    values = np.zeros(sequence_count, dtype=np.float64)
+    known: set[int] = set()
+    for index, group in grouped.items():
+        observed = tuple(
+            item for item in group if item.state is LongitudinalEvidenceState.OBSERVED
+        )
+        limits = tuple(
+            item.value
+            for item in group
+            if item.state is LongitudinalEvidenceState.LEFT_CENSORED
+        )
+        if observed:
+            total = sum(item.quality_weight for item in observed)
+            center = sum(item.quality_weight * item.value for item in observed) / max(
+                _MIN_SCALE, total
+            )
+            initial = min((center, *limits)) if limits else center
+        elif limits:
+            initial = min((0.0, *limits))
+        else:
+            continue
+        values[index] = max(-_MAX_EFFECT, min(_MAX_EFFECT, initial))
+        known.add(index)
+    for index in range(sequence_count):
+        if index in known:
+            continue
+        before = max((candidate for candidate in known if candidate < index), default=None)
+        after = min((candidate for candidate in known if candidate > index), default=None)
+        if before is not None and after is not None:
+            fraction = (index - before) / (after - before)
+            values[index] = values[before] + fraction * (values[after] - values[before])
+        elif before is not None:
+            values[index] = values[before]
+        elif after is not None:
+            values[index] = values[after]
+    return values
+
+
 def _temporal_objective(
     values: list[float],
     terms: tuple[_TypedTerm, ...],
@@ -394,7 +438,7 @@ def _temporal_objective(
     return objective
 
 
-def _fit_temporal(  # noqa: C901, PLR0912, PLR0915 - explicit solver is intentionally branch-rich.
+def _fit_temporal(
     terms: tuple[_TypedTerm, ...],
     sequences: tuple[int, ...],
 ) -> _TemporalFit:
@@ -404,23 +448,7 @@ def _fit_temporal(  # noqa: C901, PLR0912, PLR0915 - explicit solver is intentio
     grouped: dict[int, list[_TypedTerm]] = defaultdict(list)
     for item in terms:
         grouped[index_by_sequence[item.sequence]].append(item)
-    values = np.zeros(len(sequences), dtype=np.float64)
-    known: set[int] = set()
-    for index, group in grouped.items():
-        values[index] = _median(tuple(item.value for item in group))
-        known.add(index)
-    for index in range(len(values)):
-        if index in known:
-            continue
-        before = max((candidate for candidate in known if candidate < index), default=None)
-        after = min((candidate for candidate in known if candidate > index), default=None)
-        if before is not None and after is not None:
-            fraction = (index - before) / (after - before)
-            values[index] = values[before] + fraction * (values[after] - values[before])
-        elif before is not None:
-            values[index] = values[before]
-        elif after is not None:
-            values[index] = values[after]
+    values = _initial_temporal_values(grouped, len(sequences))
     previous_objective = _temporal_objective(values.tolist(), terms, index_by_sequence)
     objective_trace = [_quantize(previous_objective)]
     converged = False

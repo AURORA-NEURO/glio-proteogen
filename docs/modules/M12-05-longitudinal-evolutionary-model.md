@@ -21,9 +21,10 @@ This implementation is bound to dossier SHA-256
 `0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181`, exact
 M12-05 lines 4172–4212. The dossier does not freeze endpoint names, wire media
 types, catalogue identifiers, or estimator ABI; every public symbol and
-package identifier in this lane is marked provisional. The implementation is
-metadata-only and does not claim clinical validity, authenticated issuer
-authority, calibrated population coverage, or biological truth.
+package identifier in this lane is marked provisional. The typed runtime is a
+repository-native research model and does not claim clinical validity,
+authenticated issuer authority, calibrated population coverage, or biological
+truth. Opaque objective requests remain metadata-only for compatibility.
 
 M12-05 accepts only caller-declared references. It never opens the M12-04
 result, proteome, genome/transcriptome, PTM, model, or source artifact content.
@@ -50,8 +51,10 @@ The selected deterministic reference boundary accepts exactly `stable`,
 `alternating`, `territory`, `treatment_era`, `time_course`, their
 `trajectory:<mode>` aliases, and `change_point:<sequence>:<before>:<after>`.
 Each supported observation becomes one ordered trajectory state with an
-explicit posterior placeholder and evidence. A valid change-point objective
-emits one explicit detected change point with before/after state references.
+explicit research interval and evidence. A valid change-point objective emits
+one explicit detected change point with before/after state references. Typed
+starts use observed centers projected onto tightest left-censor limits; censor-
+only points start at the ridge-neutral feasible value before smoothing.
 
 Unknown objectives, invalid change-point support, denied controls, malformed
 requests, or unsafe histories produce no trajectory and no negative biological
