@@ -249,6 +249,9 @@ _TYPED_DAMPING: Final = 0.58
 _TYPED_RIDGE: Final = 0.18
 _TYPED_RELATION_STRENGTH: Final = 0.12
 _TYPED_TOLERANCE: Final = 1e-5
+_TYPED_OBJECTIVE_TOLERANCE: Final = 1e-10
+_TYPED_BACKTRACKING_STEPS: Final = 18
+_TYPED_BACKTRACKING_FACTOR: Final = 0.5
 _TYPED_MAX_ITERATIONS: Final = 256
 _TYPED_MIN_OBSERVATIONS: Final = 3
 _TYPED_MIN_PROGRAMS: Final = 2
@@ -420,12 +423,25 @@ def _fit_typed_dosage(  # noqa: C901, PLR0912, PLR0915 - coupled dosage coordina
         members = tuple(item for item in active if item.program and item.program.value == program)
         if members:
             program_states[program_indices[program]] = _initial_typed_program_state(members)
-    trace: list[float] = []
+    initial_objective = _typed_objective(
+        observations,
+        program_states,
+        offsets,
+        feature_indices,
+        program_indices,
+        include_relations=include_relations,
+    )
+    if not isfinite(initial_objective):
+        return None
+    trace: list[float] = [round(initial_objective, 12)]
     gap = float("inf")
     iterations = 0
     for iteration in range(min(max_iterations, _TYPED_MAX_ITERATIONS)):
         iterations = iteration + 1
-        updated_programs = program_states.copy()
+        previous_programs = program_states.copy()
+        previous_offsets = offsets.copy()
+        previous_objective = trace[-1]
+        updated_programs = previous_programs.copy()
         for program in _TYPED_PROGRAMS:
             members = tuple(
                 item for item in active if item.program and item.program.value == program
@@ -434,8 +450,8 @@ def _fit_typed_dosage(  # noqa: C901, PLR0912, PLR0915 - coupled dosage coordina
             denominator = _TYPED_RIDGE
             for item in members:
                 prediction = float(
-                    program_states[program_indices[program]]
-                    + offsets[feature_indices[item.feature_id]]
+                    previous_programs[program_indices[program]]
+                    + previous_offsets[feature_indices[item.feature_id]]
                 )
                 residual = _typed_residual(prediction, item)
                 standardized = residual / _typed_error(item)
@@ -464,55 +480,99 @@ def _fit_typed_dosage(  # noqa: C901, PLR0912, PLR0915 - coupled dosage coordina
                         numerator += (
                             _TYPED_RELATION_STRENGTH
                             * sign
-                            * program_states[program_indices[source]]
+                            * previous_programs[program_indices[source]]
                         )
                         denominator += _TYPED_RELATION_STRENGTH
                     elif source == program:
                         numerator += (
                             _TYPED_RELATION_STRENGTH
                             * sign
-                            * program_states[program_indices[target]]
+                            * previous_programs[program_indices[target]]
                         )
                         denominator += _TYPED_RELATION_STRENGTH
             proposal = numerator / max(denominator, 1e-12)
             updated_programs[program_indices[program]] = (
                 _TYPED_DAMPING * proposal
-                + (1.0 - _TYPED_DAMPING) * program_states[program_indices[program]]
+                + (1.0 - _TYPED_DAMPING) * previous_programs[program_indices[program]]
             )
-        updated_offsets = offsets.copy()
+        updated_offsets = previous_offsets.copy()
         for feature_id, feature_index in feature_indices.items():
             members = tuple(item for item in active if item.feature_id == feature_id)
             numerator, denominator = _typed_offset_terms(
                 members,
                 feature_index=feature_index,
-                updated_programs=updated_programs,
-                offsets=offsets,
+                updated_programs=previous_programs,
+                offsets=previous_offsets,
                 program_indices=program_indices,
             )
             proposal = numerator / max(denominator, 1e-12)
             updated_offsets[feature_index] = (
-                _TYPED_DAMPING * proposal + (1.0 - _TYPED_DAMPING) * offsets[feature_index]
+                _TYPED_DAMPING * proposal
+                + (1.0 - _TYPED_DAMPING) * previous_offsets[feature_index]
             )
-        gap = float(
-            max(
-                np.max(np.abs(updated_programs - program_states)),
-                np.max(np.abs(updated_offsets - offsets)),
-            )
+        candidate_programs = np.clip(
+            updated_programs, -M0705_MAX_TYPED_EFFECT, M0705_MAX_TYPED_EFFECT
         )
-        program_states = np.clip(updated_programs, -M0705_MAX_TYPED_EFFECT, M0705_MAX_TYPED_EFFECT)
-        offsets = np.clip(updated_offsets, -M0705_MAX_TYPED_EFFECT, M0705_MAX_TYPED_EFFECT)
+        candidate_offsets = np.clip(
+            updated_offsets, -M0705_MAX_TYPED_EFFECT, M0705_MAX_TYPED_EFFECT
+        )
         objective = _typed_objective(
             observations,
-            program_states,
-            offsets,
+            candidate_programs,
+            candidate_offsets,
             feature_indices,
             program_indices,
             include_relations=include_relations,
         )
-        if not isfinite(objective):
-            return None
-        trace.append(round(objective, 10))
-        if gap <= _TYPED_TOLERANCE:
+        if not isfinite(objective) or objective > previous_objective + _TYPED_OBJECTIVE_TOLERANCE:
+            candidate_programs = previous_programs.copy()
+            candidate_offsets = previous_offsets.copy()
+            objective = previous_objective
+            program_delta = updated_programs - previous_programs
+            offset_delta = updated_offsets - previous_offsets
+            step = _TYPED_DAMPING
+            for _ in range(_TYPED_BACKTRACKING_STEPS):
+                step *= _TYPED_BACKTRACKING_FACTOR
+                trial_programs = np.clip(
+                    previous_programs + step * program_delta,
+                    -M0705_MAX_TYPED_EFFECT,
+                    M0705_MAX_TYPED_EFFECT,
+                )
+                trial_offsets = np.clip(
+                    previous_offsets + step * offset_delta,
+                    -M0705_MAX_TYPED_EFFECT,
+                    M0705_MAX_TYPED_EFFECT,
+                )
+                trial_objective = _typed_objective(
+                    observations,
+                    trial_programs,
+                    trial_offsets,
+                    feature_indices,
+                    program_indices,
+                    include_relations=include_relations,
+                )
+                if isfinite(trial_objective) and (
+                    trial_objective <= previous_objective + _TYPED_OBJECTIVE_TOLERANCE
+                ):
+                    candidate_programs = trial_programs
+                    candidate_offsets = trial_offsets
+                    objective = trial_objective
+                    break
+            else:
+                return None
+        gap = float(
+            max(
+                np.max(np.abs(candidate_programs - previous_programs)),
+                np.max(np.abs(candidate_offsets - previous_offsets)),
+            )
+        )
+        program_states = candidate_programs
+        offsets = candidate_offsets
+        trace.append(round(objective, 12))
+        if (
+            gap <= _TYPED_TOLERANCE
+            and abs(previous_objective - objective) <= _TYPED_OBJECTIVE_TOLERANCE
+        ):
             break
     if not trace or not isfinite(gap):
         return None

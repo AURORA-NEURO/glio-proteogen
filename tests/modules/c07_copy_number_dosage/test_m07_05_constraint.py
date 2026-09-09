@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from itertools import pairwise
 
 import pytest
 
@@ -47,6 +48,7 @@ from glio_proteogen.modules.c07_copy_number_dosage.m07_05_mechanism_constraint_i
 )
 
 _EXPECTED_ESTIMATES = 2
+_FIRST_CANDIDATE_CALL = 2
 
 
 def _artifact(
@@ -201,6 +203,27 @@ def test_typed_glioma_dosage_fit_is_replayable_and_constrained() -> None:
     assert first.canonical_bytes == second.canonical_bytes
     assert first.canonical_bytes == reordered_result.canonical_bytes
     assert engine.verify(first.result, first.canonical_bytes).verified
+
+
+def test_typed_dosage_solver_backtracks_objective_increase(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    original = engine_module._typed_objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == _FIRST_CANDIDATE_CALL else value
+
+    monkeypatch.setattr(engine_module, "_typed_objective", objective)
+    fitted = engine_module._fit_typed_dosage(_typed_observations(), max_iterations=64)
+    assert fitted is not None
+    assert calls > _FIRST_CANDIDATE_CALL
+    trace = fitted[4]
+    assert all(
+        after <= before + engine_module._TYPED_OBJECTIVE_TOLERANCE
+        for before, after in pairwise(trace)
+    )
 
 
 def test_typed_glioma_dosage_excludes_missing_and_abstains_without_program_support() -> None:

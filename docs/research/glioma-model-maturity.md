@@ -591,7 +591,11 @@ signed program relations. Left-censored dosage measurements use a one-sided
 detection-limit loss; missing and unsupported states are excluded rather than
 treated as suppression. Program starts use observed dosage effects only and
 project onto the tightest censor bound, while censor-only programs start at
-neutral on the feasible side.
+neutral on the feasible side. Each coupled program/feature update is proposed
+from a frozen parent state and accepted only after a finite full-vector
+objective-safe backtracking check, so the replay-visible trace is monotone
+within the configured tolerance rather than a collection of independent proxy
+formulas.
 
 The typed integration evaluates hard and soft constraints against fitted
 feature states, preserves soft effects with ablation records, and emits
