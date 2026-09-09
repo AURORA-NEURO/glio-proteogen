@@ -679,8 +679,9 @@ The additive M10-05 runtime now accepts feature observations annotated to
 RTK/PI3K/AKT/mTOR, p53/cell-cycle, IDH/HIF1A, mesenchymal, and proliferation
 programs. Annotated observations are robustly median/MAD normalized and fitted
 with Huber-weighted signed program coupling using damped coordinate descent;
-left-censored values use one-sided residuals, while missing and unsupported
-values are excluded. The result carries solver iterations/objective,
+normalization is estimated from observed values only; left-censored limits use
+one-sided residuals, while missing and unsupported values are excluded. The
+result carries solver iterations/objective,
 digest-seeded bootstrap intervals, top drivers, and signed-edge ablation effects
 for every supported program.
 

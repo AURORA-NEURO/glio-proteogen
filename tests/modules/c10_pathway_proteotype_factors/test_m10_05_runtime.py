@@ -13,6 +13,7 @@ from evals.m10_05.run import build_request
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
+import glio_proteogen.modules.c10_pathway_proteotype_factors.m10_05_mechanism_constraint_integrator.engine as engine_module  # noqa: E501
 from glio_proteogen.adapters.m1005 import create_m1005_app, m1005_app
 from glio_proteogen.contracts.m10_05 import (
     ConstraintAblation,
@@ -158,6 +159,32 @@ def test_typed_glioma_constraint_graph_emits_replayable_program_states() -> None
         state.evidence_count >= 1 and state.ablation_effects for state in result.program_states
     )
     assert service.verify(result).result_digest == result.result_digest
+
+
+def test_typed_normalization_ignores_left_censor_limits() -> None:
+    observations = (
+        engine_module._TypedObservation(
+            feature_id="feature.observed",
+            program=GliomaConstraintProgram.RTK_PI3K_AKT_MTOR,
+            direction=1,
+            state=FeatureObservationState.OBSERVED,
+            value=1.0,
+            standard_error=0.1,
+            quality_weight=1.0,
+            evidence=(),
+        ),
+        engine_module._TypedObservation(
+            feature_id="feature.censored",
+            program=GliomaConstraintProgram.P53_CELL_CYCLE,
+            direction=1,
+            state=FeatureObservationState.LEFT_CENSORED,
+            value=50.0,
+            standard_error=0.1,
+            quality_weight=1.0,
+            evidence=(),
+        ),
+    )
+    assert engine_module._typed_location_scale(observations) == (1.0, 1.0)
 
 
 def test_typed_missing_evidence_abstains_without_negative_state() -> None:

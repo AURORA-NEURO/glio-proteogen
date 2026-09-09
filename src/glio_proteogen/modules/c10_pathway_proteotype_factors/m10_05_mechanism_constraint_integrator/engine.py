@@ -277,6 +277,17 @@ def _robust_location_scale(values: tuple[float, ...]) -> tuple[float, float]:
     return center, max(_MINIMUM_SCALE, 1.4826 * mad if mad > _MINIMUM_SCALE else 1.0)
 
 
+def _typed_location_scale(
+    observations: tuple[_TypedObservation, ...],
+) -> tuple[float, float]:
+    """Estimate normalization from observed values, never censor limits."""
+
+    observed = tuple(
+        item.value for item in observations if item.state is FeatureObservationState.OBSERVED
+    )
+    return _robust_location_scale(observed) if observed else (0.0, 1.0)
+
+
 def _hash_normal(material: str) -> float:
     def uniform(suffix: str) -> float:
         digest = hashlib.sha256((material + suffix).encode("utf-8")).digest()
@@ -456,7 +467,7 @@ def _typed_program_states(
     observations = _typed_observations(request.feature_observations)
     if not observations:
         return (), None
-    center, scale = _robust_location_scale(tuple(item.value for item in observations))
+    center, scale = _typed_location_scale(observations)
     fit = _fit_programs(observations, center, scale)
     topology_free = _fit_programs(observations, center, scale, include_edges=False)
     if not fit.converged or not topology_free.converged:
@@ -477,7 +488,7 @@ def _typed_program_states(
             )
             for item in observations
         )
-        draw_center, draw_scale = _robust_location_scale(tuple(item.value for item in perturbed))
+        draw_center, draw_scale = _typed_location_scale(perturbed)
         draw_fit = _fit_programs(perturbed, draw_center, draw_scale)
         if not draw_fit.converged:
             return (), None
