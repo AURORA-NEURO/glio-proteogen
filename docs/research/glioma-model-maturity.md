@@ -437,7 +437,9 @@ The typed result exposes program-specific intervals, solver diagnostics,
 deterministic replay, and explicit research-only limitations. The historical
 single-posterior ABI remains unchanged and is not silently relabeled as a
 glioma model; neither path emits subtype, kinase, diagnostic, prognostic, or
-treatment claims.
+treatment claims. Initialization is censor-aware: paired observed discordance
+centers are projected onto the tightest protein censor bound, while
+censor-only programs start at the ridge-neutral feasible value.
 
 ## Completed M08-05 typed glioma mechanism-program lane
 
