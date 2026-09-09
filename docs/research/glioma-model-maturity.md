@@ -490,7 +490,10 @@ prevents a strong supporting protein from masking a weak required member.
 
 The fit uses one-sided loss for left-censored members, excludes missing and
 unsupported members, and requires at least two supported members, an essential
-member, and a consistent program per complex. Request-digest-seeded bootstrap
+member, and a consistent program per complex. Latent starts are computed from
+observed-member robust centers and projected onto the tightest censor bound;
+censor-only complexes start at the neutral ridge point on the feasible side,
+so a detection limit is never treated as a measured effect. Request-digest-seeded bootstrap
 perturbations are stratified by essential versus supporting members so every
 replicate retains the bottleneck stratum; they provide activity intervals,
 stability, discordance, top member drivers, and explicit

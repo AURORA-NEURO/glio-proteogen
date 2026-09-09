@@ -519,6 +519,42 @@ def test_typed_bootstrap_preserves_essential_member_stratum() -> None:
     assert sum(item.member_role is ComplexMemberRole.SUPPORTING for item in sampled) == 1
 
 
+def test_typed_initialization_uses_observed_center_and_projects_censor_bounds() -> None:
+    observed = _typed_member(
+        "observation.observed", "complex.hif", "EPAS1", 0.6,
+    )
+    censored = _typed_member(
+        "observation.censored", "complex.hif", "HIF1A", -0.2,
+        role=ComplexMemberRole.ESSENTIAL,
+        state=ComplexEvidenceState.LEFT_CENSORED,
+    )
+    observations = (observed, censored)
+    effects = np.asarray(
+        [item.standardized_effect for item in observations], dtype=np.float64
+    )
+    weights = np.asarray(
+        [item.quality_weight * item.stoichiometric_weight for item in observations],
+        dtype=np.float64,
+    )
+
+    assert engine_module._initial_typed_latent(observations, effects, weights) == pytest.approx(
+        -0.2
+    )
+
+
+def test_typed_censor_only_initialization_stays_on_neutral_feasible_side() -> None:
+    censored = _typed_member(
+        "observation.censored", "complex.hif", "HIF1A", 0.3,
+        role=ComplexMemberRole.ESSENTIAL,
+        state=ComplexEvidenceState.LEFT_CENSORED,
+    )
+    observations = (censored,)
+    effects = np.asarray([censored.standardized_effect], dtype=np.float64)
+    weights = np.asarray([censored.quality_weight], dtype=np.float64)
+
+    assert engine_module._initial_typed_latent(observations, effects, weights) == pytest.approx(0.0)
+
+
 def test_typed_missing_and_left_censored_members_never_become_negative_observations() -> None:
     request = _typed_request(
         _typed_member(

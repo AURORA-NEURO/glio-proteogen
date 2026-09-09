@@ -648,6 +648,45 @@ def _weighted_median(values: np.ndarray, weights: np.ndarray) -> float:
     return float(ordered_values[min(position, len(ordered_values) - 1)])
 
 
+def _initial_typed_latent(
+    observations: tuple[ComplexMemberObservation, ...],
+    effects: np.ndarray,
+    weights: np.ndarray,
+) -> float:
+    """Choose a feasible latent start without treating detection limits as values.
+
+    A left-censored member contributes an upper bound, not a measured effect.
+    Starting at a weighted median that includes those bounds can pull a complex
+    below its observed members and make the first IRLS step look artificially
+    certain.  Use observed members for the robust center, then project that
+    center onto every censoring bound.  With censor-only evidence, the neutral
+    ridge start is projected to the tightest bound instead.
+    """
+
+    observed = np.asarray(
+        [
+            index
+            for index, item in enumerate(observations)
+            if item.evidence_state is ComplexEvidenceState.OBSERVED
+        ],
+        dtype=np.int64,
+    )
+    limits = tuple(
+        float(effects[index])
+        for index, item in enumerate(observations)
+        if item.evidence_state is ComplexEvidenceState.LEFT_CENSORED
+    )
+    if len(observed):
+        latent = _weighted_median(effects[observed], weights[observed])
+        if limits:
+            latent = min(latent, *limits)
+    elif limits:
+        latent = min(0.0, *limits)
+    else:
+        latent = 0.0
+    return float(np.clip(latent, -M0904_MAX_TYPED_EFFECT, M0904_MAX_TYPED_EFFECT))
+
+
 def _typed_huber_loss(standardized: float) -> float:
     magnitude = abs(standardized)
     if magnitude <= _HUBER_K:
@@ -731,13 +770,7 @@ def _fit_typed_latent(
         and np.all(weights > 0.0)
     ):
         return None
-    latent = float(
-        np.clip(
-            _weighted_median(effects, weights),
-            -M0904_MAX_TYPED_EFFECT,
-            M0904_MAX_TYPED_EFFECT,
-        )
-    )
+    latent = _initial_typed_latent(observations, effects, weights)
     offsets = np.zeros(len(observations), dtype=np.float64)
     trace: list[float] = []
     max_update = float("inf")
