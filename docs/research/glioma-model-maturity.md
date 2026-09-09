@@ -945,8 +945,9 @@ The additive M13-04 runtime now supports an opt-in
 mechanism observations carry standardized effects, standard errors, quality
 weights, and explicit observed, left-censored, missing, or unsupported states.
 Signed activation, inhibition, and coupling relations are fitted with robust
-Huber loss, ridge stabilization, damped coordinate descent, and deterministic
-digest-seeded bootstrap posterior intervals.
+Huber loss, ridge stabilization, frozen-parent damped Jacobi coordinate descent,
+and objective-safe backtracking; deterministic digest-seeded bootstrap posterior
+intervals remain replayable from the request digest.
 
 The original caller-declared posterior/state grammar remains compatible for
 other model families. The typed path requires two supported mechanisms and a

@@ -63,6 +63,9 @@ _DAMPING: Final = 0.72
 _HUBER_DELTA: Final = 1.5
 _SOLVER_ITERATIONS: Final = 160
 _SOLVER_TOLERANCE: Final = 1e-6
+_OBJECTIVE_TOLERANCE: Final = 1e-10
+_BACKTRACKING_STEPS: Final = 18
+_BACKTRACKING_FACTOR: Final = 0.5
 _MINIMUM_SCALE: Final = 1e-6
 _MIN_TYPED_MECHANISMS: Final = 2
 _LOW_QUANTILE: Final = 0.05
@@ -76,6 +79,7 @@ class _TypedFit:
     objective: float
     iterations: int
     converged: bool
+    trace: tuple[float, ...]
 
 
 class M1304MechanismAuthorizationError(PermissionError):
@@ -346,7 +350,7 @@ def _initial_typed_values(
     return values
 
 
-def _fit_typed(  # noqa: C901
+def _fit_typed(  # noqa: C901, PLR0912, PLR0915 - solver safeguards are explicit.
     request: InferProteotypeMechanismRequest,
     *,
     perturbation: Mapping[str, float] | None = None,
@@ -389,10 +393,15 @@ def _fit_typed(  # noqa: C901
     if not relations:
         return None
     values = _initial_typed_values(observations, len(mechanism_ids))
-    objective = _typed_objective(values, observations, relations)
+    initial_objective = _typed_objective(values, observations, relations)
+    if not math.isfinite(initial_objective):
+        return None
+    trace = [round(initial_objective, 10)]
     for iteration in range(1, _SOLVER_ITERATIONS + 1):
         previous = values.copy()
-        for position, current in enumerate(values):
+        previous_objective = trace[-1]
+        proposals = previous.copy()
+        for position, current in enumerate(previous):
             gradient = 2.0 * _RIDGE * current
             hessian = 2.0 * _RIDGE
             for index_value, target, uncertainty, quality, state in observations:
@@ -412,20 +421,48 @@ def _fit_typed(  # noqa: C901
                 hessian += information
             for source, target, coefficient in relations:
                 if position == source:
-                    residual = values[target] - coefficient * current
+                    residual = previous[target] - coefficient * current
                     gradient -= coefficient * residual
                     hessian += coefficient * coefficient
                 elif position == target:
-                    residual = current - coefficient * values[source]
+                    residual = current - coefficient * previous[source]
                     gradient += residual
                     hessian += 1.0
             proposal = current - gradient / max(_MINIMUM_SCALE, hessian)
-            values[position] = current + _DAMPING * (proposal - current)
-        next_objective = _typed_objective(values, observations, relations)
+            proposals[position] = current + _DAMPING * (proposal - current)
+        next_objective = _typed_objective(proposals, observations, relations)
+        accepted = proposals
+        if not math.isfinite(next_objective) or (
+            next_objective > previous_objective + _OBJECTIVE_TOLERANCE
+        ):
+            # Robust breakpoints and signed cycles can make a full Jacobi sweep
+            # overshoot. Backtrack the complete vector update to preserve a
+            # deterministic, replay-auditable monotone objective trace.
+            accepted = previous.copy()
+            next_objective = previous_objective
+            delta = [after - before for after, before in zip(proposals, previous, strict=True)]
+            step = _DAMPING
+            for _ in range(_BACKTRACKING_STEPS):
+                step *= _BACKTRACKING_FACTOR
+                trial = [
+                    before + step * change
+                    for before, change in zip(previous, delta, strict=True)
+                ]
+                trial_objective = _typed_objective(trial, observations, relations)
+                if math.isfinite(trial_objective) and (
+                    trial_objective <= previous_objective + _OBJECTIVE_TOLERANCE
+                ):
+                    accepted = trial
+                    next_objective = trial_objective
+                    break
+            else:
+                return None
+        values = accepted
+        trace.append(round(next_objective, 10))
         update = max(abs(after - before) for after, before in zip(values, previous, strict=True))
         if (
             update <= _SOLVER_TOLERANCE
-            and abs(objective - next_objective) <= 2.0 * _SOLVER_TOLERANCE
+            and abs(previous_objective - next_objective) <= _SOLVER_TOLERANCE
         ):
             return _TypedFit(
                 mechanism_ids=mechanism_ids,
@@ -433,14 +470,15 @@ def _fit_typed(  # noqa: C901
                 objective=float(f"{next_objective:.8f}"),
                 iterations=iteration,
                 converged=True,
+                trace=tuple(float(f"{value:.8f}") for value in trace),
             )
-        objective = next_objective
     return _TypedFit(
         mechanism_ids=mechanism_ids,
         values=tuple(float(f"{value:.8f}") for value in values),
-        objective=float(f"{objective:.8f}"),
+        objective=float(f"{trace[-1]:.8f}"),
         iterations=_SOLVER_ITERATIONS,
         converged=False,
+        trace=tuple(float(f"{value:.8f}") for value in trace),
     )
 
 
