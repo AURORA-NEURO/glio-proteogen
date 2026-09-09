@@ -118,6 +118,21 @@ _GLIOMA_PROGRAM_EDGES: Final[tuple[tuple[str, str, float, float], ...]] = (
 )
 _GLIOMA_PROGRAM_MIN_MARKERS: Final = 4
 _GLIOMA_PROGRAM_MIN_PROGRAMS: Final = 2
+_COMPOUND_IDENTIFIER_PATTERN: Final = re.compile(
+    r"[a-z0-9]+(?:[-_][a-z0-9]+)+"
+)
+
+
+def _identifier_tokens(value: str) -> frozenset[str]:
+    """Return exact identifier tokens plus compact HGNC compound spellings."""
+
+    normalized = value.casefold()
+    tokens = set(re.findall(r"[a-z0-9]+", normalized))
+    tokens.update(
+        compound.replace("-", "").replace("_", "")
+        for compound in _COMPOUND_IDENTIFIER_PATTERN.findall(normalized)
+    )
+    return frozenset(tokens)
 
 
 @dataclass(frozen=True, slots=True)
@@ -505,10 +520,10 @@ def _prior_for_feature(
 ) -> tuple[float, float, str]:
     """Reduce a declared prior family to a feature-specific Normal prior."""
 
-    feature_tokens = {
-        token
-        for token in re.split(r"[^a-z0-9]+", feature_id.casefold())
-        if token and token not in {"protein", "abundance", "feature"}
+    feature_tokens = _identifier_tokens(feature_id) - {
+        "protein",
+        "abundance",
+        "feature",
     }
     candidates: list[tuple[float, float, float, str, bool]] = []
     for prior in request.configuration.priors:
@@ -541,9 +556,7 @@ def _prior_for_feature(
             continue
         if not (isfinite(mean) and isfinite(scale) and scale > 0.0):
             continue
-        prior_tokens = {
-            token for token in re.split(r"[^a-z0-9]+", prior.prior_id.casefold()) if token
-        }
+        prior_tokens = _identifier_tokens(prior.prior_id)
         matched = bool(feature_tokens & prior_tokens)
         candidates.append((mean, scale, 4.0 if matched else 1.0, prior.prior_id, matched))
     if not candidates:
@@ -693,11 +706,7 @@ def _glioma_estimates(
 def _glioma_marker_program(feature_id: str) -> str | None:
     """Map an exact feature token to the locked GBM program catalogue."""
 
-    tokens = {
-        token
-        for token in re.split(r"[^a-z0-9]+", feature_id.casefold())
-        if token and token not in {"protein", "abundance", "feature"}
-    }
+    tokens = _identifier_tokens(feature_id) - {"protein", "abundance", "feature"}
     # Prefer the most specific marker when a gene participates in two programs.
     matches = [
         program

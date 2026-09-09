@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from glio_proteogen.contracts.m06_01 import (
     FormalProteinStateSchema,
     FormalStateFeatureDefinition,
@@ -13,6 +15,9 @@ from glio_proteogen.contracts.m06_04 import ProbabilisticEstimatorFamily
 from glio_proteogen.modules.c06_protein_abundance.m06_04_probabilistic_advanced_estimator import (
     M0604_GLIOMA_PROGRAM_IRLS_OPTIMIZER,
     M0604ProbabilisticEstimatorEngine,
+)
+from glio_proteogen.modules.c06_protein_abundance.m06_04_probabilistic_advanced_estimator import (
+    engine as m0604_engine,
 )
 from tests.contract.test_m06_04_hardening import _artifact, _configuration, _context
 
@@ -108,3 +113,21 @@ def test_coupled_glioma_program_gate_abstains_without_two_programs() -> None:
     assert result.status.value == "abstained"
     assert "at least four" in (result.abstention_reason or "")
     assert not result.estimates
+
+
+@pytest.mark.parametrize(
+    ("feature_id", "program"),
+    [
+        ("protein.MKI-67", "PROLIFERATION"),
+        ("protein.MKI_67", "PROLIFERATION"),
+        ("protein.HIF-1A", "IDH_HIF1A"),
+    ],
+)
+def test_glioma_marker_catalog_normalizes_compound_hgnc_tokens(
+    feature_id: str, program: str
+) -> None:
+    assert m0604_engine._glioma_marker_program(feature_id) == program
+
+
+def test_glioma_marker_catalog_rejects_substring_only_matches() -> None:
+    assert m0604_engine._glioma_marker_program("protein.notegfr") is None

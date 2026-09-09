@@ -407,6 +407,9 @@ programs; missing, unsupported, and non-numeric values are excluded rather than
 interpreted as down-regulation. The output is a deterministic 90% research
 interval with an objective/convergence diagnostic and exact replay. The prior
 feature-wise optimizer and compatibility proxy remain unchanged.
+Marker normalization preserves exact HGNC compound identities (including
+`MKI-67` and `HIF-1A`) across the coupled program and feature-prior paths, while
+rejecting substring-only matches.
 
 ## Completed M08-03 typed glioma program baseline lane
 
