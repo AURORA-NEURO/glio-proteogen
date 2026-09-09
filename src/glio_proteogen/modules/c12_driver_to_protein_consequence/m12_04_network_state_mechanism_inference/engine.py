@@ -337,15 +337,6 @@ def _fit_typed(  # noqa: C901, PLR0912 - explicit coordinate updates are auditab
                 item.state,
             )
         )
-    # ``weight`` has a schema default for the legacy ABI. In the typed
-    # research lane, an omitted field is not an asserted unit-strength edge.
-    if any(
-        item.source_mechanism_id in index
-        and item.target_mechanism_id in index
-        and "weight" not in item.model_fields_set
-        for item in request.typed_relations
-    ):
-        return None
     relations = tuple(
         (
             index[item.source_mechanism_id],

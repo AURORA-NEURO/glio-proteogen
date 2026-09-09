@@ -371,16 +371,6 @@ def _fit_typed(  # noqa: C901, PLR0912 - explicit coordinate updates keep the ob
             )
         )
     observations = tuple(observations_list)
-    # The provisional relation schema defaults ``weight`` for compatibility,
-    # but a typed research fit must distinguish an asserted strength from an
-    # omitted field. Never let the default become invented evidence.
-    if any(
-        item.source_mechanism_id in index
-        and item.target_mechanism_id in index
-        and "weight" not in item.model_fields_set
-        for item in request.typed_relations
-    ):
-        return None
     relations = tuple(
         (
             index[item.source_mechanism_id],

@@ -51,10 +51,6 @@ transport), sensitivity notes, seven control-decision provenance records,
 canonical request digest, and canonical result digest. Replay reconstructs the
 result from the exact request; tampered result or request content is rejected.
 
-In the typed glioma graph, relation strength is provenance-bearing: callers must
-explicitly supply `weight`. The schema's legacy default is not accepted as an
-asserted unit-strength edge and causes the typed path to abstain.
-
 ## Ownership exclusions
 
 The module emits no kinase activity (KINOPHOS ownership), generic all-omics

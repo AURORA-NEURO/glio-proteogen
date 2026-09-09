@@ -51,10 +51,6 @@ transport), sensitivity notes, seven control-decision provenance records,
 canonical request digest, and canonical result digest. Replay reconstructs the
 result from the exact request; tampered result or request content is rejected.
 
-In the typed glioma panel graph, callers must explicitly supply finite relation
-weights. The compatibility default is not silently promoted to research
-evidence; omitted strength causes safe abstention.
-
 ## Ownership exclusions
 
 The module emits no kinase activity (KINOPHOS ownership), generic all-omics
