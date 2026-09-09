@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import json
+from itertools import pairwise
 from pathlib import Path
 from typing import cast
 
@@ -190,6 +191,29 @@ def test_typed_glioma_program_solver_bootstrap_and_ablations() -> None:
         for item in result.surface.responses
     )
     assert engine.verify(result) == result
+
+
+def test_typed_solver_backtracks_objective_increase(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    request = build_scenario_request()
+    terms = engine_module._typed_terms(request.perturbations)
+    original = engine_module._typed_objective
+    calls = 0
+    first_candidate_call = 2
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == first_candidate_call else value
+
+    monkeypatch.setattr(engine_module, "_typed_objective", objective)
+    fit = engine_module._fit_typed(terms)
+    assert fit.converged
+    assert calls > first_candidate_call
+    assert all(
+        after <= before + engine_module._OBJECTIVE_TOLERANCE
+        for before, after in pairwise(fit.objective_trace)
+    )
 
 
 def test_typed_initialization_respects_left_censor_bounds() -> None:
