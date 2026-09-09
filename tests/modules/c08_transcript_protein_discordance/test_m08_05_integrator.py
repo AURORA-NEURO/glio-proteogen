@@ -58,7 +58,6 @@ _EXPECTED_SUPPORT_RISK = 0.15
 _BOOTSTRAP_CENSORING_LIMIT = 0.1
 _BOOTSTRAP_SHIFT = 0.4
 _BOOTSTRAP_SHIFTED_LIMIT = 0.5
-_BOOTSTRAP_SHIFTED_SURROGATE = 0.4
 
 
 def _artifact(name: str, media_type: str = "application/json") -> ArtifactReference:
@@ -350,7 +349,7 @@ def test_typed_censored_bootstrap_perturbs_the_one_sided_boundary() -> None:
 
     assert baseline[0][4] == _BOOTSTRAP_CENSORING_LIMIT
     assert perturbed[0][4] == _BOOTSTRAP_SHIFTED_LIMIT
-    assert perturbed[0][1] == _BOOTSTRAP_SHIFTED_SURROGATE
+    assert perturbed[0][1] == _BOOTSTRAP_SHIFTED_LIMIT
 
 
 def test_typed_program_initialization_uses_observed_center_and_censor_bounds() -> None:
@@ -385,6 +384,26 @@ def test_typed_censor_only_program_initialization_is_neutral_for_positive_limit(
     rows = engine_module._glioma_rows((observation,))
 
     assert engine_module._initial_glioma_program_value(rows) == pytest.approx(0.0)
+
+
+def test_legacy_censor_only_fit_stays_neutral_for_positive_limit() -> None:
+    request = _request("conservation_hold").model_copy(
+        update={
+            "observations": (
+                ConstraintEvidenceObservation(
+                    feature_id="feature.2",
+                    state=ConstraintObservationState.LEFT_CENSORED,
+                    standard_error=0.2,
+                    censoring_limit=0.3,
+                    quality_weight=0.9,
+                ),
+            )
+        }
+    )
+
+    fitted = engine_module._fit_observations(request)
+
+    assert fitted["feature.2"][0] == pytest.approx(0.0)
 
 
 def test_soft_numeric_glioma_constraint_damps_measured_value() -> None:

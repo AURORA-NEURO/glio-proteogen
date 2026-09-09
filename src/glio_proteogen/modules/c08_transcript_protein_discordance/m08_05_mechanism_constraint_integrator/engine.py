@@ -419,7 +419,9 @@ def _measurement_value(observation: ConstraintEvidenceObservation) -> tuple[floa
     if observation.state is ConstraintObservationState.OBSERVED:
         return cast("float", observation.value), standard_error
     censoring_limit = cast("float", observation.censoring_limit)
-    return censoring_limit - 0.5 * standard_error, standard_error
+    # Keep the exact upper bound. The fit applies one-sided influence only
+    # when the current latent value exceeds this limit.
+    return censoring_limit, standard_error
 
 
 def _glioma_huber(value: float) -> float:
@@ -456,7 +458,7 @@ def _glioma_rows(
         elif item.state is ConstraintObservationState.LEFT_CENSORED:
             if censoring_limit is None:
                 continue
-            target = censoring_limit - 0.5 * standard_error
+            target = censoring_limit
         else:
             continue
         if perturbations is not None:
@@ -472,7 +474,7 @@ def _glioma_rows(
                         _GLIOMA_MAX_ABUNDANCE,
                     )
                 )
-                target = censoring_limit - 0.5 * standard_error
+                target = censoring_limit
             else:
                 target += perturbation
         rows.append((program, target, standard_error, item.quality_weight, censoring_limit))
@@ -670,7 +672,7 @@ def _glioma_program_estimates(
     return tuple(estimates), fit
 
 
-def _fit_observations(  # noqa: C901
+def _fit_observations(  # noqa: C901, PLR0912, PLR0915
     request: IntegrateTranscriptProteinConstraintsRequest,
 ) -> dict[str, tuple[float, float, float, float]]:
     """Fit declared measurements with robust IRLS and soft constraint damping."""
@@ -696,9 +698,27 @@ def _fit_observations(  # noqa: C901
             item.quality_weight / max(standard_error**2, 1e-12)
             for item, standard_error in zip(items, standard_errors, strict=True)
         )
-        value = fsum(
-            weight * datum for weight, datum in zip(base_weights, surrogate, strict=True)
-        ) / fsum(base_weights)
+        observed = tuple(
+            (weight, datum)
+            for item, weight, datum in zip(items, base_weights, surrogate, strict=True)
+            if item.state is ConstraintObservationState.OBSERVED
+        )
+        censor_limits = tuple(
+            float(item.censoring_limit)
+            for item in items
+            if item.state is ConstraintObservationState.LEFT_CENSORED
+            and item.censoring_limit is not None
+        )
+        if observed:
+            value = fsum(weight * datum for weight, datum in observed) / max(
+                fsum(weight for weight, _ in observed), 1e-12
+            )
+        elif censor_limits:
+            value = min(0.0, *censor_limits)
+        else:
+            continue
+        if censor_limits:
+            value = min(value, *censor_limits)
         related = tuple(
             parsed
             for constraint in request.policy.constraints
@@ -707,19 +727,33 @@ def _fit_observations(  # noqa: C901
             and constraint.severity is ConstraintSeverity.SOFT
         )
         for _ in range(12):
-            robust_weights = []
-            for weight, datum, standard_error in zip(
-                base_weights, surrogate, standard_errors, strict=True
+            robust_weights: list[float] = []
+            targets: list[float] = []
+            for item, weight, datum, standard_error in zip(
+                items, base_weights, surrogate, standard_errors, strict=True
             ):
-                residual = abs(value - datum)
+                if item.state is ConstraintObservationState.LEFT_CENSORED:
+                    limit = cast("float", item.censoring_limit)
+                    violation = value - limit
+                    if violation <= 0.0:
+                        continue
+                    residual = violation
+                    target_value = limit
+                else:
+                    residual = value - datum
+                    target_value = datum
                 huber_delta = 1.5 * standard_error
                 robust_weights.append(
-                    weight if residual <= huber_delta else weight * huber_delta / residual
+                    weight if abs(residual) <= huber_delta else weight * huber_delta / abs(residual)
                 )
+                targets.append(target_value)
             data_weight = fsum(robust_weights)
-            proposal = fsum(
-                weight * datum for weight, datum in zip(robust_weights, surrogate, strict=True)
-            ) / max(data_weight, 1e-12)
+            proposal = (
+                fsum(weight * datum for weight, datum in zip(robust_weights, targets, strict=True))
+                / max(data_weight, 1e-12)
+                if targets
+                else value
+            )
             for _, operator, target in related:
                 tolerance = request.policy.conflict_tolerance
                 if _constraint_is_violated(proposal, operator, target, tolerance):
@@ -727,12 +761,6 @@ def _fit_observations(  # noqa: C901
                     proposal = (data_weight * proposal + penalty_weight * target) / (
                         data_weight + penalty_weight
                     )
-            censor_limits = tuple(
-                item.censoring_limit
-                for item in items
-                if item.state is ConstraintObservationState.LEFT_CENSORED
-                and item.censoring_limit is not None
-            )
             if censor_limits:
                 proposal = min(proposal, *censor_limits)
             next_value = 0.5 * value + 0.5 * proposal
@@ -750,7 +778,9 @@ def _fit_observations(  # noqa: C901
             and item.censoring_limit is not None
         )
         if censor_limits:
-            upper = min(upper, *censor_limits)
+            # Preserve the declared detection boundary as the public upper
+            # interval bound even when the neutral posterior lies below it.
+            upper = min(censor_limits)
         value = min(max(value, lower), upper)
         fitted[feature_id] = (
             round(value, 8),
