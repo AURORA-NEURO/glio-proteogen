@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from hashlib import sha256
+from itertools import pairwise
 
 import pytest
 
+import glio_proteogen.modules.c10_pathway_proteotype.m10_02_representation_feature_constructor.engine as engine_module  # noqa: E501
 from glio_proteogen.contracts.m10_02 import (
     ConstructProteinRnaRepresentationRequest,
     GliomaProgram,
@@ -50,6 +52,7 @@ from glio_proteogen.modules.c10_pathway_proteotype.m10_02_representation_feature
 )
 
 EXPECTED_TYPED_FEATURES = 6
+FIRST_CANDIDATE_CALL = 2
 
 
 def _artifact(name: str, media_type: str = "application/json") -> ArtifactReference:
@@ -334,6 +337,56 @@ def test_typed_glioma_lane_fits_translation_dosage_and_phospho_channels() -> Non
     assert translation.upper_bound is not None
     assert any("IRLS converged" in item.message for item in result.diagnostics)
     assert verify_result_replay(result)
+
+
+def test_typed_program_solver_backtracks_objective_increase(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    observations = (
+        GliomaRepresentationObservation(
+            observation_id="obs.egfr",
+            input_feature_id="protein.alpha",
+            gene="EGFR",
+            program=GliomaProgram.RTK_PI3K_AKT_MTOR,
+            state=GliomaRepresentationEvidenceState.OBSERVED,
+            transcript_effect=0.8,
+            protein_effect=1.0,
+            copy_number_effect=0.4,
+            phosphosite_effect=1.2,
+            protein_standard_error=0.2,
+        ),
+        GliomaRepresentationObservation(
+            observation_id="obs.pten",
+            input_feature_id="protein.beta",
+            gene="PTEN",
+            program=GliomaProgram.RTK_PI3K_AKT_MTOR,
+            state=GliomaRepresentationEvidenceState.OBSERVED,
+            transcript_effect=-0.3,
+            protein_effect=-0.2,
+            copy_number_effect=-0.8,
+            phosphosite_effect=-0.5,
+            protein_standard_error=0.25,
+        ),
+    )
+    original = engine_module._typed_objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == FIRST_CANDIDATE_CALL else value
+
+    monkeypatch.setattr(engine_module, "_typed_objective", objective)
+    fits = engine_module._fit_program(
+        observations,
+        request_digest="sha256:" + "a" * 64,
+        bootstrap_replicates=8,
+    )
+    assert fits
+    assert calls > FIRST_CANDIDATE_CALL
+    assert all(
+        after <= before + engine_module._GLIOMA_OBJECTIVE_TOLERANCE
+        for before, after in pairwise(fits[0].objective_trace)
+    )
 
 
 def test_typed_glioma_lane_is_order_invariant_and_preserves_censoring() -> None:

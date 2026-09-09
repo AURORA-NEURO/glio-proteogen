@@ -21,6 +21,7 @@ from glio_proteogen.contracts.m10_02 import (
     M1002_EVIDENCE_CLAIM,
     M1002_GLIOMA_MODEL_FAMILY,
     M1002_MAX_CANONICAL_REQUEST_BYTES,
+    M1002_MAX_TYPED_EFFECT,
     M1002_MODULE_ID,
     M1002_PARENT,
     AnalysisRepresentation,
@@ -70,6 +71,9 @@ _SUPPORTED_OPERATIONS: Final[frozenset[str]] = frozenset(
 )
 _GLIOMA_MAX_ITERATIONS: Final = 128
 _GLIOMA_TOLERANCE: Final = 1e-5
+_GLIOMA_OBJECTIVE_TOLERANCE: Final = 1e-10
+_GLIOMA_BACKTRACKING_STEPS: Final = 24
+_GLIOMA_BACKTRACKING_FACTOR: Final = 0.5
 _GLIOMA_DAMPING: Final = 0.62
 _GLIOMA_RIDGE: Final = 0.12
 _GLIOMA_PRIOR_STRENGTH: Final = 0.20
@@ -494,12 +498,15 @@ def _fit_program(  # noqa: C901,PLR0912,PLR0915
         w = quality[list(indices)] / np.maximum(standard_error[list(indices)] ** 2, 1e-6)
         prior = np.asarray(_GLIOMA_PRIORS[program], dtype=float)
         beta = prior.copy()
-        trace: list[float] = []
+        objective = _typed_objective(beta, x, mask, y, c, censor_limits, w, prior)
+        if not np.isfinite(objective):
+            continue
+        trace: list[float] = [round(objective, 12)]
         converged = False
         for _iteration in range(1, _GLIOMA_MAX_ITERATIONS + 1):
-            objective = _typed_objective(beta, x, mask, y, c, censor_limits, w, prior)
-            trace.append(round(objective, 12))
-            predictions = x @ beta
+            previous_beta = beta.copy()
+            previous_objective = objective
+            predictions = x @ previous_beta
             residuals = np.where(c, np.maximum(predictions - censor_limits, 0.0), y - predictions)
             robust = np.minimum(1.0, _GLIOMA_HUBER_K / np.maximum(np.abs(residuals), 1e-9))
             step = beta.copy()
@@ -518,32 +525,51 @@ def _fit_program(  # noqa: C901,PLR0912,PLR0915
                 )
                 gradient = float(
                     np.sum(weighted * x[:, column] * gradient_residual)
-                    + _GLIOMA_RIDGE * beta[column]
-                    + _GLIOMA_PRIOR_STRENGTH * (beta[column] - prior[column])
+                    + _GLIOMA_RIDGE * previous_beta[column]
+                    + _GLIOMA_PRIOR_STRENGTH * (previous_beta[column] - prior[column])
                 )
-                step[column] = beta[column] - gradient / denominator
-            candidate = beta + _GLIOMA_DAMPING * (step - beta)
+                step[column] = previous_beta[column] - gradient / denominator
+            candidate = previous_beta + _GLIOMA_DAMPING * (step - previous_beta)
+            candidate = np.clip(candidate, -M1002_MAX_TYPED_EFFECT, M1002_MAX_TYPED_EFFECT)
             candidate_objective = _typed_objective(
                 candidate, x, mask, y, c, censor_limits, w, prior
             )
-            if candidate_objective > objective:
-                candidate = beta + 0.25 * (candidate - beta)
-                candidate_objective = _typed_objective(
-                    candidate, x, mask, y, c, censor_limits, w, prior
-                )
-            if candidate_objective > objective:
-                candidate = beta.copy()
-                candidate_objective = objective
-            gap = float(np.max(np.abs(candidate - beta)))
+            if not np.isfinite(candidate_objective) or (
+                candidate_objective > previous_objective + _GLIOMA_OBJECTIVE_TOLERANCE
+            ):
+                accepted = False
+                step_size = 1.0
+                for _ in range(_GLIOMA_BACKTRACKING_STEPS):
+                    step_size *= _GLIOMA_BACKTRACKING_FACTOR
+                    trial = np.clip(
+                        previous_beta + step_size * (candidate - previous_beta),
+                        -M1002_MAX_TYPED_EFFECT,
+                        M1002_MAX_TYPED_EFFECT,
+                    )
+                    trial_objective = _typed_objective(
+                        trial, x, mask, y, c, censor_limits, w, prior
+                    )
+                    if np.isfinite(trial_objective) and (
+                        trial_objective
+                        <= previous_objective + _GLIOMA_OBJECTIVE_TOLERANCE
+                    ):
+                        candidate = trial
+                        candidate_objective = trial_objective
+                        accepted = True
+                        break
+                if not accepted:
+                    candidate = previous_beta
+                    candidate_objective = previous_objective
+            gap = float(np.max(np.abs(candidate - previous_beta)))
             beta = candidate
+            objective = candidate_objective
+            trace.append(round(objective, 12))
             if (
                 gap <= _GLIOMA_TOLERANCE
-                or abs(objective - candidate_objective) <= _GLIOMA_TOLERANCE
+                or abs(previous_objective - objective) <= _GLIOMA_TOLERANCE
             ):
                 converged = True
                 break
-        objective = _typed_objective(beta, x, mask, y, c, censor_limits, w, prior)
-        trace.append(round(objective, 12))
         seed_digest = sha256_digest({"request": request_digest, "program": program.value})
         seed = int(seed_digest.removeprefix("sha256:")[:16], 16) & ((1 << 63) - 1)
         rng = np.random.default_rng(seed)

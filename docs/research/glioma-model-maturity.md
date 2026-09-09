@@ -672,7 +672,9 @@ coordinate descent, one-sided protein censoring, ridge stabilization, and
 explicit modality ablations. Missing predictors are masked from the data term
 instead of imputed as negative values. Bootstrap replicates now perturb observed
 protein effects and censor limits separately, so detection-limit uncertainty is
-visible in replay-stable intervals and stability summaries.
+visible in replay-stable intervals and stability summaries. Each program update
+uses a frozen-parent gradient proposal and finite full-vector backtracking;
+objective traces are quantized and remain monotone within the solver tolerance.
 
 The historical transformation-only representation remains compatibility-only;
 typed output is a research signal and does not emit a clinical, diagnostic,
