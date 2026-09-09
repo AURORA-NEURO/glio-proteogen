@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime
 from http import HTTPStatus
+from itertools import pairwise
 from math import isfinite
 
 import numpy as np
@@ -58,6 +59,7 @@ _DIGEST = "sha256:" + ("1" * 64)
 _DIGEST_2 = "sha256:" + ("2" * 64)
 _EXPECTED_ESTIMATES = 2
 _EXPECTED_DIAGNOSTICS = 2
+_FIRST_CANDIDATE_CALL = 2
 _EXPECTED_POSTERIOR_MASS = 0.9
 _EGFR_ACTIVITY_THRESHOLD = 0.8
 _ACTIVITY_NEUTRAL = 0.5
@@ -500,6 +502,37 @@ def test_typed_complex_bottleneck_and_coherence_are_visible() -> None:
     )
     assert any(
         item.startswith("stoichiometric_coherence_delta=") for item in estimate.ablation_effects
+    )
+
+
+def test_typed_latent_solver_backtracks_objective_increase(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    request = _typed_request(
+        _typed_member(
+            "observation.egfr", "complex.egfr-mtor", "EGFR", 1.35,
+            role=ComplexMemberRole.ESSENTIAL,
+        ),
+        _typed_member("observation.pik3ca", "complex.egfr-mtor", "PIK3CA", 0.92),
+        _typed_member("observation.akt1", "complex.egfr-mtor", "AKT1", 0.81),
+    )
+    original = engine_module._typed_objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == _FIRST_CANDIDATE_CALL else value
+
+    monkeypatch.setattr(engine_module, "_typed_objective", objective)
+    fitted = engine_module._fit_typed_latent(
+        request.typed_observations,
+        max_iterations=64,
+    )
+    assert fitted is not None
+    assert calls > _FIRST_CANDIDATE_CALL
+    assert all(
+        after <= before + engine_module._TYPED_OBJECTIVE_TOLERANCE
+        for before, after in pairwise(fitted[5])
     )
 
 

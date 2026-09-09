@@ -102,6 +102,9 @@ _NUMERIC_CONSTRAINT_PATTERN: Final = re.compile(
 # participate in the evidence rationale and deterministic replay surface.
 _TYPED_MAX_ITERATIONS: Final = 96
 _TYPED_TOLERANCE: Final = 1e-5
+_TYPED_OBJECTIVE_TOLERANCE: Final = 1e-10
+_TYPED_BACKTRACKING_STEPS: Final = 24
+_TYPED_BACKTRACKING_FACTOR: Final = 0.5
 _TYPED_DAMPING: Final = 0.65
 _TYPED_OFFSET_RIDGE: Final = 0.18
 _TYPED_COHERENCE_PENALTY: Final = 0.35
@@ -735,7 +738,7 @@ def _typed_objective(
     return float(total)
 
 
-def _fit_typed_latent(
+def _fit_typed_latent(  # noqa: C901, PLR0915 - coupled latent/member coordinates are intentional.
     observations: tuple[ComplexMemberObservation, ...],
     *,
     max_iterations: int,
@@ -772,12 +775,24 @@ def _fit_typed_latent(
         return None
     latent = _initial_typed_latent(observations, effects, weights)
     offsets = np.zeros(len(observations), dtype=np.float64)
-    trace: list[float] = []
+    initial_objective = _typed_objective(
+        observations,
+        latent,
+        offsets,
+        include_bottleneck=include_bottleneck,
+        include_coherence=include_coherence,
+    )
+    if not isfinite(initial_objective):
+        return None
+    trace: list[float] = [round(initial_objective, 12)]
+    previous_objective = initial_objective
     max_update = float("inf")
     iterations = 0
     for iteration in range(min(max_iterations, _TYPED_MAX_ITERATIONS)):
         iterations = iteration + 1
-        prediction = latent + offsets
+        previous_latent = latent
+        previous_offsets = offsets.copy()
+        prediction = previous_latent + previous_offsets
         residual = prediction - effects
         active = np.asarray(
             [
@@ -798,7 +813,7 @@ def _fit_typed_latent(
         robust[~active] = 0.0
         precision = weights * robust / (errors * errors)
         safe_precision = np.maximum(precision, 1e-12)
-        target_offsets = effects - latent
+        target_offsets = effects - previous_latent
         weighted_target = float(np.sum(safe_precision * target_offsets) / np.sum(safe_precision))
         coherence_penalty = _TYPED_COHERENCE_PENALTY if include_coherence else 0.0
         offset_candidate = (
@@ -806,9 +821,11 @@ def _fit_typed_latent(
             + coherence_penalty * weighted_target
         ) / (safe_precision + _TYPED_OFFSET_RIDGE + coherence_penalty)
         offset_candidate[~active] = 0.0
-        new_offsets = _TYPED_DAMPING * offset_candidate + (1.0 - _TYPED_DAMPING) * offsets
+        proposed_offsets = _TYPED_DAMPING * offset_candidate + (
+            1.0 - _TYPED_DAMPING
+        ) * previous_offsets
 
-        adjusted = effects - new_offsets
+        adjusted = effects - previous_offsets
         target_precision = weights * robust / (errors * errors)
         numerator = float(np.sum(target_precision * adjusted))
         denominator = float(np.sum(target_precision))
@@ -825,22 +842,71 @@ def _fit_typed_latent(
         candidate_latent = float(
             np.clip(candidate_latent, -M0904_MAX_TYPED_EFFECT, M0904_MAX_TYPED_EFFECT)
         )
-        new_latent = _TYPED_DAMPING * candidate_latent + (1.0 - _TYPED_DAMPING) * latent
-        max_update = max(
-            abs(new_latent - latent),
-            float(np.max(np.abs(new_offsets - offsets))),
+        proposed_latent = _TYPED_DAMPING * candidate_latent + (
+            1.0 - _TYPED_DAMPING
+        ) * previous_latent
+        proposed_offsets = np.clip(
+            proposed_offsets,
+            -M0904_MAX_TYPED_EFFECT,
+            M0904_MAX_TYPED_EFFECT,
         )
-        latent, offsets = new_latent, new_offsets
         objective = _typed_objective(
             observations,
-            latent,
-            offsets,
+            proposed_latent,
+            proposed_offsets,
             include_bottleneck=include_bottleneck,
             include_coherence=include_coherence,
         )
-        trace.append(round(objective, 10))
-        if max_update <= _TYPED_TOLERANCE:
+        if not isfinite(objective) or objective > previous_objective + _TYPED_OBJECTIVE_TOLERANCE:
+            accepted = False
+            step = 1.0
+            for _ in range(_TYPED_BACKTRACKING_STEPS):
+                step *= _TYPED_BACKTRACKING_FACTOR
+                trial_latent = float(
+                    np.clip(
+                        previous_latent + step * (proposed_latent - previous_latent),
+                        -M0904_MAX_TYPED_EFFECT,
+                        M0904_MAX_TYPED_EFFECT,
+                    )
+                )
+                trial_offsets = np.clip(
+                    previous_offsets + step * (proposed_offsets - previous_offsets),
+                    -M0904_MAX_TYPED_EFFECT,
+                    M0904_MAX_TYPED_EFFECT,
+                )
+                trial_objective = _typed_objective(
+                    observations,
+                    trial_latent,
+                    trial_offsets,
+                    include_bottleneck=include_bottleneck,
+                    include_coherence=include_coherence,
+                )
+                if isfinite(trial_objective) and (
+                    trial_objective <= previous_objective + _TYPED_OBJECTIVE_TOLERANCE
+                ):
+                    accepted = True
+                    latent = trial_latent
+                    offsets = trial_offsets
+                    objective = trial_objective
+                    break
+            if not accepted:
+                latent = previous_latent
+                offsets = previous_offsets
+                objective = previous_objective
+        else:
+            latent = float(proposed_latent)
+            offsets = proposed_offsets
+        max_update = max(
+            abs(latent - previous_latent),
+            float(np.max(np.abs(offsets - previous_offsets))),
+        )
+        trace.append(round(objective, 12))
+        if (
+            max_update <= _TYPED_TOLERANCE
+            and abs(previous_objective - objective) <= _TYPED_OBJECTIVE_TOLERANCE
+        ):
             break
+        previous_objective = objective
     if not trace or not np.isfinite(trace[-1]) or not np.isfinite(max_update):
         return None
     return latent, offsets, trace[-1], iterations, max_update, tuple(trace)
