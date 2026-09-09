@@ -55,6 +55,10 @@ _OBSERVED_HIGH = 2.0
 _CENSORING_LIMIT = 0.5
 _SOFT_START = 0.2
 _EXPECTED_SUPPORT_RISK = 0.15
+_BOOTSTRAP_CENSORING_LIMIT = 0.1
+_BOOTSTRAP_SHIFT = 0.4
+_BOOTSTRAP_SHIFTED_LIMIT = 0.5
+_BOOTSTRAP_SHIFTED_SURROGATE = 0.4
 
 
 def _artifact(name: str, media_type: str = "application/json") -> ArtifactReference:
@@ -254,6 +258,64 @@ def test_typed_glioma_mechanism_program_graph_abstains_without_program_coverage(
     assert not result.estimates
     assert result.typed_model is True
     assert result.support_decision.status is SupportStatus.REVIEW_REQUIRED
+
+
+def test_typed_glioma_accepts_common_assay_namespaces() -> None:
+    request = _request("conservation_hold")
+    policy = request.policy.model_copy(update={"estimator_family": M0805_GLIOMA_MODEL_FAMILY})
+    request = request.model_copy(
+        update={
+            "source_artifacts": (_artifact("protein.EGFR"), _artifact("rna.CDK4"), _artifact("gene.TP53")),
+            "policy": policy,
+            "observations": (
+                ConstraintEvidenceObservation(
+                    feature_id="protein.EGFR",
+                    value=1.1,
+                    standard_error=0.2,
+                    quality_weight=0.95,
+                ),
+                ConstraintEvidenceObservation(
+                    feature_id="rna.CDK4",
+                    value=0.8,
+                    standard_error=0.2,
+                    quality_weight=0.9,
+                ),
+                ConstraintEvidenceObservation(
+                    feature_id="gene.TP53",
+                    state=ConstraintObservationState.LEFT_CENSORED,
+                    standard_error=0.2,
+                    censoring_limit=0.0,
+                    quality_weight=0.85,
+                ),
+            ),
+        }
+    )
+
+    result = M0805ConstraintIntegrator().integrate(request).result
+
+    assert result.status is ConstraintIntegratorStatus.ESTIMATED
+    assert {item.feature_id for item in result.estimates} == {
+        "glioma.P53_CELL_CYCLE.mechanism",
+        "glioma.PROLIFERATION.mechanism",
+        "glioma.RTK_PI3K_AKT_MTOR.mechanism",
+    }
+
+
+def test_typed_censored_bootstrap_perturbs_the_one_sided_boundary() -> None:
+    observation = ConstraintEvidenceObservation(
+        feature_id="EGFR",
+        state=ConstraintObservationState.LEFT_CENSORED,
+        standard_error=0.2,
+        censoring_limit=_BOOTSTRAP_CENSORING_LIMIT,
+        quality_weight=0.9,
+    )
+
+    baseline = engine_module._glioma_rows((observation,))
+    perturbed = engine_module._glioma_rows((observation,), {"EGFR": _BOOTSTRAP_SHIFT})
+
+    assert baseline[0][4] == _BOOTSTRAP_CENSORING_LIMIT
+    assert perturbed[0][4] == _BOOTSTRAP_SHIFTED_LIMIT
+    assert perturbed[0][1] == _BOOTSTRAP_SHIFTED_SURROGATE
 
 
 def test_soft_numeric_glioma_constraint_damps_measured_value() -> None:

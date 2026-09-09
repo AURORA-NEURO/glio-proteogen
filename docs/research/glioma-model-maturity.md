@@ -437,13 +437,19 @@ treatment claims.
 
 The additive M08-05 runtime now recognizes
 `glioma-mechanism-program-irls/1.0.0`. It maps a locked glioma gene panel
-(EGFR/ERBB2/PDGFRA/PIK3CA/AKT1/MTOR, TP53/MDM2/CDKN2A/CDK4/CCND1,
-IDH1/HIF1A/VHL, STAT3/CCL2/SOX2, and OLIG2/MKI67/PCNA) into five signed
-mechanism programs. Standard-error and quality-weighted Huber coordinate
-descent fits observed and left-censored evidence with ridge stabilization,
-edge-consistency penalties, damping, an objective trace, and deterministic
-64-replicate bootstrap intervals. Directly connected unobserved programs are
-propagated only through the signed graph and retain zero measurement support.
+(EGFR/ERBB2/ERBB3/FGFR3/MET/PDGFRA/PIK3CA/PIK3R1/AKT1/AKT2/MTOR,
+TP53/MDM2/CDKN2A/CDKN1A/RB1/CDK4/CCND1, IDH1/IDH2/HIF1A/VHL/EGL9,
+STAT3/CCL2/SOX2/TGFB1/TGFB2/VIM/ZEB1, and
+OLIG2/MKI67/PCNA/TOP2A/CCNB1/CDK1/AURKA/MCM2/MCM6) into five signed
+mechanism programs. Common `protein.`, `rna.`, `gene.`, and `transcript.`
+assay namespaces are normalized to these gene keys. Standard-error and
+quality-weighted Huber coordinate descent fits observed and left-censored
+evidence with ridge stabilization, edge-consistency penalties, damping, an
+objective trace, and deterministic 64-replicate bootstrap intervals. Censored
+bootstrap draws perturb the one-sided detection boundary itself, preserving
+measurement uncertainty instead of only shifting an unused surrogate target.
+Directly connected unobserved programs are propagated only through the signed
+graph and retain zero measurement support.
 
 The historical caller-declared/digest-only constraint path remains unchanged.
 Typed estimates are normalized research signals with explicit program coverage

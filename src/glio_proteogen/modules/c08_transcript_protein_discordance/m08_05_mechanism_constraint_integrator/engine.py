@@ -86,24 +86,43 @@ _GLIOMA_PROGRAMS: Final = (
 _GLIOMA_FEATURE_PROGRAM: Final = {
     "egfr": "RTK_PI3K_AKT_MTOR",
     "erbb2": "RTK_PI3K_AKT_MTOR",
+    "erbb3": "RTK_PI3K_AKT_MTOR",
+    "fgfr3": "RTK_PI3K_AKT_MTOR",
+    "met": "RTK_PI3K_AKT_MTOR",
     "pdgfra": "RTK_PI3K_AKT_MTOR",
     "pik3ca": "RTK_PI3K_AKT_MTOR",
+    "pik3r1": "RTK_PI3K_AKT_MTOR",
     "akt1": "RTK_PI3K_AKT_MTOR",
+    "akt2": "RTK_PI3K_AKT_MTOR",
     "mtor": "RTK_PI3K_AKT_MTOR",
     "tp53": "P53_CELL_CYCLE",
     "mdm2": "P53_CELL_CYCLE",
     "cdkn2a": "P53_CELL_CYCLE",
+    "cdkn1a": "P53_CELL_CYCLE",
+    "rb1": "P53_CELL_CYCLE",
     "cdk4": "P53_CELL_CYCLE",
     "ccnd1": "P53_CELL_CYCLE",
     "idh1": "IDH_HIF1A",
+    "idh2": "IDH_HIF1A",
     "hif1a": "IDH_HIF1A",
     "vhl": "IDH_HIF1A",
+    "egl9": "IDH_HIF1A",
     "stat3": "MESENCHYMAL_PROGRAM",
     "ccl2": "MESENCHYMAL_PROGRAM",
     "sox2": "MESENCHYMAL_PROGRAM",
+    "tgfb1": "MESENCHYMAL_PROGRAM",
+    "tgfb2": "MESENCHYMAL_PROGRAM",
+    "vim": "MESENCHYMAL_PROGRAM",
+    "zeb1": "MESENCHYMAL_PROGRAM",
     "olig2": "PROLIFERATION",
     "mki67": "PROLIFERATION",
     "pcna": "PROLIFERATION",
+    "top2a": "PROLIFERATION",
+    "ccnb1": "PROLIFERATION",
+    "cdk1": "PROLIFERATION",
+    "aurka": "PROLIFERATION",
+    "mcm2": "PROLIFERATION",
+    "mcm6": "PROLIFERATION",
 }
 _GLIOMA_EDGES: Final = (
     ("RTK_PI3K_AKT_MTOR", "PROLIFERATION", 1.0, 0.45),
@@ -111,6 +130,18 @@ _GLIOMA_EDGES: Final = (
     ("IDH_HIF1A", "MESENCHYMAL_PROGRAM", -1.0, 0.25),
     ("MESENCHYMAL_PROGRAM", "PROLIFERATION", 1.0, 0.30),
 )
+
+
+def _glioma_feature_key(feature_id: str) -> str:
+    """Normalize common assay namespaces to a HGNC-like gene symbol key."""
+
+    normalized = feature_id.casefold().strip()
+    for prefix in ("protein", "rna", "transcript", "gene", "feature"):
+        for separator in (".", ":", "/", "|"):
+            marker = f"{prefix}{separator}"
+            if normalized.startswith(marker):
+                return normalized[len(marker) :]
+    return normalized
 
 
 @dataclass(frozen=True, slots=True)
@@ -389,7 +420,7 @@ def _glioma_rows(
 ) -> tuple[tuple[str, float, float, float, float | None], ...]:
     rows: list[tuple[str, float, float, float, float | None]] = []
     for item in sorted(observations, key=lambda item: item.feature_id):
-        program = _GLIOMA_FEATURE_PROGRAM.get(item.feature_id.casefold())
+        program = _GLIOMA_FEATURE_PROGRAM.get(_glioma_feature_key(item.feature_id))
         if program is None or item.quality_weight <= 0.0:
             continue
         standard_error = item.standard_error
@@ -407,7 +438,21 @@ def _glioma_rows(
         else:
             continue
         if perturbations is not None:
-            target += perturbations.get(item.feature_id, 0.0)
+            perturbation = perturbations.get(item.feature_id, 0.0)
+            if censoring_limit is not None:
+                # Censored bootstrap draws must move the boundary used by the
+                # one-sided loss. Shifting only the surrogate target leaves the
+                # actual censoring constraint unchanged and understates uncertainty.
+                censoring_limit = float(
+                    np.clip(
+                        censoring_limit + perturbation,
+                        -_GLIOMA_MAX_ABUNDANCE,
+                        _GLIOMA_MAX_ABUNDANCE,
+                    )
+                )
+                target = censoring_limit - 0.5 * standard_error
+            else:
+                target += perturbation
         rows.append((program, target, standard_error, item.quality_weight, censoring_limit))
     return tuple(rows)
 
@@ -567,7 +612,7 @@ def _glioma_program_estimates(
         members = tuple(
             item
             for item in active
-            if _GLIOMA_FEATURE_PROGRAM.get(item.feature_id.casefold()) == program
+            if _GLIOMA_FEATURE_PROGRAM.get(_glioma_feature_key(item.feature_id)) == program
         )
         quality_by_program[program] = sum(item.quality_weight for item in members) / max(
             1, len(members)
