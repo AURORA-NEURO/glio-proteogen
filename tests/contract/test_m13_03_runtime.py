@@ -48,6 +48,11 @@ from glio_proteogen.kernel.models import (
 from glio_proteogen.modules.c11_protein_native_subtype import (
     m13_03_mechanistic_feature_constructor as m1303,
 )
+from glio_proteogen.modules.c11_protein_native_subtype.m13_03_mechanistic_feature_constructor.engine import (  # noqa: E501
+    _ENTITY_INDEX,
+    _initial_values,
+    _ObservationTerm,
+)
 
 M1303Plugin = m1303.M1303Plugin
 M1303Service = m1303.M1303Service
@@ -56,6 +61,7 @@ construct_proteotype_mechanistic_features = m1303.construct_proteotype_mechanist
 preflight_mechanistic_feature_authorization = m1303.preflight_mechanistic_feature_authorization
 verify_mechanistic_feature_replay = m1303.verify_mechanistic_feature_replay
 _MAX_EFFECT = 20.0
+_CENSORED_LIMIT = 0.2
 
 
 def artifact(label: str, media_type: str = "application/json") -> ArtifactReference:
@@ -314,6 +320,34 @@ def test_left_censored_and_missing_evidence_never_becomes_a_negative_score() -> 
         feature.scalar_value is None or feature.scalar_value >= -_MAX_EFFECT
         for feature in result.feature_object.features
     )
+
+
+def test_left_censored_initialization_respects_upper_bound_not_exact_location() -> None:
+    terms = (
+        _ObservationTerm(
+            entity_id="EGFR",
+            state=MechanisticEvidenceState.LEFT_CENSORED,
+            value=_CENSORED_LIMIT,
+            standard_error=0.3,
+            quality_weight=0.9,
+        ),
+    )
+    initial = _initial_values(terms)
+    assert initial[_ENTITY_INDEX["EGFR"]] == pytest.approx(0.0)
+
+    mixed = _initial_values(
+        (
+            _ObservationTerm(
+                entity_id="EGFR",
+                state=MechanisticEvidenceState.OBSERVED,
+                value=1.5,
+                standard_error=0.2,
+                quality_weight=0.9,
+            ),
+            terms[0],
+        )
+    )
+    assert mixed[_ENTITY_INDEX["EGFR"]] <= _CENSORED_LIMIT
 
 
 def test_opaque_or_fully_missing_requests_abstain_instead_of_fabricating_features() -> None:

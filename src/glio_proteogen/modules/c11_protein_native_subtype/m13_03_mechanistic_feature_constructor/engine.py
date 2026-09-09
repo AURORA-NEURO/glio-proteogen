@@ -664,7 +664,24 @@ def _initial_values(observations: tuple[_ObservationTerm, ...]) -> list[float]:
         grouped[item.entity_id].append(item)
     values = [0.0] * len(_ENTITY_IDS)
     for entity_id, terms in grouped.items():
-        values[_ENTITY_INDEX[entity_id]] = _robust_center(tuple(terms))
+        observed = tuple(
+            item for item in terms if item.state is MechanisticEvidenceState.OBSERVED
+        )
+        censored = tuple(
+            item for item in terms if item.state is MechanisticEvidenceState.LEFT_CENSORED
+        )
+        if observed:
+            initial = _robust_center(observed)
+            if censored:
+                initial = min(initial, *(item.value for item in censored))
+        elif censored:
+            # A left-censored value is an upper bound, not an exact location.
+            # Start at the ridge-neutral value when feasible; otherwise use the
+            # tightest bound so the first iterate is constraint-feasible.
+            initial = min(0.0, *(item.value for item in censored))
+        else:
+            continue
+        values[_ENTITY_INDEX[entity_id]] = initial
     return values
 
 

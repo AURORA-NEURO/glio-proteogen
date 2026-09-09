@@ -816,6 +816,8 @@ ridge stabilization, convergence diagnostics, and deterministic digest-seeded
 bootstrap intervals. Pathway activity is propagated through the graph rather
 than computed as independent digest or weighted-average formulas; replicated
 observations yield non-degenerate uncertainty and order-invariant receipts.
+Initialization is censor-aware: left-censored effects are upper bounds with a
+ridge-neutral feasible start, never exact locations.
 
 Missing and unsupported observations are ignored as evidence, while insufficient
 typed support and legacy opaque requests abstain instead of fabricating a score.
