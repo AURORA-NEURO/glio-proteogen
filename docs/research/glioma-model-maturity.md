@@ -712,6 +712,10 @@ digest-seeded measurement perturbations produce a bootstrap state interval,
 and projected features preserve their source lineage. Categorical features
 and non-evaluable inputs remain non-evidence.
 
+Every relation used by the typed fit must carry an explicit finite weight. The
+legacy optional relation field is not converted into an invented default edge
+strength; missing topology strength causes the typed lane to abstain.
+
 The original invariant-only feature constructor remains compatible for other
 model families. The typed lane requires two numeric features and a supported
 signed relation, abstaining when topology or convergence is insufficient. Its

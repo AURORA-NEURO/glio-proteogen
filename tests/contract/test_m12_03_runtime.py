@@ -237,6 +237,47 @@ def test_typed_glioma_constraint_graph_fits_and_bootstraps() -> None:
     )
 
 
+def test_typed_glioma_relation_without_weight_abstains_instead_of_using_proxy() -> None:
+    base = request()
+    source = artifact("typed-source-unweighted")
+    second = MechanisticFeature(
+        feature_id="feature.egfr",
+        version="1.0.0",
+        kind=MechanisticFeatureKind.REGULATORY,
+        value_kind=MechanisticValueKind.SCALAR,
+        unit="score",
+        scalar_value=1.2,
+        lineage=MechanisticFeatureLineage(
+            feature_id="feature.egfr",
+            source_artifacts=(source,),
+            claim="Typed EGFR evidence.",
+        ),
+    )
+    typed = base.model_copy(
+        update={
+            "configuration": base.configuration.model_copy(
+                update={"model_family": M1203_GLIOMA_MODEL_FAMILY, "bootstrap_replicates": 16}
+            ),
+            "feature_inputs": (base.feature_inputs[0], second),
+            "relations": (
+                MechanisticRelation(
+                    relation_id="relation.egfr-pathway-unweighted",
+                    source_feature_id="feature.egfr",
+                    target_feature_id="feature.pathway",
+                    kind=MechanisticRelationKind.ACTIVATES,
+                ),
+            ),
+            "source_artifacts": (base.source_artifacts[0], source),
+        }
+    )
+    result = construct_mechanistic_features(typed)
+    assert result.status.value == "abstained"
+    assert result.feature_object is None
+    assert result.typed_model is False
+    assert result.solver_iterations == 0
+    assert "not evaluable" in (result.abstention_reason or "")
+
+
 def test_failed_negative_control_abstains_without_object() -> None:
     result = construct_mechanistic_features(request(negative=NegativeControlStatus.FAILED))
 

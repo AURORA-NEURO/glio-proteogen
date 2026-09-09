@@ -1,5 +1,11 @@
 # M12-03 mechanistic feature constructor
 
+The typed glioma model uses robust signed relation fitting and digest-seeded
+bootstrap projection while preserving the existing provisional request and
+result ABI. Typed relations require explicit finite weights; the legacy
+optional relation field is not converted into an invented default edge
+strength.
+
 Status: `0.1.0-provisional`; ABI and endpoint names remain subject to owner confirmation.
 
 ## Authority and boundary

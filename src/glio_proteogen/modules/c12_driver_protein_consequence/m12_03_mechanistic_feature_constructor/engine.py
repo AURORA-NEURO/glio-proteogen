@@ -102,7 +102,12 @@ def _feature_numeric(feature: MechanisticFeature) -> tuple[float, float] | None:
 
 
 def _relation_sign(relation: MechanisticRelation) -> float | None:
-    if relation.weight is not None and not math.isfinite(relation.weight):
+    # Typed glioma fitting must never invent an edge magnitude.  The contract
+    # keeps ``weight`` optional for legacy, non-numeric callers, but an absent
+    # weight is not an estimable signed constraint in the research lane.
+    if relation.weight is None:
+        return None
+    if not math.isfinite(relation.weight):
         return None
     signs = {
         MechanisticRelationKind.ACTIVATES: 1.0,
@@ -113,12 +118,12 @@ def _relation_sign(relation: MechanisticRelation) -> float | None:
     }
     sign: float | None
     if relation.kind is MechanisticRelationKind.REGULATES:
-        sign = 1.0 if (relation.weight or 1.0) >= 0.0 else -1.0
+        sign = 1.0 if relation.weight >= 0.0 else -1.0
     else:
         sign = signs.get(relation.kind)
     if sign is None:
         return None
-    return sign * max(_M1203_MIN_SCALE, abs(relation.weight or 0.55))
+    return sign * max(_M1203_MIN_SCALE, abs(relation.weight))
 
 
 def _huber(value: float) -> float:
