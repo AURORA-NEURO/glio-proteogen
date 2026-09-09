@@ -986,9 +986,11 @@ same glioma program vocabulary. A scenario carries a signed baseline-to-
 perturbed effect, standard error, quality weight, and observed/left-censored/
 missing/unsupported state. Robust Huber coordinate descent fits direct program
 effects while enforcing signed RTK/PI3K/AKT/mTOR, p53/cell-cycle,
-IDH/HIF1A, mesenchymal, and proliferation edge coherence. Deterministic
-request-digest perturbations produce effect intervals, stability, discordance,
-top drivers, and an objective-trace digest for replay.
+IDH/HIF1A, mesenchymal, and proliferation edge coherence. Frozen-parent
+damped Jacobi updates and objective-safe backtracking preserve a finite
+monotone objective trace. Deterministic request-digest perturbations produce
+effect intervals, stability, discordance, top drivers, and a replay-bound trace
+digest.
 
 The historical bounded replay ABI remains compatibility-only. Missing and
 unsupported typed scenarios are excluded and an all-missing request abstains;

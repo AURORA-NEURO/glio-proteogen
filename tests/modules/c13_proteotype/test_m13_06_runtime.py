@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
+from itertools import pairwise
 from typing import TYPE_CHECKING
 
 import pytest
@@ -44,6 +45,8 @@ from glio_proteogen.modules.c13_proteotype.m13_06_perturbation_sensitivity impor
     preflight_m1306_authorization,
     simulate_proteotype_perturbation_sensitivity,
 )
+
+_FIRST_CANDIDATE_CALL = 2
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -225,6 +228,28 @@ def test_typed_glioma_perturbation_graph_emits_interval_and_trace() -> None:
     assert response.stability is not None
     assert response.top_drivers
     assert M1306Service().verify(result) == result
+
+
+def test_typed_solver_backtracks_objective_increase(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    request = _typed_request()
+    terms = engine_module._typed_terms(request.scenarios)
+    original = engine_module._typed_objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == _FIRST_CANDIDATE_CALL else value
+
+    monkeypatch.setattr(engine_module, "_typed_objective", objective)
+    fit = engine_module._fit_typed(terms)
+    assert fit.converged
+    assert calls > _FIRST_CANDIDATE_CALL
+    assert all(
+        after <= before + engine_module._OBJECTIVE_TOLERANCE
+        for before, after in pairwise(fit.objective_trace)
+    )
 
 
 def test_typed_initialization_keeps_left_censored_limits_feasible() -> None:
