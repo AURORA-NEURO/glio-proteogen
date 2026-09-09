@@ -691,7 +691,10 @@ errors, quality weights, a glioma program, explicit evidence state, subgroup,
 and a discordant/concordant label. A quality-weighted damped robust logistic
 IRLS fit learns the score-to-label relationship from those measurements rather
 than deriving a query score from a digest. The fit records a bounded objective
-trace and is replay-bound to the request digest.
+trace and is replay-bound to the request digest. Its design matrix adds
+ridge-regularized one-hot offsets for the five locked GBM programs, so sparse
+program evidence shrinks toward the global calibration while program context
+still changes the fitted score.
 
 The fitted scores feed the existing leave-one-out conformal rank calibration,
 OOD range check, and subgroup coverage disparity gate. Left-censored points are

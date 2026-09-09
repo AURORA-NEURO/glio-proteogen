@@ -27,6 +27,7 @@ from glio_proteogen.contracts.m10_07 import (
     CalibrationFindingCode,
     CalibrationObservation,
     CalibrationStatus,
+    GliomaCalibrationProgram,
     PredictionSet,
     ProteinRnaDiscordanceSelectivePredictionResult,
     TypedDiscordanceCalibrationObservation,
@@ -67,12 +68,14 @@ _TYPED_MAX_Z: Final = 12.0
 _TYPED_MIN_CLASSES: Final = 2
 _TYPED_CLASS_THRESHOLD: Final = 0.5
 _TYPED_MIN_WEIGHT: Final = 1e-10
+_TYPED_PROGRAM_ORDER: Final = tuple(GliomaCalibrationProgram)
 
 
 @dataclass(frozen=True, slots=True)
 class _TypedCalibrationFit:
     intercept: float
     slope: float
+    program_offsets: tuple[float, ...]
     query_score: float
     transformed_observations: tuple[CalibrationObservation, ...]
     objective: float
@@ -297,9 +300,31 @@ def _sigmoid(value: float) -> float:
     return positive / (1.0 + positive)
 
 
+def _typed_design(
+    observations: tuple[TypedDiscordanceCalibrationObservation | TypedDiscordanceQuery, ...],
+) -> np.ndarray:
+    """Build the deterministic discordance-plus-program design matrix.
+
+    The first two columns are a global intercept and standardized paired
+    discordance. One-hot program columns learn bounded context offsets for the
+    five GBM programs while the locked ridge keeps sparse programs identifiable.
+    Enum order is part of the model profile, so request ordering cannot alter
+    the fitted coordinates.
+    """
+
+    width = 2 + len(_TYPED_PROGRAM_ORDER)
+    rows = np.zeros((len(observations), width), dtype=np.float64)
+    for row_index, item in enumerate(observations):
+        rows[row_index, 0] = 1.0
+        rows[row_index, 1] = _typed_delta(item)
+        if item.program is not None:
+            rows[row_index, 2 + _TYPED_PROGRAM_ORDER.index(item.program)] = 1.0
+    return rows
+
+
 def _typed_logistic_fit(  # noqa: C901, PLR0911, PLR0912, PLR0915 - deterministic IRLS gate.
     observations: tuple[TypedDiscordanceCalibrationObservation, ...],
-) -> tuple[float, float, float, int, float, tuple[float, ...]] | None:
+) -> tuple[tuple[float, ...], float, int, float, tuple[float, ...]] | None:
     active = tuple(item for item in observations if _typed_active(item))
     if len(active) < M1007_MIN_CALIBRATION_OBSERVATIONS:
         return None
@@ -312,9 +337,10 @@ def _typed_logistic_fit(  # noqa: C901, PLR0911, PLR0912, PLR0915 - deterministi
     if len(set(numeric_labels.tolist())) < _TYPED_MIN_CLASSES:
         return None
     try:
-        values = np.asarray([_typed_delta(item) for item in active], dtype=np.float64)
+        design = _typed_design(active)
     except ValueError:
         return None
+    values = design[:, 1]
     qualities = np.asarray([item.quality_weight for item in active], dtype=np.float64)
     if not (
         np.all(np.isfinite(values))
@@ -324,8 +350,8 @@ def _typed_logistic_fit(  # noqa: C901, PLR0911, PLR0912, PLR0915 - deterministi
         return None
     weighted_rate = float(np.average(numeric_labels, weights=qualities))
     intercept = log((weighted_rate + 0.01) / (1.01 - weighted_rate))
-    beta = np.asarray([intercept, 0.0], dtype=np.float64)
-    design = np.column_stack((np.ones(len(values), dtype=np.float64), values))
+    beta = np.zeros(design.shape[1], dtype=np.float64)
+    beta[0] = intercept
     objective_trace: list[float] = []
     convergence_gap = float("inf")
     iterations = 0
@@ -352,7 +378,7 @@ def _typed_logistic_fit(  # noqa: C901, PLR0911, PLR0912, PLR0915 - deterministi
         if float(np.sum(weights)) <= _TYPED_MIN_WEIGHT:
             return None
         hessian = design.T @ (weights[:, None] * design)
-        hessian += _TYPED_RIDGE * np.eye(2, dtype=np.float64)
+        hessian += _TYPED_RIDGE * np.eye(design.shape[1], dtype=np.float64)
         gradient = design.T @ (qualities * robust * eligible * (numeric_labels - probabilities))
         gradient -= _TYPED_RIDGE * beta
         try:
@@ -379,8 +405,7 @@ def _typed_logistic_fit(  # noqa: C901, PLR0911, PLR0912, PLR0915 - deterministi
     if not objective_trace or not np.isfinite(objective_trace[-1]) or not np.all(np.isfinite(beta)):
         return None
     return (
-        float(beta[0]),
-        float(beta[1]),
+        tuple(float(value) for value in beta),
         objective_trace[-1],
         iterations,
         convergence_gap,
@@ -396,12 +421,13 @@ def _typed_calibration_fit(
     fitted = _typed_logistic_fit(request.typed_calibration_observations)
     if fitted is None or not _typed_active(request.typed_query):
         return None
-    intercept, slope, objective, iterations, gap, trace = fitted
+    coefficients, objective, iterations, gap, trace = fitted
+    beta = np.asarray(coefficients, dtype=np.float64)
     transformed: list[CalibrationObservation] = []
     for item in request.typed_calibration_observations:
         if not _typed_active(item) or item.observed_label is None:
             continue
-        score = _sigmoid(intercept + slope * _typed_delta(item))
+        score = _sigmoid(float(_typed_design((item,))[0] @ beta))
         transformed.append(
             CalibrationObservation(
                 observation_id=item.observation_id,
@@ -413,10 +439,11 @@ def _typed_calibration_fit(
         )
     if len(transformed) < M1007_MIN_CALIBRATION_OBSERVATIONS:
         return None
-    query_score = _sigmoid(intercept + slope * _typed_delta(request.typed_query))
+    query_score = _sigmoid(float(_typed_design((request.typed_query,))[0] @ beta))
     return _TypedCalibrationFit(
-        intercept=round(intercept, 8),
-        slope=round(slope, 8),
+        intercept=round(float(beta[0]), 8),
+        slope=round(float(beta[1]), 8),
+        program_offsets=tuple(round(float(value), 8) for value in beta[2:]),
         query_score=round(query_score, 8),
         transformed_observations=tuple(transformed),
         objective=round(objective, 8),

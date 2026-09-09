@@ -265,6 +265,25 @@ def test_typed_glioma_calibration_fits_discordance_and_replays() -> None:
     assert M1007CalibrationEngine().verify(built.result, built.canonical_bytes).verified is True
 
 
+def test_typed_calibration_uses_glioma_program_context() -> None:
+    request = _typed_request()
+    query = request.typed_query
+    assert query is not None
+    neutral_query = query.model_copy(update={"protein_effect": 0.0, "rna_effect": 0.0})
+    baseline = M1007CalibrationEngine().execute(
+        request.model_copy(update={"typed_query": neutral_query})
+    )
+    alternate_query = neutral_query.model_copy(
+        update={"program": GliomaCalibrationProgram.P53_CELL_CYCLE}
+    )
+    alternate = M1007CalibrationEngine().execute(
+        request.model_copy(update={"typed_query": alternate_query})
+    )
+    assert baseline.result.estimate is not None
+    assert alternate.result.estimate is not None
+    assert baseline.result.estimate.score != alternate.result.estimate.score
+
+
 def test_typed_calibration_excludes_missing_and_censored_values() -> None:
     request = _typed_request()
     evidence = request.typed_calibration_observations[0].evidence
