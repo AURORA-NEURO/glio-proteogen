@@ -53,7 +53,9 @@ from glio_proteogen.modules.c13_variant_peptide.m13_05_longitudinal_evolution im
     ValidatedM1305Request,
 )
 from glio_proteogen.modules.c13_variant_peptide.m13_05_longitudinal_evolution.engine import (
+    _initial_temporal_values,
     _label_for,
+    _TypedTerm,
     preflight_longitudinal_authorization,
 )
 
@@ -245,6 +247,41 @@ def test_typed_missing_and_left_censored_evidence_is_not_negative() -> None:
     assert middle.evidence_count == 0
     assert (middle.standardized_state or 0.0) > 0.0
     assert all(state.label != "suppressed" for state in result.trajectory)
+
+
+def test_typed_initialization_respects_left_censor_bounds() -> None:
+    grouped = {
+        0: [
+            _TypedTerm(
+                sequence=0,
+                program=GliomaTrajectoryProgram.RTK_PI3K_AKT_MTOR,
+                state=LongitudinalEvidenceState.OBSERVED,
+                value=0.6,
+                standard_error=0.2,
+                quality_weight=1.0,
+            ),
+            _TypedTerm(
+                sequence=0,
+                program=GliomaTrajectoryProgram.RTK_PI3K_AKT_MTOR,
+                state=LongitudinalEvidenceState.LEFT_CENSORED,
+                value=0.2,
+                standard_error=0.2,
+                quality_weight=1.0,
+            ),
+        ],
+        2: [
+            _TypedTerm(
+                sequence=2,
+                program=GliomaTrajectoryProgram.RTK_PI3K_AKT_MTOR,
+                state=LongitudinalEvidenceState.LEFT_CENSORED,
+                value=-0.3,
+                standard_error=0.2,
+                quality_weight=1.0,
+            ),
+        ],
+    }
+    values = _initial_temporal_values(grouped, 3)
+    assert values == pytest.approx([0.2, -0.05, -0.3])
 
 
 def test_typed_change_point_and_insufficient_support_are_explicit() -> None:
