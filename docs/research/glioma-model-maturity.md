@@ -532,7 +532,9 @@ proteotype effects are fitted across the five glioma programs with quality and
 standard-error weighted robust IRLS, feature offsets, ridge stabilization, and
 signed program relations. Left-censored dosage measurements use a one-sided
 detection-limit loss; missing and unsupported states are excluded rather than
-treated as suppression.
+treated as suppression. Program starts use observed dosage effects only and
+project onto the tightest censor bound, while censor-only programs start at
+neutral on the feasible side.
 
 The typed integration evaluates hard and soft constraints against fitted
 feature states, preserves soft effects with ablation records, and emits

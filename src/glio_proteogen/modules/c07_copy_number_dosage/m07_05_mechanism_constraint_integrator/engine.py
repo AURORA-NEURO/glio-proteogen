@@ -287,6 +287,34 @@ def _typed_target(item: GliomaDosageObservation) -> float:
     return float(value)
 
 
+def _initial_typed_program_state(members: tuple[GliomaDosageObservation, ...]) -> float:
+    """Initialize a dosage program from observed effects and feasible censor bounds."""
+
+    observed = tuple(
+        item for item in members if item.evidence_state is DosageEvidenceState.OBSERVED
+    )
+    limits = tuple(
+        float(item.censoring_limit)
+        for item in members
+        if item.evidence_state is DosageEvidenceState.LEFT_CENSORED
+        and item.censoring_limit is not None
+    )
+    if observed:
+        values = np.asarray([_typed_target(item) for item in observed], dtype=np.float64)
+        weights = np.asarray(
+            [item.quality_weight / max(_typed_error(item) ** 2, 1e-12) for item in observed],
+            dtype=np.float64,
+        )
+        state = float(np.average(values, weights=weights))
+        if limits:
+            state = min(state, *limits)
+    elif limits:
+        state = min(0.0, *limits)
+    else:
+        state = 0.0
+    return float(np.clip(state, -M0705_MAX_TYPED_EFFECT, M0705_MAX_TYPED_EFFECT))
+
+
 def _typed_residual(prediction: float, item: GliomaDosageObservation) -> float:
     if item.evidence_state is DosageEvidenceState.LEFT_CENSORED:
         limit = float(item.censoring_limit or 0.0)
@@ -362,12 +390,7 @@ def _fit_typed_dosage(  # noqa: C901, PLR0912, PLR0915 - coupled dosage coordina
     for program in _TYPED_PROGRAMS:
         members = tuple(item for item in active if item.program and item.program.value == program)
         if members:
-            values = np.asarray([_typed_target(item) for item in members], dtype=np.float64)
-            weights = np.asarray(
-                [item.quality_weight / max(_typed_error(item) ** 2, 1e-12) for item in members],
-                dtype=np.float64,
-            )
-            program_states[program_indices[program]] = float(np.average(values, weights=weights))
+            program_states[program_indices[program]] = _initial_typed_program_state(members)
     trace: list[float] = []
     gap = float("inf")
     iterations = 0

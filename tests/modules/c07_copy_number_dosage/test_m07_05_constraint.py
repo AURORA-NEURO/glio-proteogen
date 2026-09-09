@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 
 import pytest
 
+import glio_proteogen.modules.c07_copy_number_dosage.m07_05_mechanism_constraint_integrator.engine as engine_module  # noqa: E501
 from glio_proteogen.contracts.m07_05 import (
     M0705_ADVANCED_ESTIMATOR_MEDIA_TYPE,
     DosageEvidenceState,
@@ -230,6 +231,24 @@ def test_typed_glioma_dosage_excludes_missing_and_abstains_without_program_suppo
     abstained = M0705ConstraintEngine().integrate(unsupported_only).result
     assert abstained.status.value == "abstained"
     assert not abstained.estimates
+
+
+def test_typed_initialization_uses_observed_dosage_and_projects_censor_bounds() -> None:
+    observed = _typed_observations()[0]
+    censored = _typed_observations()[2].model_copy(
+        update={
+            "program": GliomaDosageProgram.RTK_PI3K_AKT_MTOR,
+            "censoring_limit": -0.2,
+        }
+    )
+
+    assert engine_module._initial_typed_program_state((observed, censored)) == pytest.approx(-0.2)
+
+
+def test_typed_censor_only_initialization_is_neutral_when_limit_is_positive() -> None:
+    censored = _typed_observations()[2]
+
+    assert engine_module._initial_typed_program_state((censored,)) == pytest.approx(0.0)
 
 
 def test_soft_conflict_remains_visible_without_hidden_prior_dominance() -> None:
