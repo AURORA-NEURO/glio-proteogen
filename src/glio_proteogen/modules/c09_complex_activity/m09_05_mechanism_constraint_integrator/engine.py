@@ -531,7 +531,41 @@ def _typed_target(observation: GliomaComplexConstraintObservation) -> float:
     value = observation.censoring_limit
     if value is None:
         raise ValueError from None
-    return float(value) - 0.5 * _typed_error(observation)
+    return float(value)
+
+
+def _initial_typed_latent(
+    observations: tuple[GliomaComplexConstraintObservation, ...],
+    values: np.ndarray,
+    weights: np.ndarray,
+) -> float:
+    """Initialize a complex from observed members while respecting censor bounds."""
+
+    observed = np.asarray(
+        [
+            index
+            for index, item in enumerate(observations)
+            if item.evidence_state is GliomaConstraintEvidenceState.OBSERVED
+        ],
+        dtype=np.int64,
+    )
+    limits = tuple(
+        float(item.censoring_limit)
+        for item in observations
+        if item.evidence_state is GliomaConstraintEvidenceState.LEFT_CENSORED
+        and item.censoring_limit is not None
+    )
+    if len(observed):
+        order = observed[np.argsort(values[observed], kind="stable")]
+        cutoff = 0.5 * float(np.sum(weights[observed]))
+        position = int(np.searchsorted(np.cumsum(weights[order]), cutoff, side="left"))
+        center = float(values[order[min(position, len(order) - 1)]])
+        latent = min(center, *limits) if limits else center
+    elif limits:
+        latent = min(0.0, *limits)
+    else:
+        latent = 0.0
+    return float(np.clip(latent, -M0905_MAX_TYPED_EFFECT, M0905_MAX_TYPED_EFFECT))
 
 
 def _typed_residual(prediction: float, observation: GliomaComplexConstraintObservation) -> float:
@@ -640,15 +674,7 @@ def _fit_typed_latent(  # noqa: PLR0913 - solver controls are explicit replay in
         and np.all(weights > 0.0)
     ):
         return None
-    order = np.argsort(values, kind="stable")
-    initial_index = int(np.searchsorted(np.cumsum(weights[order]), 0.5 * np.sum(weights)))
-    latent = float(
-        np.clip(
-            values[order[min(initial_index, len(order) - 1)]],
-            -M0905_MAX_TYPED_EFFECT,
-            M0905_MAX_TYPED_EFFECT,
-        )
-    )
+    latent = _initial_typed_latent(active, values, weights)
     offsets = np.zeros(len(active), dtype=np.float64)
     trace: list[float] = []
     gap = float("inf")

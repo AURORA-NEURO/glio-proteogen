@@ -572,7 +572,9 @@ standard errors, quality, stoichiometric weights, member roles, and explicit
 observed/left-censored/missing/unsupported states. Each complex is fitted by a
 damped Huber IRLS coordinate descent with one-sided censor loss, member-offset
 ridge, stoichiometric coherence, essential-subunit bottleneck, and numeric
-mechanism-constraint penalties. Hard conflicts and unknown expressions abstain;
+mechanism-constraint penalties. Censored member limits are used as one-sided
+bounds (not `limit - 0.5*SE` surrogate observations), and latent starts are
+robustly centered on observed members before projection to those bounds. Hard conflicts and unknown expressions abstain;
 soft conflicts remain visible in the report.
 
 Sixty-four deterministic, role-stratified bootstrap perturbations (bounded at

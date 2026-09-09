@@ -7,8 +7,10 @@ import json
 from datetime import UTC, datetime
 from typing import cast
 
+import numpy as np
 import pytest
 
+import glio_proteogen.modules.c09_complex_activity.m09_05_mechanism_constraint_integrator.engine as engine_module
 from glio_proteogen.contracts.m09_05 import (
     M0905_BASELINE_MEDIA_TYPE,
     ConstraintAwareEstimate,
@@ -672,3 +674,27 @@ def test_typed_glioma_input_order_does_not_change_digest() -> None:
     )
     engine = M0905ConstraintIntegrator()
     assert engine.integrate(request).canonical_bytes == engine.integrate(reordered).canonical_bytes
+
+
+def test_typed_censor_limit_is_a_bound_not_a_surrogate_target() -> None:
+    from glio_proteogen.contracts.m09_05 import GliomaConstraintEvidenceState
+
+    censor = _typed_request().typed_observations[2]
+
+    assert censor.evidence_state is GliomaConstraintEvidenceState.LEFT_CENSORED
+    assert engine_module._typed_target(censor) == pytest.approx(censor.censoring_limit)
+
+
+def test_typed_complex_initialization_projects_observed_center_to_censor_bound() -> None:
+    observations = _typed_request().typed_observations
+    values = np.asarray(
+        [engine_module._typed_target(item) for item in observations], dtype=np.float64
+    )
+    weights = np.asarray(
+        [item.quality_weight * item.stoichiometric_weight for item in observations],
+        dtype=np.float64,
+    )
+
+    assert engine_module._initial_typed_latent(observations, values, weights) == pytest.approx(
+        0.35
+    )
