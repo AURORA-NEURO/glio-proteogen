@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 
 import pytest
 
+import glio_proteogen.modules.c08_transcript_protein_discordance.m08_04_probabilistic_estimator.engine as engine_module  # noqa: E501
 from glio_proteogen.contracts.m08_04 import (
     M0804_BASELINE_MEDIA_TYPE,
     EstimateTranscriptProteinProbabilisticRequest,
@@ -299,6 +300,36 @@ def test_typed_glioma_discordance_graph_bootstraps_and_replays() -> None:
     assert service.replay(request, result) == result
     reordered = request.model_copy(update={"typed_observations": tuple(reversed(typed))})
     assert service.execute(reordered) == result
+
+
+def test_typed_initialization_respects_left_censor_bounds() -> None:
+    typed = (
+        TypedTranscriptProteinObservation(
+            observation_id="obs.observed",
+            feature_id="EGFR",
+            gene="EGFR",
+            program=GliomaDiscordanceProgram.RTK_PI3K_AKT_MTOR,
+            state=TypedDiscordanceEvidenceState.OBSERVED,
+            transcript_effect=0.2,
+            protein_effect=1.0,
+            transcript_standard_error=0.15,
+            protein_standard_error=0.2,
+        ),
+        TypedTranscriptProteinObservation(
+            observation_id="obs.censored",
+            feature_id="TP53",
+            gene="TP53",
+            program=GliomaDiscordanceProgram.RTK_PI3K_AKT_MTOR,
+            state=TypedDiscordanceEvidenceState.LEFT_CENSORED,
+            transcript_effect=0.1,
+            protein_censor_limit=0.0,
+            transcript_standard_error=0.15,
+            protein_standard_error=0.2,
+        ),
+    )
+    program_ids = (GliomaDiscordanceProgram.RTK_PI3K_AKT_MTOR.value,)
+    values = engine_module._initial_typed_values(typed, program_ids)
+    assert values == pytest.approx([-0.1])
 
 
 def test_typed_glioma_discordance_requires_supported_program_coverage() -> None:

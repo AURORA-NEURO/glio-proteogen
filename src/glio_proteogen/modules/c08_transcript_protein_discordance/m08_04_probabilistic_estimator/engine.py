@@ -476,6 +476,39 @@ def _typed_objective(
     return float(objective)
 
 
+def _initial_typed_values(
+    observations: tuple[TypedTranscriptProteinObservation, ...],
+    program_ids: tuple[str, ...],
+    *,
+    perturbations: Mapping[str, float] | None = None,
+) -> list[float]:
+    """Build a feasible discordance start without turning censor limits into values."""
+
+    index = {program: position for position, program in enumerate(program_ids)}
+    grouped: dict[str, list[tuple[float, bool, float]]] = {}
+    for observation in observations:
+        target, _uncertainty, censored = _typed_target(observation)
+        if perturbations is not None:
+            target += perturbations.get(observation.observation_id, 0.0)
+        grouped.setdefault(observation.program.value, []).append(
+            (target, censored, observation.quality_weight)
+        )
+    values = [0.0] * len(program_ids)
+    for program, terms in grouped.items():
+        observed = tuple(item for item in terms if not item[1])
+        limits = tuple(item[0] for item in terms if item[1])
+        if observed:
+            total = sum(item[2] for item in observed)
+            center = sum(item[2] * item[0] for item in observed) / max(1e-6, total)
+            initial = min((center, *limits)) if limits else center
+        elif limits:
+            initial = min((0.0, *limits))
+        else:
+            continue
+        values[index[program]] = initial
+    return values
+
+
 def _fit_typed(  # noqa: C901, PLR0912 - explicit coordinate updates are audit-visible.
     observations: tuple[TypedTranscriptProteinObservation, ...],
     *,
@@ -501,7 +534,7 @@ def _fit_typed(  # noqa: C901, PLR0912 - explicit coordinate updates are audit-v
     if len(program_ids) < _TYPED_MIN_PROGRAMS:
         return None
     index = {program: position for position, program in enumerate(program_ids)}
-    values = [0.0] * len(program_ids)
+    values = _initial_typed_values(active, program_ids, perturbations=perturbations)
     trace: list[float] = []
     objective = _typed_objective(tuple(values), active, program_ids, perturbations)
     trace.append(objective)
