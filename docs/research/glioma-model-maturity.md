@@ -899,8 +899,10 @@ The additive M12-05 runtime now recognizes typed temporal observations for the
 five reviewable glioma programs (RTK/PI3K/AKT/mTOR, p53/cell-cycle, IDH/HIF1A,
 mesenchymal, and proliferation). Each program is fitted over the ordered
 history with quality/standard-error precision, robust Huber influence, ridge
-stabilization, temporal smoothness, curvature control, and damped coordinate
-descent. Missing and unsupported observations are excluded; left-censored
+stabilization, temporal smoothness, curvature control, and damped frozen-parent
+coordinate descent. Each sweep starts from a finite objective and uses a
+deterministic full-vector backtracking gate; a locally non-improving direction
+retains its parent as a stationary replay point. Missing and unsupported observations are excluded; left-censored
 observations contribute a one-sided residual, so absence is never manufactured
 as suppression.
 

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime, timedelta
+from itertools import pairwise
 
 import pytest
 from fastapi.testclient import TestClient
@@ -275,6 +276,29 @@ def test_typed_initialization_respects_left_censor_bounds() -> None:
     }
     values = engine_module._initial_temporal_values(grouped, 3)
     assert values.tolist() == pytest.approx([0.2, -0.05, -0.3])
+
+
+def test_temporal_fit_backtracks_non_monotone_sweep(monkeypatch: pytest.MonkeyPatch) -> None:
+    request = _typed_request()
+    terms = engine_module._typed_terms(request.observations)
+    original = engine_module._temporal_objective
+    calls = 0
+
+    def objective(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == 2 else value
+
+    monkeypatch.setattr(engine_module, "_temporal_objective", objective)
+    fit = engine_module._fit_temporal(terms, (0, 1, 2))
+
+    assert fit.objective_trace
+    assert calls > 2
+    assert all(
+        after <= before + engine_module._OBJECTIVE_TOLERANCE
+        for before, after in pairwise(fit.objective_trace)
+    )
 
 
 def test_typed_change_point_and_insufficient_support_are_explicit() -> None:

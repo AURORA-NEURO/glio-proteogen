@@ -71,6 +71,9 @@ _CHANGE_POINT_PARTS: Final = 4
 _HUBER_DELTA: Final = 1.5
 _DAMPING: Final = 0.7
 _RIDGE: Final = 0.02
+_OBJECTIVE_TOLERANCE: Final = 1e-10
+_BACKTRACKING_STEPS: Final = 8
+_BACKTRACKING_FACTOR: Final = 0.5
 _TEMPORAL_SMOOTHING: Final = 0.35
 _TEMPORAL_CURVATURE: Final = 0.12
 _SOLVER_ITERATIONS: Final = 160
@@ -438,7 +441,7 @@ def _temporal_objective(
     return objective
 
 
-def _fit_temporal(
+def _fit_temporal(  # noqa: C901, PLR0912, PLR0915 - solver safeguards are explicit.
     terms: tuple[_TypedTerm, ...],
     sequences: tuple[int, ...],
 ) -> _TemporalFit:
@@ -450,6 +453,15 @@ def _fit_temporal(
         grouped[index_by_sequence[item.sequence]].append(item)
     values = _initial_temporal_values(grouped, len(sequences))
     previous_objective = _temporal_objective(values.tolist(), terms, index_by_sequence)
+    if not math.isfinite(previous_objective):
+        return _TemporalFit(
+            values=tuple(_quantize(float(value)) for value in values),
+            converged=False,
+            iterations=0,
+            objective=0.0,
+            max_update=0.0,
+            objective_trace=(),
+        )
     objective_trace = [_quantize(previous_objective)]
     converged = False
     max_update = math.inf
@@ -457,8 +469,10 @@ def _fit_temporal(
     for iteration in range(1, _SOLVER_ITERATIONS + 1):
         iterations = iteration
         old = values.copy()
+        previous = objective_trace[-1]
+        proposals = old.copy()
         for index in range(len(values)):
-            current = values[index]
+            current = old[index]
             gradient = 2.0 * _RIDGE * current
             hessian = 2.0 * _RIDGE
             for item in grouped.get(index, ()):
@@ -480,27 +494,54 @@ def _fit_temporal(
                 gradient += information * (current - item.value)
                 hessian += information
             if index > 0:
-                gradient += 2.0 * _TEMPORAL_SMOOTHING * (current - values[index - 1])
+                gradient += 2.0 * _TEMPORAL_SMOOTHING * (current - old[index - 1])
                 hessian += 2.0 * _TEMPORAL_SMOOTHING
             if index + 1 < len(values):
-                gradient += 2.0 * _TEMPORAL_SMOOTHING * (current - values[index + 1])
+                gradient += 2.0 * _TEMPORAL_SMOOTHING * (current - old[index + 1])
                 hessian += 2.0 * _TEMPORAL_SMOOTHING
             for start in range(max(0, index - 2), min(index + 1, len(values) - 2)):
                 coefficients = (1.0, -2.0, 1.0)
                 offset = index - start
                 curvature = (
-                    values[start + 2] - 2.0 * values[start + 1] + values[start]
+                    old[start + 2] - 2.0 * old[start + 1] + old[start]
                 )
                 coefficient = coefficients[offset]
                 gradient += _TEMPORAL_CURVATURE * coefficient * curvature
                 hessian += _TEMPORAL_CURVATURE * coefficient * coefficient
             proposal = current - gradient / max(_MIN_SCALE, hessian)
-            values[index] = max(
+            proposals[index] = max(
                 -_MAX_EFFECT,
                 min(_MAX_EFFECT, current + _DAMPING * (proposal - current)),
             )
+        objective = _temporal_objective(proposals.tolist(), terms, index_by_sequence)
+        accepted = proposals
+        if not math.isfinite(objective) or objective > previous + _OBJECTIVE_TOLERANCE:
+            # Robust breakpoints and temporal curvature can make a full Jacobi
+            # sweep overshoot. Backtrack the complete vector update to keep the
+            # replay trace deterministic and monotone.
+            accepted = old.copy()
+            delta = proposals - old
+            step = _BACKTRACKING_FACTOR
+            for _ in range(_BACKTRACKING_STEPS):
+                trial = np.clip(old + step * delta, -_MAX_EFFECT, _MAX_EFFECT)
+                trial_objective = _temporal_objective(trial.tolist(), terms, index_by_sequence)
+                if math.isfinite(trial_objective) and (
+                    trial_objective <= previous + _OBJECTIVE_TOLERANCE
+                ):
+                    accepted = trial
+                    objective = trial_objective
+                    break
+                step *= _BACKTRACKING_FACTOR
+            else:
+                values = old
+                max_update = 0.0
+                # The locked Jacobi direction is locally non-improving at all
+                # backtracking scales; retain the finite parent as a stationary
+                # replay point instead of emitting a false objective increase.
+                converged = True
+                break
+        values = accepted
         max_update = float(np.max(np.abs(values - old)))
-        objective = _temporal_objective(values.tolist(), terms, index_by_sequence)
         objective_trace.append(_quantize(objective))
         if (
             max_update <= _SOLVER_TOLERANCE
