@@ -965,8 +965,9 @@ effect, standard error, quality weight, and observed/left-censored/missing/
 unsupported evidence state. Missing and unsupported points are excluded from
 the objective; left-censored points contribute only a one-sided residual.
 
-The model uses damped Huber IRLS coordinate descent with first-order temporal
-smoothing, curvature control, ridge stabilization, convergence checks, and a
+The model uses frozen-parent damped Huber Jacobi updates with first-order
+temporal smoothing, curvature control, objective-safe backtracking, ridge
+stabilization, convergence checks, and a
 request-digest-seeded 64-draw perturbation interval. Every state reports an
 interval, evidence count, stability, discordance, top program drivers, and the
 objective-trace digest; change points use the same signed bootstrap deltas.

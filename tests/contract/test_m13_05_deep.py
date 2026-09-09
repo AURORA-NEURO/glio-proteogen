@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime, timedelta
 from http import HTTPStatus
+from itertools import pairwise
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -14,6 +15,7 @@ import pytest
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
+import glio_proteogen.modules.c13_variant_peptide.m13_05_longitudinal_evolution.engine as engine_module  # noqa: E501
 from glio_proteogen.adapters.m1305 import app, m1305_app
 from glio_proteogen.contracts.m13_05 import (
     M1305_M1304_RESULT_MEDIA_TYPE,
@@ -63,6 +65,8 @@ _BASELINE_OBSERVATIONS = 2
 _EXPECTED_OBSERVATIONS = 3
 _CLI_SCHEMA_ERROR = 2
 _CLI_SUCCESS = 0
+_BACKTRACK_OBJECTIVE_CALL = 2
+_MIN_OBJECTIVE_CALLS = 3
 
 
 def _digest(index: int) -> str:
@@ -230,6 +234,29 @@ def test_typed_glioma_temporal_fit_emits_intervals_drivers_and_replays() -> None
     assert solver_diagnostics[0].solver_objective is not None
     assert solver_diagnostics[0].objective_trace_digest is not None
     assert engine.verify(result).model_dump(mode="json") == result.model_dump(mode="json")
+
+
+def test_typed_temporal_solver_backtracks_objective_increase(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    request = _typed_request()
+    terms = engine_module._typed_terms(request.observations)
+    sequences = tuple(item.sequence for item in request.observations)
+    original = engine_module._temporal_objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == _BACKTRACK_OBJECTIVE_CALL else value
+
+    monkeypatch.setattr(engine_module, "_temporal_objective", objective)
+    fit = engine_module._fit_temporal(terms, sequences)
+    assert fit.converged
+    assert calls >= _MIN_OBJECTIVE_CALLS
+    assert all(
+        after <= before + engine_module._OBJECTIVE_TOLERANCE
+        for before, after in pairwise(fit.objective_trace)
+    )
 
 
 def test_typed_missing_and_left_censored_evidence_is_not_negative() -> None:

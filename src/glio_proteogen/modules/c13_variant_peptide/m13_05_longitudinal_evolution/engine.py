@@ -68,12 +68,15 @@ _SUPPORTED_OBJECTIVES: Final = frozenset(
 _TWO_PART_OBJECTIVE: Final = 2
 _CHANGE_POINT_PARTS: Final = 4
 _HUBER_DELTA: Final = 1.5
-_DAMPING: Final = 0.7
+_DAMPING: Final = 0.5
 _RIDGE: Final = 0.02
 _TEMPORAL_SMOOTHING: Final = 0.35
 _TEMPORAL_CURVATURE: Final = 0.12
 _SOLVER_ITERATIONS: Final = 160
 _SOLVER_TOLERANCE: Final = 1e-4
+_OBJECTIVE_TOLERANCE: Final = 1e-10
+_BACKTRACKING_STEPS: Final = 18
+_BACKTRACKING_FACTOR: Final = 0.5
 _MIN_SCALE: Final = 1e-6
 _BOOTSTRAP_LOW: Final = 0.05
 _BOOTSTRAP_HIGH: Final = 0.95
@@ -437,7 +440,7 @@ def _temporal_objective(
     return objective
 
 
-def _fit_temporal(
+def _fit_temporal(  # noqa: C901, PLR0912, PLR0915 - solver safeguards are explicit.
     terms: tuple[_TypedTerm, ...],
     sequences: tuple[int, ...],
 ) -> _TemporalFit:
@@ -448,16 +451,27 @@ def _fit_temporal(
     for item in terms:
         grouped[index_by_sequence[item.sequence]].append(item)
     values = _initial_temporal_values(grouped, len(sequences))
-    previous_objective = _temporal_objective(values, terms, index_by_sequence)
-    objective_trace = [_quantize(previous_objective)]
+    initial_objective = _temporal_objective(values, terms, index_by_sequence)
+    if not math.isfinite(initial_objective):
+        return _TemporalFit(
+            values=tuple(_quantize(value) for value in values),
+            converged=False,
+            iterations=0,
+            objective=0.0,
+            max_update=0.0,
+            objective_trace=(),
+        )
+    objective_trace = [round(initial_objective, 12)]
     converged = False
     max_update = math.inf
     iterations = 0
     for iteration in range(1, _SOLVER_ITERATIONS + 1):
         iterations = iteration
         old = values.copy()
+        previous_objective = objective_trace[-1]
+        proposals = old.copy()
         for index in range(len(values)):
-            current = values[index]
+            current = old[index]
             gradient = 2.0 * _RIDGE * current
             hessian = 2.0 * _RIDGE
             for item in grouped.get(index, ()):
@@ -479,41 +493,77 @@ def _fit_temporal(
                 gradient += information * (current - item.value)
                 hessian += information
             if index > 0:
-                gradient += 2.0 * _TEMPORAL_SMOOTHING * (current - values[index - 1])
+                gradient += 2.0 * _TEMPORAL_SMOOTHING * (current - old[index - 1])
                 hessian += 2.0 * _TEMPORAL_SMOOTHING
             if index + 1 < len(values):
-                gradient += 2.0 * _TEMPORAL_SMOOTHING * (current - values[index + 1])
+                gradient += 2.0 * _TEMPORAL_SMOOTHING * (current - old[index + 1])
                 hessian += 2.0 * _TEMPORAL_SMOOTHING
             for start in range(max(0, index - 2), min(index + 1, len(values) - 2)):
                 coefficients = (1.0, -2.0, 1.0)
                 offset = index - start
                 curvature = (
-                    values[start + 2] - 2.0 * values[start + 1] + values[start]
+                    old[start + 2] - 2.0 * old[start + 1] + old[start]
                 )
                 coefficient = coefficients[offset]
                 gradient += _TEMPORAL_CURVATURE * coefficient * curvature
                 hessian += _TEMPORAL_CURVATURE * coefficient * coefficient
             proposal = current - gradient / max(_MIN_SCALE, hessian)
-            values[index] = max(
+            proposals[index] = max(
                 -_MAX_EFFECT,
                 min(_MAX_EFFECT, current + _DAMPING * (proposal - current)),
             )
+        objective = _temporal_objective(proposals, terms, index_by_sequence)
+        accepted = proposals
+        if not math.isfinite(objective) or objective > previous_objective + _OBJECTIVE_TOLERANCE:
+            # Temporal smoothness and curvature can make a full Jacobi sweep
+            # overshoot. Backtrack the complete trajectory update to preserve a
+            # deterministic, replay-auditable monotone objective trace.
+            accepted = old.copy()
+            objective = previous_objective
+            delta = [after - before for after, before in zip(proposals, old, strict=True)]
+            step = _DAMPING
+            for _ in range(_BACKTRACKING_STEPS):
+                step *= _BACKTRACKING_FACTOR
+                trial = [
+                    max(-_MAX_EFFECT, min(_MAX_EFFECT, before + step * change))
+                    for before, change in zip(old, delta, strict=True)
+                ]
+                trial_objective = _temporal_objective(trial, terms, index_by_sequence)
+                if math.isfinite(trial_objective) and (
+                    trial_objective <= previous_objective + _OBJECTIVE_TOLERANCE
+                ):
+                    accepted = trial
+                    objective = trial_objective
+                    break
+            else:
+                # A coupled temporal/curvature step can be non-descent even
+                # when one coordinate still has a valid descent direction.
+                # Try those coordinates one at a time before declaring the
+                # current point stationary under the bounded coordinate model.
+                for position, candidate_value in enumerate(proposals):
+                    trial = old.copy()
+                    trial[position] = candidate_value
+                    trial_objective = _temporal_objective(trial, terms, index_by_sequence)
+                    if math.isfinite(trial_objective) and (
+                        trial_objective <= previous_objective + _OBJECTIVE_TOLERANCE
+                    ):
+                        accepted = trial
+                        objective = trial_objective
+                        break
+        values = accepted
         max_update = max(abs(new - before) for new, before in zip(values, old, strict=True))
-        objective = _temporal_objective(values, terms, index_by_sequence)
-        objective_trace.append(_quantize(objective))
+        objective_trace.append(round(objective, 12))
         if (
             max_update <= _SOLVER_TOLERANCE
             and abs(previous_objective - objective) <= _SOLVER_TOLERANCE
         ):
             converged = True
-            previous_objective = objective
             break
-        previous_objective = objective
     return _TemporalFit(
         values=tuple(_quantize(value) for value in values),
         converged=converged,
         iterations=iterations,
-        objective=_quantize(previous_objective),
+        objective=_quantize(objective_trace[-1]),
         max_update=_quantize(max_update if math.isfinite(max_update) else 0.0),
         objective_trace=tuple(objective_trace),
     )
