@@ -21,6 +21,10 @@ uses a locked reference configuration and a negative-control artifact, then
 derives a bounded stress-test projection from declared inputs.  It does not
 claim causal treatment effects or traverse scientific artifacts.
 
+Typed replicate arms are fit with damped Huber IRLS. Their MAD scale uses the
+midpoint median when an even number of residuals is present, avoiding the
+upper-median precision shortcut while keeping replay output stable.
+
 ## Safety and failure behavior
 
 - Seven execution controls are authorized before any perturbation payload is

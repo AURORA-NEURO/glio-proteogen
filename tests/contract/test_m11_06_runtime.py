@@ -43,6 +43,9 @@ from glio_proteogen.kernel.models import (
 from glio_proteogen.modules.c11_protein_native_subtype import (
     m11_06_perturbation_sensitivity_simulator as m1106,
 )
+from glio_proteogen.modules.c11_protein_native_subtype.m11_06_perturbation_sensitivity_simulator.engine import (  # noqa: E501
+    _median_abs,
+)
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -196,6 +199,10 @@ def test_typed_sensitivity_reports_effect_and_bootstrap_uncertainty() -> None:
     assert -1.0 <= response.lower_bound <= response.response_value <= response.upper_bound <= 1.0
     replay = M1106SensitivityEngine().register(request)
     assert replay.model_dump(mode="json") == result.model_dump(mode="json")
+
+
+def test_huber_scale_uses_midpoint_median_for_even_residuals() -> None:
+    assert _median_abs((-3.0, -1.0, 2.0, 10.0)) == pytest.approx(2.5)
 
 
 def test_typed_sensitivity_abstains_without_minimum_replicates() -> None:
