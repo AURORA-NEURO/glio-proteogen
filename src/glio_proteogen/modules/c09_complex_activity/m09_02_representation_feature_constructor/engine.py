@@ -303,7 +303,9 @@ _TYPED_RIDGE: Final = 0.12
 _TYPED_BOTTLENECK: Final = 0.35
 _TYPED_COHERENCE: Final = 0.18
 _TYPED_TOLERANCE: Final = 1e-5
-_TYPED_BACKTRACK_FLOOR: Final = 1e-3
+_TYPED_OBJECTIVE_TOLERANCE: Final = 1e-10
+_TYPED_BACKTRACKING_STEPS: Final = 18
+_TYPED_BACKTRACKING_FACTOR: Final = 0.5
 _TYPED_MIN_OBSERVATIONS: Final = 3
 _TYPED_MAX_ITERATIONS: Final = 256
 
@@ -477,13 +479,16 @@ def _fit_typed_complexes(  # noqa: C901, PLR0912, PLR0915 - explicit IRLS safegu
     states: dict[str, float] = {}
     for complex_id, members in grouped.items():
         states[complex_id] = _initial_typed_complex_state(members)
-    previous = _typed_objective(
+    initial_objective = _typed_objective(
         active,
         states,
         include_bottleneck=include_bottleneck,
         include_coherence=include_coherence,
     )
-    trace = [round(previous, 10)]
+    if not isfinite(initial_objective):
+        return None
+    previous = initial_objective
+    trace = [round(previous, 12)]
     gap = float("inf")
     converged = False
     iterations = 0
@@ -529,8 +534,6 @@ def _fit_typed_complexes(  # noqa: C901, PLR0912, PLR0915 - explicit IRLS safegu
                 np.clip(_TYPED_DAMPING * raw + (1.0 - _TYPED_DAMPING) * state,
                         -M0902_MAX_TYPED_EFFECT, M0902_MAX_TYPED_EFFECT)
             )
-        gap = max(abs(proposal[key] - states[key]) for key in states)
-        blend = 1.0
         candidate = proposal
         objective = _typed_objective(
             active,
@@ -538,29 +541,43 @@ def _fit_typed_complexes(  # noqa: C901, PLR0912, PLR0915 - explicit IRLS safegu
             include_bottleneck=include_bottleneck,
             include_coherence=include_coherence,
         )
-        while objective > previous + 1e-9 and blend > _TYPED_BACKTRACK_FLOOR:
-            blend *= 0.5
-            candidate = {
-                key: states[key] + blend * (proposal[key] - states[key]) for key in states
-            }
-            objective = _typed_objective(
-                active,
-                candidate,
-                include_bottleneck=include_bottleneck,
-                include_coherence=include_coherence,
-            )
+        if not isfinite(objective) or objective > previous + _TYPED_OBJECTIVE_TOLERANCE:
+            accepted = False
+            blend = 1.0
+            for _ in range(_TYPED_BACKTRACKING_STEPS):
+                blend *= _TYPED_BACKTRACKING_FACTOR
+                candidate = {
+                    key: states[key] + blend * (proposal[key] - states[key]) for key in states
+                }
+                objective = _typed_objective(
+                    active,
+                    candidate,
+                    include_bottleneck=include_bottleneck,
+                    include_coherence=include_coherence,
+                )
+                if isfinite(objective) and (
+                    objective <= previous + _TYPED_OBJECTIVE_TOLERANCE
+                ):
+                    accepted = True
+                    break
+            if not accepted:
+                # No finite descent exists along this robust surrogate step;
+                # retain the parent as a deterministic stationary point.
+                candidate = dict(states)
+                objective = previous
         if not isfinite(objective):
             return None
-        if objective > previous + 1e-7:
-            # The current point is already lower than the robust surrogate
-            # proposal; retaining it is the deterministic line-search stop.
-            candidate = states
-            objective = previous
-            gap = 0.0
+        gap = max(
+            abs(candidate[key] - states[key]) for key in states
+        )
+        previous_objective = previous
         states = candidate
         previous = objective
-        trace.append(round(objective, 10))
-        if gap <= _TYPED_TOLERANCE:
+        trace.append(round(objective, 12))
+        if (
+            gap <= _TYPED_TOLERANCE
+            and abs(previous_objective - objective) <= _TYPED_OBJECTIVE_TOLERANCE
+        ):
             converged = True
             break
     if not trace or not isfinite(gap) or any(not isfinite(value) for value in trace):

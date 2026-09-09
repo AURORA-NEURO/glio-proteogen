@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import UTC, datetime
+from itertools import pairwise
 
 import pytest
 
@@ -37,6 +38,7 @@ from glio_proteogen.modules.c09_complex_activity import (
 )
 
 _DIGEST = "sha256:" + ("a" * 64)
+FIRST_CANDIDATE_CALL = 2
 
 
 def _artifact(name: str, media_type: str = "application/json") -> ArtifactReference:
@@ -351,6 +353,29 @@ def test_typed_glioma_complex_fit_is_evidence_driven_and_replay_bound() -> None:
     assert feature.ablation_effects
     assert built.canonical_bytes == replay.canonical_bytes
     assert engine.verify(built.result, built.canonical_bytes)
+
+
+def test_typed_complex_solver_backtracks_objective_increase(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    original = engine_module._typed_objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == FIRST_CANDIDATE_CALL else value
+
+    monkeypatch.setattr(engine_module, "_typed_objective", objective)
+    fitted = engine_module._fit_typed_complexes(
+        _typed_request().typed_observations,
+        max_iterations=64,
+    )
+    assert fitted is not None
+    assert calls > FIRST_CANDIDATE_CALL
+    assert all(
+        after <= before + engine_module._TYPED_OBJECTIVE_TOLERANCE
+        for before, after in pairwise(fitted[4])
+    )
 
 
 def test_typed_missing_evidence_abstains_without_negative_feature() -> None:

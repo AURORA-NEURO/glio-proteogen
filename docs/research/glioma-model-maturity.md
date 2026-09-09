@@ -528,6 +528,17 @@ external calibration. The original owner-review abstention path remains
 unchanged for metadata-only requests, while typed output is a research
 uncertainty diagnostic and cannot support diagnosis, prognosis, or treatment.
 
+## Completed M09-02 typed glioma complex activity lane
+
+The additive M09-02 runtime fits member-level complex activity with a robust
+Huber IRLS coordinate solver, explicit essential-subunit bottleneck penalties,
+stoichiometric coherence, one-sided censoring, and ridge stabilization. Every
+full complex sweep is proposed from the frozen parent state and accepted only
+after a finite objective-safe backtracking check; failed descent falls back to
+the parent as an auditable stationary point instead of manufacturing a result.
+Objective traces are quantized for replay, while deterministic bootstrap and
+member/program ablations keep measurement and topology uncertainty visible.
+
 ## Completed M09-04 typed glioma complex stoichiometry lane
 
 The additive M09-04 runtime now recognizes the
