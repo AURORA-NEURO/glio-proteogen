@@ -320,7 +320,46 @@ def _typed_value(
     return float(cast("float", observation.standardized_effect))
 
 
-def _typed_fit_graph(  # noqa: C901, PLR0912
+def _initial_typed_program_value(
+    observations: tuple[TypedBaselineObservation, ...],
+    overrides: Mapping[str, float] | None,
+) -> float:
+    """Initialize a program from observed effects and feasible censor bounds."""
+
+    observed = tuple(
+        item for item in observations if item.state is GliomaEvidenceState.OBSERVED
+    )
+    limits = tuple(
+        float(item.censoring_limit)
+        for item in observations
+        if item.state is GliomaEvidenceState.LEFT_CENSORED
+        and item.censoring_limit is not None
+    )
+    if observed:
+        weighted = sorted(
+            (
+                _typed_value(item, overrides),
+                item.quality_weight / max(float(item.standard_error or 1.0) ** 2, 1e-9),
+            )
+            for item in observed
+        )
+        cutoff = 0.5 * sum(weight for _, weight in weighted)
+        cumulative = 0.0
+        center = 0.0
+        for candidate, weight in weighted:
+            cumulative += weight
+            if cumulative >= cutoff:
+                center = candidate
+                break
+        value = min(center, *limits) if limits else center
+    elif limits:
+        value = min(0.0, *limits)
+    else:
+        value = 0.0
+    return float(max(-_TYPED_MAX_EFFECT, min(_TYPED_MAX_EFFECT, value)))
+
+
+def _typed_fit_graph(  # noqa: C901
     request: EstimateProteinSubtypeBaselineRequest,
     overrides: Mapping[str, float] | None = None,
 ) -> _TypedFit:
@@ -337,21 +376,7 @@ def _typed_fit_graph(  # noqa: C901, PLR0912
     for program in GliomaProgram:
         grouped = tuple(item for item in observations if item.program is program)
         if grouped:
-            weighted = sorted(
-                (
-                    _typed_value(item, overrides),
-                    item.quality_weight / max(float(item.standard_error or 1.0) ** 2, 1e-9),
-                )
-                for item in grouped
-            )
-            total = sum(weight for _, weight in weighted)
-            cutoff = 0.5 * total
-            cumulative = 0.0
-            for candidate, weight in weighted:
-                cumulative += weight
-                if cumulative >= cutoff:
-                    values[program] = max(-_TYPED_MAX_EFFECT, min(_TYPED_MAX_EFFECT, candidate))
-                    break
+            values[program] = _initial_typed_program_value(grouped, overrides)
     trace: list[str] = []
     objective = float("inf")
     maximum_update = float("inf")

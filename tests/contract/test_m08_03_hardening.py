@@ -3,16 +3,18 @@
 from __future__ import annotations
 
 import pytest
-from evals.m08_03.fixtures import request
+from evals.m08_03.fixtures import request, typed_request
 
 from glio_proteogen.contracts.m08_03 import (
     M0803_M0802_RESULT_MEDIA_TYPE,
     BaselineFeatureObservation,
     BaselineFeatureState,
     EstimateProteinSubtypeBaselineRequest,
+    GliomaEvidenceState,
 )
 from glio_proteogen.modules.c08_transcript_protein.m08_03_mature_baseline_estimator.engine import (
     M0803BaselineEngine,
+    _initial_typed_program_value,
     _validate_json_request,
     preflight_baseline_authorization,
     verify_m0803_result,
@@ -91,6 +93,36 @@ def test_engine_type_and_result_tamper_guards() -> None:
     result = engine.estimate(request())
     with pytest.raises(ValueError, match="digest"):
         verify_m0803_result(result.model_copy(update={"request_digest": "sha256:" + "0" * 64}))
+
+
+def test_typed_program_initialization_projects_observed_center_to_censor_bound() -> None:
+    observed = next(
+        item
+        for item in typed_request().program_observations
+        if item.program.value == "proliferation"
+    )
+    censored = observed.model_copy(
+        update={
+            "state": GliomaEvidenceState.LEFT_CENSORED,
+            "standardized_effect": None,
+            "censoring_limit": -0.25,
+        }
+    )
+
+    assert _initial_typed_program_value((observed, censored), None) == pytest.approx(-0.25)
+
+
+def test_typed_censor_only_program_starts_neutral_for_positive_limit() -> None:
+    observed = next(iter(typed_request().program_observations))
+    censored = observed.model_copy(
+        update={
+            "state": GliomaEvidenceState.LEFT_CENSORED,
+            "standardized_effect": None,
+            "censoring_limit": 0.25,
+        }
+    )
+
+    assert _initial_typed_program_value((censored,), None) == pytest.approx(0.0)
 
 
 def test_plugin_descriptor_and_forged_seal() -> None:

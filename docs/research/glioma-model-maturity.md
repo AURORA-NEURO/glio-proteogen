@@ -415,7 +415,9 @@ Huber coordinate-descent fit couples RTK/PI3K/AKT/mTOR, p53/cell-cycle,
 IDH/HIF1A, mesenchymal, and proliferation programs through signed biological
 relations, with ridge stabilization and a recorded objective trace.
 
-The result reports bounded program intervals, thresholded activation labels,
+The fit initializes each program from observed effects only and projects the
+robust center onto any left-censor bound; censor-only programs start neutral on
+the feasible side. The result reports bounded program intervals, thresholded activation labels,
 evidence counts, stability, and a digest-seeded bootstrap. Missing programs
 remain indeterminate rather than becoming negative evidence; insufficient
 support abstains. The original statistical, pathway-weighted, and median
