@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import math
 from datetime import UTC, datetime
 from hashlib import sha256
+from itertools import pairwise
 
+import numpy as np
 import pytest
 
+import glio_proteogen.modules.c10_pathway_proteotype.m10_03_mature_baseline_estimator.engine as engine_module  # noqa: E501
 from glio_proteogen.contracts.m10_03 import (
     M1003_BASELINE_MEDIA_TYPE,
     BaselineConfiguration,
@@ -47,6 +51,7 @@ from glio_proteogen.modules.c10_pathway_proteotype.m10_03_mature_baseline_estima
 _TWO_TARGETS = 2
 _TYPED_BOOTSTRAP_REPLICATES = 16
 _NEUTRAL_DISCORDANCE = 0.0
+_FIRST_CANDIDATE_CALL = 2
 
 
 def _artifact(name: str, media_type: str = "application/json") -> ArtifactReference:
@@ -291,6 +296,45 @@ def test_typed_glioma_discordance_fit_is_paired_and_replayable() -> None:
     assert alpha.top_drivers
     assert alpha.ablation_effects
     assert result.diagnostics[0].model_family == "glioma-protein-rna-discordance-programs/1.0.0"
+
+
+def test_typed_baseline_solver_backtracks_objective_increase(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    observations = (
+        _typed_pair("observation.alpha", "target.alpha", 1.40, 0.35),
+        _typed_pair("observation.beta", "target.beta", -0.20, 0.10),
+    )
+    values = np.asarray(
+        [item.protein_effect - item.rna_effect for item in observations], dtype=np.float64
+    )
+    errors = np.asarray(
+        [
+            math.hypot(item.protein_standard_error, item.rna_standard_error)
+            for item in observations
+        ],
+        dtype=np.float64,
+    )
+    original = engine_module._typed_objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == _FIRST_CANDIDATE_CALL else value
+
+    monkeypatch.setattr(engine_module, "_typed_objective", objective)
+    fitted = engine_module._fit_typed_arrays(
+        observations,
+        values,
+        errors,
+        max_iterations=64,
+    )
+    assert fitted is not None
+    assert calls > _FIRST_CANDIDATE_CALL
+    assert all(
+        after <= before + engine_module._TYPED_OBJECTIVE_TOLERANCE
+        for before, after in pairwise(fitted[5])
+    )
 
 
 def test_typed_discordance_uses_signed_glioma_program_relations() -> None:

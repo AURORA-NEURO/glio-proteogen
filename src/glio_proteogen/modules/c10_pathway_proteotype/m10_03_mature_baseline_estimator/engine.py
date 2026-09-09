@@ -66,6 +66,9 @@ _EXPECTED: Final[dict[str, str]] = {
 }
 _TYPED_MAX_ITERATIONS: Final = 96
 _TYPED_TOLERANCE: Final = 1e-5
+_TYPED_OBJECTIVE_TOLERANCE: Final = 1e-10
+_TYPED_BACKTRACKING_STEPS: Final = 24
+_TYPED_BACKTRACKING_FACTOR: Final = 0.5
 _TYPED_DAMPING: Final = 0.65
 _TYPED_PROGRAM_COUPLING: Final = 0.45
 _TYPED_PROGRAM_RIDGE: Final = 0.12
@@ -496,6 +499,41 @@ def _typed_huber_loss(value: float) -> float:
     return _HUBER_K * magnitude - 0.5 * _HUBER_K * _HUBER_K
 
 
+def _typed_objective(  # noqa: PLR0913, PLR0917 - explicit objective coordinates are replay inputs.
+    observations: tuple[TypedProteinRnaObservation, ...],
+    values: np.ndarray,
+    errors: np.ndarray,
+    weights: np.ndarray,
+    programs: tuple[str, ...],
+    latent: np.ndarray,
+    program_state: dict[str, float],
+    *,
+    include_program: bool,
+) -> float:
+    """Evaluate the coupled robust discordance objective for one parent state."""
+
+    total = 0.0
+    for index, item in enumerate(observations):
+        residual = float((latent[index] - values[index]) / errors[index])
+        if item.evidence_state is DiscordanceEvidenceState.LEFT_CENSORED and residual <= 0.0:
+            continue
+        total += float(weights[index]) * _typed_huber_loss(residual)
+        if include_program:
+            total += _TYPED_PROGRAM_COUPLING * float(
+                (latent[index] - program_state[programs[index]]) ** 2
+            )
+    total += _TYPED_PROGRAM_RIDGE * float(
+        np.sum(np.asarray(tuple(program_state.values()), dtype=np.float64) ** 2)
+    )
+    if include_program:
+        for source, target, sign, edge_weight in _TYPED_PROGRAM_EDGES:
+            if source in program_state and target in program_state:
+                total += edge_weight * float(
+                    (program_state[target] - sign * program_state[source]) ** 2
+                )
+    return float(total)
+
+
 def _fit_typed_arrays(  # noqa: C901, PLR0912, PLR0915 - coupled coordinates are intentional.
     observations: tuple[TypedProteinRnaObservation, ...],
     values: np.ndarray,
@@ -530,12 +568,28 @@ def _fit_typed_arrays(  # noqa: C901, PLR0912, PLR0915 - coupled coordinates are
     for program in sorted(set(programs)):
         indexes = np.asarray([index for index, value in enumerate(programs) if value == program])
         program_state[program] = float(np.average(latent[indexes], weights=weights[indexes]))
-    trace: list[float] = []
+    initial_objective = _typed_objective(
+        observations,
+        values,
+        errors,
+        weights,
+        programs,
+        latent,
+        program_state,
+        include_program=include_program,
+    )
+    if not math.isfinite(initial_objective):
+        return None
+    objective = initial_objective
+    trace: list[float] = [round(objective, 12)]
     maximum_update = float("inf")
     iterations = 0
     for iteration in range(min(max_iterations, _TYPED_MAX_ITERATIONS)):
         iterations = iteration + 1
-        residual = (latent - values) / errors
+        previous_latent = latent.copy()
+        previous_program_state = dict(program_state)
+        previous_objective = objective
+        residual = (previous_latent - values) / errors
         active = np.asarray(
             [
                 not (
@@ -558,10 +612,10 @@ def _fit_typed_arrays(  # noqa: C901, PLR0912, PLR0915 - coupled coordinates are
                 continue
             coupling = _TYPED_PROGRAM_COUPLING if include_program else 0.0
             updated[index] = (
-                precision[index] * values[index] + coupling * program_state[program]
+                    precision[index] * values[index] + coupling * previous_program_state[program]
             ) / max(precision[index] + coupling, 1e-12)
-        damped = _TYPED_DAMPING * updated + (1.0 - _TYPED_DAMPING) * latent
-        updated_programs = dict(program_state)
+        damped = _TYPED_DAMPING * updated + (1.0 - _TYPED_DAMPING) * previous_latent
+        updated_programs = dict(previous_program_state)
         if include_program:
             for program in sorted(set(programs)):
                 indexes = np.asarray(
@@ -573,44 +627,96 @@ def _fit_typed_arrays(  # noqa: C901, PLR0912, PLR0915 - coupled coordinates are
                 # update), making results independent of enum/dictionary order.
                 for source, target, sign, edge_weight in _TYPED_PROGRAM_EDGES:
                     if source == program and target in program_state:
-                        numerator += edge_weight * sign * program_state[target]
+                        numerator += edge_weight * sign * previous_program_state[target]
                         denominator += edge_weight
                     elif target == program and source in program_state:
-                        numerator += edge_weight * sign * program_state[source]
+                        numerator += edge_weight * sign * previous_program_state[source]
                         denominator += edge_weight
                 updated_programs[program] = numerator / denominator
         maximum_update = max(
-            float(np.max(np.abs(damped - latent))),
+            float(np.max(np.abs(damped - previous_latent))),
             max(
-                (abs(updated_programs[key] - program_state[key]) for key in program_state),
+                (
+                    abs(updated_programs[key] - previous_program_state[key])
+                    for key in previous_program_state
+                ),
                 default=0.0,
             ),
         )
-        latent, program_state = damped, updated_programs
-        objective = 0.0
-        for index, item in enumerate(observations):
-            residual_value = float((latent[index] - values[index]) / errors[index])
-            if (
-                item.evidence_state is DiscordanceEvidenceState.LEFT_CENSORED
-                and residual_value <= 0.0
-            ):
-                continue
-            objective += float(weights[index]) * _typed_huber_loss(residual_value)
-            if include_program:
-                objective += _TYPED_PROGRAM_COUPLING * float(
-                    (latent[index] - program_state[programs[index]]) ** 2
-                )
-        objective += _TYPED_PROGRAM_RIDGE * float(
-            np.sum(np.asarray(tuple(program_state.values()), dtype=np.float64) ** 2)
+        candidate_latent = np.clip(damped, -M1003_MAX_TYPED_EFFECT, M1003_MAX_TYPED_EFFECT)
+        candidate_programs = {
+            key: float(np.clip(value, -M1003_MAX_TYPED_EFFECT, M1003_MAX_TYPED_EFFECT))
+            for key, value in updated_programs.items()
+        }
+        objective = _typed_objective(
+            observations,
+            values,
+            errors,
+            weights,
+            programs,
+            candidate_latent,
+            candidate_programs,
+            include_program=include_program,
         )
-        if include_program:
-            for source, target, sign, edge_weight in _TYPED_PROGRAM_EDGES:
-                if source in program_state and target in program_state:
-                    objective += edge_weight * float(
-                        (program_state[target] - sign * program_state[source]) ** 2
+        if not math.isfinite(objective) or (
+            objective > previous_objective + _TYPED_OBJECTIVE_TOLERANCE
+        ):
+            accepted = False
+            step = 1.0
+            for _ in range(_TYPED_BACKTRACKING_STEPS):
+                step *= _TYPED_BACKTRACKING_FACTOR
+                trial_latent = np.clip(
+                    previous_latent + step * (candidate_latent - previous_latent),
+                    -M1003_MAX_TYPED_EFFECT,
+                    M1003_MAX_TYPED_EFFECT,
+                )
+                trial_programs = {
+                    key: float(
+                        np.clip(
+                            previous_program_state[key]
+                            + step * (candidate_programs[key] - previous_program_state[key]),
+                            -M1003_MAX_TYPED_EFFECT,
+                            M1003_MAX_TYPED_EFFECT,
+                        )
                     )
-        trace.append(round(objective, 10))
-        if maximum_update <= _TYPED_TOLERANCE:
+                    for key in previous_program_state
+                }
+                trial_objective = _typed_objective(
+                    observations,
+                    values,
+                    errors,
+                    weights,
+                    programs,
+                    trial_latent,
+                    trial_programs,
+                    include_program=include_program,
+                )
+                if math.isfinite(trial_objective) and (
+                    trial_objective <= previous_objective + _TYPED_OBJECTIVE_TOLERANCE
+                ):
+                    candidate_latent = trial_latent
+                    candidate_programs = trial_programs
+                    objective = trial_objective
+                    accepted = True
+                    break
+            if not accepted:
+                candidate_latent = previous_latent
+                candidate_programs = previous_program_state
+                objective = previous_objective
+        latent = candidate_latent
+        program_state = candidate_programs
+        maximum_update = max(
+            float(np.max(np.abs(latent - previous_latent))),
+            max(
+                (abs(program_state[key] - previous_program_state[key]) for key in program_state),
+                default=0.0,
+            ),
+        )
+        trace.append(round(objective, 12))
+        if (
+            maximum_update <= _TYPED_TOLERANCE
+            or abs(previous_objective - objective) <= _TYPED_TOLERANCE
+        ):
             break
     if not trace or not np.isfinite(trace[-1]) or not np.isfinite(maximum_update):
         return None

@@ -690,7 +690,10 @@ unsupported states. A coupled robust Huber IRLS fit estimates feature
 discordance while shrinking each feature toward its glioma program coordinate
 (RTK/PI3K/AKT/mTOR, p53/cell-cycle, IDH/HIF1A, mesenchymal, or proliferation).
 Damping, ridge stabilization, and a recorded objective trace keep the fit
-bounded and replay-auditable.
+bounded and replay-auditable. Feature and program coordinates are proposed
+from a frozen parent and accepted only after a finite full-vector backtracking
+check, which prevents a robust surrogate sweep from increasing the true
+objective.
 
 The program coordinates are coupled by the locked signed GBM relation graph
 (RTK/PI3K/AKT/mTOR to p53/cell-cycle and proliferation, IDH/HIF1A to
