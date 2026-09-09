@@ -74,6 +74,16 @@ _TYPED_BOOTSTRAP_SCALE: Final = 0.5
 _TYPED_LOWER_QUANTILE: Final = 0.05
 _TYPED_UPPER_QUANTILE: Final = 0.95
 _HUBER_K: Final = 1.5
+# Locked GBM program relations shared with the typed abundance model. These
+# are signed soft constraints, not assertions about a patient's genotype or
+# clinical state; they keep discordance coordinates biologically coupled while
+# leaving measured feature evidence in control of the fit.
+_TYPED_PROGRAM_EDGES: Final[tuple[tuple[str, str, float, float], ...]] = (
+    ("RTK_PI3K_AKT_MTOR", "P53_CELL_CYCLE", -1.0, 0.35),
+    ("RTK_PI3K_AKT_MTOR", "PROLIFERATION", 1.0, 0.45),
+    ("IDH_HIF1A", "MESENCHYMAL_PROGRAM", -0.35, 0.30),
+    ("MESENCHYMAL_PROGRAM", "PROLIFERATION", 0.5, 0.30),
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -486,7 +496,7 @@ def _typed_huber_loss(value: float) -> float:
     return _HUBER_K * magnitude - 0.5 * _HUBER_K * _HUBER_K
 
 
-def _fit_typed_arrays(  # noqa: C901, PLR0912 - coupled feature/program coordinates are intentional.
+def _fit_typed_arrays(  # noqa: C901, PLR0912, PLR0915 - coupled coordinates are intentional.
     observations: tuple[TypedProteinRnaObservation, ...],
     values: np.ndarray,
     errors: np.ndarray,
@@ -557,10 +567,18 @@ def _fit_typed_arrays(  # noqa: C901, PLR0912 - coupled feature/program coordina
                 indexes = np.asarray(
                     [index for index, value in enumerate(programs) if value == program]
                 )
-                updated_programs[program] = float(
-                    np.sum(weights[indexes] * damped[indexes])
-                    / (np.sum(weights[indexes]) + _TYPED_PROGRAM_RIDGE)
-                )
+                numerator = float(np.sum(weights[indexes] * damped[indexes]))
+                denominator = float(np.sum(weights[indexes]) + _TYPED_PROGRAM_RIDGE)
+                # Use the previous program snapshot for every edge (Jacobi
+                # update), making results independent of enum/dictionary order.
+                for source, target, sign, edge_weight in _TYPED_PROGRAM_EDGES:
+                    if source == program and target in program_state:
+                        numerator += edge_weight * sign * program_state[target]
+                        denominator += edge_weight
+                    elif target == program and source in program_state:
+                        numerator += edge_weight * sign * program_state[source]
+                        denominator += edge_weight
+                updated_programs[program] = numerator / denominator
         maximum_update = max(
             float(np.max(np.abs(damped - latent))),
             max(
@@ -585,6 +603,12 @@ def _fit_typed_arrays(  # noqa: C901, PLR0912 - coupled feature/program coordina
         objective += _TYPED_PROGRAM_RIDGE * float(
             np.sum(np.asarray(tuple(program_state.values()), dtype=np.float64) ** 2)
         )
+        if include_program:
+            for source, target, sign, edge_weight in _TYPED_PROGRAM_EDGES:
+                if source in program_state and target in program_state:
+                    objective += edge_weight * float(
+                        (program_state[target] - sign * program_state[source]) ** 2
+                    )
         trace.append(round(objective, 10))
         if maximum_update <= _TYPED_TOLERANCE:
             break

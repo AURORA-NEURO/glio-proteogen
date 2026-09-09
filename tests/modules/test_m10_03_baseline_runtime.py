@@ -293,6 +293,21 @@ def test_typed_glioma_discordance_fit_is_paired_and_replayable() -> None:
     assert result.diagnostics[0].model_family == "glioma-protein-rna-discordance-programs/1.0.0"
 
 
+def test_typed_discordance_uses_signed_glioma_program_relations() -> None:
+    rtk = _typed_pair("observation.rtk", "target.rtk", 2.0, 0.0)
+    proliferation = _typed_pair(
+        "observation.proliferation", "target.proliferation", 0.0, 0.0
+    ).model_copy(update={"program": GliomaDiscordanceProgram.PROLIFERATION})
+    result = estimate_protein_rna_discordance_baseline(_typed_request(rtk, proliferation))
+    estimates = {item.feature_id: item for item in result.estimates}
+
+    assert result.status.value == "estimated"
+    # RTK activation has a signed positive edge into proliferation. The
+    # proliferation observation is neutral, so this small propagated lift is a
+    # regression guard that the graph is active rather than decorative.
+    assert estimates["target.proliferation"].estimate_value > 0.0
+
+
 def test_typed_discordance_preserves_censoring_and_ignores_missing_values() -> None:
     request = _typed_request(
         _typed_pair("observation.alpha", "target.alpha", 0.20, 0.05),

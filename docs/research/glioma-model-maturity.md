@@ -647,6 +647,13 @@ discordance while shrinking each feature toward its glioma program coordinate
 Damping, ridge stabilization, and a recorded objective trace keep the fit
 bounded and replay-auditable.
 
+The program coordinates are coupled by the locked signed GBM relation graph
+(RTK/PI3K/AKT/mTOR to p53/cell-cycle and proliferation, IDH/HIF1A to
+mesenchymal, and mesenchymal to proliferation). Edge penalties are included in
+the objective trace and evaluated from a Jacobi snapshot, so the result is
+order-invariant while still allowing strong measured discordance to override a
+soft biological prior.
+
 Left-censored observations contribute only when the fitted discordance exceeds
 the censoring boundary; missing and unsupported observations are excluded and
 never converted into suppression. Request-digest-seeded NumPy bootstrap
