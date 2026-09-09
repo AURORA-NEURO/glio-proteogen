@@ -1038,8 +1038,11 @@ clinical evidence.
 
 The additive M14-05 runtime now fits typed microenvironment temporal program
 effects with standard-error and quality weighting, Huber robustness, temporal
-smoothing, curvature control, and one-sided left-censoring. Initialization uses
-quality-weighted observed centers while clamping to tightest censor limits;
+smoothing, curvature control, and one-sided left-censoring. Each damped sweep
+uses a frozen parent vector and a deterministic full-vector objective gate with
+backtracking; locally non-improving directions retain the finite parent as a
+stationary replay point. Initialization uses quality-weighted observed centers
+while clamping to tightest censor limits;
 censor-only cells start at the ridge-neutral feasible value instead of treating
 an upper bound as an exact measurement. Deterministic perturbations produce
 replayable intervals, and each trajectory state reports empirical bootstrap

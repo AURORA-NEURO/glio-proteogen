@@ -2,6 +2,7 @@
 
 import json
 from datetime import UTC, datetime, timedelta
+from itertools import pairwise
 
 import pytest
 from pydantic import ValidationError
@@ -35,14 +36,17 @@ from glio_proteogen.kernel.models import (
 from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
     m14_05_protein_subtype_evolution as m1405,
 )
+import glio_proteogen.modules.c14_microenvironment_protein_deconvolution.m14_05_protein_subtype_evolution.engine as engine_module  # noqa: E501
 from glio_proteogen.modules.c14_microenvironment_protein_deconvolution.m14_05_protein_subtype_evolution.engine import (  # noqa: E501
     _bootstrap_class_support,
     _initial_temporal_values,
+    _typed_terms,
     _TypedTerm,
 )
 
 _FOLLOW_UP_SEQUENCE = 2
 _LEFT_CENSORED_BOUND = 0.6
+_FIRST_CANDIDATE_OBJECTIVE_CALL = 2
 
 
 def _typed_request() -> ModelProteinSubtypeLongitudinalEvolutionRequest:
@@ -198,6 +202,29 @@ def test_typed_glioma_temporal_fit_emits_intervals_change_points_and_trace() -> 
     assert result.uncertainty.measurement.state.value == "estimated"
     assert any(item.code == "typed_glioma_temporal_fit" for item in result.limitations)
     assert service.verify(result) == result
+
+
+def test_typed_temporal_fit_backtracks_non_monotone_sweep(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    request = _typed_request()
+    terms = _typed_terms(request.observations)
+    original = engine_module._temporal_objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == _FIRST_CANDIDATE_OBJECTIVE_CALL else value
+
+    monkeypatch.setattr(engine_module, "_temporal_objective", objective)
+    fit = engine_module._fit_temporal(terms, (0, 1, 2))
+
+    assert fit.converged
+    assert calls > _FIRST_CANDIDATE_OBJECTIVE_CALL
+    assert all(
+        after <= before + engine_module._OBJECTIVE_TOLERANCE
+        for before, after in pairwise(fit.objective_trace)
+    )
 
 
 def test_typed_initialization_keeps_left_censored_limits_feasible() -> None:
