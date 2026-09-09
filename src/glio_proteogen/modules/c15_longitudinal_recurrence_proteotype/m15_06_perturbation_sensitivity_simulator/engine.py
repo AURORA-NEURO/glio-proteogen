@@ -323,6 +323,43 @@ def _typed_objective(
     return objective
 
 
+def _initial_typed_values(
+    grouped: dict[GliomaPerturbationProgram, list[_TypedTerm]],
+) -> list[float]:
+    """Build a feasible start without converting censor limits to effects.
+
+    Left-censored deltas encode only an upper bound.  Observed scenario deltas
+    therefore seed a quality-weighted location that is projected onto the
+    tightest bound, while censor-only programs begin at the ridge-neutral
+    feasible value.  This keeps longitudinal perturbation propagation from
+    manufacturing a negative observation out of a detection limit.
+    """
+
+    values = [0.0] * len(_PROGRAM_ORDER)
+    index = {program: position for position, program in enumerate(_PROGRAM_ORDER)}
+    for program, program_terms in grouped.items():
+        observed = tuple(
+            term for term in program_terms if term.state is PerturbationEvidenceState.OBSERVED
+        )
+        limits = tuple(
+            term.delta
+            for term in program_terms
+            if term.state is PerturbationEvidenceState.LEFT_CENSORED
+        )
+        if observed:
+            total = sum(term.quality_weight for term in observed)
+            center = sum(term.quality_weight * term.delta for term in observed) / max(
+                _MIN_SCALE, total
+            )
+            initial = min((center, *limits)) if limits else center
+        elif limits:
+            initial = min((0.0, *limits))
+        else:
+            continue
+        values[index[program]] = max(-M1506_MAX_EFFECT, min(M1506_MAX_EFFECT, initial))
+    return values
+
+
 def _fit_typed(  # noqa: C901 - coordinate updates expose the signed graph explicitly.
     terms: tuple[_TypedTerm, ...], *, include_edges: bool = True
 ) -> _TypedFit:
@@ -330,11 +367,7 @@ def _fit_typed(  # noqa: C901 - coordinate updates expose the signed graph expli
     grouped: dict[GliomaPerturbationProgram, list[_TypedTerm]] = defaultdict(list)
     for term in terms:
         grouped[term.program].append(term)
-    values = [0.0] * len(_PROGRAM_ORDER)
-    for program, program_terms in grouped.items():
-        values[index[program]] = sum(
-            term.quality_weight * term.delta for term in program_terms
-        ) / max(_MIN_SCALE, sum(term.quality_weight for term in program_terms))
+    values = _initial_typed_values(grouped)
     previous = _typed_objective(values, terms, include_edges=include_edges)
     trace = [_quantize(previous)]
     converged = False

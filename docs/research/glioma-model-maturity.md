@@ -907,6 +907,11 @@ digest-seeded bootstrap perturbations produce replayable intervals, stability,
 discordance, top drivers, and numerical measurement/topology leave-one-family-
 out ablation deltas from the same robust graph solver.
 
+Initialization is censor-aware as well: observed scenario centers are projected
+onto tightest left-censor limits, and censor-only programs begin at the
+ridge-neutral feasible value. This prevents an upper bound from becoming a
+synthetic observation before signed-edge propagation begins.
+
 Missing and unsupported typed evidence is excluded and cannot become a negative
 response; incomplete typed surfaces abstain with a human-review requirement.
 The historical scalar sensitivity ABI remains available for compatibility only.
@@ -1004,6 +1009,11 @@ discordance, top program drivers, and numerical measurement/topology
 leave-one-family-out ablation deltas. Removing typed observations exposes the
 topology-only propagation; removing signed edges exposes measurement-only
 support.
+Typed starts preserve the same evidence semantics: observed deltas seed a
+quality-weighted location projected onto the tightest left-censor bound, while
+censor-only programs start at the ridge-neutral feasible value. A detection
+limit therefore cannot become a synthetic longitudinal effect before graph
+propagation.
 Missing and unsupported scenarios are explicitly excluded; incomplete typed
 surfaces abstain with human review rather than manufacturing a negative response.
 The historical scalar sensitivity ABI remains available for compatibility only.

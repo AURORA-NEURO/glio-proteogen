@@ -36,6 +36,12 @@ measurement removal exposes topology-only propagation and edge removal exposes
 measurement-only support. These are research diagnostics, not causal effect
 sizes.
 
+The typed IRLS start is censor-aware: observed perturbations seed a
+quality-weighted location projected onto the tightest left-censor bound, while
+censor-only programs start at the ridge-neutral feasible value. A censor limit
+is therefore never silently reinterpreted as an observed delta or a negative
+effect.
+
 Missing/N/A/non-finite values, unregistered model families, scenario-budget
 overruns, unavailable counter-evidence, failed controls, and malformed inputs
 produce no surface. They yield a typed review-required support decision,

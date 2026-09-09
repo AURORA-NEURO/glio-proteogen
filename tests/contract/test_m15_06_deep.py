@@ -270,6 +270,43 @@ def test_typed_glioma_graph_solver_emits_bootstrap_and_ablation_metadata() -> No
     assert engine.verify(result) == result
 
 
+def test_typed_initialization_respects_left_censor_bounds() -> None:
+    grouped = {
+        GliomaPerturbationProgram.RTK_PI3K_AKT_MTOR: [
+            engine_module._TypedTerm(
+                scenario_id="scenario.observed",
+                program=GliomaPerturbationProgram.RTK_PI3K_AKT_MTOR,
+                state=PerturbationEvidenceState.OBSERVED,
+                delta=0.6,
+                standard_error=0.2,
+                quality_weight=1.0,
+            ),
+            engine_module._TypedTerm(
+                scenario_id="scenario.censored",
+                program=GliomaPerturbationProgram.RTK_PI3K_AKT_MTOR,
+                state=PerturbationEvidenceState.LEFT_CENSORED,
+                delta=0.2,
+                standard_error=0.2,
+                quality_weight=1.0,
+            ),
+        ],
+        GliomaPerturbationProgram.P53_CELL_CYCLE: [
+            engine_module._TypedTerm(
+                scenario_id="scenario.censored-only",
+                program=GliomaPerturbationProgram.P53_CELL_CYCLE,
+                state=PerturbationEvidenceState.LEFT_CENSORED,
+                delta=-0.3,
+                standard_error=0.2,
+                quality_weight=1.0,
+            ),
+        ],
+    }
+    initial = engine_module._initial_typed_values(grouped)
+    index = {program: position for position, program in enumerate(engine_module._PROGRAM_ORDER)}
+    assert initial[index[GliomaPerturbationProgram.RTK_PI3K_AKT_MTOR]] == 0.2
+    assert initial[index[GliomaPerturbationProgram.P53_CELL_CYCLE]] == -0.3
+
+
 def test_typed_missing_or_unsupported_evidence_abstains_without_negative_response() -> None:
     missing = _perturbation(
         program=GliomaPerturbationProgram.RTK_PI3K_AKT_MTOR,
