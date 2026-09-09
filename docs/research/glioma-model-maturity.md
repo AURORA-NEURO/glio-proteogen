@@ -694,6 +694,9 @@ marker panel maps EGFR/PI3K/AKT/mTOR, p53/cell-cycle, IDH/HIF1A, mesenchymal,
 and proliferation proteins to latent programs. Robust Huber-IRLS coordinate
 descent jointly fits those states with signed program edges and feature-specific
 Normal priors, emitting deterministic 90% intervals and convergence diagnostics.
+The program sweep uses a frozen parent vector followed by objective-safe
+backtracking, so signed-edge coupling cannot make the replay trace increase or
+depend on marker declaration order.
 The lane requires four markers across two programs and abstains without that
 topology support; it never falls back to independent posteriors. Existing
 M10-04 metadata and measured-observation behavior remain compatibility paths,

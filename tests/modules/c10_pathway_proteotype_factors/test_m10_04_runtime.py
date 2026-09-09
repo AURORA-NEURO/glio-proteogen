@@ -3,6 +3,8 @@
 # Test status codes and dossier control counts are intentionally literal.
 # ruff: noqa: PLR2004
 
+from itertools import pairwise
+
 import pytest
 from evals.m10_04.run import build_request
 from pydantic import ValidationError
@@ -141,6 +143,53 @@ def test_locked_glioma_factor_fit_uses_signed_program_edges_and_replays() -> Non
     assert diagnostic.objective_value is not None
     assert diagnostic.objective_value > 0
     assert service.verify(result).model_dump_json() == result.model_dump_json()
+
+
+def test_locked_glioma_factor_solver_backtracks_objective_increase(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    base = build_request()
+    genes = (("egfr", 1.2), ("pik3ca", 0.8), ("tp53", -0.5), ("mki67", 1.0))
+    priors = tuple(
+        ProbabilisticPrior(
+            prior_id=f"prior.{gene}",
+            version="0.1.0",
+            kind=ProbabilisticPriorKind.NORMAL,
+            parameters=(0.0, 1.0),
+        )
+        for gene, _value in genes
+    )
+    request = base.model_copy(
+        update={
+            "configuration": base.configuration.model_copy(
+                update={"optimizer": M1004_GLIOMA_IRLS_OPTIMIZER, "priors": priors}
+            ),
+            "observations": tuple(
+                ProbabilisticObservation(
+                    feature_id=f"prior.{gene}",
+                    value=value,
+                    standard_error=0.2,
+                    quality_weight=0.9,
+                )
+                for gene, value in genes
+            ),
+        }
+    )
+    original = engine_module._glioma_factor_objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == 2 else value
+
+    monkeypatch.setattr(engine_module, "_glioma_factor_objective", objective)
+    fit = engine_module._fit_glioma_factor_graph(request)
+    assert fit is not None
+    assert calls > 2
+    assert all(
+        after <= before + engine_module._GLIOMA_OBJECTIVE_TOLERANCE
+        for before, after in pairwise(fit.objective_trace)
+    )
 
 
 def test_locked_glioma_factor_fit_abstains_without_program_support() -> None:

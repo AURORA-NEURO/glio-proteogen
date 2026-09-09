@@ -54,6 +54,9 @@ _GLIOMA_DAMPING: Final = 0.68
 _GLIOMA_RIDGE: Final = 0.12
 _GLIOMA_EDGE_WEIGHT: Final = 0.28
 _GLIOMA_TOLERANCE: Final = 1e-7
+_GLIOMA_OBJECTIVE_TOLERANCE: Final = 1e-10
+_GLIOMA_BACKTRACKING_STEPS: Final = 18
+_GLIOMA_BACKTRACKING_FACTOR: Final = 0.5
 _GLIOMA_MAX_ITERATIONS: Final = 160
 _GLIOMA_MIN_OBSERVATIONS: Final = 4
 _GLIOMA_MIN_PROGRAMS: Final = 2
@@ -416,11 +419,16 @@ def _fit_glioma_factor_graph(  # noqa: C901, PLR0912, PLR0915 - solver safeguard
                 / max(float(weights.sum()), 1e-12)
             )
     states = np.clip(states, -20.0, 20.0)
-    trace: list[float] = []
+    initial_objective = _glioma_factor_objective(tuple(prepared), states)
+    if not isfinite(initial_objective):
+        return None
+    trace: list[float] = [round(initial_objective, 10)]
     gap = float("inf")
     iterations = 0
     for iteration in range(_GLIOMA_MAX_ITERATIONS):
         previous = states.copy()
+        previous_objective = trace[-1]
+        proposals = previous.copy()
         for program in _GLIOMA_PROGRAMS:
             position = index[program]
             numerator = 0.0
@@ -428,7 +436,7 @@ def _fit_glioma_factor_graph(  # noqa: C901, PLR0912, PLR0915 - solver safeguard
             for observation, member_program, prior_mean, prior_sd in prepared:
                 if member_program != program:
                     continue
-                residual = (observation.value - float(states[position])) / (
+                residual = (observation.value - float(previous[position])) / (
                     observation.standard_error
                 )
                 robust = (
@@ -444,21 +452,39 @@ def _fit_glioma_factor_graph(  # noqa: C901, PLR0912, PLR0915 - solver safeguard
                 denominator += precision + 1.0 / max(prior_sd**2, 1e-12)
             for source, target, sign in _GLIOMA_EDGES:
                 if program == source:
-                    numerator += _GLIOMA_EDGE_WEIGHT * sign * states[index[target]]
+                    numerator += _GLIOMA_EDGE_WEIGHT * sign * previous[index[target]]
                     denominator += _GLIOMA_EDGE_WEIGHT
                 elif program == target:
-                    numerator += _GLIOMA_EDGE_WEIGHT * sign * states[index[source]]
+                    numerator += _GLIOMA_EDGE_WEIGHT * sign * previous[index[source]]
                     denominator += _GLIOMA_EDGE_WEIGHT
             proposal = numerator / max(denominator, 1e-12)
-            states[position] = _GLIOMA_DAMPING * proposal + (
+            proposals[position] = _GLIOMA_DAMPING * proposal + (
                 1.0 - _GLIOMA_DAMPING
-            ) * states[position]
-        states = np.clip(states, -20.0, 20.0)
-        objective = _glioma_factor_objective(tuple(prepared), states)
-        trace.append(round(objective, 10))
+            ) * previous[position]
+        candidate = np.clip(proposals, -20.0, 20.0)
+        objective = _glioma_factor_objective(tuple(prepared), candidate)
+        accepted = candidate
+        if objective > previous_objective + _GLIOMA_OBJECTIVE_TOLERANCE:
+            # Robust breakpoints and signed edges can make a full sweep
+            # overshoot. Backtrack the complete Jacobi step, preserving a
+            # replay-auditable monotone objective trace.
+            accepted = previous
+            objective = previous_objective
+            delta = candidate - previous
+            step = _GLIOMA_DAMPING
+            for _ in range(_GLIOMA_BACKTRACKING_STEPS):
+                step *= _GLIOMA_BACKTRACKING_FACTOR
+                trial = np.clip(previous + step * delta, -20.0, 20.0)
+                trial_objective = _glioma_factor_objective(tuple(prepared), trial)
+                if trial_objective <= previous_objective + _GLIOMA_OBJECTIVE_TOLERANCE:
+                    accepted = trial
+                    objective = trial_objective
+                    break
+        states = accepted
         gap = float(np.max(np.abs(states - previous)))
         iterations = iteration + 1
-        if gap <= _GLIOMA_TOLERANCE:
+        trace.append(round(objective, 10))
+        if gap <= _GLIOMA_TOLERANCE and abs(previous_objective - objective) <= _GLIOMA_TOLERANCE:
             break
     if not np.all(np.isfinite(states)) or gap > _GLIOMA_TOLERANCE:
         return None
