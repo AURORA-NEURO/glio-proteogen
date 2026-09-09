@@ -84,6 +84,9 @@ _HUBER_K: Final = 1.5
 _POSTERIOR_Z90: Final = 1.6448536269514722
 _IRLS_TOLERANCE: Final = 1e-7
 _MAX_IRLS_ITERATIONS: Final = 256
+_GLIOMA_OBJECTIVE_TOLERANCE: Final = 1e-10
+_GLIOMA_BACKTRACKING_STEPS: Final = 40
+_GLIOMA_BACKTRACKING_FACTOR: Final = 0.5
 _MIN_PRIOR_PARAMETERS: Final = 2
 _VALUE_CONSTRAINT = re.compile(
     r"(?:abundance|protein|value)?\s*(>=|<=|==|>)\s*"
@@ -805,15 +808,19 @@ def _fit_glioma_program_graph(
     robust_weights = [1.0] * len(observations)
     damping = 0.68
     convergence_gap = float("inf")
-    objective = float("inf")
+    objective = _glioma_program_objective(states, observations, prior_means, prior_sds)
+    if not isfinite(objective):
+        return None
     iterations = 0
     max_iterations = min(request.configuration.max_iterations, _MAX_IRLS_ITERATIONS)
     for iteration in range(max_iterations):
         iterations = iteration + 1
         previous = dict(states)
+        previous_objective = objective
         for index, (_feature_id, program, observed, assay_sd, _value) in enumerate(observations):
-            residual = (observed - states[program]) / assay_sd
+            residual = (observed - previous[program]) / assay_sd
             robust_weights[index] = min(1.0, _HUBER_K / max(1.0, abs(residual)))
+        proposals = dict(previous)
         for program in programs:
             prior_precision = 1.0 / (prior_sds[program] * prior_sds[program])
             numerator = prior_precision * prior_means[program]
@@ -828,19 +835,47 @@ def _fit_glioma_program_graph(
                 denominator += precision
             for source, target, sign, weight in _GLIOMA_PROGRAM_EDGES:
                 if source == program and target in states:
-                    numerator += weight * sign * states[target]
+                    numerator += weight * sign * previous[target]
                     denominator += weight
                 elif target == program and source in states:
-                    numerator += weight * sign * states[source]
+                    numerator += weight * sign * previous[source]
                     denominator += weight
             candidate = numerator / denominator
             # Program coordinates are standardized abundance effects.  A loose
             # bound prevents one extreme assay from destabilizing the graph.
             candidate = max(-12.0, min(12.0, candidate))
-            states[program] = damping * candidate + (1.0 - damping) * states[program]
+            proposals[program] = damping * candidate + (1.0 - damping) * previous[program]
+        objective = _glioma_program_objective(proposals, observations, prior_means, prior_sds)
+        accepted = proposals
+        if not isfinite(objective) or objective > previous_objective + _GLIOMA_OBJECTIVE_TOLERANCE:
+            accepted = previous.copy()
+            objective = previous_objective
+            delta = {
+                program: proposals[program] - previous[program] for program in programs
+            }
+            step = damping
+            for _ in range(_GLIOMA_BACKTRACKING_STEPS):
+                step *= _GLIOMA_BACKTRACKING_FACTOR
+                trial = {
+                    program: previous[program] + step * delta[program] for program in programs
+                }
+                trial_objective = _glioma_program_objective(
+                    trial, observations, prior_means, prior_sds
+                )
+                if isfinite(trial_objective) and (
+                    trial_objective <= previous_objective + _GLIOMA_OBJECTIVE_TOLERANCE
+                ):
+                    accepted = trial
+                    objective = trial_objective
+                    break
+            else:
+                return None
+        states = accepted
         convergence_gap = max(abs(states[name] - previous[name]) for name in programs)
-        objective = _glioma_program_objective(states, observations, prior_means, prior_sds)
-        if convergence_gap <= _IRLS_TOLERANCE:
+        if (
+            convergence_gap <= _IRLS_TOLERANCE
+            and abs(previous_objective - objective) <= _GLIOMA_OBJECTIVE_TOLERANCE
+        ):
             break
     if not all(isfinite(value) for value in (*states.values(), objective, convergence_gap)):
         return None

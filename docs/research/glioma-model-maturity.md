@@ -403,10 +403,12 @@ The additive M06-04 runtime now includes the locked
 identities into five GBM programs (RTK/PI3K/AKT/mTOR, p53/cell-cycle, IDH/HIF1A,
 mesenchymal, and proliferation) and fits their signed relations with robust Huber
 IRLS coordinate descent, feature-specific priors, assay precision, damping, and
-hard domain bounds. A support gate requires four observed markers across two
-programs; missing, unsupported, and non-numeric values are excluded rather than
-interpreted as down-regulation. The output is a deterministic 90% research
-interval with an objective/convergence diagnostic and exact replay. The prior
+hard domain bounds. The program graph uses frozen-parent damped updates and
+objective-safe backtracking, retaining only finite non-increasing candidates.
+A support gate requires four observed markers across two programs; missing,
+unsupported, and non-numeric values are excluded rather than interpreted as
+down-regulation. The output is a deterministic 90% research interval with an
+objective/convergence diagnostic and exact replay. The prior
 feature-wise optimizer and compatibility proxy remain unchanged.
 Marker normalization preserves exact HGNC compound identities (including
 `MKI-67` and `HIF-1A`) across the coupled program and feature-prior paths, while

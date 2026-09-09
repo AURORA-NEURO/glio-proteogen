@@ -23,6 +23,7 @@ from tests.contract.test_m06_04_hardening import _artifact, _configuration, _con
 
 _EXPECTED_ESTIMATE_COUNT = 4
 _POSTERIOR_MASS = 0.9
+_FIRST_CANDIDATE_CALL = 2
 
 
 def _schema(feature_ids: tuple[str, ...]) -> FormalProteinStateSchema:
@@ -91,6 +92,22 @@ def test_coupled_glioma_program_fit_is_replayable_and_signed() -> None:
     assert result.diagnostics[0].diagnostic_id == "diagnostic.m0604.glioma_program"
     assert "signed programs" in result.diagnostics[0].message
     assert all(item.posterior_mass == _POSTERIOR_MASS for item in result.estimates)
+
+
+def test_coupled_solver_backtracks_objective_increase(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    original = m0604_engine._glioma_program_objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == _FIRST_CANDIDATE_CALL else value
+
+    monkeypatch.setattr(m0604_engine, "_glioma_program_objective", objective)
+    result = M0604ProbabilisticEstimatorEngine().estimate(_request())
+    assert result.status.value == "estimated"
+    assert calls > _FIRST_CANDIDATE_CALL
 
 
 def test_coupled_glioma_program_gate_abstains_without_two_programs() -> None:
