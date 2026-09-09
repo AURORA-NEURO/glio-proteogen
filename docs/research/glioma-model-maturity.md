@@ -803,8 +803,10 @@ The additive M11-04 runtime now supports an opt-in
 observations carry standardized effects, standard errors, quality weights, and
 explicit observed, left-censored, missing, or unsupported states. Signed
 activation, inhibition, and coupling relations are fitted with robust Huber
-loss, ridge stabilization, and damped coordinate descent; the solver records
-objective and convergence diagnostics rather than returning a fixed posterior.
+loss, ridge stabilization, and frozen-parent damped Jacobi coordinate descent;
+objective-safe backtracking preserves a monotone replay-auditable trace, and the
+solver records objective and convergence diagnostics rather than returning a
+fixed posterior.
 Digest-seeded bootstrap perturbations produce per-mechanism posterior
 intervals, while missing and unsupported observations are excluded from the
 objective and cannot become negative evidence.
