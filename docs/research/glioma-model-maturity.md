@@ -748,7 +748,8 @@ ridge-neutral feasible value.
 The original closed posterior/state grammar remains compatible for other model
 families. The typed path requires two supported mechanisms and a signed edge,
 and abstains when topology or convergence is insufficient. Outputs remain
-experimental standardized signals, not clinical mechanism, diagnosis,
+experimental standardized signals; left-censored effects are initialized as
+feasible upper bounds rather than exact measurements. They are not clinical mechanism, diagnosis,
 prognosis, kinase ownership, or treatment recommendations.
 
 ## Completed M12-05 typed glioma temporal program lane

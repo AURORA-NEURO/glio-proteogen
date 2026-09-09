@@ -354,6 +354,19 @@ def test_typed_graph_handles_censored_and_outlier_effects() -> None:
     )
 
 
+def test_typed_initialization_keeps_left_censored_limits_feasible() -> None:
+    """Mechanism starts use observed centers and feasible censor bounds."""
+
+    observations = (
+        (0, 1.2, 0.2, 1.0, MechanismObservationState.OBSERVED),
+        (0, 0.4, 0.2, 1.0, MechanismObservationState.LEFT_CENSORED),
+        (1, -0.3, 0.2, 1.0, MechanismObservationState.LEFT_CENSORED),
+    )
+
+    values = engine_module._initial_typed_values(observations, 2)
+    assert values == [0.4, -0.3]
+
+
 def test_request_and_result_closure_reject_forged_payloads() -> None:
     request = build_scenario_request()
     forged_request = request.model_dump(mode="python")

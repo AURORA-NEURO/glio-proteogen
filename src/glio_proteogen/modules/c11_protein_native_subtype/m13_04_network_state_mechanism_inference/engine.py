@@ -319,6 +319,33 @@ def _typed_objective(
     return objective
 
 
+def _initial_typed_values(
+    observations: tuple[tuple[int, float, float, float, MechanismObservationState], ...],
+    mechanism_count: int,
+) -> list[float]:
+    """Build a feasible graph start without treating censor limits as values."""
+
+    values = [0.0] * mechanism_count
+    for position in range(mechanism_count):
+        terms = tuple(item for item in observations if item[0] == position)
+        observed = tuple(
+            item for item in terms if item[4] is MechanismObservationState.OBSERVED
+        )
+        limits = tuple(
+            item[1] for item in terms if item[4] is MechanismObservationState.LEFT_CENSORED
+        )
+        if observed:
+            total = sum(item[3] / max(_MINIMUM_SCALE, item[2] ** 2) for item in observed)
+            center = sum(
+                item[1] * item[3] / max(_MINIMUM_SCALE, item[2] ** 2)
+                for item in observed
+            ) / max(_MINIMUM_SCALE, total)
+            values[position] = min((center, *limits)) if limits else center
+        elif limits:
+            values[position] = min((0.0, *limits))
+    return values
+
+
 def _fit_typed(  # noqa: C901
     request: InferProteotypeMechanismRequest,
     *,
@@ -361,13 +388,7 @@ def _fit_typed(  # noqa: C901
     )
     if not relations:
         return None
-    values = [0.0] * len(mechanism_ids)
-    for position in range(len(values)):
-        terms = [item for item in observations if item[0] == position]
-        information = sum(item[3] / max(_MINIMUM_SCALE, item[2] ** 2) for item in terms)
-        values[position] = sum(
-            item[1] * item[3] / max(_MINIMUM_SCALE, item[2] ** 2) for item in terms
-        ) / max(_MINIMUM_SCALE, information)
+    values = _initial_typed_values(observations, len(mechanism_ids))
     objective = _typed_objective(values, observations, relations)
     for iteration in range(1, _SOLVER_ITERATIONS + 1):
         previous = values.copy()

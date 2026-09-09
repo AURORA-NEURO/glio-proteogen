@@ -36,6 +36,8 @@ standardized effects and standard errors over signed activation, inhibition,
 and coupling relations. Damped coordinate descent minimizes robust Huber
 measurement residuals, signed edge residuals, and ridge regularization;
 digest-seeded bootstrap perturbations produce replayable posterior intervals.
+Left-censored effects seed feasible upper-bound starts rather than being treated
+as exact measurements.
 Observed, left-censored, missing, and unsupported evidence states remain
 explicit, and fewer than two supported mechanisms or any missing topology
 causes abstention.
