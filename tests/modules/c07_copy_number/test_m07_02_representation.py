@@ -258,6 +258,28 @@ def test_typed_censor_bound_does_not_create_amplification_or_residual_signal() -
     assert channels[3] == pytest.approx(0.0)
 
 
+def test_typed_feature_solver_backtracks_objective_increase(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    item = _typed_observations()[0]
+    original = m0702_engine._typed_objective
+    calls = 0
+    first_candidate_call = 2
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == first_candidate_call else value
+
+    monkeypatch.setattr(m0702_engine, "_typed_objective", objective)
+    fit = m0702_engine._fit_typed_feature((item,), max_iterations=32)
+    assert fit.convergence_gap <= m0702_engine._TYPED_TOLERANCE
+    assert calls > first_candidate_call
+    assert all(
+        after <= before + m0702_engine._TYPED_OBJECTIVE_TOLERANCE
+        for before, after in zip(fit.trace[:-1], fit.trace[1:], strict=True)
+    )
+
+
 def test_typed_censor_bound_below_deletion_threshold_is_directional_evidence() -> None:
     censored = _typed_observations()[2]
     fit = m0702_engine._fit_typed_feature((censored,), max_iterations=32)

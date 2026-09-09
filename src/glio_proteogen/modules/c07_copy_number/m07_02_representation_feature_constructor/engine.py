@@ -285,7 +285,9 @@ _TYPED_HUBER_K: Final = 1.5
 _TYPED_DAMPING: Final = 0.62
 _TYPED_RIDGE: Final = 0.12
 _TYPED_TOLERANCE: Final = 1e-5
-_TYPED_BACKTRACKING_FLOOR: Final = 1e-3
+_TYPED_OBJECTIVE_TOLERANCE: Final = 1e-10
+_TYPED_BACKTRACKING_STEPS: Final = 18
+_TYPED_BACKTRACKING_FACTOR: Final = 0.5
 _TYPED_MAX_ITERATIONS: Final = 256
 _TYPED_MIN_OBSERVATIONS: Final = 1
 _TYPED_DIRECTION_THRESHOLD: Final = 0.25
@@ -407,9 +409,11 @@ def _fit_typed_feature(
         return _TypedFeatureFit(0.0, 0.0, 0, 0.0, (0.0,), ())
     effective_targets = targets or tuple(_typed_target(item) for item in active)
     value = _initial_typed_feature_value(active, effective_targets)
-    trace = [_typed_objective(value, active, effective_targets)]
+    initial_objective = _typed_objective(value, active, effective_targets)
+    if not np.isfinite(initial_objective):
+        return _TypedFeatureFit(0.0, 0.0, 0, float("inf"), (), ())
+    trace = [initial_objective]
     gap = float("inf")
-    damping = _TYPED_DAMPING
     iterations = 0
     for iteration in range(min(max_iterations, _TYPED_MAX_ITERATIONS)):
         gradient = _TYPED_RIDGE * value
@@ -428,20 +432,31 @@ def _fit_typed_feature(
         proposal = value - gradient / max(curvature, 1e-12)
         proposal = max(-M0702_MAX_TYPED_EFFECT, min(M0702_MAX_TYPED_EFFECT, proposal))
         current_objective = trace[-1]
+        damping = _TYPED_DAMPING
         candidate = value + damping * (proposal - value)
         candidate_objective = _typed_objective(candidate, active, effective_targets)
-        while (
-            candidate_objective > current_objective + 1e-10
-            and damping > _TYPED_BACKTRACKING_FLOOR
-        ):
-            damping *= 0.5
+        for _ in range(_TYPED_BACKTRACKING_STEPS):
+            if np.isfinite(candidate_objective) and (
+                candidate_objective <= current_objective + _TYPED_OBJECTIVE_TOLERANCE
+            ):
+                break
+            damping *= _TYPED_BACKTRACKING_FACTOR
             candidate = value + damping * (proposal - value)
             candidate_objective = _typed_objective(candidate, active, effective_targets)
+        else:
+            # No finite trial improved the current point. Treat the coordinate
+            # as stationary instead of manufacturing an objective increase;
+            # the unchanged point is already a safe, replayable solution.
+            candidate = value
+            candidate_objective = current_objective
         gap = abs(candidate - value)
         value = candidate
         trace.append(candidate_objective)
         iterations = iteration + 1
-        if gap <= _TYPED_TOLERANCE:
+        if (
+            gap <= _TYPED_TOLERANCE
+            and abs(current_objective - candidate_objective) <= _TYPED_OBJECTIVE_TOLERANCE
+        ):
             break
     residuals = tuple(
         max(0.0, (value - target) / (item.standard_error or 1.0))

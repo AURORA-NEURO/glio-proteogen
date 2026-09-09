@@ -605,8 +605,9 @@ proteotype, biochemical, diagnostic, prognostic, kinase, or treatment claim.
 The additive M07-02 runtime now recognizes the
 `glioma-copy-number-purity-irls/1.0.0` model family. Typed segment evidence is
 converted from observed log2 ratios into purity-adjusted diploid-relative
-effects, then fitted per feature with a damped Huber IRLS latent-value solver
-and ridge stabilization. Left-censored segments contribute one-sided
+effects, then fitted per feature with a damped Huber IRLS latent-value solver,
+ridge stabilization, and an explicit finite objective-safe line search.
+Left-censored segments contribute one-sided
 detection-limit loss; missing and unsupported segments carry no numeric value
 and force safe abstention when a requested feature lacks support.
 
