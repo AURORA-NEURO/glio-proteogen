@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from itertools import pairwise
 
 import pytest
 
+import glio_proteogen.modules.c15_longitudinal_recurrence_proteotype.m15_05_longitudinal_evolution.engine as engine_module  # noqa: E501
 from glio_proteogen.contracts.m15_05 import (
     M1505_M1504_RESULT_MEDIA_TYPE,
     ChangePointStatus,
@@ -43,6 +45,8 @@ from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype.m15_05_longit
 
 _OBSERVATION_COUNT = 2
 _TYPED_OBSERVATION_COUNT = 4
+_BACKTRACK_OBJECTIVE_CALL = 2
+_MIN_OBJECTIVE_CALLS = 3
 
 
 def _digest(label: str) -> str:
@@ -200,6 +204,29 @@ def test_typed_glioma_temporal_graph_infers_intervals_and_change_points() -> Non
     assert all(0.0 <= state.posterior_probability <= 1.0 for state in result.trajectory)
     assert any(item.status is ChangePointStatus.DETECTED for item in result.change_points)
     assert service.verify(result) == result
+
+
+def test_typed_temporal_solver_backtracks_objective_increase(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    request = _typed_request()
+    terms = engine_module._typed_terms(request)
+    sequences = tuple(item.sequence for item in request.observations)
+    original = engine_module._typed_objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == _BACKTRACK_OBJECTIVE_CALL else value
+
+    monkeypatch.setattr(engine_module, "_typed_objective", objective)
+    fit = engine_module._fit_typed(terms, sequences)
+    assert fit.converged
+    assert calls >= _MIN_OBJECTIVE_CALLS
+    assert all(
+        after <= before + engine_module._OBJECTIVE_TOLERANCE
+        for before, after in pairwise(fit.objective_trace)
+    )
 
 
 def test_typed_initialization_keeps_left_censored_limits_feasible() -> None:

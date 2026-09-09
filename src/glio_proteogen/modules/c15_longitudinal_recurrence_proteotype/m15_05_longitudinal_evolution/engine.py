@@ -104,6 +104,9 @@ _TEMPORAL_SMOOTHING: Final = 0.35
 _PROGRAM_EDGE_WEIGHT: Final = 0.40
 _SOLVER_ITERATIONS: Final = 160
 _SOLVER_TOLERANCE: Final = 1e-4
+_OBJECTIVE_TOLERANCE: Final = 1e-10
+_BACKTRACKING_STEPS: Final = 18
+_BACKTRACKING_FACTOR: Final = 0.5
 _MIN_SCALE: Final = 1e-6
 _MAX_EFFECT: Final = 20.0
 _BOOTSTRAP_LOW: Final = 0.05
@@ -435,7 +438,7 @@ def _initial_typed_values(
     return values
 
 
-def _fit_typed(  # noqa: C901 - explicit temporal graph solver is audit-visible.
+def _fit_typed(  # noqa: C901, PLR0912, PLR0915 - solver safeguards are explicit.
     terms: tuple[_TypedTerm, ...],
     sequences: tuple[int, ...],
 ) -> _TypedFit:
@@ -444,17 +447,28 @@ def _fit_typed(  # noqa: C901 - explicit temporal graph solver is audit-visible.
     for term in terms:
         grouped[(term.program, term.sequence)].append(term)
     values = _initial_typed_values(grouped, sequences)
-    previous = _typed_objective(values, terms, sequences)
-    trace = [float(f"{previous:.8f}")]
+    initial_objective = _typed_objective(values, terms, sequences)
+    if not math.isfinite(initial_objective):
+        return _TypedFit(
+            values=tuple(tuple(float(f"{value:.8f}") for value in row) for row in values),
+            converged=False,
+            iterations=0,
+            objective=0.0,
+            max_update=0.0,
+            objective_trace=(),
+        )
+    trace = [float(f"{initial_objective:.8f}")]
     converged = False
     max_update = math.inf
     iterations = 0
     for iteration in range(1, _SOLVER_ITERATIONS + 1):
         iterations = iteration
         old = [row.copy() for row in values]
+        previous = trace[-1]
+        proposals = [row.copy() for row in old]
         for position, program in enumerate(_PROGRAM_ORDER):
             for time_position, sequence in enumerate(sequences):
-                current = values[position][time_position]
+                current = old[position][time_position]
                 gradient = 2.0 * _RIDGE * current
                 hessian = 2.0 * _RIDGE
                 for term in grouped.get((program, sequence), ()):
@@ -474,46 +488,82 @@ def _fit_typed(  # noqa: C901 - explicit temporal graph solver is audit-visible.
                     gradient += information * (current - term.value)
                     hessian += information
                 if time_position:
-                    residual = current - values[position][time_position - 1]
+                    residual = current - old[position][time_position - 1]
                     gradient += _TEMPORAL_SMOOTHING * _huber_weight(residual) * residual
                     hessian += _TEMPORAL_SMOOTHING
                 if time_position + 1 < len(sequences):
-                    residual = current - values[position][time_position + 1]
+                    residual = current - old[position][time_position + 1]
                     gradient += _TEMPORAL_SMOOTHING * _huber_weight(residual) * residual
                     hessian += _TEMPORAL_SMOOTHING
                 for source, target, sign in _PROGRAM_EDGES:
                     if program is source:
-                        residual = values[program_index[target]][time_position] - sign * current
+                        residual = old[program_index[target]][time_position] - sign * current
                         gradient += (
                             -_PROGRAM_EDGE_WEIGHT * sign * _huber_weight(residual) * residual
                         )
                         hessian += _PROGRAM_EDGE_WEIGHT
                     elif program is target:
-                        residual = current - sign * values[program_index[source]][time_position]
+                        residual = current - sign * old[program_index[source]][time_position]
                         gradient += _PROGRAM_EDGE_WEIGHT * _huber_weight(residual) * residual
                         hessian += _PROGRAM_EDGE_WEIGHT
                 proposal = current - gradient / max(_MIN_SCALE, hessian)
-                values[position][time_position] = max(
+                proposals[position][time_position] = max(
                     -_MAX_EFFECT,
                     min(_MAX_EFFECT, current + _DAMPING * (proposal - current)),
                 )
+        objective = _typed_objective(proposals, terms, sequences)
+        accepted = proposals
+        if not math.isfinite(objective) or objective > previous + _OBJECTIVE_TOLERANCE:
+            # Temporal smoothing and signed cycles can make a full Jacobi sweep
+            # overshoot. Backtrack the complete trajectory update to preserve a
+            # deterministic, replay-auditable monotone objective trace.
+            accepted = [row.copy() for row in old]
+            objective = previous
+            delta = [
+                [after - before for after, before in zip(row, old_row, strict=True)]
+                for row, old_row in zip(proposals, old, strict=True)
+            ]
+            step = _DAMPING
+            for _ in range(_BACKTRACKING_STEPS):
+                step *= _BACKTRACKING_FACTOR
+                trial = [
+                    [
+                        max(-_MAX_EFFECT, min(_MAX_EFFECT, before + step * change))
+                        for before, change in zip(old_row, delta_row, strict=True)
+                    ]
+                    for old_row, delta_row in zip(old, delta, strict=True)
+                ]
+                trial_objective = _typed_objective(trial, terms, sequences)
+                if math.isfinite(trial_objective) and (
+                    trial_objective <= previous + _OBJECTIVE_TOLERANCE
+                ):
+                    accepted = trial
+                    objective = trial_objective
+                    break
+            else:
+                return _TypedFit(
+                    values=tuple(tuple(float(f"{value:.8f}") for value in row) for row in old),
+                    converged=False,
+                    iterations=iteration,
+                    objective=float(f"{previous:.8f}"),
+                    max_update=0.0,
+                    objective_trace=tuple(trace),
+                )
+        values = accepted
         max_update = max(
             abs(new - before)
             for row, old_row in zip(values, old, strict=True)
             for new, before in zip(row, old_row, strict=True)
         )
-        objective = _typed_objective(values, terms, sequences)
         trace.append(float(f"{objective:.8f}"))
         if max_update <= _SOLVER_TOLERANCE and abs(previous - objective) <= _SOLVER_TOLERANCE:
             converged = True
-            previous = objective
             break
-        previous = objective
     return _TypedFit(
         values=tuple(tuple(float(f"{value:.8f}") for value in row) for row in values),
         converged=converged,
         iterations=iterations,
-        objective=float(f"{previous:.8f}"),
+        objective=float(f"{trace[-1]:.8f}"),
         max_update=float(f"{(max_update if math.isfinite(max_update) else 0.0):.8f}"),
         objective_trace=tuple(trace),
     )
