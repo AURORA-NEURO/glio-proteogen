@@ -181,6 +181,24 @@ def test_glioma_marker_mapping_normalizes_hyphenated_symbols(feature_id: str) ->
     assert program in {"PROLIFERATION", "IDH_HIF1A"}
 
 
+@pytest.mark.parametrize(
+    ("feature_id", "expected"),
+    [
+        ("protein.DNMT1", "IDH_HIF1A"),
+        ("protein.NF1", "MESENCHYMAL_PROGRAM"),
+        ("protein.CEBPB", "MESENCHYMAL_PROGRAM"),
+    ],
+)
+def test_glioma_marker_mapping_uses_canonical_symbols_and_explicit_pleiotropic_priority(
+    feature_id: str, expected: str
+) -> None:
+    assert engine_module._glioma_program_for_feature(feature_id) == expected
+
+
+def test_glioma_marker_mapping_rejects_dnmt1_typo() -> None:
+    assert engine_module._glioma_program_for_feature("protein.DMT1") is None
+
+
 def test_non_normal_prior_abstains_without_negative_inference() -> None:
     request = build_request().model_copy(
         update={

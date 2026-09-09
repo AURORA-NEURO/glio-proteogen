@@ -53,6 +53,10 @@ insufficient. Its model family is `glioma-proteotype-factor-irls/1.0.0` and is
 research-only. HGNC-style compound symbols are canonicalized at the mapping
 boundary, so identifiers such as `MKI-67`, `MKI_67`, and `MKI67` resolve to the
 same proliferation marker without collapsing their surrounding namespace.
+Canonical `DNMT1` (not the common `DMT1` typo) is assigned to the IDH/HIF1A
+program, `CEBPB` is retained as the mesenchymal marker, and pleiotropic `NF1`
+is assigned to the mesenchymal program by an explicit priority rule rather
+than lexical tie-breaking.
 
 ## Evidence and release gates
 

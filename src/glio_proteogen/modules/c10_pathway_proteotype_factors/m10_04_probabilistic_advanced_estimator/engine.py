@@ -72,13 +72,28 @@ _GLIOMA_MARKERS: Final[dict[str, frozenset[str]]] = {
     "P53_CELL_CYCLE": frozenset(
         {"tp53", "mdm2", "cdkn2a", "cdkn2b", "cdk4", "rb1", "chek2", "atrx"}
     ),
-    "IDH_HIF1A": frozenset({"idh1", "idh2", "hif1a", "vhl", "epas1", "dmt1"}),
+    "IDH_HIF1A": frozenset({"idh1", "idh2", "hif1a", "vhl", "epas1", "dnmt1"}),
     "MESENCHYMAL_PROGRAM": frozenset(
-        {"nf1", "stat3", "cebp", "tgfb1", "rela", "chi3l1", "fibronectin", "fn1"}
+        {
+            "nf1",
+            "stat3",
+            "cebpb",
+            "cebp",  # legacy alias retained; CEBPB is the canonical HGNC symbol.
+            "tgfb1",
+            "rela",
+            "chi3l1",
+            "fibronectin",
+            "fn1",
+        }
     ),
     "PROLIFERATION": frozenset(
         {"mki67", "pcna", "top2a", "mcm2", "mcm7", "ccnd1", "ccne1", "aurka"}
     ),
+}
+_GLIOMA_MARKER_PRIORITY: Final[dict[str, tuple[str, ...]]] = {
+    # NF1 loss is represented as a mesenchymal-program driver in this
+    # abundance/discordance model; lexical program order must not decide it.
+    "nf1": ("MESENCHYMAL_PROGRAM", "RTK_PI3K_AKT_MTOR"),
 }
 _GLIOMA_EDGES: Final = (
     ("RTK_PI3K_AKT_MTOR", "P53_CELL_CYCLE", -1.0),
@@ -319,8 +334,16 @@ def _glioma_program_for_feature(feature_id: str) -> str | None:
         for index, program in enumerate(_GLIOMA_PROGRAMS)
         for markers in (_GLIOMA_MARKERS[program],)
     )
-    best_score, _index, best_program = max(scored, key=lambda item: (item[0], -item[1]))
-    return best_program if best_score else None
+    best_score = max(item[0] for item in scored)
+    if best_score == 0:
+        return None
+    matches = {program for score, _index, program in scored if score == best_score}
+    for marker in sorted(tokens):
+        for preferred in _GLIOMA_MARKER_PRIORITY.get(marker, ()):
+            if preferred in matches:
+                return preferred
+    # Non-ambiguous markers retain the explicit catalogue order.
+    return next(program for _score, _index, program in scored if program in matches)
 
 
 def _glioma_huber(value: float) -> float:
