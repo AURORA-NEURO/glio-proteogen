@@ -102,7 +102,7 @@ _GLIOMA_PROGRAM_MARKERS: Final[dict[str, frozenset[str]]] = {
     "P53_CELL_CYCLE": frozenset(
         {"tp53", "p53", "mdm2", "cdkn2a", "cdkn2b", "cdk4", "rb1", "chek2", "atrx"}
     ),
-    "IDH_HIF1A": frozenset({"idh1", "idh2", "hif1a", "vhl", "epas1", "dmt1"}),
+    "IDH_HIF1A": frozenset({"idh1", "idh2", "hif1a", "vhl", "epas1", "dnmt1"}),
     "MESENCHYMAL_PROGRAM": frozenset(
         {"nf1", "stat3", "cebpb", "tgfb1", "rela", "chi3l1", "fn1", "fibronectin"}
     ),
@@ -118,6 +118,12 @@ _GLIOMA_PROGRAM_EDGES: Final[tuple[tuple[str, str, float, float], ...]] = (
 )
 _GLIOMA_PROGRAM_MIN_MARKERS: Final = 4
 _GLIOMA_PROGRAM_MIN_PROGRAMS: Final = 2
+# Some GBM drivers are biologically pleiotropic. Keep their disambiguation
+# explicit instead of relying on dictionary or lexical ordering. NF1 loss is
+# primarily a mesenchymal state marker in this abundance-effect model.
+_GLIOMA_MARKER_PRIORITY: Final[dict[str, tuple[str, ...]]] = {
+    "nf1": ("MESENCHYMAL_PROGRAM", "RTK_PI3K_AKT_MTOR"),
+}
 _COMPOUND_IDENTIFIER_PATTERN: Final = re.compile(
     r"[a-z0-9]+(?:[-_][a-z0-9]+)+"
 )
@@ -707,13 +713,22 @@ def _glioma_marker_program(feature_id: str) -> str | None:
     """Map an exact feature token to the locked GBM program catalogue."""
 
     tokens = _identifier_tokens(feature_id) - {"protein", "abundance", "feature"}
-    # Prefer the most specific marker when a gene participates in two programs.
-    matches = [
+    matches = tuple(
         program
         for program, markers in _GLIOMA_PROGRAM_MARKERS.items()
         if tokens & markers
-    ]
-    return min(matches) if matches else None
+    )
+    if not matches:
+        return None
+    for token in sorted(tokens):
+        preferred = _GLIOMA_MARKER_PRIORITY.get(token)
+        if preferred:
+            for program in preferred:
+                if program in matches:
+                    return program
+    # Non-ambiguous markers retain their catalogue order; the explicit
+    # priority table above owns every known overlap.
+    return next(program for program in _GLIOMA_PROGRAM_MARKERS if program in matches)
 
 
 def _glioma_numeric_observations(

@@ -131,3 +131,12 @@ def test_glioma_marker_catalog_normalizes_compound_hgnc_tokens(
 
 def test_glioma_marker_catalog_rejects_substring_only_matches() -> None:
     assert m0604_engine._glioma_marker_program("protein.notegfr") is None
+
+
+def test_glioma_marker_catalog_uses_explicit_pleiotropic_priority() -> None:
+    assert m0604_engine._glioma_marker_program("protein.NF1") == "MESENCHYMAL_PROGRAM"
+
+
+def test_glioma_marker_catalog_uses_canonical_dnmt1_symbol() -> None:
+    assert m0604_engine._glioma_marker_program("protein.DNMT1") == "IDH_HIF1A"
+    assert m0604_engine._glioma_marker_program("protein.DMT1") is None
