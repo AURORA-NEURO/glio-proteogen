@@ -49,7 +49,6 @@ const RESULT_FIELDS = new Set([
   "result_digest",
   "sample_id",
   "source_result",
-  "axis_result",
   "graph_request",
   "graph_result",
   "limitations",

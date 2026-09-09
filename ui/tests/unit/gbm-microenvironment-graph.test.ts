@@ -80,6 +80,15 @@ describe("GBM microenvironment graph UI contract", () => {
     expect(microenvironmentGraphRequestStats(request)).toEqual({ observations: 1, active: 1, programs: 7 });
   });
 
+  it("keeps the secondary axis receipt optional for source-only requests", () => {
+    const request = {
+      profile_id: GBM_MICROENVIRONMENT_GRAPH_PROFILE_ID,
+      sample_id: "sample-1",
+      source_request: sourceRequest(),
+    };
+    expect(validateMicroenvironmentGraphRequest(request)).toEqual([]);
+  });
+
   it("rejects a mismatched nested sample and fails closed on profile policy", () => {
     const request = { profile_id: GBM_MICROENVIRONMENT_GRAPH_PROFILE_ID, sample_id: "sample-2", source_request: sourceRequest() };
     expect(validateMicroenvironmentGraphRequest(request).join("\n")).toContain("must match");
@@ -126,6 +135,8 @@ describe("GBM microenvironment graph UI contract", () => {
     };
     expect(validateMicroenvironmentGraphDemo(request, bridgeProfile)).toEqual([]);
     expect(validateMicroenvironmentGraphResult(result, request, bridgeProfile)).toEqual([]);
+    const { axis_result: _axisResult, ...sourceOnlyResult } = result;
+    expect(validateMicroenvironmentGraphResult(sourceOnlyResult, request, bridgeProfile)).toEqual([]);
     const headers = { get: (name: string) => ({
       "X-GLIO-Profile-Digest": result.profile_digest,
       "X-GLIO-Request-Digest": result.request_digest,
