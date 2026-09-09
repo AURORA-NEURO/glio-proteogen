@@ -899,8 +899,9 @@ Huber coordinate-descent solver fits signed RTK/PI3K/AKT/mTOR, p53/cell-cycle,
 IDH/HIF1A, mesenchymal, and proliferation coupling, then maps latent states to
 bounded posterior-like research scores. Deterministic request-digest bootstrap
 draws provide intervals, stability, discordance, evidence counts, top drivers,
-and topology ablation effects; missing and unsupported observations are
-excluded rather than treated as negative evidence.
+and numerical measurement/topology leave-one-family-out ablation effects;
+missing and unsupported observations are excluded rather than treated as
+negative evidence.
 
 The opaque posterior/state grammar remains compatibility-only and the typed lane
 is review-gated. It does not claim causal mechanism, clinical probability,

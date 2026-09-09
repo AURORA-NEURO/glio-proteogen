@@ -41,7 +41,10 @@ isoform-aware quantification; the fallback is a proteoform probabilistic model.
 Quality controls validate identity, version, units, completeness, assay support,
 and parent-specific quality, quarantining unresolved inputs. Synthetic truth and
 positive controls must be recovered, negative controls rejected, and mature
-baselines exceeded.
+baselines exceeded. The typed lane also reports numerical leave-one-family-out
+ablation deltas: removing typed observations exposes topology-only propagation,
+while removing signed edges exposes measurement-only support. These are
+research diagnostics, not causal effect sizes.
 
 ## Interfaces and release evidence
 

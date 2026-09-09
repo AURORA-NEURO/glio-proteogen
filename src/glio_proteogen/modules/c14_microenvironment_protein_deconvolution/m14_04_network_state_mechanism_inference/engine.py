@@ -485,6 +485,11 @@ def _typed_estimates(
         raise M1404TypedInferenceError(  # noqa: TRY003
             "typed network topology ablation did not converge"
         )
+    measurement_free = _fit_typed((), include_edges=True)
+    if not measurement_free.converged:
+        raise M1404TypedInferenceError(  # noqa: TRY003
+            "typed network measurement ablation did not converge"
+        )
     draws: list[tuple[float, ...]] = []
     for draw in range(request.configuration.bootstrap_replicates):
         perturbed = tuple(
@@ -540,6 +545,7 @@ def _typed_estimates(
         )
         width = max(_MIN_SCALE, upper - lower)
         topology_delta = fit.values[position] - topology_free.values[position]
+        measurement_delta = fit.values[position] - measurement_free.values[position]
         mean_quality = _quantize(
             sum(item.quality_weight for item in grouped[program])
             / max(1, len(grouped[program]))
@@ -578,8 +584,9 @@ def _typed_estimates(
                 evidence_count=len(grouped[program]),
                 top_drivers=drivers,
                 ablation_effects=(
-                    f"signed_network_edges_removed:{_quantize(topology_delta):.8f}",
-                    f"measurement_weight:{mean_quality:.8f}",
+                    f"measurement_ablation_delta={_quantize(measurement_delta):.8f}",
+                    f"topology_ablation_delta={_quantize(topology_delta):.8f}",
+                    f"mean_measurement_quality={mean_quality:.8f}",
                 ),
             )
         )

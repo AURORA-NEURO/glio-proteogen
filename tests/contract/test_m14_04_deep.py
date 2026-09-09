@@ -185,6 +185,11 @@ def test_typed_glioma_network_solver_bootstrap_and_replay() -> None:
     assert all(item.effect_lower_bound is not None for item in result.estimates)
     assert all(item.evidence_count is not None for item in result.estimates)
     assert all(item.top_drivers and item.ablation_effects for item in result.estimates)
+    assert all(
+        item.ablation_effects[0].startswith("measurement_ablation_delta=")
+        and item.ablation_effects[1].startswith("topology_ablation_delta=")
+        for item in result.estimates
+    )
     assert result.estimates[0].classification in {"active", "inactive", "stable"}
     assert engine.verify(result) == result
 
