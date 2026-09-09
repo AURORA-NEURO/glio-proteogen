@@ -64,8 +64,11 @@ _M1103_MIN_SCALE: Final = 1e-6
 _M1103_HUBER_DELTA: Final = 1.5
 _M1103_RIDGE: Final = 0.03
 _M1103_DAMPING: Final = 0.7
-_M1103_SOLVER_ITERATIONS: Final = 128
+_M1103_SOLVER_ITERATIONS: Final = 256
 _M1103_SOLVER_TOLERANCE: Final = 1e-5
+_M1103_OBJECTIVE_TOLERANCE: Final = 1e-10
+_M1103_BACKTRACKING_STEPS: Final = 18
+_M1103_BACKTRACKING_FACTOR: Final = 0.5
 _M1103_LOW_QUANTILE: Final = 0.05
 _M1103_HIGH_QUANTILE: Final = 0.95
 _M1103_SCORE_LIMIT: Final = 8.0
@@ -167,7 +170,7 @@ def _glioma_objective(
     return objective
 
 
-def _fit_glioma(  # noqa: C901 - relation and robust update terms remain explicit for auditability.
+def _fit_glioma(  # noqa: C901, PLR0912, PLR0915 - solver safeguards are explicit.
     features: tuple[MechanisticFeature, ...],
     relations: tuple[MechanisticRelation, ...],
     *,
@@ -202,11 +205,21 @@ def _fit_glioma(  # noqa: C901 - relation and robust update terms remain explici
         max(_M1103_MIN_SCALE, uncertainty / scale) for _, _, uncertainty in numeric
     )
     values = list(targets)
-    objective = _glioma_objective(values, targets, uncertainties, edge_terms)
+    initial_objective = _glioma_objective(values, targets, uncertainties, edge_terms)
+    if not math.isfinite(initial_objective):
+        return _GliomaFit(
+            feature_ids=tuple(feature.feature_id for feature, _, _ in numeric),
+            values=tuple(float(f"{value:.8f}") for value in values),
+            objective=0.0,
+            iterations=0,
+            converged=False,
+        )
+    objective = initial_objective
     for iteration in range(1, _M1103_SOLVER_ITERATIONS + 1):
         previous = values.copy()
+        proposals = previous.copy()
         for position in range(len(values)):
-            current = values[position]
+            current = previous[position]
             gradient = 2.0 * _M1103_RIDGE * current
             hessian = 2.0 * _M1103_RIDGE
             residual = (current - targets[position]) / uncertainties[position]
@@ -221,17 +234,47 @@ def _fit_glioma(  # noqa: C901 - relation and robust update terms remain explici
             hessian += information
             for source, target, coefficient in edge_terms:
                 if position == source:
-                    edge_residual = values[target] - coefficient * current
+                    edge_residual = previous[target] - coefficient * current
                     gradient += -coefficient * edge_residual
                     hessian += coefficient * coefficient
                 elif position == target:
-                    edge_residual = current - coefficient * values[source]
+                    edge_residual = current - coefficient * previous[source]
                     gradient += edge_residual
                     hessian += 1.0
             proposal = current - gradient / max(_M1103_MIN_SCALE, hessian)
-            values[position] = current + _M1103_DAMPING * (proposal - current)
+            proposals[position] = current + _M1103_DAMPING * (proposal - current)
+        next_objective = _glioma_objective(proposals, targets, uncertainties, edge_terms)
+        accepted = proposals
+        if not math.isfinite(next_objective) or (
+            next_objective > objective + _M1103_OBJECTIVE_TOLERANCE
+        ):
+            accepted = previous.copy()
+            next_objective = objective
+            delta = [after - before for after, before in zip(proposals, previous, strict=True)]
+            step = _M1103_DAMPING
+            for _ in range(_M1103_BACKTRACKING_STEPS):
+                step *= _M1103_BACKTRACKING_FACTOR
+                trial = [
+                    before + step * change
+                    for before, change in zip(previous, delta, strict=True)
+                ]
+                trial_objective = _glioma_objective(trial, targets, uncertainties, edge_terms)
+                if math.isfinite(trial_objective) and (
+                    trial_objective <= objective + _M1103_OBJECTIVE_TOLERANCE
+                ):
+                    accepted = trial
+                    next_objective = trial_objective
+                    break
+            else:
+                return _GliomaFit(
+                    feature_ids=tuple(feature.feature_id for feature, _, _ in numeric),
+                    values=tuple(float(f"{value:.8f}") for value in previous),
+                    objective=float(f"{objective:.8f}"),
+                    iterations=iteration,
+                    converged=False,
+                )
+        values = accepted
         update = max(abs(after - before) for after, before in zip(values, previous, strict=True))
-        next_objective = _glioma_objective(values, targets, uncertainties, edge_terms)
         if update <= _M1103_SOLVER_TOLERANCE and abs(objective - next_objective) <= (
             2.0 * _M1103_SOLVER_TOLERANCE
         ):

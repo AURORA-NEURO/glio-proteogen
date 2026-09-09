@@ -754,10 +754,12 @@ calibrated clinical confidence, biochemical activity, or treatment guidance.
 The additive M11-03 runtime now supports an opt-in
 `glioma-signed-mechanistic-graph/1.0.0` model family. Scalar and interval
 features are robustly median/MAD normalized and fitted with Huber-weighted,
-signed activation/inhibition relation terms, ridge stabilization, and damped
-coordinate descent. Deterministic request-digest perturbations provide a
-bootstrap aggregate state interval; projected features retain their declared
-lineage and the result adds derived signed-state and interval features.
+signed activation/inhibition relation terms, ridge stabilization, and
+frozen-parent damped Jacobi updates. A deterministic objective-safe backtracking
+line search keeps every accepted update finite and non-increasing; digest-seeded
+perturbations provide a bootstrap aggregate state interval. Projected features
+retain their declared lineage and the result adds derived signed-state and
+interval features.
 
 Typed relations must carry an explicit finite weight. The legacy optional
 relation field is not converted into a default edge strength; missing topology

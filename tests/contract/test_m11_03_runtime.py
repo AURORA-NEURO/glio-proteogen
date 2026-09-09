@@ -33,6 +33,9 @@ from glio_proteogen.kernel.models import (
 from glio_proteogen.modules.c11_protein_native_subtype import (
     m11_03_mechanistic_feature_constructor as m1103,
 )
+from glio_proteogen.modules.c11_protein_native_subtype.m11_03_mechanistic_feature_constructor import (  # noqa: E501
+    engine as engine_module,
+)
 
 _UNCERTAINTY_DIMENSIONS = (
     "measurement",
@@ -219,6 +222,50 @@ def test_typed_glioma_feature_graph_projects_state_and_bootstrap_interval() -> N
     assert interval.upper_bound is not None
     assert interval.lower_bound <= interval.upper_bound
     assert m1103.verify_m1103_replay(result, typed_request)
+
+
+def test_typed_solver_backtracks_objective_increase(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    request = _request()
+    pathway = request.declared_features[0]
+    egfr = pathway.model_copy(
+        update={
+            "feature_id": "protein.egfr",
+            "kind": MechanisticFeatureKind.STATE,
+            "scalar_value": 1.2,
+            "lineage": pathway.lineage.model_copy(
+                update={
+                    "feature_id": "protein.egfr",
+                    "claim": "Caller-declared EGFR abundance.",
+                }
+            ),
+        }
+    )
+    relation = MechanisticRelation(
+        relation_id="relation.egfr.pathway",
+        source_feature_id="protein.egfr",
+        target_feature_id="pathway.activity",
+        kind=MechanisticRelationKind.ACTIVATES,
+        weight=0.8,
+    )
+    baseline = engine_module._fit_glioma((pathway, egfr), (relation,))
+    assert baseline is not None
+    assert baseline.converged
+    original = engine_module._glioma_objective
+    calls = 0
+    first_candidate_call = 2
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == first_candidate_call else value
+
+    monkeypatch.setattr(engine_module, "_glioma_objective", objective)
+    fit = engine_module._fit_glioma((pathway, egfr), (relation,))
+    assert fit is not None
+    assert fit.converged
+    assert calls > first_candidate_call
+    assert fit.objective <= baseline.objective + engine_module._M1103_OBJECTIVE_TOLERANCE
 
 
 def test_typed_glioma_graph_abstains_without_relation_support() -> None:
