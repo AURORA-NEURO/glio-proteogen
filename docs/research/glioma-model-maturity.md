@@ -215,6 +215,13 @@ artifact and structurally forbid a public HTTP mount. M07-05 mechanism
 integration and M07-06 uncertainty decomposition remain out of scope. See
 [`m07-cis-dosage-facade.md`](m07-cis-dosage-facade.md).
 
+The M07-04 mechanism-guided dosage runtime now coalesces repeated observations
+of one locus into a shared-latent Huber--IRLS posterior. Technical repeats are
+precision-weighted with robust down-weighting, one posterior row is emitted per
+feature, and mixed units or incompatible feature families abstain before any
+numeric claim. Source digests are deduplicated in the resulting evidence ledger;
+the legacy contract, optimizer identifiers, and replay boundary remain intact.
+
 ## Source-locked phosphosite runtime lane
 
 `kncc-paired-phosphosite-transition/1.0.0` is now fitted from 88 strict

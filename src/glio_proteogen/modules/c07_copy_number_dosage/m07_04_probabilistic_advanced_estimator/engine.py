@@ -23,6 +23,7 @@ from enum import Enum
 from math import erf, exp, isfinite, log, sqrt
 from typing import Final, cast
 
+import numpy as np
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
 from glio_proteogen.contracts.m07_04 import (
@@ -109,6 +110,17 @@ _CONSTRAINT_RE: Final = re.compile(
     r"^(?P<feature>[a-z0-9_.-]+)\s*(?P<op>>=|<=|==)\s*(?P<value>[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?)$",
     re.IGNORECASE,
 )
+
+
+def _huber_loss(residual: float) -> float:
+    """Return the locked Huber objective used by repeated-feature fitting."""
+
+    magnitude = abs(residual)
+    return (
+        0.5 * magnitude * magnitude
+        if magnitude <= _HUBER_K
+        else _HUBER_K * magnitude - 0.5 * _HUBER_K**2
+    )
 
 
 @dataclass(frozen=True)
@@ -688,6 +700,130 @@ def _fit_posterior(
     )
 
 
+def _fit_feature_posterior(  # noqa: PLR0915 - shared-latent fit is intentionally explicit.
+    observations: tuple[EstimatorObservation, ...],
+    *,
+    priors: tuple[ProbabilisticPrior, ...] = (),
+    constraints: tuple[object, ...] = (),
+    max_iterations: int = 32,
+    evidence: tuple[EvidenceReference, ...] = (),
+) -> _PosteriorFit | None:
+    """Fit one latent dosage from repeated measurements of a feature.
+
+    A request may contain technical repeats or orthogonal assays for the same
+    locus.  Treating those rows independently either over-counts the feature or
+    violates the unique-feature result contract.  This update keeps one shared
+    latent value, reweights each assay residual with Huber IRLS, and combines
+    their precision before applying the GBM marker prior and hard bounds.
+    """
+
+    if not observations:
+        return None
+    first = observations[0]
+    profile = _feature_profile(first)
+    if any(
+        item.feature_id != first.feature_id
+        or item.unit != first.unit
+        or _feature_profile(item).family != profile.family
+        for item in observations
+    ):
+        return None
+    likelihoods = tuple(_likelihood(item, profile) for item in observations)
+    if any(item is None for item in likelihoods):
+        return None
+    typed_likelihoods = tuple(cast("tuple[float, float]", item) for item in likelihoods)
+    prior = _prior_for(first, profile, priors)
+    bounds = _constraint_bounds(first.feature_id, profile, constraints)
+    if bounds is None:
+        return None
+    lower, upper = bounds
+    prior_variance = prior.scale**2
+    mean = prior.mean
+    gap = float("inf")
+    robust_weights = np.ones(len(typed_likelihoods), dtype=np.float64)
+    for _iteration in range(1, max(1, min(max_iterations, 256)) + 1):
+        numerator = prior.mean / prior_variance
+        denominator = 1.0 / prior_variance
+        for index, (value, scale) in enumerate(typed_likelihoods):
+            residual = (value - mean) / scale
+            if not isfinite(residual):
+                return None
+            robust = 1.0 if abs(residual) <= _HUBER_K else _HUBER_K / abs(residual)
+            robust_weights[index] = robust
+            precision = robust / (scale**2)
+            numerator += precision * value
+            denominator += precision
+        updated = numerator / denominator
+        if lower is not None:
+            updated = max(updated, lower)
+        if upper is not None:
+            updated = min(updated, upper)
+        gap = abs(updated - mean)
+        mean = updated
+        if gap <= _CONVERGENCE_TOLERANCE:
+            break
+    posterior_variance = 1.0 / (
+        1.0 / prior_variance
+        + sum(
+            weight / (scale**2)
+            for weight, (_, scale) in zip(robust_weights, typed_likelihoods, strict=True)
+        )
+    )
+    posterior_scale = sqrt(posterior_variance)
+    if not all(isfinite(item) for item in (mean, posterior_scale, gap)):
+        return None
+    posterior_lower = mean - _POSTERIOR_Z90 * posterior_scale
+    posterior_upper = mean + _POSTERIOR_Z90 * posterior_scale
+    if lower is not None:
+        posterior_lower = max(posterior_lower, lower)
+    if upper is not None:
+        posterior_upper = min(posterior_upper, upper)
+    if posterior_lower > posterior_upper:
+        posterior_lower = posterior_upper = mean
+    masses: list[float] = []
+    objective = 0.5 * (mean - prior.mean) ** 2 / prior_variance
+    has_interval = False
+    rationale_parts: list[str] = []
+    for item, (value, scale) in zip(observations, typed_likelihoods, strict=True):
+        residual = (value - mean) / scale
+        objective += _huber_loss(residual)
+        masses.append(
+            _normal_cdf(float(item.interval_upper), mean, posterior_scale)
+            - _normal_cdf(float(item.interval_lower), mean, posterior_scale)
+            if item.interval_lower is not None and item.interval_upper is not None
+            else min(max(exp(-0.5 * residual**2), 0.0), 1.0)
+        )
+        has_interval = has_interval or item.interval_lower is not None
+        rationale_parts.append(
+            f"{profile.family} repeat {item.observation_id} robust weight "
+            f"{robust_weights[len(rationale_parts)]:.4g}"
+        )
+    if not isfinite(objective):
+        return None
+    posterior_mass = min(max(float(np.mean(masses)), 0.0), 1.0)
+    estimate = PosteriorEstimate(
+        feature_id=first.feature_id,
+        kind=PosteriorEstimateKind.INTERVAL if has_interval else PosteriorEstimateKind.SCALAR,
+        unit=first.unit,
+        estimate_value=mean,
+        lower_bound=posterior_lower if has_interval else None,
+        upper_bound=posterior_upper if has_interval else None,
+        posterior_mass=posterior_mass,
+        evidence=evidence,
+    )
+    return _PosteriorFit(
+        estimate=estimate,
+        objective=objective,
+        convergence_gap=gap,
+        iterations=_iteration,
+        rationale=(
+            f"{profile.family} shared-latent Huber-IRLS fit across {len(observations)} "
+            f"observation(s) using {prior.rationale}; {profile.marker_rationale}; "
+            + "; ".join(rationale_parts[:3])
+        ),
+    )
+
+
 def _posterior(observation: EstimatorObservation) -> PosteriorEstimate | None:
     """Compatibility helper using the neutral GBM defaults."""
 
@@ -702,24 +838,39 @@ def _posteriors(
         artifact.digest: artifact
         for artifact in (request.representation_result, *request.source_artifacts)
     }
-    fits: list[_PosteriorFit] = []
+    grouped: dict[str, list[EstimatorObservation]] = {}
     for observation in request.observations:
-        artifact = source_by_digest.get(observation.source_artifact_digest)
-        if artifact is None:
-            return None
-        evidence = (
-            EvidenceReference(
-                reference=artifact,
-                role="evidence",
-                claim="Typed M07-04 dosage observation used by the locked GBM posterior model.",
-            ),
-        )
-        fit = _fit_posterior(
-            observation,
+        grouped.setdefault(observation.feature_id, []).append(observation)
+    fits: list[_PosteriorFit] = []
+    # Preserve first-seen feature order in the request.  The request digest is
+    # intentionally order-bound for this provisional ABI, so this keeps result
+    # row order stable with the established transport fixture while collapsing
+    # repeats into one estimate per feature.
+    feature_order = tuple(dict.fromkeys(item.feature_id for item in request.observations))
+    for feature_id in feature_order:
+        observations = tuple(grouped[feature_id])
+        evidence_items: list[EvidenceReference] = []
+        seen_digests: set[str] = set()
+        for observation in observations:
+            artifact = source_by_digest.get(observation.source_artifact_digest)
+            if artifact is None:
+                return None
+            if artifact.digest in seen_digests:
+                continue
+            seen_digests.add(artifact.digest)
+            evidence_items.append(
+                EvidenceReference(
+                    reference=artifact,
+                    role="evidence",
+                    claim="Typed M07-04 dosage observation used by the locked GBM posterior model.",
+                )
+            )
+        fit = _fit_feature_posterior(
+            observations,
             priors=request.configuration.priors,
             constraints=request.configuration.constraints,
             max_iterations=request.configuration.max_iterations,
-            evidence=evidence,
+            evidence=tuple(evidence_items),
         )
         if fit is None:
             return None
@@ -756,7 +907,7 @@ def _diagnostic(
         objective = sum(item.objective for item in fits)
         iterations = max((item.iterations for item in fits), default=1)
         gap = max((item.convergence_gap for item in fits), default=0.0)
-        rationale = "; ".join(item.rationale for item in fits[:3])
+        rationale = "; ".join(item.rationale for item in fits[:3])[:320]
         return OptimizationDiagnostic(
             diagnostic_id="diagnostic.m0704.gbm-irls",
             status=OptimizationDiagnosticStatus.CONVERGED,

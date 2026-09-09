@@ -27,6 +27,8 @@ from glio_proteogen.modules.c07_copy_number_dosage.m07_04_probabilistic_advanced
     engine as m0704_engine,
 )
 
+_EXPECTED_COALESCED_FEATURE_COUNT = 2
+
 
 def test_service_accepts_typed_mapping_bytes_and_string() -> None:
     service = M0704Service()
@@ -174,3 +176,41 @@ def test_interval_observation_emits_posterior_interval_and_mass() -> None:
     assert interval.lower_bound <= interval.estimate_value <= interval.upper_bound
     assert interval.posterior_mass is not None
     assert 0.0 <= interval.posterior_mass <= 1.0
+
+
+def test_repeated_feature_observations_share_one_robust_latent_posterior() -> None:
+    base = request()
+    repeat = base.observations[0].model_copy(
+        update={"observation_id": "observation.scalar.repeat", "scalar_value": 2.2}
+    )
+    result = M0704Service().execute(
+        base.model_copy(update={"observations": (repeat, *base.observations)})
+    )
+
+    assert result.status.value == "estimated"
+    assert len(result.estimates) == _EXPECTED_COALESCED_FEATURE_COUNT
+    assert (
+        len({item.feature_id for item in result.estimates})
+        == _EXPECTED_COALESCED_FEATURE_COUNT
+    )
+    assert result.estimates[0].feature_id == "feature.copy-number"
+    assert (
+        base.observations[0].scalar_value
+        < result.estimates[0].estimate_value
+        < repeat.scalar_value
+    )
+    assert len(result.estimates[0].evidence) == 1
+
+
+def test_repeated_feature_with_incompatible_units_abstains() -> None:
+    base = request()
+    incompatible = base.observations[0].model_copy(
+        update={"observation_id": "observation.scalar.fraction", "unit": "fraction"}
+    )
+    result = M0704Service().execute(
+        base.model_copy(update={"observations": (base.observations[0], incompatible)})
+    )
+
+    assert result.status.value == "abstained"
+    assert not result.estimates
+    assert "incompatible" in (result.abstention_reason or "")
