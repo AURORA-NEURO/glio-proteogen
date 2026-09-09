@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from collections import UserDict
 from datetime import UTC, datetime
+from itertools import pairwise
 from pathlib import Path  # noqa: TC003
 
 import pytest
@@ -12,6 +13,7 @@ from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
 import glio_proteogen.adapters.m1203 as m1203_adapter
+import glio_proteogen.modules.c12_driver_protein_consequence.m12_03_mechanistic_feature_constructor.engine as engine_module  # noqa: E501
 from glio_proteogen.adapters.m1203 import app, m1203_app
 from glio_proteogen.contracts.m12_03 import (
     M1203_GLIOMA_MODEL_FAMILY,
@@ -63,6 +65,8 @@ HTTP_OK = 200
 HTTP_UNPROCESSABLE_CONTENT = 422
 HTTP_NOT_FOUND = 404
 INTERVAL_UPPER = 0.9
+BACKTRACK_OBJECTIVE_CALL = 2
+MIN_OBJECTIVE_CALLS = 3
 
 
 def artifact(label: str, media_type: str = "application/json") -> ArtifactReference:
@@ -234,6 +238,60 @@ def test_typed_glioma_constraint_graph_fits_and_bootstraps() -> None:
     assert any(
         feature.feature_id == "feature.glioma.mechanism_state"
         for feature in result.feature_object.features
+    )
+
+
+def test_typed_feature_solver_backtracks_objective_increase(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    base = request()
+    source = artifact("typed-source-backtracking")
+    second = MechanisticFeature(
+        feature_id="feature.egfr",
+        version="1.0.0",
+        kind=MechanisticFeatureKind.REGULATORY,
+        value_kind=MechanisticValueKind.SCALAR,
+        unit="score",
+        scalar_value=1.2,
+        lineage=MechanisticFeatureLineage(
+            feature_id="feature.egfr",
+            source_artifacts=(source,),
+            claim="Typed EGFR evidence.",
+        ),
+    )
+    typed = base.model_copy(
+        update={
+            "configuration": base.configuration.model_copy(
+                update={"model_family": M1203_GLIOMA_MODEL_FAMILY}
+            ),
+            "feature_inputs": (base.feature_inputs[0], second),
+            "relations": (
+                MechanisticRelation(
+                    relation_id="relation.egfr-pathway-backtracking",
+                    source_feature_id="feature.egfr",
+                    target_feature_id="feature.pathway",
+                    kind=MechanisticRelationKind.ACTIVATES,
+                    weight=0.65,
+                ),
+            ),
+            "source_artifacts": (base.source_artifacts[0], source),
+        }
+    )
+    original = engine_module._typed_objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == BACKTRACK_OBJECTIVE_CALL else value
+
+    monkeypatch.setattr(engine_module, "_typed_objective", objective)
+    fit = engine_module._fit_typed(typed)
+    assert fit is not None
+    assert fit.converged
+    assert calls >= MIN_OBJECTIVE_CALLS
+    assert all(
+        after <= before + engine_module._M1203_OBJECTIVE_TOLERANCE
+        for before, after in pairwise(fit.objective_trace)
     )
 
 

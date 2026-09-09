@@ -65,6 +65,9 @@ _M1203_DAMPING: Final = 0.7
 _M1203_HUBER_DELTA: Final = 1.5
 _M1203_SOLVER_ITERATIONS: Final = 128
 _M1203_SOLVER_TOLERANCE: Final = 1e-5
+_M1203_OBJECTIVE_TOLERANCE: Final = 1e-10
+_M1203_BACKTRACKING_STEPS: Final = 18
+_M1203_BACKTRACKING_FACTOR: Final = 0.5
 _M1203_MIN_SCALE: Final = 1e-6
 _M1203_MIN_NUMERIC: Final = 2
 
@@ -76,6 +79,7 @@ class _TypedFit:
     objective: float
     iterations: int
     converged: bool
+    objective_trace: tuple[float, ...]
 
 
 def _is_typed(request: ConstructBiomarkerPanelMechanisticFeaturesRequest) -> bool:
@@ -135,7 +139,24 @@ def _huber(value: float) -> float:
     )
 
 
-def _fit_typed(
+def _typed_objective(
+    values: list[float],
+    numeric: tuple[tuple[MechanisticFeature, float, float], ...],
+    relations: tuple[tuple[int, int, float], ...],
+) -> float:
+    objective = _M1203_RIDGE * sum(value * value for value in values)
+    objective += sum(
+        _huber((value - target) / max(_M1203_MIN_SCALE, uncertainty))
+        for value, (_feature, target, uncertainty) in zip(values, numeric, strict=True)
+    )
+    objective += sum(
+        0.5 * (values[target] - coefficient * values[source]) ** 2
+        for source, target, coefficient in relations
+    )
+    return objective
+
+
+def _fit_typed(  # noqa: C901, PLR0912 - solver safeguards are explicit.
     request: ConstructBiomarkerPanelMechanisticFeaturesRequest,
     *,
     perturbation: Mapping[str, float] | None = None,
@@ -158,10 +179,15 @@ def _fit_typed(
     if not relations:
         return None
     values = [value for _, value, _ in numeric]
-    objective = float("inf")
+    initial_objective = _typed_objective(values, numeric, relations)
+    if not math.isfinite(initial_objective):
+        return None
+    trace = [round(initial_objective, 10)]
     for iteration in range(1, _M1203_SOLVER_ITERATIONS + 1):
         previous = values.copy()
-        for position, current in enumerate(values):
+        previous_objective = trace[-1]
+        proposals = previous.copy()
+        for position, current in enumerate(previous):
             gradient = 2.0 * _M1203_RIDGE * current
             hessian = 2.0 * _M1203_RIDGE
             target, uncertainty = numeric[position][1], max(_M1203_MIN_SCALE, numeric[position][2])
@@ -176,28 +202,48 @@ def _fit_typed(
             hessian += information
             for source, target_index, coefficient in relations:
                 if position == source:
-                    edge_residual = values[target_index] - coefficient * current
+                    edge_residual = previous[target_index] - coefficient * current
                     gradient -= coefficient * edge_residual
                     hessian += coefficient * coefficient
                 elif position == target_index:
-                    edge_residual = current - coefficient * values[source]
+                    edge_residual = current - coefficient * previous[source]
                     gradient += edge_residual
                     hessian += 1.0
             proposal = current - gradient / max(_M1203_MIN_SCALE, hessian)
-            values[position] = current + _M1203_DAMPING * (proposal - current)
-        next_objective = _M1203_RIDGE * sum(value * value for value in values)
-        next_objective += sum(
-            _huber((value - target) / max(_M1203_MIN_SCALE, uncertainty))
-            for value, (_, target, uncertainty) in zip(values, numeric, strict=True)
-        )
-        next_objective += sum(
-            0.5 * (values[target] - coefficient * values[source]) ** 2
-            for source, target, coefficient in relations
-        )
+            proposals[position] = current + _M1203_DAMPING * (proposal - current)
+        next_objective = _typed_objective(proposals, numeric, relations)
+        accepted = proposals
+        if not math.isfinite(next_objective) or (
+            next_objective > previous_objective + _M1203_OBJECTIVE_TOLERANCE
+        ):
+            # Signed edge curvature can make a complete Jacobi sweep overshoot.
+            # Backtrack the vector update so the objective trace is monotone and
+            # replay-auditable rather than silently accepting a worse state.
+            accepted = previous.copy()
+            next_objective = previous_objective
+            delta = [after - before for after, before in zip(proposals, previous, strict=True)]
+            step = _M1203_DAMPING
+            for _ in range(_M1203_BACKTRACKING_STEPS):
+                step *= _M1203_BACKTRACKING_FACTOR
+                trial = [
+                    before + step * change
+                    for before, change in zip(previous, delta, strict=True)
+                ]
+                trial_objective = _typed_objective(trial, numeric, relations)
+                if math.isfinite(trial_objective) and (
+                    trial_objective <= previous_objective + _M1203_OBJECTIVE_TOLERANCE
+                ):
+                    accepted = trial
+                    next_objective = trial_objective
+                    break
+            else:
+                return None
+        values = accepted
         update = max(abs(after - before) for after, before in zip(values, previous, strict=True))
+        trace.append(round(next_objective, 10))
         if (
             update <= _M1203_SOLVER_TOLERANCE
-            and abs(objective - next_objective) <= 2.0 * _M1203_SOLVER_TOLERANCE
+            and abs(previous_objective - next_objective) <= _M1203_SOLVER_TOLERANCE
         ):
             return _TypedFit(
                 feature_ids=tuple(feature.feature_id for feature, _, _ in numeric),
@@ -205,14 +251,15 @@ def _fit_typed(
                 objective=float(f"{next_objective:.8f}"),
                 iterations=iteration,
                 converged=True,
+                objective_trace=tuple(trace),
             )
-        objective = next_objective
     return _TypedFit(
         feature_ids=tuple(feature.feature_id for feature, _, _ in numeric),
         values=tuple(float(f"{value:.8f}") for value in values),
-        objective=float(f"{objective:.8f}"),
+        objective=float(f"{trace[-1]:.8f}"),
         iterations=_M1203_SOLVER_ITERATIONS,
         converged=False,
+        objective_trace=tuple(trace),
     )
 
 

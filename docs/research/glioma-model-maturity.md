@@ -824,8 +824,8 @@ The additive M12-03 runtime now recognizes an opt-in
 `glioma-biomarker-constraint-graph/1.0.0` model family. Numeric scalar and
 interval features are fitted through signed activation, inhibition,
 participation, precedence, and co-localization relations using robust Huber
-loss, ridge stabilization, and damped coordinate descent. Deterministic
-digest-seeded measurement perturbations produce a bootstrap state interval,
+loss, frozen-parent damped Jacobi updates, and objective-safe backtracking.
+Deterministic digest-seeded measurement perturbations produce a bootstrap state interval,
 and projected features preserve their source lineage. Categorical features
 and non-evaluable inputs remain non-evidence.
 
