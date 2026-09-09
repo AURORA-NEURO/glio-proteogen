@@ -46,6 +46,15 @@ from glio_proteogen.adapters.gbm_master_kinases import (
 from glio_proteogen.adapters.gbm_master_kinases import (
     router as gbm_master_kinases_router,
 )
+from glio_proteogen.adapters.gbm_microenvironment_graph import (
+    MICROENVIRONMENT_GRAPH_REPLAY_MAX_BYTES,
+    MICROENVIRONMENT_GRAPH_REQUEST_MAX_BYTES,
+    MICROENVIRONMENT_GRAPH_RESULT_MAX_BYTES,
+    MICROENVIRONMENT_GRAPH_ROUTE_PREFIX,
+)
+from glio_proteogen.adapters.gbm_microenvironment_graph import (
+    router as gbm_microenvironment_graph_router,
+)
 from glio_proteogen.adapters.gbm_rna_composition import (
     MIXTURE_REPLAY_MAX_BYTES,
     MIXTURE_REQUEST_MAX_BYTES,
@@ -1774,6 +1783,14 @@ _CENTRAL_ROUTE_LIMITS: Final[dict[str, tuple[int, int | None]]] = {
     MIXTURE_ROUTE_PREFIX: (
         MIXTURE_REQUEST_MAX_BYTES,
         MIXTURE_RESULT_MAX_BYTES,
+    ),
+    f"{MICROENVIRONMENT_GRAPH_ROUTE_PREFIX}/verify": (
+        MICROENVIRONMENT_GRAPH_REPLAY_MAX_BYTES,
+        MICROENVIRONMENT_GRAPH_RESULT_MAX_BYTES,
+    ),
+    MICROENVIRONMENT_GRAPH_ROUTE_PREFIX: (
+        MICROENVIRONMENT_GRAPH_REQUEST_MAX_BYTES,
+        MICROENVIRONMENT_GRAPH_RESULT_MAX_BYTES,
     ),
     f"{LONGITUDINAL_GBM_COMPLEX_TRANSITION_ROUTE_PREFIX}/verify": (
         LONGITUDINAL_GBM_COMPLEX_TRANSITION_REPLAY_MAX_BYTES,
@@ -3550,6 +3567,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     app.include_router(research_state_router)
     app.include_router(immunopeptidomic_presentation_router)
     app.include_router(gbm_rna_composition_router)
+    app.include_router(gbm_microenvironment_graph_router)
     app.include_router(gbm_functional_proteotype_router)
     app.include_router(glioma_models_router)
     app.include_router(neftel_programs_router)

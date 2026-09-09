@@ -40,6 +40,7 @@ _COMPLEX_TRANSITION_RESEARCH_PREFIX = "/v1/research/longitudinal-gbm-complex-tra
 _FACTOR_GRAPH_RESEARCH_PREFIX = "/v1/research/gbm-factor-graph"
 _IMMUNOPEPTIDOMIC_RESEARCH_PREFIX = "/v1/research/immunopeptidomic-presentation"
 _GBM_RNA_COMPOSITION_RESEARCH_PREFIX = "/v1/research/gbm-rna-composition"
+_GBM_MICROENVIRONMENT_GRAPH_RESEARCH_PREFIX = "/v1/research/gbm-microenvironment-graph"
 _M09_RESEARCH_PREFIX = "/v2/research/modules/m09/complex-transition-concordance"
 _M10_RESEARCH_PREFIX = "/v2/research/modules/m10/functional-proteotype"
 _M11_RESEARCH_PREFIX = "/v2/research/modules/m11/protein-native-subtype"
@@ -63,6 +64,7 @@ _RESEARCH_PATHS = {
         _FACTOR_GRAPH_RESEARCH_PREFIX,
         _IMMUNOPEPTIDOMIC_RESEARCH_PREFIX,
         _GBM_RNA_COMPOSITION_RESEARCH_PREFIX,
+        _GBM_MICROENVIRONMENT_GRAPH_RESEARCH_PREFIX,
         _M09_RESEARCH_PREFIX,
         _M10_RESEARCH_PREFIX,
         _M11_RESEARCH_PREFIX,
@@ -136,6 +138,7 @@ def test_public_fastapi_exposes_only_the_bounded_research_surface(tmp_path: Path
         "glio_proteogen.adapters.gbm_factor_graph",
         "glio_proteogen.adapters.immunopeptidomic_presentation",
         "glio_proteogen.adapters.gbm_rna_composition",
+        "glio_proteogen.adapters.gbm_microenvironment_graph",
         "glio_proteogen.adapters.m10_functional_proteotype_facade",
         "glio_proteogen.adapters.m11_protein_native_subtype_facade",
         "glio_proteogen.adapters.m14_microenvironment_protein_programs_facade",

@@ -63,6 +63,9 @@ _IMMUNOPEPTIDOMIC_ADAPTER_NAMESPACE: Final = (
     "glio_proteogen.adapters.immunopeptidomic_presentation"
 )
 _GBM_RNA_COMPOSITION_ADAPTER_NAMESPACE: Final = "glio_proteogen.adapters.gbm_rna_composition"
+_GBM_MICROENVIRONMENT_GRAPH_ADAPTER_NAMESPACE: Final = (
+    "glio_proteogen.adapters.gbm_microenvironment_graph"
+)
 _M10_ADAPTER_NAMESPACE: Final = "glio_proteogen.adapters.m10_functional_proteotype_facade"
 _M11_ADAPTER_NAMESPACE: Final = "glio_proteogen.adapters.m11_protein_native_subtype_facade"
 _M14_ADAPTER_NAMESPACE: Final = (
@@ -99,6 +102,9 @@ _IMMUNOPEPTIDOMIC_IMPLEMENTATION_NAMESPACE: Final = (
     "glio_proteogen.research.immunopeptidomic_presentation"
 )
 _GBM_RNA_COMPOSITION_IMPLEMENTATION_NAMESPACE: Final = "glio_proteogen.research.gbmap_deconvolution"
+_GBM_MICROENVIRONMENT_GRAPH_IMPLEMENTATION_NAMESPACE: Final = (
+    "glio_proteogen.research.gbm_microenvironment_graph"
+)
 _M10_IMPLEMENTATION_NAMESPACE: Final = "glio_proteogen.research.m10_functional_proteotype_facade"
 _M11_IMPLEMENTATION_NAMESPACE: Final = "glio_proteogen.research.m11_protein_native_subtype_facade"
 _M14_IMPLEMENTATION_NAMESPACE: Final = (
@@ -126,6 +132,7 @@ _APPROVED_ADAPTER_RESEARCH_IMPORTS: Final = {
             _FACTOR_GRAPH_ADAPTER_NAMESPACE,
             _IMMUNOPEPTIDOMIC_ADAPTER_NAMESPACE,
             _GBM_RNA_COMPOSITION_ADAPTER_NAMESPACE,
+            _GBM_MICROENVIRONMENT_GRAPH_ADAPTER_NAMESPACE,
             _M10_ADAPTER_NAMESPACE,
             _M11_ADAPTER_NAMESPACE,
             _M14_ADAPTER_NAMESPACE,
@@ -148,6 +155,7 @@ _APPROVED_ADAPTER_RESEARCH_IMPORTS: Final = {
             _FACTOR_GRAPH_ADAPTER_NAMESPACE,
             _IMMUNOPEPTIDOMIC_ADAPTER_NAMESPACE,
             _GBM_RNA_COMPOSITION_ADAPTER_NAMESPACE,
+            _GBM_MICROENVIRONMENT_GRAPH_ADAPTER_NAMESPACE,
             _CPTAC_CIS_DOSAGE_ADAPTER_NAMESPACE,
             _CPTAC_DISCORDANCE_ADAPTER_NAMESPACE,
         }
@@ -169,6 +177,7 @@ _APPROVED_ADAPTER_RESEARCH_IMPORTS: Final = {
             _FACTOR_GRAPH_ADAPTER_NAMESPACE,
             _IMMUNOPEPTIDOMIC_ADAPTER_NAMESPACE,
             _GBM_RNA_COMPOSITION_ADAPTER_NAMESPACE,
+            _GBM_MICROENVIRONMENT_GRAPH_ADAPTER_NAMESPACE,
             _M10_ADAPTER_NAMESPACE,
             _M11_ADAPTER_NAMESPACE,
             _M14_ADAPTER_NAMESPACE,
@@ -235,6 +244,9 @@ _APPROVED_ADAPTER_RESEARCH_IMPORTS: Final = {
     "adapters/gbm_rna_composition.py": frozenset(
         {_GBM_RNA_COMPOSITION_IMPLEMENTATION_NAMESPACE}
     ),
+    "adapters/gbm_microenvironment_graph.py": frozenset(
+        {_GBM_MICROENVIRONMENT_GRAPH_IMPLEMENTATION_NAMESPACE}
+    ),
     "adapters/m10_functional_proteotype_facade.py": frozenset(
         {_FUNCTIONAL_PROTEOTYPE_ADAPTER_NAMESPACE, _M10_IMPLEMENTATION_NAMESPACE}
     ),
@@ -298,6 +310,9 @@ _COMPLEX_TRANSITION_RESEARCH_PREFIX: Final = "/v1/research/longitudinal-gbm-comp
 _FACTOR_GRAPH_RESEARCH_PREFIX: Final = "/v1/research/gbm-factor-graph"
 _IMMUNOPEPTIDOMIC_RESEARCH_PREFIX: Final = "/v1/research/immunopeptidomic-presentation"
 _GBM_RNA_COMPOSITION_RESEARCH_PREFIX: Final = "/v1/research/gbm-rna-composition"
+_GBM_MICROENVIRONMENT_GRAPH_RESEARCH_PREFIX: Final = (
+    "/v1/research/gbm-microenvironment-graph"
+)
 _M09_RESEARCH_PREFIX: Final = "/v2/research/modules/m09/complex-transition-concordance"
 _M10_RESEARCH_PREFIX: Final = "/v2/research/modules/m10/functional-proteotype"
 _M11_RESEARCH_PREFIX: Final = "/v2/research/modules/m11/protein-native-subtype"
@@ -394,6 +409,12 @@ _GBM_RNA_COMPOSITION_RESEARCH_CLI_COMMANDS: Final = {
     "gbm-rna-composition analyze",
     "gbm-rna-composition verify",
 }
+_GBM_MICROENVIRONMENT_GRAPH_RESEARCH_CLI_COMMANDS: Final = {
+    "gbm-microenvironment-graph profile",
+    "gbm-microenvironment-graph demo",
+    "gbm-microenvironment-graph analyze",
+    "gbm-microenvironment-graph verify",
+}
 _CPTAC_CIS_DOSAGE_RESEARCH_CLI_COMMANDS: Final = {
     "cptac-gbm-cis-dosage fit-local",
     "cptac-gbm-cis-dosage profile",
@@ -463,6 +484,10 @@ _RESEARCH_CLI_CALLBACK_MODULES: Final = {
         "glio_proteogen.adapters.gbm_rna_composition",
     ),
     **dict.fromkeys(
+        _GBM_MICROENVIRONMENT_GRAPH_RESEARCH_CLI_COMMANDS,
+        "glio_proteogen.adapters.gbm_microenvironment_graph",
+    ),
+    **dict.fromkeys(
         _CPTAC_CIS_DOSAGE_RESEARCH_CLI_COMMANDS,
         "glio_proteogen.adapters.cptac_gbm_cis_dosage",
     ),
@@ -504,6 +529,10 @@ _RESEARCH_ROUTE_MODULES: Final = (
     (
         _GBM_RNA_COMPOSITION_RESEARCH_PREFIX,
         "glio_proteogen.adapters.gbm_rna_composition",
+    ),
+    (
+        _GBM_MICROENVIRONMENT_GRAPH_RESEARCH_PREFIX,
+        "glio_proteogen.adapters.gbm_microenvironment_graph",
     ),
     (_PHOSPHO_RESEARCH_PREFIX, "glio_proteogen.adapters.longitudinal_gbm_phospho"),
     (
@@ -615,6 +644,7 @@ def _restricted_research_namespace(target: str) -> str | None:
         _FACTOR_GRAPH_ADAPTER_NAMESPACE,
         _IMMUNOPEPTIDOMIC_ADAPTER_NAMESPACE,
         _GBM_RNA_COMPOSITION_ADAPTER_NAMESPACE,
+        _GBM_MICROENVIRONMENT_GRAPH_ADAPTER_NAMESPACE,
         _M10_ADAPTER_NAMESPACE,
         _M11_ADAPTER_NAMESPACE,
         _M14_ADAPTER_NAMESPACE,
@@ -635,6 +665,7 @@ def _restricted_research_namespace(target: str) -> str | None:
         _FACTOR_GRAPH_IMPLEMENTATION_NAMESPACE,
         _IMMUNOPEPTIDOMIC_IMPLEMENTATION_NAMESPACE,
         _GBM_RNA_COMPOSITION_IMPLEMENTATION_NAMESPACE,
+        _GBM_MICROENVIRONMENT_GRAPH_IMPLEMENTATION_NAMESPACE,
         _M10_IMPLEMENTATION_NAMESPACE,
         _M11_IMPLEMENTATION_NAMESPACE,
         _M14_IMPLEMENTATION_NAMESPACE,
@@ -678,6 +709,7 @@ def test_non_research_source_uses_only_the_explicit_adapter_bridge() -> None:  #
         _FACTOR_GRAPH_ADAPTER_NAMESPACE: set(),
         _IMMUNOPEPTIDOMIC_ADAPTER_NAMESPACE: set(),
         _GBM_RNA_COMPOSITION_ADAPTER_NAMESPACE: set(),
+        _GBM_MICROENVIRONMENT_GRAPH_ADAPTER_NAMESPACE: set(),
         _M10_ADAPTER_NAMESPACE: set(),
         _M11_ADAPTER_NAMESPACE: set(),
         _M14_ADAPTER_NAMESPACE: set(),
@@ -698,6 +730,7 @@ def test_non_research_source_uses_only_the_explicit_adapter_bridge() -> None:  #
         _FACTOR_GRAPH_IMPLEMENTATION_NAMESPACE: set(),
         _IMMUNOPEPTIDOMIC_IMPLEMENTATION_NAMESPACE: set(),
         _GBM_RNA_COMPOSITION_IMPLEMENTATION_NAMESPACE: set(),
+        _GBM_MICROENVIRONMENT_GRAPH_IMPLEMENTATION_NAMESPACE: set(),
         _M10_IMPLEMENTATION_NAMESPACE: set(),
         _M11_IMPLEMENTATION_NAMESPACE: set(),
         _M14_IMPLEMENTATION_NAMESPACE: set(),
@@ -794,6 +827,11 @@ def test_non_research_source_uses_only_the_explicit_adapter_bridge() -> None:  #
         "adapters/cli.py",
         "adapters/research_readiness.py",
     }
+    assert observed[_GBM_MICROENVIRONMENT_GRAPH_ADAPTER_NAMESPACE] == {
+        "adapters/api.py",
+        "adapters/cli.py",
+        "adapters/research_readiness.py",
+    }
     assert observed[_M10_ADAPTER_NAMESPACE] == {
         "adapters/api.py",
         "adapters/research_readiness.py",
@@ -829,7 +867,9 @@ def test_non_research_source_uses_only_the_explicit_adapter_bridge() -> None:  #
         "adapters/gbm_functional_proteotype.py"
     }
     assert observed[_GBM_IMPLEMENTATION_NAMESPACE] == {"adapters/glioma_models.py"}
-    assert observed[_NEFTEL_IMPLEMENTATION_NAMESPACE] == {"adapters/neftel_programs.py"}
+    assert observed[_NEFTEL_IMPLEMENTATION_NAMESPACE] == {
+        "adapters/neftel_programs.py",
+    }
     assert observed[_MASTER_KINASE_IMPLEMENTATION_NAMESPACE] == {"adapters/gbm_master_kinases.py"}
     assert observed[_GBM_RNA_PURITY_IMPLEMENTATION_NAMESPACE] == {"adapters/gbm_rna_purity.py"}
     assert observed[_LONGITUDINAL_IMPLEMENTATION_NAMESPACE] == {"adapters/longitudinal_gbm.py"}
@@ -852,6 +892,9 @@ def test_non_research_source_uses_only_the_explicit_adapter_bridge() -> None:  #
     }
     assert observed[_GBM_RNA_COMPOSITION_IMPLEMENTATION_NAMESPACE] == {
         "adapters/gbm_rna_composition.py"
+    }
+    assert observed[_GBM_MICROENVIRONMENT_GRAPH_IMPLEMENTATION_NAMESPACE] == {
+        "adapters/gbm_microenvironment_graph.py"
     }
     assert observed[_M10_IMPLEMENTATION_NAMESPACE] == {
         "adapters/m10_functional_proteotype_facade.py"
@@ -946,8 +989,9 @@ def test_central_cli_has_only_the_approved_research_commands() -> None:
         | _COMPLEX_TRANSITION_RESEARCH_CLI_COMMANDS
         | _FACTOR_GRAPH_RESEARCH_CLI_COMMANDS
         | _IMMUNOPEPTIDOMIC_RESEARCH_CLI_COMMANDS
-        | _GBM_RNA_COMPOSITION_RESEARCH_CLI_COMMANDS
-        | _CPTAC_CIS_DOSAGE_RESEARCH_CLI_COMMANDS
+            | _GBM_RNA_COMPOSITION_RESEARCH_CLI_COMMANDS
+            | _GBM_MICROENVIRONMENT_GRAPH_RESEARCH_CLI_COMMANDS
+            | _CPTAC_CIS_DOSAGE_RESEARCH_CLI_COMMANDS
         | _CPTAC_DISCORDANCE_RESEARCH_CLI_COMMANDS
     )
 
@@ -1010,7 +1054,8 @@ def test_central_api_route_inventory_has_only_bounded_research_surface() -> None
                     _COMPLEX_TRANSITION_RESEARCH_PREFIX,
                     _FACTOR_GRAPH_RESEARCH_PREFIX,
                     _IMMUNOPEPTIDOMIC_RESEARCH_PREFIX,
-                    _GBM_RNA_COMPOSITION_RESEARCH_PREFIX,
+                        _GBM_RNA_COMPOSITION_RESEARCH_PREFIX,
+                        _GBM_MICROENVIRONMENT_GRAPH_RESEARCH_PREFIX,
                     _M09_RESEARCH_PREFIX,
                     _M10_RESEARCH_PREFIX,
                     _M11_RESEARCH_PREFIX,
@@ -1037,7 +1082,8 @@ def test_central_api_route_inventory_has_only_bounded_research_surface() -> None
             _COMPLEX_TRANSITION_RESEARCH_PREFIX,
             _FACTOR_GRAPH_RESEARCH_PREFIX,
             _IMMUNOPEPTIDOMIC_RESEARCH_PREFIX,
-            _GBM_RNA_COMPOSITION_RESEARCH_PREFIX,
+                _GBM_RNA_COMPOSITION_RESEARCH_PREFIX,
+                _GBM_MICROENVIRONMENT_GRAPH_RESEARCH_PREFIX,
             _M09_RESEARCH_PREFIX,
             _M10_RESEARCH_PREFIX,
             _M11_RESEARCH_PREFIX,
@@ -1092,6 +1138,7 @@ def test_central_openapi_inventory_has_only_approved_research_operations() -> No
             _FACTOR_GRAPH_RESEARCH_PREFIX,
             _IMMUNOPEPTIDOMIC_RESEARCH_PREFIX,
             _GBM_RNA_COMPOSITION_RESEARCH_PREFIX,
+            _GBM_MICROENVIRONMENT_GRAPH_RESEARCH_PREFIX,
             _M09_RESEARCH_PREFIX,
             _M10_RESEARCH_PREFIX,
             _M11_RESEARCH_PREFIX,

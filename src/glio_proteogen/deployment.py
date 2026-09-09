@@ -48,6 +48,7 @@ _VALIDATED_EXAMPLES = {
     ),
     "/v1/research/gbm-rna-purity/analyze": ("synthetic-primary-idhwt-gbm-rna-purity-v1"),
     "/v1/research/gbm-rna-composition/analyze": "synthetic-gbm-mixture-001",
+    "/v1/research/gbm-microenvironment-graph/analyze": "synthetic-neftel-ac-program-v1",
     "/v1/research/longitudinal-gbm/analyze": ("synthetic-kncc-longitudinal-protein-series-v1"),
     "/v1/research/longitudinal-gbm-phospho/analyze": (
         "synthetic-kncc-longitudinal-phosphosite-series-v1"

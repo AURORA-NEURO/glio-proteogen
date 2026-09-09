@@ -19,6 +19,7 @@ from glio_proteogen.adapters import (
     gbm_factor_graph,
     gbm_functional_proteotype,
     gbm_master_kinases,
+    gbm_microenvironment_graph,
     gbm_rna_composition,
     gbm_rna_purity,
     glioma_models,
@@ -127,6 +128,13 @@ RESEARCH_READINESS_CHECKS: Final[tuple[ResearchReadinessCheck, ...]] = (
         lane_id="gbm-rna-composition",
         profile_routes=(_profile_route(gbm_rna_composition.MIXTURE_ROUTE_PREFIX),),
         check=gbm_rna_composition.ensure_gbm_rna_composition_ready,
+    ),
+    ResearchReadinessCheck(
+        lane_id="gbm-microenvironment-graph",
+        profile_routes=(
+            _profile_route(gbm_microenvironment_graph.MICROENVIRONMENT_GRAPH_ROUTE_PREFIX),
+        ),
+        check=gbm_microenvironment_graph.ensure_gbm_microenvironment_graph_ready,
     ),
     ResearchReadinessCheck(
         lane_id="longitudinal-gbm",

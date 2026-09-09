@@ -122,6 +122,9 @@ from glio_proteogen.research.gbm_functional_proteotype.demo import (
     DEMO_ID as FUNCTIONAL_PROTEOTYPE_DEMO_ID,
 )
 from glio_proteogen.research.gbm_master_kinases import DEMO_ID as MASTER_KINASE_DEMO_ID
+from glio_proteogen.research.gbm_microenvironment_graph import (
+    synthetic_microenvironment_graph_request,
+)
 from glio_proteogen.research.gbm_proteomic_axes import DEMO_ID as GBM_DEMO_ID
 from glio_proteogen.research.gbm_rna_purity.demo import DEMO_ID as GBM_RNA_PURITY_DEMO_ID
 from glio_proteogen.research.gbmap_deconvolution import synthetic_gbm_mixture_request
@@ -165,29 +168,29 @@ def _assert_exhaustive_report(report: dict[str, object], digest: str) -> None:
     assert report == {
         "valid": True,
         "catalog_digest": digest,
-        "mounted_operation_count": 429,
-        "mounted_route_registration_count": 429,
+            "mounted_operation_count": 433,
+            "mounted_route_registration_count": 433,
         "shadowed_route_registration_count": 0,
-        "catalog_operation_count": 429,
-        "method_counts": {"GET": 199, "POST": 230},
+            "catalog_operation_count": 433,
+            "method_counts": {"GET": 201, "POST": 232},
         "safety_class_counts": {
             "S2": 157,
             "S3": 187,
             "operational": 5,
-            "research-use-only": 80,
+                "research-use-only": 84,
         },
         "request_media_type_counts": {
-            "application/json": 229,
+                "application/json": 231,
             "application/octet-stream": 1,
         },
-        "response_media_type_counts": {"application/json": 429},
-        "request_limit_declared_count": 230,
-        "result_limit_declared_count": 298,
-        "validated_example_status_counts": {"abstained": 410, "validated": 19},
+            "response_media_type_counts": {"application/json": 433},
+            "request_limit_declared_count": 232,
+            "result_limit_declared_count": 302,
+            "validated_example_status_counts": {"abstained": 413, "validated": 20},
         "validated_example_abstention_reason_counts": {
             "no_repository_validated_fixture": 139,
-            "operation_has_no_request_body": 199,
-            "requires_prior_operation_result": 72,
+                "operation_has_no_request_body": 201,
+                "requires_prior_operation_result": 73,
         },
     }
 
@@ -816,7 +819,8 @@ def test_repository_validation_executes_every_typed_demo_identity(tmp_path: Path
         NEFTEL_DEMO_ID,
         MASTER_KINASE_DEMO_ID,
         GBM_RNA_PURITY_DEMO_ID,
-        synthetic_gbm_mixture_request().sample_id,
+            synthetic_gbm_mixture_request().sample_id,
+            synthetic_microenvironment_graph_request().sample_id,
         LONGITUDINAL_DEMO_ID,
         LONGITUDINAL_PHOSPHO_DEMO_ID,
         LONGITUDINAL_KINASE_TRANSITION_DEMO_ID,

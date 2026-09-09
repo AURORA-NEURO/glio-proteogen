@@ -33,6 +33,12 @@ separate algorithms and receipts, not scientifically independent evidence:
 - `neftel-bulk-protein-programs/1.0.0`: a separately identified robust
   bulk-protein evidence model over the exact Neftel Table S2 marker identities
   and ranks; and
+- `gbm-microenvironment-graph/1.0.0`: a source-locked Neftel-to-ECGI bridge
+  that projects only supported mesenchymal-like and oligodendrocyte-progenitor-
+  like bulk-protein evidence into a signed GBM microenvironment graph. It
+  preserves missing families as missing, propagates uncertainty through the
+  directed graph, and explicitly does not estimate cell fractions or clinical
+  states; and
 - `sphinks-gbm-master-kinase-concordance/1.0.0`: an independently authored,
   source-locked phosphosite concordance model over the 24 subtype-specific
   master-kinase signatures published by Migliozzi et al., with robust one-sided
@@ -1069,10 +1075,12 @@ inventory. See
 
 ## Prioritized replacement queue
 
-1. **GBM microenvironment inference.** Use an explicitly licensed GBM single-cell
-   reference and count-native Bayesian mixture method for RNA fractions. A
-   protein-only projection may report program concordance but must abstain from
-   cell-fraction claims.
+1. **GBM microenvironment inference.** The mounted
+   `gbm-microenvironment-graph/1.0.0` bridge now reports source-locked
+   Neftel bulk-program concordance through a signed ECGI graph while preserving
+   missingness. Replace the remaining cell-fraction gap with an explicitly
+   licensed GBM single-cell reference and count-native Bayesian mixture method;
+   the protein-only bridge must continue to abstain from cell-fraction claims.
 2. **Broader GBM complex/pathway evidence graph.** The source-locked PDC000514
    participant-set transition lane now supplies a real protein-only complex
    component, but it does not complete a multimodal pathway graph. Replace the

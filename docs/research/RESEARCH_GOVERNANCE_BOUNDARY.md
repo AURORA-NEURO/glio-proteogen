@@ -10,12 +10,13 @@ inference, proteoform/isoform inference, glioma biology, mechanism discovery,
 and clinical or treatment claims. Governed source files retain an executable
 import firewall against the research namespace.
 
-The central FastAPI composition may mount nineteen narrow research adapter
-modules exposing twenty versioned routers. Fourteen expose distinct
+The central FastAPI composition may mount twenty narrow research adapter
+modules exposing twenty-one versioned routers. Fourteen expose distinct
 scientific-inference lanes as software surfaces (not a claim that their evidence
 sources are statistically independent), one exposes an integrated KNCC
-factor-graph composition of two existing exact child engines, and five are
-compatibility facades. Typer exposes the fifteen HTTP computational surfaces
+factor-graph composition of two existing exact child engines, one exposes a
+Neftel-to-ECGI GBM microenvironment composition surface, and five are
+compatibility facades. Typer exposes the sixteen HTTP computational surfaces
 plus two separate local-only exact-source tools: `cptac-gbm-cis-dosage` and
 `cptac-gbm-transcript-protein-discordance`. Neither CPTAC tool has a central
 HTTP route, and neither increases the mounted surface or operation count. The
@@ -29,6 +30,10 @@ measurements for an exact port of seven published GBM proteomic models.
 `/v1/research/neftel-protein-programs` accepts standardized bulk-protein
 contrasts and preserves the exact marker identities and ranks from Neftel Table
 S2 while applying a separately identified repository-native evidence model.
+`/v1/research/gbm-microenvironment-graph` projects supported Neftel
+mesenchymal-like and oligodendrocyte-progenitor-like bulk-protein evidence into
+a signed GBM microenvironment graph solved by ECGI. Missing source families stay
+missing; the surface never reports cell fractions or clinical states.
 `/v1/research/gbm-master-kinases` accepts standardized phosphosite contrasts and
 computes independently authored concordance against 24 source-locked
 subtype-specific SPHINKS/MK signatures.
@@ -125,20 +130,20 @@ delegated outputs into subtype, cell-fraction, recurrence-prediction, clonal,
 spatial, causal, or clinical claims.
 
 Each mounted router exposes profile, synthetic demo, analysis, and replay
-verification. The fourteen independent scientific-inference lanes plus the one
-composition surface account for sixty operations, while the five
-compatibility facades account for twenty, for nineteen adapter modules,
-twenty routers, and eighty research operations in total. The adapters do not accept raw
+verification. The fourteen independent scientific-inference lanes plus the KNCC
+composition and Neftel-to-ECGI bridge account for sixty-four operations, while
+the five compatibility facades account for twenty, for twenty adapter modules,
+twenty-one routers, and eighty-four research operations in total. The adapters do not accept raw
 mzML/FASTA bytes,
 persist requests or results, call governed modules, or promote research output
 into governed claims. Architecture
-tests inventory the exact eighty operations and reject any additional
+tests inventory the exact eighty-four operations and reject any additional
 research surface.
 
 The adapter import bridge is equally narrow. Every Python file under
-`glio_proteogen.adapters` is scanned. `api.py` may import the eighteen approved
-HTTP adapter modules that mount twenty routers, while `cli.py` may import the
-fifteen HTTP computational-surface adapters plus the two local-only CPTAC
+`glio_proteogen.adapters` is scanned. `api.py` may import the nineteen approved
+HTTP adapter modules that mount twenty-one routers, while `cli.py` may import the
+sixteen HTTP computational-surface adapters plus the two local-only CPTAC
 adapters; the M09, M10, M11, M14, and M15
 compatibility facades are deliberately API-only. Only each
 narrow adapter may import its corresponding research implementation package,
