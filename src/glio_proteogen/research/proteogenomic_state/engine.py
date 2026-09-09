@@ -323,16 +323,37 @@ def _initial_values(
     observations: tuple[_ObservationTerm, ...],
     initial: npt.NDArray[np.float64] | None,
 ) -> npt.NDArray[np.float64]:
+    """Choose a feasible start without turning censoring limits into points.
+
+    Observed measurements provide the only point-valued initialization.  A
+    left-censored observation is an upper bound: it can cap an observed center,
+    or provide a negative starting direction when censor-only evidence proves
+    suppression, but a positive/non-binding limit must not seed activity.
+    """
+
     if initial is not None:
         return np.asarray(initial, dtype=_FLOAT).copy()
     values = np.zeros(node_count, dtype=_FLOAT)
     numerator = np.zeros(node_count, dtype=_FLOAT)
     denominator = np.zeros(node_count, dtype=_FLOAT)
     for item in observations:
+        if item.state is not EvidenceState.OBSERVED:
+            continue
         weight = item.quality / (item.standard_error**2)
         numerator[item.node_index] += weight * item.value
         denominator[item.node_index] += weight
     np.divide(numerator, denominator, out=values, where=denominator > 0.0)
+    by_node: dict[int, list[float]] = defaultdict(list)
+    for item in observations:
+        if item.state is EvidenceState.LEFT_CENSORED:
+            by_node[item.node_index].append(item.value)
+    for node_index, limits in by_node.items():
+        if denominator[node_index] > 0.0:
+            values[node_index] = min(values[node_index], *limits)
+        else:
+            # A negative upper bound is directional evidence; a non-negative
+            # censoring limit is feasible at the neutral ridge start.
+            values[node_index] = min(0.0, *limits)
     return values
 
 

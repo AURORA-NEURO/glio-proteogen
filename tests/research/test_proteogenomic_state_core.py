@@ -29,6 +29,7 @@ from glio_proteogen.research.proteogenomic_state import (
     synthetic_demo_request,
     verify_proteogenomic_replay,
 )
+from glio_proteogen.research.proteogenomic_state import engine as engine_module
 from glio_proteogen.research.proteogenomic_state.cancellation import (
     CancellationContext,
     InferenceCancelledError,
@@ -273,6 +274,41 @@ def test_left_censoring_is_one_sided_and_missingness_never_becomes_negative() ->
         assert states[node_id].support is InferenceSupport.ABSTAINED
         assert states[node_id].classification is StateClassification.NOT_ESTIMABLE
         assert states[node_id].activity is None
+
+
+def test_censor_limits_do_not_seed_latent_activity_as_point_observations() -> None:
+    request = ProteogenomicStateRequest(
+        sample_id="sample.censor-start",
+        nodes=(GraphNode(node_id="protein.signal", kind=NodeKind.PROTEIN),),
+        observations=(
+            _observation("obs.point", "protein.signal", 0.8, error=0.2),
+            _observation(
+                "obs.limit",
+                "protein.signal",
+                4.0,
+                state=EvidenceState.LEFT_CENSORED,
+                error=0.2,
+            ),
+        ),
+        bootstrap_replicates=8,
+        permutation_replicates=32,
+    )
+    graph = engine_module._prepare(request)
+    initial = engine_module._initial_values(len(graph.node_ids), graph.observations, None)
+    assert initial.tolist() == pytest.approx([0.8], abs=1e-12)
+
+    censor_only = request.model_copy(
+        update={
+            "observations": (
+                request.observations[1],
+            )
+        }
+    )
+    censor_graph = engine_module._prepare(censor_only)
+    censor_initial = engine_module._initial_values(
+        len(censor_graph.node_ids), censor_graph.observations, None
+    )
+    assert censor_initial.tolist() == pytest.approx([0.0], abs=1e-12)
 
 
 def test_essential_complex_subunit_caps_the_complex_state() -> None:
