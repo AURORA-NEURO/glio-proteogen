@@ -30,6 +30,12 @@ assay-perturbation, and mechanism-stress scenarios. It computes a deterministic
 sensitivity magnitude with ordered finite bounds. Alternative-prior and assay
 artifacts remain attached to the response evidence.
 
+Typed responses additionally carry numerical measurement/topology
+leave-one-family-out ablation deltas from the signed glioma program fit;
+measurement removal exposes topology-only propagation and edge removal exposes
+measurement-only support. These are research diagnostics, not causal effect
+sizes.
+
 Missing/N/A/non-finite values, unregistered model families, scenario-budget
 overruns, unavailable counter-evidence, failed controls, and malformed inputs
 produce no surface. They yield a typed review-required support decision,

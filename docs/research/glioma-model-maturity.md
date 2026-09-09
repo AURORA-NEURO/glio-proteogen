@@ -883,7 +883,8 @@ same five glioma signaling programs. It fits signed scenario effects with
 Huber-robust coordinate descent, ridge stabilization, and explicit program-edge
 coherence rather than using the legacy absolute-difference proxy. Request-
 digest-seeded bootstrap perturbations produce replayable intervals, stability,
-discordance, top drivers, and topology/measurement ablation explanations.
+discordance, top drivers, and numerical measurement/topology leave-one-family-
+out ablation deltas from the same robust graph solver.
 
 Missing and unsupported typed evidence is excluded and cannot become a negative
 response; incomplete typed surfaces abstain with a human-review requirement.

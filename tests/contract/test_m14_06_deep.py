@@ -184,6 +184,11 @@ def test_typed_glioma_program_solver_bootstrap_and_ablations() -> None:
     assert len(result.surface.responses) == 3
     assert all(item.lower_bound is not None and item.upper_bound is not None for item in result.surface.responses)
     assert all(item.top_drivers and item.ablation_effects for item in result.surface.responses)
+    assert all(
+        item.ablation_effects[0].startswith("measurement_ablation_delta=")
+        and item.ablation_effects[1].startswith("topology_ablation_delta=")
+        for item in result.surface.responses
+    )
     assert engine.verify(result) == result
 
 

@@ -478,6 +478,9 @@ def _typed_surface(  # noqa: C901 - explicit solver, bootstrap, and ablation sta
     topology_free = _fit_typed(terms, include_edges=False)
     if not topology_free.converged:
         raise M1406TypedInferenceError("typed perturbation ablation solver did not converge")  # noqa: TRY003
+    measurement_free = _fit_typed((), include_edges=True)
+    if not measurement_free.converged:
+        raise M1406TypedInferenceError("typed measurement ablation solver did not converge")  # noqa: TRY003
     replicates = request.configuration.bootstrap_replicates
     draws: list[tuple[float, ...]] = []
     for draw in range(replicates):
@@ -525,6 +528,7 @@ def _typed_surface(  # noqa: C901 - explicit solver, bootstrap, and ablation sta
             )[:3]
         )
         topology_delta = fit.values[position] - topology_free.values[position]
+        measurement_delta = fit.values[position] - measurement_free.values[position]
         base_response = _response(
             scenario,
             evidence=evidence,
@@ -541,8 +545,9 @@ def _typed_surface(  # noqa: C901 - explicit solver, bootstrap, and ablation sta
                 "discordance": _quantize(min(1.0, abs(topology_delta))),
                 "top_drivers": drivers,
                 "ablation_effects": (
-                    f"signed_program_edges_removed:{_quantize(topology_delta):.8f}",
-                    f"measurement_weight:{_quantize(scenario.quality_weight):.8f}",
+                    f"measurement_ablation_delta={_quantize(measurement_delta):.8f}",
+                    f"topology_ablation_delta={_quantize(topology_delta):.8f}",
+                    f"measurement_quality={_quantize(scenario.quality_weight):.8f}",
                 ),
                 "assumptions": (
                     "Typed effects are fitted with robust Huber loss, ridge regularization, "
