@@ -231,6 +231,18 @@ import {
   FactorGraphResultPanels,
   FactorGraphTopologyPanel,
 } from "@/components/gbm-factor-graph-panels";
+import {
+  GBM_MICROENVIRONMENT_GRAPH_PROFILE_ID,
+  microenvironmentGraphRequestStats,
+  microenvironmentSupportedFamilyCount,
+  normalizeMicroenvironmentGraphResult,
+  validateMicroenvironmentGraphDemo,
+  validateMicroenvironmentGraphProfile,
+  validateMicroenvironmentGraphRequest,
+  validateMicroenvironmentGraphResult,
+  validateMicroenvironmentGraphResultHeaders,
+  validateMicroenvironmentGraphVerification,
+} from "@/lib/gbm-microenvironment-graph";
 
 const MIB = 1024 * 1024;
 const HEALTH_RESPONSE_LIMIT_BYTES = 16 * 1024;
@@ -242,7 +254,7 @@ const PROBE_TIMEOUT_MS = 5_000;
 type ProbeState = "checking" | "online" | "degraded" | "offline";
 type Probe = { state: ProbeState; detail: string; latency: number | null };
 type View = "results" | "network" | "evidence" | "audit";
-type WorkbenchMode = "evidence-graph" | "gbm-proteomic-axes" | "neftel-programs" | "gbm-master-kinases" | "gbm-functional-proteotype" | "gbm-rna-purity" | "longitudinal-gbm" | "longitudinal-gbm-phospho" | "longitudinal-gbm-kinase-transition" | "longitudinal-gbm-reactome-transition" | "longitudinal-gbm-neftel-transition" | "longitudinal-gbm-complex-transition" | "gbm-factor-graph";
+type WorkbenchMode = "evidence-graph" | "gbm-proteomic-axes" | "neftel-programs" | "gbm-master-kinases" | "gbm-functional-proteotype" | "gbm-rna-purity" | "gbm-microenvironment-graph" | "longitudinal-gbm" | "longitudinal-gbm-phospho" | "longitudinal-gbm-kinase-transition" | "longitudinal-gbm-reactome-transition" | "longitudinal-gbm-neftel-transition" | "longitudinal-gbm-complex-transition" | "gbm-factor-graph";
 type ComplexBottleneck = { complex: NormalizedState; member: NormalizedState | null; essential: boolean; memberCount: number; gap: number | null };
 
 type LaneConfig = {
@@ -321,6 +333,14 @@ const LANES: Record<WorkbenchMode, LaneConfig> = {
     replayLimitBytes: 8 * MIB,
     requestLabel: "GBM RNA purity request JSON",
     defaultProfileId: GBM_RNA_PURITY_PROFILE_ID,
+  },
+  "gbm-microenvironment-graph": {
+    apiBase: "/backend/v1/research/gbm-microenvironment-graph",
+    requestLimitBytes: 2 * MIB,
+    resultLimitBytes: 4 * MIB,
+    replayLimitBytes: 8 * MIB,
+    requestLabel: "GBM microenvironment graph request JSON",
+    defaultProfileId: GBM_MICROENVIRONMENT_GRAPH_PROFILE_ID,
   },
   "longitudinal-gbm": {
     apiBase: "/backend/v1/research/longitudinal-gbm",
@@ -489,6 +509,24 @@ const LANE_COPY: Record<WorkbenchMode, LaneCopy> = {
     receiptLabel: "Sample",
     receiptKey: "sample_id",
   },
+  "gbm-microenvironment-graph": {
+    demoLoaded: "Synthetic GBM microenvironment graph loaded. Validate or run the source-locked bridge.",
+    running: "Running Neftel program inference, signed microenvironment graph propagation, bootstrap, kinase enrichment, and ablations…",
+    complete: "GBM microenvironment graph analysis complete. Program-to-graph projections remain research evidence, not cell fractions.",
+    replayVerified: "Replay verified: bridge, source program, graph solver, provenance, digests, and semantics match.",
+    reset: "Synthetic GBM microenvironment graph reset to its source-locked demonstration.",
+    heroEyebrow: "GLIO / GBM MICROENVIRONMENT EVIDENCE GRAPH",
+    heroLead: "Trace glioma microenvironment programs.",
+    heroBoundary: "Keep cell-fraction claims out.",
+    heroIntro: "A source-locked Neftel protein-program bridge into a signed GBM microenvironment graph. Mesenchymal-like and OPC-like evidence is projected into hypoxia, angiogenic, myeloid, T-cell, endothelial, and opposing OPC relationships; unsupported families remain missing, never negative.",
+    inputTitle: "Microenvironment graph request",
+    emptyMark: "ME",
+    emptyTitle: "The GBM microenvironment bridge is ready for evidence.",
+    emptyBody: "Run the synthetic source-locked demonstration or edit the nested Neftel protein request to inspect program support, signed graph propagation, kinase evidence, topology provenance, and ablations.",
+    emptyTags: ["Neftel bridge", "signed topology", "missing-aware", "no fractions"],
+    receiptLabel: "Sample",
+    receiptKey: "sample_id",
+  },
   "longitudinal-gbm": {
     demoLoaded: "Synthetic ordered GBM protein series loaded. Validate or run paired transitions and change-point sensitivity.",
     running: "Running paired protein-transition concordance, covariance-aware uncertainty, frozen-model ablations, and duration-normalized rate PELT…",
@@ -629,6 +667,7 @@ function validateModeRequest(mode: WorkbenchMode, request: JsonObject): string[]
     case "gbm-master-kinases": return validateMasterKinaseRequest(request);
     case "gbm-functional-proteotype": return validateFunctionalProteotypeRequest(request);
     case "gbm-rna-purity": return validateGbmRnaPurityRequest(request);
+    case "gbm-microenvironment-graph": return validateMicroenvironmentGraphRequest(request);
     case "longitudinal-gbm": return validateLongitudinalRequest(request);
     case "longitudinal-gbm-phospho": return validateLongitudinalPhosphoRequest(request);
     case "longitudinal-gbm-kinase-transition": return validateKinaseTransitionRequest(request);
@@ -679,6 +718,7 @@ function usesSeriesTimeout(mode: WorkbenchMode): boolean {
     case "gbm-master-kinases":
     case "gbm-functional-proteotype":
     case "gbm-rna-purity":
+    case "gbm-microenvironment-graph":
       return false;
     default:
       return assertNever(mode);
@@ -1291,6 +1331,9 @@ export default function ResearchWorkbench() {
               ...validateFactorGraphProfileHeaders(response.headers, payload),
             ];
             if (profileErrors.length) throw new Error(`The factor-graph profile failed closed:\n${profileErrors.join("\n")}`);
+          } else if (mode === "gbm-microenvironment-graph") {
+            const profileErrors = validateMicroenvironmentGraphProfile(payload);
+            if (profileErrors.length) throw new Error(`The microenvironment graph profile failed closed:\n${profileErrors.join("\n")}`);
           }
           return payload;
         }),
@@ -1363,6 +1406,12 @@ export default function ResearchWorkbench() {
                 `The factor-graph demo failed closed:\n${demoErrors.join("\n")}`,
               );
             }
+          } else if (mode === "gbm-microenvironment-graph") {
+            const demoErrors = validateMicroenvironmentGraphDemo(
+              demoResponse.value.payload,
+              admittedProfile,
+            );
+            if (demoErrors.length) throw new Error(`The microenvironment graph demo failed closed:\n${demoErrors.join("\n")}`);
           }
           setEditor(pretty(demoResponse.value.payload));
           setMessage(LANE_COPY[mode].demoLoaded);
@@ -1423,8 +1472,19 @@ export default function ResearchWorkbench() {
   const neftelTransitionStats = parsedEditor ? neftelTransitionRequestStats(parsedEditor) : { timePoints: 0, transitions: 0, observations: 0, active: 0, genes: 0 };
   const complexTransitionStats = parsedEditor ? complexTransitionRequestStats(parsedEditor) : { timePoints: 0, transitions: 0, observations: 0, active: 0, genes: 0 };
   const factorGraphStats = parsedEditor ? factorGraphRequestStats(parsedEditor) : { reactomeTimePoints: 0, reactomeActive: 0, kinaseTimePoints: 0, kinaseActive: 0, childTransitions: 0 };
-  const states = useMemo(() => mode === "evidence-graph" && result ? normalizeStates(result) : [], [mode, result]);
-  const ablations = useMemo(() => result ? normalizeAblations(result, states) : [], [result, states]);
+  const microenvironmentStats = parsedEditor ? microenvironmentGraphRequestStats(parsedEditor) : { observations: 0, active: 0, programs: 5 };
+  const microenvironment = useMemo(() => mode === "gbm-microenvironment-graph" && result
+    ? normalizeMicroenvironmentGraphResult(result)
+    : { graphResult: null, graphRequest: null, sourceResult: null, sourcePrograms: [] }, [mode, result]);
+  const states = useMemo(() => {
+    if (mode === "evidence-graph" && result) return normalizeStates(result);
+    if (mode === "gbm-microenvironment-graph" && microenvironment.graphResult) return normalizeStates(microenvironment.graphResult);
+    return [];
+  }, [microenvironment.graphResult, mode, result]);
+  const ablations = useMemo(() => {
+    if (!result) return [];
+    return normalizeAblations(mode === "gbm-microenvironment-graph" ? microenvironment.graphResult ?? result : result, states);
+  }, [microenvironment.graphResult, mode, result, states]);
   const stateGroups = useMemo(() => Object.fromEntries(KIND_ORDER.map((kind) => [kind, states.filter((state) => state.kind === kind)])) as Record<StateKind, NormalizedState[]>, [states]);
   const gbmSignatures = useMemo(() => mode === "gbm-proteomic-axes" && result ? normalizeGbmSignatures(result) : [], [mode, result]);
   const neftelPrograms = useMemo(() => mode === "neftel-programs" && result ? normalizeNeftelPrograms(result) : [], [mode, result]);
@@ -1455,15 +1515,18 @@ export default function ResearchWorkbench() {
     : (profileLimits ? numberAt(profileLimits, ["max_bootstrap_replicates"]) ?? 256 : 256);
   const requestDigest = result ? textAt(result, ["request_digest"]) : "";
   const resultDigest = result ? textAt(result, ["result_digest"]) : "";
-  const solver = result ? objectAt(result, ["solver", "convergence_diagnostics", "diagnostics"]) : null;
+  const graphResultForPanels = mode === "gbm-microenvironment-graph" ? microenvironment.graphResult : result;
+  const solver = graphResultForPanels ? objectAt(graphResultForPanels, ["solver", "convergence_diagnostics", "diagnostics"]) : null;
   const secondPass = solver ? objectAt(solver, ["second_pass", "final_pass"]) : null;
   const converged = secondPass?.converged ?? solver?.converged;
-  const kinophos = result ? (result.external_kinase_comparison ?? result.kinophos_comparison ?? null) : null;
-  const provenance = result ? (result.provenance ?? null) : null;
+  const kinophos = graphResultForPanels ? (graphResultForPanels.external_kinase_comparison ?? graphResultForPanels.kinophos_comparison ?? null) : null;
+  const provenance = graphResultForPanels ? (graphResultForPanels.provenance ?? null) : null;
   const limitations = result ? arrayAt(result, ["limitations"]) : [];
   const gbmEvidence = result ? objectAt(result, ["evidence"]) : null;
   const gbmNormalization = result ? objectAt(result, ["normalization"]) : null;
-  const visualizedRequest = result && request ? request : parsedEditor;
+  const visualizedRequest = mode === "gbm-microenvironment-graph"
+    ? (microenvironment.graphRequest ?? (result && request ? request : parsedEditor))
+    : (result && request ? request : parsedEditor);
   const observedEvidence = visualizedRequest ? arrayAt(visualizedRequest, ["observations", "evidence"]) : [];
   const topologyProvenance = visualizedRequest ? objectAt(visualizedRequest, ["topology_provenance"]) : null;
   const supportedCount = states.filter((state) => state.estimate !== null && state.support.toLowerCase() === "supported" && !state.abstentionReason).length;
@@ -1567,6 +1630,9 @@ export default function ResearchWorkbench() {
       } else if (mode === "gbm-rna-purity") {
         const currentStats = gbmRnaPurityRequestStats(parsed);
         setMessage(`Valid GBMPurity request · ${currentStats.suppliedGenes.toLocaleString("en-US")} unique raw-count genes · ${currentStats.nonzeroGenes.toLocaleString("en-US")} nonzero.`);
+      } else if (mode === "gbm-microenvironment-graph") {
+        const currentStats = microenvironmentGraphRequestStats(parsed);
+        setMessage(`Valid GBM microenvironment request · ${currentStats.active} active Neftel protein observations · ${currentStats.programs} graph programs.`);
       } else if (mode === "longitudinal-gbm") {
         const currentStats = longitudinalRequestStats(parsed);
         setMessage(`Valid longitudinal GBM request · ${currentStats.timePoints} ordered time points · ${currentStats.active} active protein observations.`);
@@ -1672,6 +1738,12 @@ export default function ResearchWorkbench() {
             : ["The admitted factor-graph profile is unavailable."]),
         ];
         if (resultErrors.length) throw new Error(`The factor-graph result failed closed:\n${resultErrors.join("\n")}`);
+      } else if (mode === "gbm-microenvironment-graph") {
+        const resultErrors = [
+          ...validateMicroenvironmentGraphResult(payload, parsed, profile),
+          ...validateMicroenvironmentGraphResultHeaders(response.headers, payload),
+        ];
+        if (resultErrors.length) throw new Error(`The microenvironment graph result failed closed:\n${resultErrors.join("\n")}`);
       } else if (mode === "longitudinal-gbm-neftel-transition") {
         const resultErrors = [
           ...validateNeftelTransitionResult(payload),
@@ -1799,6 +1871,11 @@ export default function ResearchWorkbench() {
           ]
           : ["The admitted factor-graph profile is unavailable."];
         if (verificationErrors.length) throw new Error(`The factor-graph replay response failed closed:\n${verificationErrors.join("\n")}`);
+      } else if (mode === "gbm-microenvironment-graph") {
+        const verificationErrors = profile
+          ? validateMicroenvironmentGraphVerification(payload, result, request, profile)
+          : ["The admitted microenvironment graph profile is unavailable."];
+        if (verificationErrors.length) throw new Error(`The microenvironment graph replay response failed closed:\n${verificationErrors.join("\n")}`);
       }
       setVerification(payload);
       setMessage(payload.verified === true ? copy.replayVerified : "Replay completed with one or more mismatches.");
@@ -1884,6 +1961,9 @@ export default function ResearchWorkbench() {
             `The factor-graph demo failed closed:\n${demoErrors.join("\n")}`,
           );
         }
+      } else if (mode === "gbm-microenvironment-graph") {
+        const demoErrors = validateMicroenvironmentGraphDemo(payload, profile);
+        if (demoErrors.length) throw new Error(`The microenvironment graph demo failed closed:\n${demoErrors.join("\n")}`);
       }
       setEditor(pretty(payload));
       setRequest(null);
@@ -1980,6 +2060,13 @@ export default function ResearchWorkbench() {
           <span>08</span><b>GBM RNA purity</b><small>Published GBMPurity MLP · exact 5,829-gene forward pass</small>
         </button>
         <button
+          aria-pressed={mode === "gbm-microenvironment-graph"}
+          className={mode === "gbm-microenvironment-graph" ? "active" : ""}
+          onClick={() => switchMode("gbm-microenvironment-graph")}
+        >
+          <span>09</span><b>GBM microenvironment graph</b><small>Neftel program bridge · signed microenvironment topology</small>
+        </button>
+        <button
           aria-pressed={mode === "longitudinal-gbm-reactome-transition"}
           className={mode === "longitudinal-gbm-reactome-transition" ? "active" : ""}
           onClick={() => switchMode("longitudinal-gbm-reactome-transition")}
@@ -2044,6 +2131,11 @@ export default function ResearchWorkbench() {
               <div><dt>Released network</dt><dd>5,829 → 32 → 16 → 1</dd></div>
               <div><dt>Coverage gate</dt><dd>80% minimum · 99% full support</dd></div>
               <div><dt>Intended context</dt><dd>primary IDH-wildtype GBM bulk RNA</dd></div>
+            </> : mode === "gbm-microenvironment-graph" ? <>
+              <div><dt>Source bridge</dt><dd>Neftel Table S2 protein programs</dd></div>
+              <div><dt>Graph programs</dt><dd>7 signed GBM microenvironment nodes</dd></div>
+              <div><dt>Projected families</dt><dd>MES-like · OPC-like only</dd></div>
+              <div><dt>Claim ceiling</dt><dd className="warn">no cell fractions · research only</dd></div>
             </> : mode === "longitudinal-gbm" ? <>
               <div><dt>Source transitions</dt><dd>{profileCounts ? numberAt(profileCounts, ["strict_paired_transition_count"]) ?? 104 : 104} strict pairs</dd></div>
               <div><dt>Frozen feature axis</dt><dd>{profileCounts ? numberAt(profileCounts, ["fitted_feature_count"]) ?? 0 : "—"} proteins</dd></div>
@@ -2104,6 +2196,8 @@ export default function ResearchWorkbench() {
               <span><b>{functionalProteotypeStats.genes}</b> proteins</span><span><b>{functionalProteotypeStats.active}</b> active</span><span><b>{functionalProteotypeStats.axes}</b> constrained axes</span>
             </> : mode === "gbm-rna-purity" ? <>
               <span><b>{gbmRnaPurityStats.suppliedGenes.toLocaleString("en-US")}</b> genes</span><span><b>{gbmRnaPurityStats.nonzeroGenes.toLocaleString("en-US")}</b> nonzero</span><span><b>5,829</b> model features</span>
+            </> : mode === "gbm-microenvironment-graph" ? <>
+              <span><b>{microenvironmentStats.observations}</b> protein observations</span><span><b>{microenvironmentStats.active}</b> active</span><span><b>{microenvironmentStats.programs}</b> graph programs</span>
             </> : mode === "longitudinal-gbm" ? <>
               <span><b>{longitudinalStats.timePoints}</b> time points</span><span><b>{longitudinalStats.genes}</b> genes</span><span><b>{longitudinalStats.active}</b> active</span>
             </> : mode === "longitudinal-gbm-phospho" ? <>
@@ -2142,7 +2236,7 @@ export default function ResearchWorkbench() {
             <span>{error || message}</span>
           </div>
           <div className="input-boundary">
-            <p>{mode === "gbm-rna-purity" ? "Raw-count and context contract" : mode === "gbm-factor-graph" ? "Independent nested evidence contracts" : "Explicit evidence states"}</p>
+            <p>{mode === "gbm-rna-purity" ? "Raw-count and context contract" : mode === "gbm-factor-graph" ? "Independent nested evidence contracts" : mode === "gbm-microenvironment-graph" ? "Nested Neftel source contract" : "Explicit evidence states"}</p>
             {mode === "gbm-rna-purity"
               ? <><span>raw counts</span><span>bulk RNA-seq</span><span>primary IDH-wildtype GBM</span><span>research only</span></>
               : <><span>observed</span><span>left_censored</span><span>missing</span><span>unsupported</span></>}
@@ -2152,6 +2246,7 @@ export default function ResearchWorkbench() {
             {mode === "gbm-master-kinases" && <strong>This is an independent signature-concordance engine—not an exact SPHINKS port, calibrated kinase activity, or patient subtype classification.</strong>}
             {mode === "gbm-functional-proteotype" && <strong>GPM, MTC, NEU, and PPR are jointly constrained source-cohort concordance axes—not patient subtype labels, probabilities, winners, diagnoses, or treatment assignments. Table 2e pathways are context only and never sample pathway activity.</strong>}
             {mode === "gbm-rna-purity" && <strong>Only exact primary IDH-wildtype GBM bulk RNA-seq raw counts are in scope. The output is one published-model malignant-cell-fraction estimate—not histology, immune composition, diagnosis, prognosis, or treatment guidance.</strong>}
+            {mode === "gbm-microenvironment-graph" && <strong>MES-like and OPC-like bulk-program evidence is projected into a signed graph. This lane does not estimate cell fractions, cellular abundance, diagnosis, prognosis, or treatment response.</strong>}
             {mode === "longitudinal-gbm" && <strong>Transition direction means source-cohort T2−T1 concordance—not patient evolution, recurrence prediction, prognosis, or treatment guidance.</strong>}
             {mode === "longitudinal-gbm-phospho" && <strong>Raw phosphosite concordance is not occupancy, kinase activity, protein/phosphosite fusion, recurrence prediction, or clinical guidance. Composite source site groups remain indivisible.</strong>}
             {mode === "longitudinal-gbm-kinase-transition" && <strong>These are same-assay SPHINKS signature-transition concordance coordinates—not kinase activity, biochemical activity, causal effects, independent validation, patient evolution, recurrence prediction, or clinical guidance. Every estimable output is LIMITED.</strong>}
@@ -2201,6 +2296,9 @@ export default function ResearchWorkbench() {
               </> : mode === "gbm-rna-purity" ? <>
                 <div><span>MODEL</span><b className="ok">exact published MLP</b></div>
                 <div><span>SUPPORT</span><b>{gbmRnaPurityEvidence?.support ?? "not parsed"} · {gbmRnaPurityEvidence ? `${formatNumber(gbmRnaPurityEvidence.coverage.coverageFraction * 100, 1)}% coverage` : "no coverage"}</b></div>
+              </> : mode === "gbm-microenvironment-graph" ? <>
+                <div><span>METHODS</span><b className="ok">Neftel → signed ECGI bridge</b></div>
+                <div><span>SUPPORT</span><b>{supportedCount} graph states · {microenvironmentSupportedFamilyCount(microenvironment.sourceResult)} source families</b></div>
               </> : mode === "longitudinal-gbm" ? <>
                 <div><span>METHODS</span><b className="ok">paired axis + PELT</b></div>
                 <div><span>SUPPORT</span><b>{supportedTransitionCount} full · {estimatedTransitionCount} estimated</b></div>
@@ -2227,7 +2325,7 @@ export default function ResearchWorkbench() {
           )}
 
           <div className="result-tabs" role="tablist" aria-label="Result views">
-            {((mode === "evidence-graph" ? ["results", "network", "evidence", "audit"] : ["results", "evidence", "audit"]) as View[]).map((tab) => (
+            {(((mode === "evidence-graph" || mode === "gbm-microenvironment-graph") ? ["results", "network", "evidence", "audit"] : ["results", "evidence", "audit"]) as View[]).map((tab) => (
               <button key={tab} role="tab" aria-selected={view === tab} className={view === tab ? "active" : ""} onClick={() => setView(tab)}>{tab}</button>
             ))}
           </div>
@@ -2331,6 +2429,29 @@ export default function ResearchWorkbench() {
             <GbmRnaPurityResultPanels evidence={gbmRnaPurityEvidence} />
           )}
 
+          {mode === "gbm-microenvironment-graph" && result && view === "results" && (
+            <div className="panel-stack">
+              <div className="summary-grid">
+                <article><span>GRAPH STATES</span><b>{states.length}</b><small>{supportedCount} estimated · {states.filter((state) => state.support === "abstained").length} abstained</small></article>
+                <article><span>MES / OPC SOURCE</span><b>{microenvironmentSupportedFamilyCount(microenvironment.sourceResult)} / 2</b><small>supported Neftel families projected</small></article>
+                <article><span>MEAN STABILITY</span><b>{formatNumber(states.length ? states.reduce((sum, state) => sum + (state.stability ?? 0), 0) / states.length : null)}</b><small>deterministic graph bootstrap</small></article>
+                <article><span>GRAPH Q ≤ 0.10</span><b>{stateGroups.kinase.filter((state) => state.qValue !== null && state.qValue <= 0.1).length}</b><small>experimental kinase enrichment</small></article>
+              </div>
+              <StateTable title="Signed GBM microenvironment programs" states={stateGroups.pathway} empty="No graph program states were returned." />
+              <section className="result-panel">
+                <div className="panel-title-row"><div><p className="eyebrow">SOURCE-LOCKED NEFTEL PROJECTION</p><h3>Bulk protein program evidence</h3></div><span className="boundary-chip">not cell fractions</span></div>
+                <div className="state-table-wrap"><table className="state-table"><thead><tr><th>Program</th><th>Classification</th><th>Location</th><th>Rank q</th><th>Coverage</th><th>Support</th></tr></thead><tbody>
+                  {microenvironment.sourcePrograms.map((program) => <tr key={program.id}><td><b>{program.id}</b><small>{program.sourcePrograms.join(" · ")}</small></td><td><StateBadge value={program.classification} /></td><td className="mono-cell">{formatSigned(program.locationScore)}<small>[{formatNumber(program.locationLower)}, {formatNumber(program.locationUpper)}]</small></td><td className="mono-cell">{formatNumber(program.qValue, 4)}</td><td className="mono-cell">{formatNumber(program.activeCoverage * 100, 1)}%<small>{program.observedMarkers} / {program.eligibleMarkers} markers</small></td><td><span className={`support-badge ${program.support}`}>{program.support}</span><small className="warning-copy">{program.reasons[0] ?? "source evidence"}</small></td></tr>)}
+                </tbody></table></div>
+              </section>
+              <div className="mechanism-grid">
+                <JsonPanel title="Graph solver diagnostics" eyebrow="DIRECTED IRLS / BOOTSTRAP" value={microenvironment.graphResult ? objectAt(microenvironment.graphResult, ["solver"]) : null} empty="No graph solver diagnostics were returned." />
+                <JsonPanel title="Topology provenance" eyebrow="PUBLIC CONTEXT / SYNTHETIC ABSTRACTION" value={microenvironment.graphRequest ? objectAt(microenvironment.graphRequest, ["topology_provenance"]) : null} empty="No topology provenance was returned." />
+              </div>
+              <StateTable title="Experimental kinase estimates" states={stateGroups.kinase} empty="No mapped kinase estimates were supported." />
+            </div>
+          )}
+
           {mode === "longitudinal-gbm" && result && request && view === "results" && (
             <div className="panel-stack">
               <div className="summary-grid">
@@ -2399,9 +2520,9 @@ export default function ResearchWorkbench() {
             />
           )}
 
-          {mode === "evidence-graph" && result && request && view === "network" && <NetworkColumns request={request} states={states} />}
+          {(mode === "evidence-graph" || mode === "gbm-microenvironment-graph") && result && visualizedRequest && view === "network" && <NetworkColumns request={visualizedRequest} states={states} />}
 
-          {mode === "evidence-graph" && result && view === "evidence" && (
+          {(mode === "evidence-graph" || mode === "gbm-microenvironment-graph") && result && view === "evidence" && (
             <div className="panel-stack">
               <TopologyProvenancePanel topology={topologyProvenance} />
               <section className="result-panel">
