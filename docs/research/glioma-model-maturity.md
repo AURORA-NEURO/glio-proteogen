@@ -474,7 +474,9 @@ TP53/MDM2/CDKN2A/CDKN1A/RB1/CDK4/CCND1, IDH1/IDH2/HIF1A/VHL/EGL9,
 STAT3/CCL2/SOX2/TGFB1/TGFB2/VIM/ZEB1, and
 OLIG2/MKI67/PCNA/TOP2A/CCNB1/CDK1/AURKA/MCM2/MCM6) into five signed
 mechanism programs. Common `protein.`, `rna.`, `gene.`, and `transcript.`
-assay namespaces are normalized to these gene keys. Standard-error and
+assay namespaces and common HGNC compound spellings are normalized to these
+gene keys. The same normalized identity map drives fitting, bootstrap, evidence,
+and support accounting. Standard-error and
 quality-weighted Huber coordinate descent fits observed and left-censored
 evidence with ridge stabilization, edge-consistency penalties, damping, an
 objective trace, and deterministic 64-replicate bootstrap intervals. Censored

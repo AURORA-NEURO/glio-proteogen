@@ -299,6 +299,41 @@ def test_typed_glioma_accepts_common_assay_namespaces() -> None:
         "glioma.PROLIFERATION.mechanism",
         "glioma.RTK_PI3K_AKT_MTOR.mechanism",
     }
+    support = {item.feature_id: item.support_score for item in result.estimates}
+    assert support["glioma.RTK_PI3K_AKT_MTOR.mechanism"] == pytest.approx(0.95)
+    assert support["glioma.P53_CELL_CYCLE.mechanism"] == pytest.approx(0.875)
+    assert support["glioma.PROLIFERATION.mechanism"] == 0.0
+
+
+@pytest.mark.parametrize(
+    ("feature_id", "expected"),
+    [
+        ("protein.MKI-67", "mki67"),
+        ("rna.MKI_67", "mki67"),
+        ("gene.HIF-1A", "hif1a"),
+    ],
+)
+def test_glioma_feature_key_normalizes_compound_hgnc_names(
+    feature_id: str, expected: str
+) -> None:
+    assert engine_module._glioma_feature_key(feature_id) == expected
+
+
+def test_glioma_active_observations_share_fitting_normalization() -> None:
+    observations = (
+        ConstraintEvidenceObservation(
+            feature_id="protein.EGFR", value=1.0, standard_error=0.2
+        ),
+        ConstraintEvidenceObservation(
+            feature_id="rna.MKI-67", value=0.8, standard_error=0.2
+        ),
+        ConstraintEvidenceObservation(
+            feature_id="gene.HIF-1A", value=-0.2, standard_error=0.2
+        ),
+    )
+    assert tuple(
+        item.feature_id for item in engine_module._active_glioma_observations(observations)
+    ) == ("protein.EGFR", "rna.MKI-67", "gene.HIF-1A")
 
 
 def test_typed_censored_bootstrap_perturbs_the_one_sided_boundary() -> None:

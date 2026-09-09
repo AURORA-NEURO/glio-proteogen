@@ -130,18 +130,40 @@ _GLIOMA_EDGES: Final = (
     ("IDH_HIF1A", "MESENCHYMAL_PROGRAM", -1.0, 0.25),
     ("MESENCHYMAL_PROGRAM", "PROLIFERATION", 1.0, 0.30),
 )
+_COMPOUND_HGNC_PATTERN: Final = re.compile(r"^[a-z0-9]+(?:[-_][a-z0-9]+)+$")
 
 
 def _glioma_feature_key(feature_id: str) -> str:
     """Normalize common assay namespaces to a HGNC-like gene symbol key."""
 
     normalized = feature_id.casefold().strip()
+    key = normalized
     for prefix in ("protein", "rna", "transcript", "gene", "feature"):
         for separator in (".", ":", "/", "|"):
             marker = f"{prefix}{separator}"
             if normalized.startswith(marker):
-                return normalized[len(marker) :]
-    return normalized
+                key = normalized[len(marker) :]
+                break
+        if key != normalized:
+            break
+    if _COMPOUND_HGNC_PATTERN.fullmatch(key):
+        return key.replace("-", "").replace("_", "")
+    return key
+
+
+def _active_glioma_observations(
+    observations: tuple[ConstraintEvidenceObservation, ...],
+) -> tuple[ConstraintEvidenceObservation, ...]:
+    """Return supported typed observations using the same normalized map as fitting."""
+
+    return tuple(
+        item
+        for item in observations
+        if item.state
+        in {ConstraintObservationState.OBSERVED, ConstraintObservationState.LEFT_CENSORED}
+        and item.quality_weight > 0.0
+        and _glioma_feature_key(item.feature_id) in _GLIOMA_FEATURE_PROGRAM
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -595,14 +617,7 @@ def _glioma_program_estimates(
     fit = _fit_glioma_programs(request.observations)
     if fit is None or not fit.converged:
         return (), fit
-    active = tuple(
-        item
-        for item in request.observations
-        if item.state
-        in {ConstraintObservationState.OBSERVED, ConstraintObservationState.LEFT_CENSORED}
-        and item.quality_weight > 0.0
-        and item.feature_id.casefold() in _GLIOMA_FEATURE_PROGRAM
-    )
+    active = _active_glioma_observations(request.observations)
     seed = int.from_bytes(
         hashlib.sha256(canonical_request_digest(request).encode("utf-8")).digest()[:8],
         "big",
