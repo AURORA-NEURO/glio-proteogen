@@ -7,6 +7,7 @@ from itertools import pairwise
 import pytest
 from pydantic import ValidationError
 
+import glio_proteogen.modules.c14_microenvironment_protein_deconvolution.m14_05_protein_subtype_evolution.engine as engine_module  # noqa: E501
 from glio_proteogen.contracts.m14_05 import (
     M1405_M1404_RESULT_MEDIA_TYPE,
     ChangePointStatus,
@@ -36,7 +37,6 @@ from glio_proteogen.kernel.models import (
 from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
     m14_05_protein_subtype_evolution as m1405,
 )
-import glio_proteogen.modules.c14_microenvironment_protein_deconvolution.m14_05_protein_subtype_evolution.engine as engine_module  # noqa: E501
 from glio_proteogen.modules.c14_microenvironment_protein_deconvolution.m14_05_protein_subtype_evolution.engine import (  # noqa: E501
     _bootstrap_class_support,
     _initial_temporal_values,
