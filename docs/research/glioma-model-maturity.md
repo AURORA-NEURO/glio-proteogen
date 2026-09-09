@@ -360,10 +360,11 @@ The additive M06-03 runtime now supports an explicitly annotated research path
 for protein-abundance baselines. Scalar and interval state values are normalized
 with a robust median/MAD scale, down-weighted with Huber influence, and fitted to
 the signed RTK/PI3K/AKT/mTOR, p53/cell-cycle, IDH/HIF1A, mesenchymal, and
-proliferation program graph using damped coordinate descent. Deterministic
-request-digest perturbations provide bootstrap intervals, stability, driver
-features, and feature/network ablation explanations; categorical, missing, and
-unsupported values never become negative evidence.
+proliferation program graph using frozen-parent damped Jacobi coordinate
+descent with finite objective-safe backtracking. Deterministic request-digest
+perturbations provide bootstrap intervals, stability, driver features, and
+feature/network ablation explanations; categorical, missing, and unsupported
+values never become negative evidence.
 
 The original M06-01 replay and scalar/interval/categorical baseline output remain
 available for compatibility. Typed program states are research-use-only normalized

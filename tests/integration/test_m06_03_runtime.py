@@ -23,6 +23,9 @@ from glio_proteogen.modules.c06_estimation.m06_03_mature_baseline_estimator impo
     M0603Service,
     estimate_protein_abundance_baseline,
 )
+from glio_proteogen.modules.c06_estimation.m06_03_mature_baseline_estimator import (
+    kernel as kernel_module,
+)
 from glio_proteogen.modules.c06_estimation.m06_03_mature_baseline_estimator.engine import (
     PtmBaselineAuthorizationError,
     _validate_json_request,
@@ -33,6 +36,7 @@ if TYPE_CHECKING:
 
 pytestmark = pytest.mark.integration
 _EXPECTED_TYPED_PROGRAM_STATES = 2
+_FIRST_CANDIDATE_CALL = 2
 
 
 def _request(case_id: str = "clear") -> EstimateProteinAbundanceBaselineRequest:
@@ -92,6 +96,52 @@ def test_typed_glioma_baseline_fits_program_states_with_bootstrap_intervals() ->
     )
     assert any(item.metric_name == "program_score" for item in result.diagnostics)
     assert M0603MatureBaselineEngine().estimate(request) == result
+
+
+def test_typed_solver_backtracks_objective_increase(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    request = _request().model_copy(
+        update={
+            "configuration": _request().configuration.model_copy(
+                update={
+                    "glioma_annotations": (
+                        GliomaFeatureAnnotation(
+                            feature_id="feature.scalar",
+                            program=GliomaBaselineProgram.RTK_PI3K_AKT_MTOR,
+                            direction=1,
+                            standard_error=0.2,
+                        ),
+                        GliomaFeatureAnnotation(
+                            feature_id="feature.interval",
+                            program=GliomaBaselineProgram.P53_CELL_CYCLE,
+                            direction=-1,
+                            standard_error=0.2,
+                        ),
+                    )
+                }
+            )
+        }
+    )
+    observations, reason = kernel_module._observations(request)
+    assert reason is None
+    center, scale = kernel_module._robust_location_scale(
+        observation.value for observation in observations
+    )
+    baseline = kernel_module._fit(observations, center, scale)
+    assert baseline.converged
+    original = kernel_module._objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == _FIRST_CANDIDATE_CALL else value
+
+    monkeypatch.setattr(kernel_module, "_objective", objective)
+    fit = kernel_module._fit(observations, center, scale)
+    assert fit.converged
+    assert calls > _FIRST_CANDIDATE_CALL
+    assert fit.objective <= baseline.objective + kernel_module._OBJECTIVE_TOLERANCE
 
 
 def test_typed_glioma_baseline_excludes_non_numeric_values_and_abstains_if_empty() -> None:

@@ -72,6 +72,9 @@ _DAMPING: Final = 0.7
 _HUBER_DELTA: Final = 1.5
 _SOLVER_TOLERANCE: Final = 1e-5
 _SOLVER_ITERATIONS: Final = 120
+_OBJECTIVE_TOLERANCE: Final = 1e-10
+_BACKTRACKING_STEPS: Final = 18
+_BACKTRACKING_FACTOR: Final = 0.5
 _MIN_SCALE: Final = 1e-6
 _ZSCORE_LIMIT: Final = 4.0
 _BOOTSTRAP_LOW: Final = 0.05
@@ -353,7 +356,7 @@ def _objective(
     return objective
 
 
-def _fit(  # noqa: C901 - explicit coordinate updates keep the signed graph auditable.
+def _fit(  # noqa: C901, PLR0912, PLR0915 - solver safeguards are explicit.
     observations: tuple[_Observation, ...],
     center: float,
     scale: float,
@@ -374,12 +377,18 @@ def _fit(  # noqa: C901 - explicit coordinate updates keep the signed graph audi
                 weight * item.direction * _zscore(item.value, center, scale)
                 for weight, item in zip(weights, items, strict=True)
             ) / max(_MIN_SCALE, sum(weights))
-    previous = _objective(values, observations, center, scale, include_edges=include_edges)
+    initial_objective = _objective(values, observations, center, scale, include_edges=include_edges)
+    if not math.isfinite(initial_objective):
+        return _Fit(
+            values=tuple(_quantize(value) for value in values), objective=0.0, converged=False
+        )
+    previous = initial_objective
     converged = False
     for _ in range(_SOLVER_ITERATIONS):
         old = values.copy()
+        proposals = old.copy()
         for position, program in enumerate(_PROGRAM_ORDER):
-            current = values[position]
+            current = old[position]
             gradient = 2.0 * _RIDGE * current
             hessian = 2.0 * _RIDGE
             for observation in grouped[program]:
@@ -395,17 +404,42 @@ def _fit(  # noqa: C901 - explicit coordinate updates keep the signed graph audi
             if include_edges:
                 for edge_source, edge_target, sign in _PROGRAM_EDGES:
                     if program is edge_source:
-                        residual = values[index[edge_target]] - sign * _EDGE_STRENGTH * current
+                        residual = old[index[edge_target]] - sign * _EDGE_STRENGTH * current
                         gradient += -sign * _EDGE_STRENGTH * residual
                         hessian += _EDGE_STRENGTH**2
                     elif program is edge_target:
-                        residual = current - sign * _EDGE_STRENGTH * values[index[edge_source]]
+                        residual = current - sign * _EDGE_STRENGTH * old[index[edge_source]]
                         gradient += residual
                         hessian += 1.0
             proposal = current - gradient / max(_MIN_SCALE, hessian)
-            values[position] = current + _DAMPING * (proposal - current)
+            proposals[position] = current + _DAMPING * (proposal - current)
+        objective = _objective(proposals, observations, center, scale, include_edges=include_edges)
+        accepted = proposals
+        if not math.isfinite(objective) or objective > previous + _OBJECTIVE_TOLERANCE:
+            accepted = old.copy()
+            objective = previous
+            delta = [after - before for after, before in zip(proposals, old, strict=True)]
+            step = _DAMPING
+            for _ in range(_BACKTRACKING_STEPS):
+                step *= _BACKTRACKING_FACTOR
+                trial = [before + step * change for before, change in zip(old, delta, strict=True)]
+                trial_objective = _objective(
+                    trial, observations, center, scale, include_edges=include_edges
+                )
+                if math.isfinite(trial_objective) and (
+                    trial_objective <= previous + _OBJECTIVE_TOLERANCE
+                ):
+                    accepted = trial
+                    objective = trial_objective
+                    break
+            else:
+                return _Fit(
+                    values=tuple(_quantize(value) for value in old),
+                    objective=_quantize(previous),
+                    converged=False,
+                )
+        values = accepted
         update = max(abs(new - old_value) for new, old_value in zip(values, old, strict=True))
-        objective = _objective(values, observations, center, scale, include_edges=include_edges)
         if update <= _SOLVER_TOLERANCE and abs(previous - objective) <= _SOLVER_TOLERANCE:
             converged = True
             previous = objective
