@@ -511,7 +511,10 @@ IDH/HIF1A, hypoxia/angiogenesis, and cell-cycle programs with quality and
 standard-error weighting, robust Huber IRLS coordinate descent, ridge
 stabilization, and signed program relations. Left-censored evidence uses a
 one-sided detection-limit loss; missing and unsupported observations are
-excluded and never become negative evidence.
+excluded and never become negative evidence. Program starts are computed from
+observed effects only and projected onto the tightest left-censor bound;
+censor-only programs start at neutral on the feasible side, preventing a
+detection limit from acting as a measured negative effect.
 
 The typed result carries a deterministic, program-stratified bootstrap
 interval, evidence count, stability, residual discordance, top feature drivers,

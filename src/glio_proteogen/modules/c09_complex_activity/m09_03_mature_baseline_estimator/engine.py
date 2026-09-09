@@ -438,6 +438,36 @@ def _typed_target(observation: GliomaBaselineObservation) -> float:
     return float(value)
 
 
+def _initial_typed_state(observations: tuple[GliomaBaselineObservation, ...]) -> float:
+    """Build a feasible program start from measured effects and censor bounds."""
+
+    observed = tuple(
+        item
+        for item in observations
+        if item.evidence_state is GliomaBaselineEvidenceState.OBSERVED
+    )
+    limits = tuple(
+        float(item.censoring_limit)
+        for item in observations
+        if item.evidence_state is GliomaBaselineEvidenceState.LEFT_CENSORED
+        and item.censoring_limit is not None
+    )
+    if observed:
+        weights = np.asarray(
+            [item.quality_weight / max(_typed_error(item) ** 2, 1e-12) for item in observed],
+            dtype=np.float64,
+        )
+        values = np.asarray([_typed_target(item) for item in observed], dtype=np.float64)
+        state = float(np.average(values, weights=weights))
+        if limits:
+            state = min(state, *limits)
+    elif limits:
+        state = min(0.0, *limits)
+    else:
+        state = 0.0
+    return float(np.clip(state, -M0903_MAX_TYPED_EFFECT, M0903_MAX_TYPED_EFFECT))
+
+
 def _typed_censor_activation(state: float, observation: GliomaBaselineObservation) -> float:
     """Smoothly activate the one-sided censored loss near its detection limit."""
 
@@ -508,12 +538,7 @@ def _fit_typed_states(  # noqa: C901, PLR0912 - coordinate descent intentionally
             item for item in active if item.program is not None and item.program.value == program
         )
         if members:
-            values = np.asarray([_typed_target(item) for item in members], dtype=np.float64)
-            weights = np.asarray(
-                [item.quality_weight / max(_typed_error(item) ** 2, 1e-12) for item in members],
-                dtype=np.float64,
-            )
-            states[index] = float(np.average(values, weights=weights))
+            states[index] = _initial_typed_state(members)
     trace: list[float] = []
     gap = float("inf")
     iterations = 0

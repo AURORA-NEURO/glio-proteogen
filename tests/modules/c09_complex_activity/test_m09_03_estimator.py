@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 
 import pytest
 
+import glio_proteogen.modules.c09_complex_activity.m09_03_mature_baseline_estimator.engine as engine_module  # noqa: E501
 from glio_proteogen.contracts.m09_03 import (
     BaselineMethod,
     BaselineRunConfiguration,
@@ -184,6 +185,22 @@ def test_typed_baseline_is_input_order_invariant_and_missing_is_neutral() -> Non
     assert neutral.estimate is not None
     assert baseline.estimate.score == neutral.estimate.score
     assert neutral.estimate.evidence_count == baseline.estimate.evidence_count
+
+
+def test_typed_initialization_uses_observed_effects_and_censor_bounds() -> None:
+    observed = _typed_observations()[0].model_copy(
+        update={"program": GliomaBaselineProgram.CELL_CYCLE}
+    )
+    censored = _typed_observations()[2]
+    high_bound = censored.model_copy(update={"censoring_limit": -0.2})
+
+    assert engine_module._initial_typed_state((observed, high_bound)) == pytest.approx(-0.2)
+
+
+def test_typed_censor_only_initialization_is_neutral_when_bound_is_positive() -> None:
+    censored = _typed_observations()[2]
+
+    assert engine_module._initial_typed_state((censored,)) == pytest.approx(0.0)
 
 
 def test_typed_baseline_abstains_when_program_support_is_insufficient() -> None:
