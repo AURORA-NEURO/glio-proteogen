@@ -654,6 +654,10 @@ coordinate descent. Deterministic request-digest perturbations provide a
 bootstrap aggregate state interval; projected features retain their declared
 lineage and the result adds derived signed-state and interval features.
 
+Typed relations must carry an explicit finite weight. The legacy optional
+relation field is not converted into a default edge strength; missing topology
+strength causes the typed lane to abstain.
+
 The declaration-only constructor remains compatible for all other model
 families. The typed lane requires at least two numeric features and one
 supported signed relation, abstaining when topology is insufficient or the

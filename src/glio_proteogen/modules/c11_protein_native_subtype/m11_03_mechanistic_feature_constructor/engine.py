@@ -64,7 +64,6 @@ _M1103_MIN_SCALE: Final = 1e-6
 _M1103_HUBER_DELTA: Final = 1.5
 _M1103_RIDGE: Final = 0.03
 _M1103_DAMPING: Final = 0.7
-_M1103_EDGE_STRENGTH: Final = 0.55
 _M1103_SOLVER_ITERATIONS: Final = 128
 _M1103_SOLVER_TOLERANCE: Final = 1e-5
 _M1103_LOW_QUANTILE: Final = 0.05
@@ -123,9 +122,14 @@ def _feature_numeric(feature: MechanisticFeature) -> tuple[float, float] | None:
 
 
 def _relation_sign(relation: MechanisticRelation) -> float | None:
+    # The provisional contract keeps relation weights optional for callers
+    # that only declare topology. Numeric glioma fitting cannot turn absent
+    # topology evidence into an invented edge magnitude.
+    if relation.weight is None or not math.isfinite(relation.weight):
+        return None
     coefficient: float | None
     if relation.kind is MechanisticRelationKind.REGULATES:
-        coefficient = 1.0 if (relation.weight or 1.0) >= 0.0 else -1.0
+        coefficient = 1.0 if relation.weight >= 0.0 else -1.0
     else:
         signs = {
             MechanisticRelationKind.INHIBITS: -1.0,
@@ -137,7 +141,7 @@ def _relation_sign(relation: MechanisticRelation) -> float | None:
         coefficient = signs.get(relation.kind)
     if coefficient is None:
         return None
-    return coefficient * max(_M1103_MIN_SCALE, abs(relation.weight or _M1103_EDGE_STRENGTH))
+    return coefficient * max(_M1103_MIN_SCALE, abs(relation.weight))
 
 
 def _huber_loss(value: float) -> float:

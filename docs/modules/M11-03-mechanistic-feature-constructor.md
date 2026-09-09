@@ -24,6 +24,10 @@ and complete source/transformation lineage. Relations cannot self-loop, referenc
 features, or carry weights outside `[-1, 1]`. Configuration transformations and negative
 controls are unique. Canonical request/result digests seal replay and tamper detection.
 
+For the typed glioma fit, a relation must also provide an explicit finite weight;
+an omitted weight remains valid for the legacy declaration-only path but is not
+converted into an invented numeric edge strength.
+
 The runtime reads artifact metadata only; opaque artifact payloads are never traversed.
 Seven controls (approved configuration, identity/lineage, provenance, consent, quality,
 support, and intended use) must be accepted before execution. Missing, unsupported,

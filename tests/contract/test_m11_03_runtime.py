@@ -245,6 +245,41 @@ def test_typed_glioma_graph_abstains_without_relation_support() -> None:
     assert "signed relation" in (result.abstention_reason or "")
 
 
+def test_typed_glioma_graph_abstains_for_unweighted_relation() -> None:
+    request = _request()
+    pathway = request.declared_features[0]
+    egfr = pathway.model_copy(
+        update={
+            "feature_id": "protein.egfr",
+            "kind": MechanisticFeatureKind.STATE,
+            "scalar_value": 1.2,
+            "lineage": pathway.lineage.model_copy(
+                update={"feature_id": "protein.egfr", "claim": "Caller-declared EGFR."}
+            ),
+        }
+    )
+    typed_request = request.model_copy(
+        update={
+            "configuration": request.configuration.model_copy(
+                update={"model_family": M1103_GLIOMA_MODEL_FAMILY}
+            ),
+            "declared_features": (pathway, egfr),
+            "declared_relations": (
+                MechanisticRelation(
+                    relation_id="relation.egfr.pathway.unweighted",
+                    source_feature_id="protein.egfr",
+                    target_feature_id="pathway.activity",
+                    kind=MechanisticRelationKind.ACTIVATES,
+                ),
+            ),
+        }
+    )
+    result = m1103.construct_variant_peptide_mechanistic_features(typed_request)
+    assert result.status.value == "abstained"
+    assert result.feature_object is None
+    assert "signed relation" in (result.abstention_reason or "")
+
+
 @pytest.mark.parametrize(
     ("kwargs", "finding"),
     [
