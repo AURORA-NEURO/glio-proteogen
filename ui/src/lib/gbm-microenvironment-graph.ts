@@ -91,9 +91,9 @@ export type MicroenvironmentGraphRequestStats = {
 
 export function microenvironmentGraphRequestStats(request: JsonObject): MicroenvironmentGraphRequestStats {
   const source = nestedSourceRequest(request);
-  if (!source) return { observations: 0, active: 0, programs: 5 };
+  if (!source) return { observations: 0, active: 0, programs: 7 };
   const stats = neftelRequestStats(source);
-  return { observations: stats.observations, active: stats.active, programs: 5 };
+  return { observations: stats.observations, active: stats.active, programs: 7 };
 }
 
 export function validateMicroenvironmentGraphProfile(profile: JsonObject): string[] {

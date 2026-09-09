@@ -1472,7 +1472,7 @@ export default function ResearchWorkbench() {
   const neftelTransitionStats = parsedEditor ? neftelTransitionRequestStats(parsedEditor) : { timePoints: 0, transitions: 0, observations: 0, active: 0, genes: 0 };
   const complexTransitionStats = parsedEditor ? complexTransitionRequestStats(parsedEditor) : { timePoints: 0, transitions: 0, observations: 0, active: 0, genes: 0 };
   const factorGraphStats = parsedEditor ? factorGraphRequestStats(parsedEditor) : { reactomeTimePoints: 0, reactomeActive: 0, kinaseTimePoints: 0, kinaseActive: 0, childTransitions: 0 };
-  const microenvironmentStats = parsedEditor ? microenvironmentGraphRequestStats(parsedEditor) : { observations: 0, active: 0, programs: 5 };
+  const microenvironmentStats = parsedEditor ? microenvironmentGraphRequestStats(parsedEditor) : { observations: 0, active: 0, programs: 7 };
   const microenvironment = useMemo(() => mode === "gbm-microenvironment-graph" && result
     ? normalizeMicroenvironmentGraphResult(result)
     : { graphResult: null, graphRequest: null, sourceResult: null, sourcePrograms: [] }, [mode, result]);

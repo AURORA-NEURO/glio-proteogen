@@ -71,7 +71,7 @@ describe("GBM microenvironment graph UI contract", () => {
       source_request: sourceRequest(),
     };
     expect(validateMicroenvironmentGraphRequest(request)).toEqual([]);
-    expect(microenvironmentGraphRequestStats(request)).toEqual({ observations: 1, active: 1, programs: 5 });
+    expect(microenvironmentGraphRequestStats(request)).toEqual({ observations: 1, active: 1, programs: 7 });
   });
 
   it("rejects a mismatched nested sample and fails closed on profile policy", () => {
