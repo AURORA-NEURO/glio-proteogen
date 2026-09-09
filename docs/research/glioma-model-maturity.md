@@ -131,6 +131,9 @@ its one-sided contribution has an evidence-derived scale. A history containing
 only censored points without any uncertainty basis abstains rather than
 assigning an arbitrary precision.
 
+The trajectory location starts from observed effects only, projects onto exact
+censor bounds, and never shifts a detection limit into a surrogate effect.
+
 The additional `glio-ecgi-kncc-gbm-transition/1.0.0` factor-graph surface is not
 a fifteenth mounted model. It runs the exact PDC000514 Reactome and
 PDC000515 SPHINKS signature-transition child engines numerically independently

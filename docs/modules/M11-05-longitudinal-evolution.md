@@ -35,6 +35,11 @@ even). This keeps the censoring loss one-sided without inventing a fixed
 precision. If a history is censored-only and provides no uncertainty basis, the
 typed lane abstains; missing and unsupported points remain excluded.
 
+The typed location starts from observed effects only and projects the robust
+center onto the tightest detection bound. Censored points retain their exact
+upper limit throughout the loss, rather than being shifted into surrogate
+negative measurements.
+
 ## Contract and runtime closure
 
 - Eight strict JSON Schema 2020-12 exports carry explicit provisional metadata.

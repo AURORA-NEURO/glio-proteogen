@@ -202,7 +202,10 @@ def _measurements(
                 if fallback_censored_error is None:
                     continue
                 error = fallback_censored_error
-            value = observation.censoring_limit - 0.5 * error
+            # Keep the exact detection boundary. A left-censored point is an
+            # inequality (effect <= limit), never a pseudo-observation shifted
+            # by an arbitrary fraction of its assay error.
+            value = observation.censoring_limit
             censored = True
         else:
             continue
@@ -241,9 +244,23 @@ def _weighted_huber_location(values: Sequence[_Measurement]) -> tuple[float, flo
         item.quality_weight / max(item.standard_error**2, _MINIMUM_WEIGHT_DENOMINATOR)
         for item in values
     ]
-    estimate = sum(
-        weight * item.value for weight, item in zip(base, values, strict=True)
-    ) / sum(base)
+    observed = tuple(item for item in values if not item.censored)
+    if observed:
+        observed_base = [
+            item.quality_weight
+            / max(item.standard_error**2, _MINIMUM_WEIGHT_DENOMINATOR)
+            for item in observed
+        ]
+        estimate = sum(
+            weight * item.value
+            for weight, item in zip(observed_base, observed, strict=True)
+        ) / sum(observed_base)
+        limits = tuple(item.value for item in values if item.censored)
+        if limits:
+            estimate = min(estimate, *limits)
+    else:
+        limits = tuple(item.value for item in values if item.censored)
+        estimate = min(0.0, *limits) if limits else 0.0
     for _ in range(_IRLS_ITERATIONS):
         residuals = [
             item.value - estimate

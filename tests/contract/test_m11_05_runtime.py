@@ -303,6 +303,7 @@ def test_left_censored_without_error_uses_same_history_observed_scale() -> None:
         base.model_copy(update={"observations": (*observations[:-1], censored)})
     )
     assert measured[-1].censored is True
+    assert measured[-1].value == pytest.approx(0.1)
     assert measured[-1].standard_error == pytest.approx(0.3)
     assert result.trajectory[-1].measurement_count == _EXPECTED_MEASUREMENTS_PER_STATE
     assert M1105LongitudinalEngine().verify(result).model_dump(mode="json") == result.model_dump(
