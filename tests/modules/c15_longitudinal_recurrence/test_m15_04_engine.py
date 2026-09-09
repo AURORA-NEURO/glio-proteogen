@@ -9,6 +9,7 @@ from typing import TypedDict, cast
 
 import pytest
 
+import glio_proteogen.modules.c15_longitudinal_recurrence.m15_04_network_state_mechanism_inference.engine as engine_module
 from glio_proteogen.contracts.m15_04 import (
     M1504_GLIOMA_MODEL_FAMILY,
     M1504_M1501_RESULT_MEDIA_TYPE,
@@ -48,6 +49,7 @@ from glio_proteogen.modules.c15_longitudinal_recurrence.m15_04_network_state_mec
     _hash_normal,
     _hash_uniform,
     _huber_loss,
+    _initial_typed_values,
     _quantile,
     _sigmoid,
 )
@@ -237,6 +239,34 @@ def test_typed_glioma_mechanism_graph_is_robust_and_replayable() -> None:
         assert item.lower_bound <= item.posterior_probability <= item.upper_bound
     assert all(item.evidence_count == 1 for item in result.estimates)
     assert engine.verify(result) == result
+
+
+def test_typed_initialization_keeps_left_censored_limits_feasible() -> None:
+    """Mechanism starts use observed centers and feasible censor bounds."""
+
+    terms = {
+        GliomaMechanismProgram.RTK_PI3K_AKT_MTOR: [
+            engine_module._TypedTerm(
+                observation_id="observed",
+                program=GliomaMechanismProgram.RTK_PI3K_AKT_MTOR,
+                state=MechanismEvidenceState.OBSERVED,
+                value=1.2,
+                standard_error=0.2,
+                quality_weight=1.0,
+            ),
+            engine_module._TypedTerm(
+                observation_id="censored",
+                program=GliomaMechanismProgram.RTK_PI3K_AKT_MTOR,
+                state=MechanismEvidenceState.LEFT_CENSORED,
+                value=0.4,
+                standard_error=0.2,
+                quality_weight=1.0,
+            ),
+        ],
+    }
+    values = _initial_typed_values(terms)
+    position = list(GliomaMechanismProgram).index(GliomaMechanismProgram.RTK_PI3K_AKT_MTOR)
+    assert values[position] == 0.4
 
 
 def test_typed_ablation_effects_are_numeric_leave_one_family_out_deltas() -> None:

@@ -33,6 +33,9 @@ observations isolates the topology contribution, while removing signed
 relations isolates the measurement contribution. Unsupported, prohibited,
 negative control, OOD, unknown, or uncalibrated declarations produce no
 estimate, require review, and remain explicitly abstained.
+Left-censored effects seed feasible upper-bound starts: observed centers are
+clamped to their tightest limit, while censor-only programs start at the
+ridge-neutral feasible value rather than at an invented exact location.
 
 Request and result digests bind canonical content; result IDs derive from the
 request digest. Replay re-executes the request and rejects result tampering or

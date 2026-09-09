@@ -345,7 +345,37 @@ def _typed_objective(
     return objective
 
 
-def _fit_typed(  # noqa: C901 - explicit coordinate terms are audit-visible.
+def _initial_typed_values(
+    grouped: dict[GliomaMechanismProgram, list[_TypedTerm]],
+) -> list[float]:
+    """Build a feasible graph start without treating censor limits as values."""
+
+    values = [0.0] * len(_PROGRAM_ORDER)
+    index = {program: position for position, program in enumerate(_PROGRAM_ORDER)}
+    for program, program_terms in grouped.items():
+        observed = tuple(
+            term for term in program_terms if term.state is MechanismEvidenceState.OBSERVED
+        )
+        limits = tuple(
+            term.value
+            for term in program_terms
+            if term.state is MechanismEvidenceState.LEFT_CENSORED
+        )
+        if observed:
+            total = sum(term.quality_weight for term in observed)
+            center = sum(term.quality_weight * term.value for term in observed) / max(
+                _MIN_SCALE, total
+            )
+            initial = min((center, *limits)) if limits else center
+        elif limits:
+            initial = min((0.0, *limits))
+        else:
+            continue
+        values[index[program]] = max(-_MAX_EFFECT, min(_MAX_EFFECT, initial))
+    return values
+
+
+def _fit_typed(
     terms: tuple[_TypedTerm, ...],
     relations: tuple[MechanismRelation, ...],
 ) -> _TypedFit:
@@ -353,12 +383,7 @@ def _fit_typed(  # noqa: C901 - explicit coordinate terms are audit-visible.
     grouped: dict[GliomaMechanismProgram, list[_TypedTerm]] = defaultdict(list)
     for term in terms:
         grouped[term.program].append(term)
-    values = [0.0] * len(_PROGRAM_ORDER)
-    for program, items in grouped.items():
-        total = sum(item.quality_weight for item in items)
-        values[index[program]] = sum(item.quality_weight * item.value for item in items) / max(
-            _MIN_SCALE, total
-        )
+    values = _initial_typed_values(grouped)
     previous = _typed_objective(values, terms, relations)
     trace = [float(f"{previous:.8f}")]
     converged = False
