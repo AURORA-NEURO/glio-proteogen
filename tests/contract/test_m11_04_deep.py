@@ -196,6 +196,19 @@ def test_typed_glioma_graph_fits_signed_evidence_and_replays() -> None:
     assert engine.verify(result) == result
 
 
+def test_typed_initialization_keeps_left_censored_limits_feasible() -> None:
+    """Mechanism starts use observed centers and feasible censor bounds."""
+
+    observations = (
+        (0, 1.2, 0.2, 1.0, MechanismObservationState.OBSERVED),
+        (0, 0.4, 0.2, 1.0, MechanismObservationState.LEFT_CENSORED),
+        (1, -0.3, 0.2, 1.0, MechanismObservationState.LEFT_CENSORED),
+    )
+
+    values = engine_module._initial_typed_values(observations, 2)
+    assert values == [0.4, -0.3]
+
+
 def test_typed_request_order_is_canonical_and_insufficient_graph_abstains() -> None:
     base = build_scenario_request()
     config = base.configuration.model_copy(
