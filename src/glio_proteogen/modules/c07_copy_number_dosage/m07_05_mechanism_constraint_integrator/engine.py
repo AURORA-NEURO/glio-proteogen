@@ -360,6 +360,35 @@ def _typed_objective(  # noqa: PLR0913 - explicit objective coordinates are repl
     return float(total)
 
 
+def _typed_offset_terms(
+    members: tuple[GliomaDosageObservation, ...],
+    *,
+    feature_index: int,
+    updated_programs: np.ndarray,
+    offsets: np.ndarray,
+    program_indices: dict[str, int],
+) -> tuple[float, float]:
+    """Build a feature-offset coordinate without converting censors to targets."""
+
+    numerator = 0.0
+    denominator = 0.08
+    for item in members:
+        program_name = _typed_program_name(item)
+        program_value = float(updated_programs[program_indices[program_name]])
+        if item.evidence_state is DosageEvidenceState.LEFT_CENSORED:
+            limit = float(item.censoring_limit or 0.0)
+            prediction = program_value + float(offsets[feature_index])
+            if prediction <= limit:
+                continue
+            target = limit
+        else:
+            target = _typed_target(item)
+        precision = item.quality_weight / max(_typed_error(item) ** 2, 1e-12)
+        numerator += precision * (target - program_value)
+        denominator += precision
+    return numerator, denominator
+
+
 def _fit_typed_dosage(  # noqa: C901, PLR0912, PLR0915 - coupled dosage coordinates are intentional.
     observations: tuple[GliomaDosageObservation, ...],
     *,
@@ -453,18 +482,13 @@ def _fit_typed_dosage(  # noqa: C901, PLR0912, PLR0915 - coupled dosage coordina
         updated_offsets = offsets.copy()
         for feature_id, feature_index in feature_indices.items():
             members = tuple(item for item in active if item.feature_id == feature_id)
-            numerator = 0.0
-            denominator = 0.08
-            for item in members:
-                target = (
-                    _typed_target(item)
-                    if item.evidence_state is not DosageEvidenceState.LEFT_CENSORED
-                    else float(item.censoring_limit or 0.0)
-                )
-                precision = item.quality_weight / max(_typed_error(item) ** 2, 1e-12)
-                program_name = _typed_program_name(item)
-                numerator += precision * (target - updated_programs[program_indices[program_name]])
-                denominator += precision
+            numerator, denominator = _typed_offset_terms(
+                members,
+                feature_index=feature_index,
+                updated_programs=updated_programs,
+                offsets=offsets,
+                program_indices=program_indices,
+            )
             proposal = numerator / max(denominator, 1e-12)
             updated_offsets[feature_index] = (
                 _TYPED_DAMPING * proposal + (1.0 - _TYPED_DAMPING) * offsets[feature_index]

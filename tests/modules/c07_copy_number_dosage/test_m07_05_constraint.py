@@ -251,6 +251,37 @@ def test_typed_censor_only_initialization_is_neutral_when_limit_is_positive() ->
     assert engine_module._initial_typed_program_state((censored,)) == pytest.approx(0.0)
 
 
+def test_typed_offset_update_skips_feasible_censored_bounds() -> None:
+    censored = _typed_observations()[2]
+    program_indices = {
+        program: index for index, program in enumerate(engine_module._TYPED_PROGRAMS)
+    }
+    programs = engine_module.np.zeros(len(engine_module._TYPED_PROGRAMS), dtype=float)
+    offsets = engine_module.np.zeros(1, dtype=float)
+
+    numerator, denominator = engine_module._typed_offset_terms(
+        (censored,),
+        feature_index=0,
+        updated_programs=programs,
+        offsets=offsets,
+        program_indices=program_indices,
+    )
+
+    assert numerator == pytest.approx(0.0)
+    assert denominator == pytest.approx(0.08)
+
+    violating = censored.model_copy(update={"censoring_limit": -0.1})
+    violating_numerator, violating_denominator = engine_module._typed_offset_terms(
+        (violating,),
+        feature_index=0,
+        updated_programs=programs,
+        offsets=offsets,
+        program_indices=program_indices,
+    )
+    assert violating_numerator < 0.0
+    assert violating_denominator > denominator
+
+
 def test_soft_conflict_remains_visible_without_hidden_prior_dominance() -> None:
     request = _request()
     soft = request.constraint_set.constraints[1].model_copy(
