@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 
 import pytest
 
+import glio_proteogen.modules.c09_complex_activity.m09_02_representation_feature_constructor.engine as engine_module  # noqa: E501
 from glio_proteogen.contracts.m09_01 import M0901_OUTPUT_MEDIA_TYPE
 from glio_proteogen.contracts.m09_02 import (
     ConstructComplexActivityRepresentationRequest,
@@ -385,3 +386,30 @@ def test_typed_duplicate_member_and_unresolved_feature_are_rejected() -> None:
     unknown_payload["typed_observations"] = (unknown, *request.typed_observations[1:])
     with pytest.raises(ValueError, match="bind requested features"):
         ConstructComplexActivityRepresentationRequest.model_validate(unknown_payload)
+
+
+def test_typed_complex_initialization_projects_observed_center_to_censor_bound() -> None:
+    request = _typed_request()
+    observed = request.typed_observations[0]
+    censored = observed.model_copy(
+        update={
+            "evidence_state": GliomaComplexEvidenceState.LEFT_CENSORED,
+            "standardized_effect": None,
+            "censoring_limit": -0.2,
+        }
+    )
+
+    assert engine_module._initial_typed_complex_state((observed, censored)) == pytest.approx(-0.2)
+
+
+def test_typed_censor_only_complex_initialization_is_neutral_for_positive_limit() -> None:
+    request = _typed_request()
+    censored = request.typed_observations[0].model_copy(
+        update={
+            "evidence_state": GliomaComplexEvidenceState.LEFT_CENSORED,
+            "standardized_effect": None,
+            "censoring_limit": 0.2,
+        }
+    )
+
+    assert engine_module._initial_typed_complex_state((censored,)) == pytest.approx(0.0)

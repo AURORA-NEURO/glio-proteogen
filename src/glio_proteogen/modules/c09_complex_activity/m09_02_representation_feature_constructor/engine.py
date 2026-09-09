@@ -354,6 +354,41 @@ def _typed_error(observation: GliomaComplexObservation) -> float:
     return float(value)
 
 
+def _initial_typed_complex_state(
+    members: tuple[GliomaComplexObservation, ...],
+) -> float:
+    """Initialize a complex from observed members and feasible censor bounds."""
+
+    observed = tuple(
+        item for item in members if item.evidence_state is GliomaComplexEvidenceState.OBSERVED
+    )
+    limits = tuple(
+        float(item.censoring_limit)
+        for item in members
+        if item.evidence_state is GliomaComplexEvidenceState.LEFT_CENSORED
+        and item.censoring_limit is not None
+    )
+    if observed:
+        values = np.asarray([_typed_target(item) for item in observed], dtype=np.float64)
+        weights = np.asarray(
+            [
+                item.quality_weight
+                * item.stoichiometric_weight
+                / max(_typed_error(item) ** 2, 1e-12)
+                for item in observed
+            ],
+            dtype=np.float64,
+        )
+        state = float(np.average(values, weights=weights))
+        if limits:
+            state = min(state, *limits)
+    elif limits:
+        state = min(0.0, *limits)
+    else:
+        state = 0.0
+    return float(np.clip(state, -M0902_MAX_TYPED_EFFECT, M0902_MAX_TYPED_EFFECT))
+
+
 def _typed_residual(state: float, observation: GliomaComplexObservation) -> float:
     if observation.evidence_state is GliomaComplexEvidenceState.LEFT_CENSORED:
         return max(0.0, state - _typed_target(observation))
@@ -399,14 +434,21 @@ def _typed_objective(
     for complex_id, members in grouped.items():
         state = states[complex_id]
         if include_coherence:
-            denominator = sum(
-                item.quality_weight * item.stoichiometric_weight for item in members
-            )
-            center = sum(
-                item.quality_weight * item.stoichiometric_weight * _typed_target(item)
+            observed_members = tuple(
+                item
                 for item in members
-            ) / max(denominator, 1e-12)
-            total += _TYPED_COHERENCE * (state - center) ** 2
+                if item.evidence_state is GliomaComplexEvidenceState.OBSERVED
+            )
+            denominator = sum(
+                item.quality_weight * item.stoichiometric_weight
+                for item in observed_members
+            )
+            if denominator > 0.0:
+                center = sum(
+                    item.quality_weight * item.stoichiometric_weight * _typed_target(item)
+                    for item in observed_members
+                ) / denominator
+                total += _TYPED_COHERENCE * (state - center) ** 2
         total += _TYPED_RIDGE * state * state
     return float(total)
 
@@ -426,17 +468,7 @@ def _fit_typed_complexes(  # noqa: C901, PLR0912, PLR0915 - explicit IRLS safegu
         grouped[complex_id] = tuple(item for item in active if item.complex_id == complex_id)
     states: dict[str, float] = {}
     for complex_id, members in grouped.items():
-        weights = np.asarray(
-            [
-                item.quality_weight
-                * item.stoichiometric_weight
-                / max(_typed_error(item) ** 2, 1e-12)
-                for item in members
-            ],
-            dtype=np.float64,
-        )
-        values = np.asarray([_typed_target(item) for item in members], dtype=np.float64)
-        states[complex_id] = float(np.average(values, weights=weights))
+        states[complex_id] = _initial_typed_complex_state(members)
     previous = _typed_objective(
         active,
         states,
@@ -472,7 +504,8 @@ def _fit_typed_complexes(  # noqa: C901, PLR0912, PLR0915 - explicit IRLS safegu
                 )
                 numerator += precision * _typed_target(item)
                 denominator += precision
-                centers.append((precision, _typed_target(item)))
+                if item.evidence_state is GliomaComplexEvidenceState.OBSERVED:
+                    centers.append((precision, _typed_target(item)))
                 if include_bottleneck and item.essential and state > _typed_target(item):
                     numerator += _TYPED_BOTTLENECK * _typed_target(item)
                     denominator += _TYPED_BOTTLENECK
@@ -574,10 +607,19 @@ def _typed_fit(  # noqa: C901 - aggregate fit, bootstrap, and ablation are one r
                 * item.stoichiometric_weight
                 * _typed_target(item)
                 for item in members
+                if item.evidence_state is GliomaComplexEvidenceState.OBSERVED
             )
-            / max(weights[key], 1e-12)
+            / max(
+                sum(
+                    item.quality_weight * item.stoichiometric_weight
+                    for item in members
+                    if item.evidence_state is GliomaComplexEvidenceState.OBSERVED
+                ),
+                1e-12,
+            )
         )
         for key, members in grouped.items()
+        if any(item.evidence_state is GliomaComplexEvidenceState.OBSERVED for item in members)
     ) / max(total_weight, 1e-12)
     coherence = float(np.clip(np.exp(-coherence_residual), 0.0, 1.0))
     bottleneck_values = [
