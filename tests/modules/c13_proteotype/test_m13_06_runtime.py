@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 import pytest
 from typer.testing import CliRunner
 
+import glio_proteogen.modules.c13_proteotype.m13_06_perturbation_sensitivity.engine as engine_module
 from glio_proteogen.adapters.cli import app
 from glio_proteogen.contracts.m13_06 import canonical_request_digest, result_payload_digest
 from glio_proteogen.contracts.m13_06.v1 import (
@@ -224,6 +225,36 @@ def test_typed_glioma_perturbation_graph_emits_interval_and_trace() -> None:
     assert response.stability is not None
     assert response.top_drivers
     assert M1306Service().verify(result) == result
+
+
+def test_typed_initialization_keeps_left_censored_limits_feasible() -> None:
+    """Perturbation starts use observed centers and feasible censor bounds."""
+
+    terms = (
+        engine_module._TypedTerm(
+            scenario_id="observed",
+            program=GliomaPerturbationProgram.RTK_PI3K_AKT_MTOR,
+            state=PerturbationEvidenceState.OBSERVED,
+            delta=1.2,
+            standard_error=0.2,
+            quality_weight=1.0,
+        ),
+        engine_module._TypedTerm(
+            scenario_id="censored",
+            program=GliomaPerturbationProgram.RTK_PI3K_AKT_MTOR,
+            state=PerturbationEvidenceState.LEFT_CENSORED,
+            delta=0.4,
+            standard_error=0.2,
+            quality_weight=1.0,
+        ),
+    )
+    grouped = {GliomaPerturbationProgram.RTK_PI3K_AKT_MTOR: list(terms)}
+    values = engine_module._initial_typed_values(grouped)
+    censor_limit = 0.4
+    position = list(GliomaPerturbationProgram).index(
+        GliomaPerturbationProgram.RTK_PI3K_AKT_MTOR
+    )
+    assert values[position] == censor_limit
 
 
 def test_typed_missing_or_unsupported_evidence_abstains_without_negative_response() -> None:
