@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from itertools import pairwise
 
 import pytest
 
@@ -312,6 +313,7 @@ def _typed_request(*, reverse: bool = False) -> ConstructTranscriptProteinRepres
 
 EXPECTED_TYPED_FEATURES = 2
 EXPECTED_TYPED_GENES_PER_FEATURE = 4
+FIRST_CANDIDATE_CALL = 2
 NEGATIVE_TRANSCRIPT_LIMIT = -0.4
 NEGATIVE_PROTEIN_LIMIT = -0.3
 
@@ -337,6 +339,29 @@ def test_typed_glioma_discordance_is_evidence_driven_and_replay_bound() -> None:
     assert feature.ablation_effects
     assert first.canonical_bytes == repeat.canonical_bytes
     assert engine.verify(first.result, first.canonical_bytes).verified
+
+
+def test_typed_pair_solver_backtracks_objective_increase(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    original = m0802.engine._typed_pair_objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == FIRST_CANDIDATE_CALL else value
+
+    monkeypatch.setattr(m0802.engine, "_typed_pair_objective", objective)
+    fitted = m0802.engine._fit_typed_pair(
+        _typed_request().typed_observations,
+        max_iterations=64,
+    )
+    assert fitted is not None
+    assert calls > FIRST_CANDIDATE_CALL
+    assert all(
+        after <= before + m0802.engine._TYPED_OBJECTIVE_TOLERANCE
+        for before, after in pairwise(fitted[5])
+    )
 
 
 def test_typed_missing_evidence_abstains_without_negative_finding() -> None:

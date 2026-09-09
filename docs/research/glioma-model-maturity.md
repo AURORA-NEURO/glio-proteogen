@@ -448,7 +448,11 @@ one-sided censoring. Initial states are formed from observed assay effects only
 and projected onto the tightest censor boundary; censor-only modalities remain
 at the ridge-neutral feasible value. Censored residuals contribute only when a
 candidate violates their upper bound, so detection limits cannot manufacture a
-negative discordance. Deterministic bootstrap draws perturb both observed
+negative discordance. Each paired update is evaluated from a frozen parent
+state and accepted only through a finite full-vector backtracking line search;
+the objective trace is quantized and monotone within tolerance, with a
+measurement-scale convergence gate for the bounded default iteration budget.
+Deterministic bootstrap draws perturb both observed
 effects and censor limits under the request-derived seed, with transcript-only,
 protein-only, and translation-prior ablations retained in the receipt.
 

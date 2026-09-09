@@ -323,8 +323,12 @@ _TYPED_RIDGE: Final = 0.12
 _TYPED_TRANSLATION_PRIOR: Final = 0.20
 _TYPED_TRANSLATION_ALPHA: Final = 0.65
 _TYPED_TOLERANCE: Final = 1e-5
-_TYPED_BACKTRACK_FLOOR: Final = 1e-3
-_TYPED_MAX_ITERATIONS: Final = 256
+_TYPED_OBJECTIVE_TOLERANCE: Final = 1e-10
+_TYPED_CONVERGENCE_GAP: Final = 5e-4
+_TYPED_CONVERGENCE_OBJECTIVE_TOLERANCE: Final = 1e-4
+_TYPED_BACKTRACKING_STEPS: Final = 18
+_TYPED_BACKTRACKING_FACTOR: Final = 0.5
+_TYPED_MAX_ITERATIONS: Final = 1024
 _TYPED_MIN_OBSERVATIONS: Final = 3
 
 
@@ -491,7 +495,7 @@ def _fit_typed_pair(  # noqa: C901, PLR0912, PLR0915 - explicit IRLS safeguards.
         transcript = 0.0
     if not include_protein:
         protein = 0.0
-    previous = _typed_pair_objective(
+    initial_objective = _typed_pair_objective(
         active,
         transcript,
         protein,
@@ -499,20 +503,26 @@ def _fit_typed_pair(  # noqa: C901, PLR0912, PLR0915 - explicit IRLS safeguards.
         include_transcript=include_transcript,
         include_protein=include_protein,
     )
-    trace = [round(previous, 10)]
+    if not isfinite(initial_objective):
+        return None
+    previous = initial_objective
+    trace = [round(previous, 12)]
     gap = float("inf")
     converged = False
     iterations = 0
     for iteration in range(min(max_iterations, _TYPED_MAX_ITERATIONS)):
         iterations = iteration + 1
-        proposed_transcript = transcript
-        proposed_protein = protein
+        previous_transcript = transcript
+        previous_protein = protein
+        previous_objective = previous
+        proposed_transcript = previous_transcript
+        proposed_protein = previous_protein
         if include_transcript:
             numerator = 0.0
             denominator = _TYPED_RIDGE
             for item in active:
                 error = _typed_component_error(item, "transcript")
-                residual = _typed_component_residual(transcript, item, "transcript")
+                residual = _typed_component_residual(previous_transcript, item, "transcript")
                 if item.transcript_effect is None and residual <= 0.0:
                     continue
                 standardized = residual / error
@@ -529,7 +539,9 @@ def _fit_typed_pair(  # noqa: C901, PLR0912, PLR0915 - explicit IRLS safeguards.
                 numerator += precision * _typed_component_target(item, "transcript")
                 denominator += precision
             if include_translation and include_protein:
-                numerator += _TYPED_TRANSLATION_PRIOR * _TYPED_TRANSLATION_ALPHA * protein
+                numerator += (
+                    _TYPED_TRANSLATION_PRIOR * _TYPED_TRANSLATION_ALPHA * previous_protein
+                )
                 denominator += (
                     _TYPED_TRANSLATION_PRIOR * _TYPED_TRANSLATION_ALPHA**2
                 )
@@ -539,7 +551,7 @@ def _fit_typed_pair(  # noqa: C901, PLR0912, PLR0915 - explicit IRLS safeguards.
             denominator = _TYPED_RIDGE
             for item in active:
                 error = _typed_component_error(item, "protein")
-                residual = _typed_component_residual(protein, item, "protein")
+                residual = _typed_component_residual(previous_protein, item, "protein")
                 if item.protein_effect is None and residual <= 0.0:
                     continue
                 standardized = residual / error
@@ -556,13 +568,17 @@ def _fit_typed_pair(  # noqa: C901, PLR0912, PLR0915 - explicit IRLS safeguards.
                 numerator += precision * _typed_component_target(item, "protein")
                 denominator += precision
             if include_translation and include_transcript:
-                numerator += _TYPED_TRANSLATION_PRIOR * _TYPED_TRANSLATION_ALPHA * transcript
+                numerator += (
+                    _TYPED_TRANSLATION_PRIOR
+                    * _TYPED_TRANSLATION_ALPHA
+                    * proposed_transcript
+                )
                 denominator += _TYPED_TRANSLATION_PRIOR
             proposed_protein = numerator / max(denominator, 1e-12)
         proposed_transcript = float(
             np.clip(
                 _TYPED_DAMPING * proposed_transcript
-                + (1.0 - _TYPED_DAMPING) * transcript,
+                + (1.0 - _TYPED_DAMPING) * previous_transcript,
                 -M0802_MAX_TYPED_EFFECT,
                 M0802_MAX_TYPED_EFFECT,
             )
@@ -570,15 +586,11 @@ def _fit_typed_pair(  # noqa: C901, PLR0912, PLR0915 - explicit IRLS safeguards.
         proposed_protein = float(
             np.clip(
                 _TYPED_DAMPING * proposed_protein
-                + (1.0 - _TYPED_DAMPING) * protein,
+                + (1.0 - _TYPED_DAMPING) * previous_protein,
                 -M0802_MAX_TYPED_EFFECT,
                 M0802_MAX_TYPED_EFFECT,
             )
         )
-        gap = max(
-            abs(proposed_transcript - transcript), abs(proposed_protein - protein)
-        )
-        blend = 1.0
         candidate_transcript = proposed_transcript
         candidate_protein = proposed_protein
         objective = _typed_pair_objective(
@@ -589,30 +601,61 @@ def _fit_typed_pair(  # noqa: C901, PLR0912, PLR0915 - explicit IRLS safeguards.
             include_transcript=include_transcript,
             include_protein=include_protein,
         )
-        while objective > previous + 1e-9 and blend > _TYPED_BACKTRACK_FLOOR:
-            blend *= 0.5
-            candidate_transcript = transcript + blend * (proposed_transcript - transcript)
-            candidate_protein = protein + blend * (proposed_protein - protein)
-            objective = _typed_pair_objective(
-                active,
-                candidate_transcript,
-                candidate_protein,
-                include_translation=include_translation,
-                include_transcript=include_transcript,
-                include_protein=include_protein,
-            )
+        if not isfinite(objective) or objective > previous_objective + _TYPED_OBJECTIVE_TOLERANCE:
+            accepted = False
+            blend = 1.0
+            for _ in range(_TYPED_BACKTRACKING_STEPS):
+                blend *= _TYPED_BACKTRACKING_FACTOR
+                candidate_transcript = previous_transcript + blend * (
+                    proposed_transcript - previous_transcript
+                )
+                candidate_protein = previous_protein + blend * (
+                    proposed_protein - previous_protein
+                )
+                candidate_transcript = float(
+                    np.clip(
+                        candidate_transcript,
+                        -M0802_MAX_TYPED_EFFECT,
+                        M0802_MAX_TYPED_EFFECT,
+                    )
+                )
+                candidate_protein = float(
+                    np.clip(
+                        candidate_protein,
+                        -M0802_MAX_TYPED_EFFECT,
+                        M0802_MAX_TYPED_EFFECT,
+                    )
+                )
+                objective = _typed_pair_objective(
+                    active,
+                    candidate_transcript,
+                    candidate_protein,
+                    include_translation=include_translation,
+                    include_transcript=include_transcript,
+                    include_protein=include_protein,
+                )
+                if isfinite(objective) and (
+                    objective <= previous_objective + _TYPED_OBJECTIVE_TOLERANCE
+                ):
+                    accepted = True
+                    break
+            if not accepted:
+                return None
         if not isfinite(objective):
             return None
-        if objective > previous + 1e-7:
-            candidate_transcript = transcript
-            candidate_protein = protein
-            objective = previous
-            gap = 0.0
+        gap = max(
+            abs(candidate_transcript - previous_transcript),
+            abs(candidate_protein - previous_protein),
+        )
         transcript = candidate_transcript
         protein = candidate_protein
         previous = objective
-        trace.append(round(objective, 10))
-        if gap <= _TYPED_TOLERANCE:
+        trace.append(round(objective, 12))
+        if (
+            gap <= max(_TYPED_TOLERANCE, _TYPED_CONVERGENCE_GAP)
+            and abs(previous_objective - objective)
+            <= _TYPED_CONVERGENCE_OBJECTIVE_TOLERANCE
+        ):
             converged = True
             break
     if not isfinite(gap) or any(not isfinite(value) for value in trace):
