@@ -68,6 +68,9 @@ _PROGRAM_DAMPING: Final = 0.7
 _PROGRAM_HUBER_DELTA: Final = 1.5
 _PROGRAM_ITERATIONS: Final = 120
 _PROGRAM_TOLERANCE: Final = 1e-5
+_PROGRAM_OBJECTIVE_TOLERANCE: Final = 1e-10
+_PROGRAM_BACKTRACKING_STEPS: Final = 18
+_PROGRAM_BACKTRACKING_FACTOR: Final = 0.5
 _PROGRAM_SCORE_LIMIT: Final = 4.0
 _BOOTSTRAP_LOW: Final = 0.05
 _BOOTSTRAP_HIGH: Final = 0.95
@@ -91,6 +94,7 @@ class _TypedFit:
     objective: float
     iterations: int
     converged: bool
+    objective_trace: tuple[float, ...]
 
 
 class M1005ConstraintAuthorizationError(PermissionError):
@@ -425,7 +429,7 @@ def _program_objective(
     return objective
 
 
-def _fit_programs(  # noqa: C901 - signed program coordinate updates are intentionally explicit.
+def _fit_programs(  # noqa: C901, PLR0912, PLR0915 - solver safeguards are explicit.
     observations: tuple[_TypedObservation, ...],
     center: float,
     scale: float,
@@ -437,11 +441,27 @@ def _fit_programs(  # noqa: C901 - signed program coordinate updates are intenti
     for item in observations:
         grouped[item.program].append(item)
     values = _initial_program_values(observations, center, scale)
-    objective = _program_objective(values, observations, center, scale, include_edges=include_edges)
+    initial_objective = _program_objective(
+        values, observations, center, scale, include_edges=include_edges
+    )
+    if not math.isfinite(initial_objective):
+        return _TypedFit(
+            values=tuple(_quantize(value) for value in values),
+            objective=0.0,
+            iterations=0,
+            converged=False,
+            objective_trace=(),
+        )
+    trace: list[float] = [round(initial_objective, 10)]
     for iteration in range(1, _PROGRAM_ITERATIONS + 1):
         old = values.copy()
+        previous_objective = trace[-1]
+        proposals = old.copy()
         for position, program in enumerate(_PROGRAM_ORDER):
-            current = values[position]
+            # Every coordinate proposal observes one immutable parent state.
+            # This makes the signed graph sweep deterministic under input order
+            # and avoids an in-place Gauss-Seidel update changing edge curvature.
+            current = old[position]
             gradient = 2.0 * _PROGRAM_RIDGE * current
             hessian = 2.0 * _PROGRAM_RIDGE
             for item in grouped[program]:
@@ -468,35 +488,81 @@ def _fit_programs(  # noqa: C901 - signed program coordinate updates are intenti
                 for edge_source, edge_target, sign in _PROGRAM_EDGES:
                     if program is edge_source:
                         residual = (
-                            values[index[edge_target]] - sign * _PROGRAM_EDGE_STRENGTH * current
+                            old[index[edge_target]] - sign * _PROGRAM_EDGE_STRENGTH * current
                         )
                         gradient += -sign * _PROGRAM_EDGE_STRENGTH * residual
                         hessian += _PROGRAM_EDGE_STRENGTH**2
                     elif program is edge_target:
                         residual = (
-                            current - sign * _PROGRAM_EDGE_STRENGTH * values[index[edge_source]]
+                            current - sign * _PROGRAM_EDGE_STRENGTH * old[index[edge_source]]
                         )
                         gradient += residual
                         hessian += 1.0
             proposal = current - gradient / max(_MINIMUM_SCALE, hessian)
-            values[position] = current + _PROGRAM_DAMPING * (proposal - current)
-        update = max(abs(new - before) for new, before in zip(values, old, strict=True))
+            proposals[position] = current + _PROGRAM_DAMPING * (proposal - current)
+        candidate = [
+            max(-_PROGRAM_SCORE_LIMIT, min(_PROGRAM_SCORE_LIMIT, value))
+            for value in proposals
+        ]
         next_objective = _program_objective(
-            values, observations, center, scale, include_edges=include_edges
+            candidate, observations, center, scale, include_edges=include_edges
         )
-        if update <= _PROGRAM_TOLERANCE and abs(objective - next_objective) <= _PROGRAM_TOLERANCE:
+        accepted = candidate
+        if not math.isfinite(next_objective) or (
+            next_objective > previous_objective + _PROGRAM_OBJECTIVE_TOLERANCE
+        ):
+            # Robust Huber breakpoints and signed cycles can make a full Jacobi
+            # sweep overshoot. Backtrack the complete vector update so the
+            # replay receipt can prove a monotone objective trace.
+            accepted = old.copy()
+            next_objective = previous_objective
+            delta = [new - before for new, before in zip(candidate, old, strict=True)]
+            step = _PROGRAM_DAMPING
+            for _ in range(_PROGRAM_BACKTRACKING_STEPS):
+                step *= _PROGRAM_BACKTRACKING_FACTOR
+                trial = [
+                    max(
+                        -_PROGRAM_SCORE_LIMIT,
+                        min(_PROGRAM_SCORE_LIMIT, before + step * change),
+                    )
+                    for before, change in zip(old, delta, strict=True)
+                ]
+                trial_objective = _program_objective(
+                    trial, observations, center, scale, include_edges=include_edges
+                )
+                if math.isfinite(trial_objective) and (
+                    trial_objective <= previous_objective + _PROGRAM_OBJECTIVE_TOLERANCE
+                ):
+                    accepted = trial
+                    next_objective = trial_objective
+                    break
+            else:
+                return _TypedFit(
+                    values=tuple(_quantize(value) for value in old),
+                    objective=_quantize(previous_objective),
+                    iterations=iteration,
+                    converged=False,
+                    objective_trace=tuple(trace),
+                )
+        values = accepted
+        update = max(abs(new - before) for new, before in zip(values, old, strict=True))
+        trace.append(round(next_objective, 10))
+        if update <= _PROGRAM_TOLERANCE and abs(
+            previous_objective - next_objective
+        ) <= _PROGRAM_TOLERANCE:
             return _TypedFit(
                 values=tuple(_quantize(value) for value in values),
                 objective=_quantize(next_objective),
                 iterations=iteration,
                 converged=True,
+                objective_trace=tuple(trace),
             )
-        objective = next_objective
     return _TypedFit(
         values=tuple(_quantize(value) for value in values),
-        objective=_quantize(objective),
+        objective=_quantize(trace[-1]),
         iterations=_PROGRAM_ITERATIONS,
         converged=False,
+        objective_trace=tuple(trace),
     )
 
 

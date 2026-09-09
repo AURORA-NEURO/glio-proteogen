@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import json
+from itertools import pairwise
 from typing import TYPE_CHECKING
 
 import pytest
@@ -159,6 +160,68 @@ def test_typed_glioma_constraint_graph_emits_replayable_program_states() -> None
         state.evidence_count >= 1 and state.ablation_effects for state in result.program_states
     )
     assert service.verify(result).result_digest == result.result_digest
+
+
+def test_typed_program_solver_backtracks_objective_increase(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    observations = (
+        engine_module._TypedObservation(
+            feature_id="protein.egfr",
+            program=GliomaConstraintProgram.RTK_PI3K_AKT_MTOR,
+            direction=1,
+            state=FeatureObservationState.OBSERVED,
+            value=1.2,
+            standard_error=0.2,
+            quality_weight=1.0,
+            evidence=(),
+        ),
+        engine_module._TypedObservation(
+            feature_id="protein.tp53",
+            program=GliomaConstraintProgram.P53_CELL_CYCLE,
+            direction=-1,
+            state=FeatureObservationState.OBSERVED,
+            value=-0.8,
+            standard_error=0.2,
+            quality_weight=0.9,
+            evidence=(),
+        ),
+        engine_module._TypedObservation(
+            feature_id="protein.idh1",
+            program=GliomaConstraintProgram.IDH_HIF1A,
+            direction=1,
+            state=FeatureObservationState.OBSERVED,
+            value=0.4,
+            standard_error=0.15,
+            quality_weight=1.0,
+            evidence=(),
+        ),
+        engine_module._TypedObservation(
+            feature_id="protein.mki67",
+            program=GliomaConstraintProgram.PROLIFERATION,
+            direction=1,
+            state=FeatureObservationState.OBSERVED,
+            value=0.6,
+            standard_error=0.25,
+            quality_weight=0.8,
+            evidence=(),
+        ),
+    )
+    original = engine_module._program_objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == 2 else value
+
+    monkeypatch.setattr(engine_module, "_program_objective", objective)
+    fit = engine_module._fit_programs(observations, 0.0, 1.0)
+    assert fit.converged
+    assert calls > 2
+    assert all(
+        after <= before + engine_module._PROGRAM_OBJECTIVE_TOLERANCE
+        for before, after in pairwise(fit.objective_trace)
+    )
 
 
 def test_typed_normalization_ignores_left_censor_limits() -> None:
