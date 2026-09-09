@@ -34,6 +34,7 @@ const PROFILE_FIELDS = new Set([
   "topology_digest",
   "projection_policy",
   "auxiliary_projection_policy",
+  "auxiliary_standard_error_floor",
   "supported_source_families",
   "missing_families_are_not_negative",
   "cell_fraction_claim_permitted",
@@ -125,6 +126,7 @@ export function validateMicroenvironmentGraphProfile(profile: JsonObject): strin
   if (profile.auxiliary_source_engine !== "gbm-proteomic-axes/1.0.0") errors.push("profile.auxiliary_source_engine is invalid.");
   if (profile.projection_policy !== "supported_bulk_programs_to_signed_microenvironment_graph_v1") errors.push("profile.projection_policy is invalid.");
   if (profile.auxiliary_projection_policy !== "independent_published_gbm_axes_as_secondary_observations_v1") errors.push("profile.auxiliary_projection_policy is invalid.");
+  if (profile.auxiliary_standard_error_floor !== 0.35) errors.push("profile.auxiliary_standard_error_floor must equal 0.35.");
   if (!Array.isArray(profile.supported_source_families) || profile.supported_source_families.join(",") !== "mesenchymal_like,oligodendrocyte_progenitor_like") {
     errors.push("profile.supported_source_families must contain the two supported GBM families in profile order.");
   }

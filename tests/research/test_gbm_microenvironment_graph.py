@@ -27,6 +27,7 @@ def test_profile_binds_both_child_engines() -> None:
         profile.auxiliary_projection_policy
         == "independent_published_gbm_axes_as_secondary_observations_v1"
     )
+    assert profile.auxiliary_standard_error_floor == 0.35
     assert profile.supported_source_families == (
         "mesenchymal_like",
         "oligodendrocyte_progenitor_like",
@@ -68,6 +69,11 @@ def test_synthetic_bridge_projects_supported_mes_and_opc_evidence() -> None:
     assert {"WINTER_HYPOXIA_UP", "VERHAAK_GLIOBLASTOMA_MESENCHYMAL"}.issubset(axis_ids)
     assert result.graph_request.observations[-2].observation_id.endswith("axis.hypoxia")
     assert result.graph_request.observations[-1].observation_id.endswith("axis.mesenchymal")
+    assert all(
+        observation.standard_error is not None
+        and observation.standard_error >= 0.35
+        for observation in result.graph_request.observations[-2:]
+    )
 
 
 def test_missing_source_families_remain_missing() -> None:

@@ -61,6 +61,7 @@ function profile(): Record<string, unknown> {
     topology_digest: DIGEST,
     projection_policy: "supported_bulk_programs_to_signed_microenvironment_graph_v1",
     auxiliary_projection_policy: "independent_published_gbm_axes_as_secondary_observations_v1",
+    auxiliary_standard_error_floor: 0.35,
     supported_source_families: ["mesenchymal_like", "oligodendrocyte_progenitor_like"],
     missing_families_are_not_negative: true,
     cell_fraction_claim_permitted: false,

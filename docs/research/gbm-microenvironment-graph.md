@@ -8,10 +8,12 @@ projects the two program families with a supported protein estimate into the
 The bridge can also carry an optional, independent secondary observation lane
 from `gbm-proteomic-axes/1.0.0`. The published Winter hypoxia and Verhaak
 mesenchymal signatures are projected onto the matching graph nodes with their
-own result digest, interval-derived standard error, and source quality. They
-are never averaged into, substituted for, or allowed to override the Neftel
-program evidence. Replay requires the axis request and axis receipt to agree
-on presence, digest, and semantic content.
+own result digest, interval-derived standard error, and source quality. A
+profile-bound standard-error floor of `0.35` is applied because the published
+axis bootstrap captures caller measurement perturbation, not cross-engine scale
+or calibration uncertainty. They are never averaged into, substituted for, or
+allowed to override the Neftel program evidence. Replay requires the axis
+request and axis receipt to agree on presence, digest, and semantic content.
 
 The projection is deliberately narrower than a deconvolution model:
 

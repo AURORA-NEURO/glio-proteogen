@@ -108,6 +108,7 @@ _AXIS_MAP: Final = (
     ("WINTER_HYPOXIA_UP", "hypoxia"),
     ("VERHAAK_GLIOBLASTOMA_MESENCHYMAL", "mesenchymal"),
 )
+_AUXILIARY_STANDARD_ERROR_FLOOR: Final = 0.35
 
 
 class MicroenvironmentGraphProfile(FrozenModel):
@@ -132,6 +133,11 @@ class MicroenvironmentGraphProfile(FrozenModel):
     auxiliary_projection_policy: Literal[
         "independent_published_gbm_axes_as_secondary_observations_v1"
     ] = "independent_published_gbm_axes_as_secondary_observations_v1"
+    auxiliary_standard_error_floor: float = Field(
+        default=_AUXILIARY_STANDARD_ERROR_FLOOR,
+        ge=_AUXILIARY_STANDARD_ERROR_FLOOR,
+        le=_AUXILIARY_STANDARD_ERROR_FLOOR,
+    )
     supported_source_families: tuple[Literal["mesenchymal_like", "oligodendrocyte_progenitor_like"], ...] = (
         "mesenchymal_like",
         "oligodendrocyte_progenitor_like",
@@ -259,6 +265,7 @@ def microenvironment_graph_profile() -> MicroenvironmentGraphProfile:
         "topology_digest": _bridge_topology_digest(),
         "projection_policy": "supported_bulk_programs_to_signed_microenvironment_graph_v1",
         "auxiliary_projection_policy": "independent_published_gbm_axes_as_secondary_observations_v1",
+        "auxiliary_standard_error_floor": _AUXILIARY_STANDARD_ERROR_FLOOR,
         "supported_source_families": tuple(item[0] for item in _PROGRAM_MAP),
         "missing_families_are_not_negative": True,
         "cell_fraction_claim_permitted": False,
@@ -277,6 +284,7 @@ def microenvironment_graph_profile() -> MicroenvironmentGraphProfile:
         topology_digest=_bridge_topology_digest(),
         projection_policy="supported_bulk_programs_to_signed_microenvironment_graph_v1",
         auxiliary_projection_policy="independent_published_gbm_axes_as_secondary_observations_v1",
+        auxiliary_standard_error_floor=_AUXILIARY_STANDARD_ERROR_FLOOR,
         supported_source_families=("mesenchymal_like", "oligodendrocyte_progenitor_like"),
         missing_families_are_not_negative=True,
         cell_fraction_claim_permitted=False,
@@ -425,9 +433,12 @@ def _graph_request(
             axis_lower = estimate.lower_bound
             axis_upper = estimate.upper_bound
             standard_error = (
-                0.35
+                _AUXILIARY_STANDARD_ERROR_FLOOR
                 if axis_lower is None or axis_upper is None
-                else max(0.05, abs(float(axis_upper) - float(axis_lower)) / 3.29)
+                else max(
+                    _AUXILIARY_STANDARD_ERROR_FLOOR,
+                    abs(float(axis_upper) - float(axis_lower)) / 3.29,
+                )
             )
             quality = 0.9 if estimate.support.value == "supported" else 0.55
             observations.append(
@@ -479,6 +490,7 @@ def analyze_microenvironment_graph(request: MicroenvironmentGraphRequest) -> Mic
             "The source engine estimates bulk protein program evidence, not cell fractions.",
             "Only mesenchymal-like and oligodendrocyte-progenitor-like families are projected; missing families remain missing.",
             "Published GBM proteomic-axis scores are independent secondary observations for hypoxia and mesenchymal nodes; they never override Neftel evidence.",
+            "Secondary published-axis observations use a profile-bound 0.35 standard-error floor to cover cross-engine scale and calibration uncertainty; their narrow bootstrap width is not treated as full uncertainty.",
             "The signed graph describes research associations and does not establish causality, prognosis, or treatment response.",
             "All outputs are research-use-only and non-prescriptive.",
         ),

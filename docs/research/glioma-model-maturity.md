@@ -39,7 +39,10 @@ separate algorithms and receipts, not scientifically independent evidence:
   preserves missing families as missing, propagates uncertainty through the
   directed graph, and explicitly does not estimate cell fractions or clinical
   states. It may carry independently digested Winter hypoxia and Verhaak
-  mesenchymal proteomic-axis scores as secondary observations; and
+  mesenchymal proteomic-axis scores as secondary observations. Their measurement
+  intervals are bounded by a profile-locked 0.35 standard-error floor before
+  graph projection so model-score precision is not mistaken for cross-engine
+  calibration; and
 - `sphinks-gbm-master-kinase-concordance/1.0.0`: an independently authored,
   source-locked phosphosite concordance model over the 24 subtype-specific
   master-kinase signatures published by Migliozzi et al., with robust one-sided
