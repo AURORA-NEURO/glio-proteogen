@@ -124,6 +124,7 @@ describe("GBM RNA composition UI contract", () => {
     };
     expect(validateGbmMixtureRequest(invalid).length).toBeGreaterThan(10);
     expect(validateGbmMixtureRequest({ ...request, counts: [0, 0], unknown_background: [0.4, 0.4], references: [{ reference_id: "x", signature: [0.8, 0.8] }] }).length).toBeGreaterThan(0);
+    expect(validateGbmMixtureRequest({ ...request, concentration: 0, unknown_background: [0, 1], references: [{ reference_id: "x", signature: [0, 1] }] }).length).toBeGreaterThan(0);
     expect(validateGbmMixtureRequest({ ...request, references: [] }).length).toBeGreaterThan(0);
     expect(validateGbmMixtureResult({ ...result, support: "limited", known_weights: [], unknown_gene_mass: [], fitted_probabilities: [], unknown_mass: 2 }, request, profile).length).toBeGreaterThan(0);
     expect(validateGbmMixtureResult({ ...result, support: "abstained", feature_ids: ["EGFR"], unknown_gene_mass: [], fitted_probabilities: [] }, request, profile).length).toBe(0);

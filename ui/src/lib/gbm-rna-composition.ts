@@ -93,8 +93,11 @@ export function validateGbmMixtureRequest(request: JsonObject): string[] {
     if (!Number.isInteger(value) || typeof value !== "number" || value < 0) errors.push(`request.counts[${index}] must be a non-negative integer.`);
   });
   if (numericSum(counts) <= 0) errors.push("request.counts must have positive depth.");
-  background.forEach((value, index) => finite(value, `request.unknown_background[${index}]`, errors, 0));
-  if (background.length && Math.abs(numericSum(background) - 1) > 1e-8) errors.push("request.unknown_background must sum to one.");
+  background.forEach((value, index) => {
+    finite(value, `request.unknown_background[${index}]`, errors, 0);
+    if (typeof value === "number" && value <= 0) errors.push(`request.unknown_background[${index}] must be strictly positive.`);
+  });
+  if (background.length && Math.abs(numericSum(background) - 1) > 1e-10) errors.push("request.unknown_background must sum to one.");
   const references = arrayAt(request, ["references"]);
   if (references.length < 1 || references.length > 32) errors.push("request.references must contain 1-32 lineage signatures.");
   const referenceIds: unknown[] = [];
@@ -104,11 +107,15 @@ export function validateGbmMixtureRequest(request: JsonObject): string[] {
     identifier(value.reference_id, `request.references[${index}].reference_id`, errors);
     const signature = arrayAt(value, ["signature"]);
     if (signature.length !== features.length) errors.push(`request.references[${index}].signature must share the feature axis.`);
-    signature.forEach((item, itemIndex) => finite(item, `request.references[${index}].signature[${itemIndex}]`, errors, 0));
-    if (signature.length && Math.abs(numericSum(signature) - 1) > 1e-8) errors.push(`request.references[${index}].signature must sum to one.`);
+    signature.forEach((item, itemIndex) => {
+      finite(item, `request.references[${index}].signature[${itemIndex}]`, errors, 0);
+      if (typeof item === "number" && item <= 0) errors.push(`request.references[${index}].signature[${itemIndex}] must be strictly positive.`);
+    });
+    if (signature.length && Math.abs(numericSum(signature) - 1) > 1e-10) errors.push(`request.references[${index}].signature must sum to one.`);
   });
   uniqueStrings(referenceIds, "request.references.reference_id", errors);
   for (const field of ["concentration", "lambda_mass", "lambda_shape", "initial_unknown_mass"]) finite(request[field], `request.${field}`, errors, 0);
+  if (typeof request.concentration === "number" && request.concentration <= 0) errors.push("request.concentration must be strictly positive.");
   if (typeof request.initial_unknown_mass === "number" && request.initial_unknown_mass >= 1) errors.push("request.initial_unknown_mass must be below one.");
   if (!Number.isInteger(request.max_iterations) || typeof request.max_iterations !== "number" || request.max_iterations < 1 || request.max_iterations > 500) errors.push("request.max_iterations must be an integer from 1 to 500.");
   const sources = arrayAt(request, ["source_digests"]);
