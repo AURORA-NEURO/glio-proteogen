@@ -479,6 +479,19 @@ def test_glioma_transport_risk_drives_selective_abstention() -> None:
     assert metrics[2] is OutOfDistributionStatus.OOD
 
 
+@pytest.mark.parametrize("feature_id", ["protein.EGFR", "protein.EGFR.pY1068"])
+def test_glioma_marker_gate_matches_identifier_tokens(feature_id: str) -> None:
+    request = _request()
+    metrics = m0607_engine._selective_metrics(request, feature_id, 0.02)
+    assert metrics[1] == pytest.approx(0.085)
+
+
+def test_glioma_marker_gate_does_not_match_substrings() -> None:
+    request = _request()
+    metrics = m0607_engine._selective_metrics(request, "protein.notegfr", 0.02)
+    assert metrics[1] == pytest.approx(0.115)
+
+
 def test_service_wrapper_and_strict_boundary() -> None:
     request = _request()
     service = M0607Service()

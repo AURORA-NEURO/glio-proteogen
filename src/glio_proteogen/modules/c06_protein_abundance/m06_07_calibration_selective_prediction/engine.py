@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from math import fsum
 from typing import Final, cast
@@ -75,6 +76,7 @@ _GLIOMA_MARKERS: Final = (
 _UNCERTAINTY_PENALTY: Final = 0.25
 _OOD_TRANSPORT_WEIGHT: Final = 0.70
 _OOD_FEATURE_WEIGHT: Final = 0.30
+_FEATURE_TOKEN_PATTERN: Final = re.compile(r"[a-z0-9]+")
 
 
 class CalibrationAuthorizationError(PermissionError):
@@ -290,7 +292,12 @@ def _feature_ood_score(feature_id: str, transport_risk: float) -> float:
     that a feature is clinically in-domain.
     """
 
-    marker = any(token in feature_id.casefold() for token in _GLIOMA_MARKERS)
+    # Match complete identifier tokens so a generic feature such as
+    # ``protein.notegfr`` cannot be promoted to the GBM marker domain merely
+    # because it contains the string ``egfr``. Namespace, site, and assay
+    # suffixes remain supported because separators are token boundaries.
+    feature_tokens = frozenset(_FEATURE_TOKEN_PATTERN.findall(feature_id.casefold()))
+    marker = any(token in feature_tokens for token in _GLIOMA_MARKERS)
     feature_risk = 0.05 if marker else 0.15
     return min(
         1.0,
