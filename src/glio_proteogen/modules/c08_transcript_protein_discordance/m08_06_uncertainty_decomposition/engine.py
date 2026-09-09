@@ -61,6 +61,10 @@ _TYPED_RIDGE: Final = 0.05
 _TYPED_BOOTSTRAP_LOW: Final = 0.05
 _TYPED_BOOTSTRAP_HIGH: Final = 0.95
 _TYPED_LOCATION_TOLERANCE: Final = 1e-7
+_TYPED_DAMPING: Final = 0.3
+_TYPED_OBJECTIVE_TOLERANCE: Final = 1e-10
+_TYPED_BACKTRACKING_STEPS: Final = 16
+_TYPED_BACKTRACKING_FACTOR: Final = 0.5
 
 
 @dataclass(frozen=True, slots=True)
@@ -177,6 +181,29 @@ def _typed_target(
     return float(item.censoring_limit or 0.0) + perturbation
 
 
+def _typed_huber(value: float) -> float:
+    absolute = abs(value)
+    return 0.5 * value * value if absolute <= _TYPED_HUBER_K else _TYPED_HUBER_K * (
+        absolute - 0.5 * _TYPED_HUBER_K
+    )
+
+
+def _typed_location_objective(
+    value: float,
+    observations: tuple[TypedUncertaintyObservation, ...],
+    targets: tuple[float, ...],
+) -> float:
+    """Evaluate the robust one-dimensional objective used by the IRLS update."""
+
+    objective = _TYPED_RIDGE * value * value
+    for item, target in zip(observations, targets, strict=True):
+        residual = (value - target) / float(item.standard_error or 1.0)
+        if item.state is TypedUncertaintyEvidenceState.LEFT_CENSORED:
+            residual = max(0.0, residual)
+        objective += item.quality_weight * _typed_huber(residual)
+    return float(objective)
+
+
 def _typed_active(
     request: DecomposeTranscriptProteinUncertaintyRequest,
 ) -> tuple[TypedUncertaintyObservation, ...]:
@@ -189,7 +216,7 @@ def _typed_active(
     )
 
 
-def _typed_robust_location(  # noqa: C901 - explicit censor-aware IRLS branches are auditable.
+def _typed_robust_location(  # noqa: C901, PLR0912, PLR0915 - explicit IRLS branches are auditable.
     observations: tuple[TypedUncertaintyObservation, ...],
     perturbations: Mapping[str, float] | None = None,
 ) -> float:
@@ -223,6 +250,7 @@ def _typed_robust_location(  # noqa: C901 - explicit censor-aware IRLS branches 
         value = 0.0
     if limits:
         value = min(value, *limits)
+    objective = _typed_location_objective(value, observations, targets)
     for _ in range(32):
         robust_weights = []
         for item, target, base_weight in zip(observations, targets, weights, strict=True):
@@ -230,7 +258,9 @@ def _typed_robust_location(  # noqa: C901 - explicit censor-aware IRLS branches 
             magnitude = abs(residual)
             influence = 1.0 if magnitude <= _TYPED_HUBER_K else _TYPED_HUBER_K / magnitude
             if item.state is TypedUncertaintyEvidenceState.LEFT_CENSORED:
-                limit = float(item.censoring_limit or 0.0)
+                # The bootstrap perturbation belongs to the detection boundary,
+                # not to a fabricated observed effect.
+                limit = target
                 if value <= limit:
                     influence = 0.0
                 else:
@@ -243,18 +273,38 @@ def _typed_robust_location(  # noqa: C901 - explicit censor-aware IRLS branches 
             weight * target for weight, target in zip(robust_weights, targets, strict=True)
         ) / max(denominator, 1e-12)
         limits = tuple(
-            float(item.censoring_limit)
-            for item in observations
+            target
+            for item, target in zip(observations, targets, strict=True)
             if item.state is TypedUncertaintyEvidenceState.LEFT_CENSORED
-            and item.censoring_limit is not None
         )
         if limits:
             proposal = min(proposal, *limits)
-        next_value = 0.7 * value + 0.3 * proposal
+        candidate = value + _TYPED_DAMPING * (proposal - value)
+        next_objective = _typed_location_objective(candidate, observations, targets)
+        if next_objective > objective + _TYPED_OBJECTIVE_TOLERANCE:
+            # Robust weights can change at censor boundaries. Backtrack the
+            # complete scalar step to keep the fit objective-safe.
+            next_value = value
+            next_objective = objective
+            step = _TYPED_DAMPING
+            delta = proposal - value
+            for _ in range(_TYPED_BACKTRACKING_STEPS):
+                step *= _TYPED_BACKTRACKING_FACTOR
+                trial = value + step * delta
+                if limits:
+                    trial = min(trial, *limits)
+                trial_objective = _typed_location_objective(trial, observations, targets)
+                if trial_objective <= objective + _TYPED_OBJECTIVE_TOLERANCE:
+                    next_value = trial
+                    next_objective = trial_objective
+                    break
+        else:
+            next_value = candidate
         if abs(next_value - value) <= _TYPED_LOCATION_TOLERANCE:
             value = next_value
             break
         value = next_value
+        objective = next_objective
     return float(f"{value:.8f}")
 
 

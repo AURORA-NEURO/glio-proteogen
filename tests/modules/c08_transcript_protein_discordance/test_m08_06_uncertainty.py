@@ -222,6 +222,9 @@ def test_typed_censor_only_location_stays_neutral_without_pseudo_target() -> Non
 
     assert m0806_engine._typed_target(censored) == pytest.approx(0.4)
     assert m0806_engine._typed_robust_location((censored,)) == pytest.approx(0.0)
+    assert m0806_engine._typed_robust_location(
+        (censored,), {censored.observation_id: -1.0}
+    ) == pytest.approx(-0.6)
 
 
 def test_service_verify_replays_and_tamper_fails() -> None:

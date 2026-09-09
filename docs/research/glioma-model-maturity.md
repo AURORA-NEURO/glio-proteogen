@@ -510,9 +510,11 @@ The additive M08-06 runtime now recognizes
 `glioma-uncertainty-decomposition-bootstrap/1.0.0`. Typed observations retain
 modality, glioma program, standard error, quality, and observed,
 left-censored, missing, or unsupported state. A robust Huber location fit is
-stratified by modality and program; digest-seeded bootstrap perturbations then
-decompose measurement, sampling, parameter, model-form, identification,
-support, and transport sensitivity into all seven required dimensions.
+stratified by modality and program with an explicit ridge objective and
+objective-safe backtracking. Digest-seeded bootstrap perturbations move the
+declared censor boundary itself, then decompose measurement, sampling,
+parameter, model-form, identification, support, and transport sensitivity into
+all seven required dimensions.
 
 The sensitivity envelope is explicitly internal bootstrap coverage rather than
 external calibration. The original owner-review abstention path remains
