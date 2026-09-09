@@ -36,6 +36,10 @@ from glio_proteogen.kernel.models import (
 from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
     m15_05_longitudinal_evolution as m1505,
 )
+from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype.m15_05_longitudinal_evolution.engine import (  # noqa: E501
+    _initial_typed_values,
+    _TypedTerm,
+)
 
 _OBSERVATION_COUNT = 2
 _TYPED_OBSERVATION_COUNT = 4
@@ -196,6 +200,51 @@ def test_typed_glioma_temporal_graph_infers_intervals_and_change_points() -> Non
     assert all(0.0 <= state.posterior_probability <= 1.0 for state in result.trajectory)
     assert any(item.status is ChangePointStatus.DETECTED for item in result.change_points)
     assert service.verify(result) == result
+
+
+def test_typed_initialization_keeps_left_censored_limits_feasible() -> None:
+    """Censor limits constrain the start but are never averaged as observations."""
+
+    grouped = {
+        (GliomaEvolutionProgram.RTK_PI3K_AKT_MTOR, 0): [
+            _TypedTerm(
+                sequence=0,
+                observation_id="censored",
+                program=GliomaEvolutionProgram.RTK_PI3K_AKT_MTOR,
+                state=LongitudinalEvidenceState.LEFT_CENSORED,
+                value=-0.3,
+                standard_error=0.2,
+                quality_weight=1.0,
+            )
+        ],
+        (GliomaEvolutionProgram.P53_CELL_CYCLE, 0): [
+            _TypedTerm(
+                sequence=0,
+                observation_id="mixed-observed",
+                program=GliomaEvolutionProgram.P53_CELL_CYCLE,
+                state=LongitudinalEvidenceState.OBSERVED,
+                value=1.2,
+                standard_error=0.2,
+                quality_weight=1.0,
+            ),
+            _TypedTerm(
+                sequence=0,
+                observation_id="mixed-censored",
+                program=GliomaEvolutionProgram.P53_CELL_CYCLE,
+                state=LongitudinalEvidenceState.LEFT_CENSORED,
+                value=0.4,
+                standard_error=0.2,
+                quality_weight=1.0,
+            ),
+        ],
+    }
+
+    values = _initial_typed_values(grouped, (0,))
+    order = list(GliomaEvolutionProgram)
+    left_censor_limit = -0.3
+    mixed_censor_limit = 0.4
+    assert values[order.index(GliomaEvolutionProgram.RTK_PI3K_AKT_MTOR)][0] == left_censor_limit
+    assert values[order.index(GliomaEvolutionProgram.P53_CELL_CYCLE)][0] == mixed_censor_limit
 
 
 def test_typed_missing_evidence_abstains_without_negative_state() -> None:

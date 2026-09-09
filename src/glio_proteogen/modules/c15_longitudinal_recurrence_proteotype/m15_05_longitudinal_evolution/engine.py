@@ -399,21 +399,51 @@ def _typed_objective(
     return objective
 
 
-def _fit_typed(  # noqa: C901, PLR0912 - explicit temporal graph solver is audit-visible.
+def _initial_typed_values(
+    grouped: dict[tuple[GliomaEvolutionProgram, int], list[_TypedTerm]],
+    sequences: tuple[int, ...],
+) -> list[list[float]]:
+    """Build a feasible robust start without treating censor limits as values."""
+
+    sequence_index = {sequence: position for position, sequence in enumerate(sequences)}
+    program_index = {program: position for position, program in enumerate(_PROGRAM_ORDER)}
+    values = [[0.0 for _ in sequences] for _ in _PROGRAM_ORDER]
+    for (program, sequence), items in grouped.items():
+        observed = tuple(
+            item for item in items if item.state is LongitudinalEvidenceState.OBSERVED
+        )
+        limits = tuple(
+            item.value for item in items if item.state is LongitudinalEvidenceState.LEFT_CENSORED
+        )
+        if observed:
+            total = sum(item.quality_weight for item in observed)
+            center = sum(item.quality_weight * item.value for item in observed) / max(
+                _MIN_SCALE, total
+            )
+            # A left-censored term is an upper bound. Starting above its
+            # tightest limit would create an artificial residual on iteration 0.
+            initial = min((center, *limits)) if limits else center
+        elif limits:
+            # Ridge is centered at zero. Keep that neutral start when feasible;
+            # otherwise start on the tightest feasible boundary.
+            initial = min((0.0, *limits))
+        else:
+            continue
+        values[program_index[program]][sequence_index[sequence]] = max(
+            -_MAX_EFFECT, min(_MAX_EFFECT, initial)
+        )
+    return values
+
+
+def _fit_typed(  # noqa: C901 - explicit temporal graph solver is audit-visible.
     terms: tuple[_TypedTerm, ...],
     sequences: tuple[int, ...],
 ) -> _TypedFit:
-    sequence_index = {sequence: position for position, sequence in enumerate(sequences)}
     program_index = {program: position for position, program in enumerate(_PROGRAM_ORDER)}
     grouped: dict[tuple[GliomaEvolutionProgram, int], list[_TypedTerm]] = defaultdict(list)
     for term in terms:
         grouped[(term.program, term.sequence)].append(term)
-    values = [[0.0 for _ in sequences] for _ in _PROGRAM_ORDER]
-    for (program, sequence), items in grouped.items():
-        total = sum(item.quality_weight for item in items)
-        values[program_index[program]][sequence_index[sequence]] = sum(
-            item.quality_weight * item.value for item in items
-        ) / max(_MIN_SCALE, total)
+    values = _initial_typed_values(grouped, sequences)
     previous = _typed_objective(values, terms, sequences)
     trace = [float(f"{previous:.8f}")]
     converged = False

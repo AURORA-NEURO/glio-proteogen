@@ -957,7 +957,10 @@ assay errors, quality weights, and explicit observed, left-censored, missing,
 or unsupported states. A damped Huber coordinate-descent fit combines temporal
 smoothing with directional RTK/PI3K/AKT/mTOR, p53/cell-cycle, IDH/HIF1A,
 mesenchymal, and proliferation coherence without using future observations to
-label an earlier time point.
+label an earlier time point. Initialization is censor-aware: observed centers
+are clamped to tightest left-censor limits, and censor-only cells start at the
+ridge-neutral feasible value rather than treating an upper bound as an exact
+measurement.
 
 Digest-seeded bootstrap perturbations provide replayable intervals and
 posterior support for thresholded trajectory labels. Cross-band transitions
