@@ -454,7 +454,9 @@ assay namespaces are normalized to these gene keys. Standard-error and
 quality-weighted Huber coordinate descent fits observed and left-censored
 evidence with ridge stabilization, edge-consistency penalties, damping, an
 objective trace, and deterministic 64-replicate bootstrap intervals. Censored
-bootstrap draws perturb the one-sided detection boundary itself, preserving
+program starts use observed effects only and project onto the tightest
+detection bound; censor-only programs start neutral on the feasible side.
+Bootstrap draws perturb the one-sided detection boundary itself, preserving
 measurement uncertainty instead of only shifting an unused surrogate target.
 Directly connected unobserved programs are propagated only through the signed
 graph and retain zero measurement support.

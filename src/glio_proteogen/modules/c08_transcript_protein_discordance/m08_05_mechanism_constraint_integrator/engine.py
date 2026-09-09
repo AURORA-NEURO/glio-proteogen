@@ -457,6 +457,25 @@ def _glioma_rows(
     return tuple(rows)
 
 
+def _initial_glioma_program_value(
+    members: tuple[tuple[str, float, float, float, float | None], ...],
+) -> float:
+    """Choose a feasible program start from observed rows and censor bounds."""
+
+    observed = tuple(item for item in members if item[4] is None)
+    limits = tuple(float(item[4]) for item in members if item[4] is not None)
+    if observed:
+        weights = tuple(item[3] / max(item[2] ** 2, 1e-12) for item in observed)
+        center = sum(weight * item[1] for weight, item in zip(weights, observed, strict=True))
+        center /= max(sum(weights), 1e-12)
+        value = min(center, *limits) if limits else center
+    elif limits:
+        value = min(0.0, *limits)
+    else:
+        value = 0.0
+    return float(np.clip(value, -_GLIOMA_MAX_ABUNDANCE, _GLIOMA_MAX_ABUNDANCE))
+
+
 def _glioma_objective(
     programs: tuple[str, ...],
     values: np.ndarray,
@@ -497,10 +516,7 @@ def _fit_glioma_programs(  # noqa: C901, PLR0912, PLR0915
     values = np.zeros(len(programs), dtype=float)
     for program, position in index.items():
         members = tuple(row for row in rows if row[0] == program)
-        weights = tuple(row[3] / max(row[2] ** 2, 1e-12) for row in members)
-        values[position] = sum(
-            weight * row[1] for weight, row in zip(weights, members, strict=True)
-        ) / max(sum(weights), 1e-12)
+        values[position] = _initial_glioma_program_value(members)
     values = np.clip(values, -_GLIOMA_MAX_ABUNDANCE, _GLIOMA_MAX_ABUNDANCE)
     trace: list[float] = [_glioma_objective(programs, values, rows)]
     converged = False

@@ -318,6 +318,40 @@ def test_typed_censored_bootstrap_perturbs_the_one_sided_boundary() -> None:
     assert perturbed[0][1] == _BOOTSTRAP_SHIFTED_SURROGATE
 
 
+def test_typed_program_initialization_uses_observed_center_and_censor_bounds() -> None:
+    observations = (
+        ConstraintEvidenceObservation(
+            feature_id="EGFR",
+            value=1.2,
+            standard_error=0.2,
+            quality_weight=0.9,
+        ),
+        ConstraintEvidenceObservation(
+            feature_id="ERBB2",
+            state=ConstraintObservationState.LEFT_CENSORED,
+            standard_error=0.2,
+            censoring_limit=-0.2,
+            quality_weight=0.8,
+        ),
+    )
+    rows = engine_module._glioma_rows(observations)
+
+    assert engine_module._initial_glioma_program_value(rows) == pytest.approx(-0.2)
+
+
+def test_typed_censor_only_program_initialization_is_neutral_for_positive_limit() -> None:
+    observation = ConstraintEvidenceObservation(
+        feature_id="EGFR",
+        state=ConstraintObservationState.LEFT_CENSORED,
+        standard_error=0.2,
+        censoring_limit=0.3,
+        quality_weight=0.9,
+    )
+    rows = engine_module._glioma_rows((observation,))
+
+    assert engine_module._initial_glioma_program_value(rows) == pytest.approx(0.0)
+
+
 def test_soft_numeric_glioma_constraint_damps_measured_value() -> None:
     request = _request("conservation_hold")
     constraint = request.policy.constraints[0].model_copy(
