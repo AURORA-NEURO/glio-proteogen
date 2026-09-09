@@ -244,6 +244,30 @@ def test_typed_initializer_keeps_censor_only_fit_at_neutral_when_feasible() -> N
     assert initial == pytest.approx(min(0.0, target))
 
 
+def test_typed_censor_bound_does_not_create_amplification_or_residual_signal() -> None:
+    feasible = _typed_observations()[2].model_copy(update={"censoring_limit": 0.45})
+    fit = m0702_engine._fit_typed_feature((feasible,), max_iterations=32)
+    channels, _stability, _discordance, _drivers = m0702_engine._typed_channels(
+        (feasible,), fit, ()
+    )
+
+    assert fit.value == pytest.approx(0.0)
+    assert fit.residuals == (0.0,)
+    assert channels[1] == pytest.approx(0.0)
+    assert channels[2] == pytest.approx(0.0)
+    assert channels[3] == pytest.approx(0.0)
+
+
+def test_typed_censor_bound_below_deletion_threshold_is_directional_evidence() -> None:
+    censored = _typed_observations()[2]
+    fit = m0702_engine._fit_typed_feature((censored,), max_iterations=32)
+    channels, _stability, _discordance, _drivers = m0702_engine._typed_channels(
+        (censored,), fit, ()
+    )
+
+    assert channels[3] > 0.0
+
+
 def test_typed_observation_order_and_purity_change_are_semantic() -> None:
     observations = _typed_observations()
     request = _request().model_copy(

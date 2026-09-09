@@ -444,7 +444,9 @@ def _fit_typed_feature(
         if gap <= _TYPED_TOLERANCE:
             break
     residuals = tuple(
-        (value - target) / (item.standard_error or 1.0)
+        max(0.0, (value - target) / (item.standard_error or 1.0))
+        if _typed_censored(item)
+        else (value - target) / (item.standard_error or 1.0)
         for item, target in zip(active, effective_targets, strict=True)
     )
     return _TypedFeatureFit(
@@ -479,8 +481,18 @@ def _typed_channels(
         ) / weight_total
 
     targets = tuple(_typed_target(item) for item in active)
-    amplified = weighted(tuple(float(value > _TYPED_DIRECTION_THRESHOLD) for value in targets))
-    deleted = weighted(tuple(float(value < -_TYPED_DIRECTION_THRESHOLD) for value in targets))
+    # A left-censored log-ratio is an upper bound. It cannot prove an
+    # amplification, while a bound below the deletion threshold does prove
+    # deletion for every compatible latent value.
+    amplified = weighted(
+        tuple(
+            float(not _typed_censored(item) and value > _TYPED_DIRECTION_THRESHOLD)
+            for item, value in zip(active, targets, strict=True)
+        )
+    )
+    deleted = weighted(
+        tuple(float(value < -_TYPED_DIRECTION_THRESHOLD) for value in targets)
+    )
     imbalance_values = tuple(
         abs((item.minor_copy_number or 1.0) - 1.0)
         for item in active
