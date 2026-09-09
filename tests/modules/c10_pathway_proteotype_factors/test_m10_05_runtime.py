@@ -187,6 +187,24 @@ def test_typed_normalization_ignores_left_censor_limits() -> None:
     assert engine_module._typed_location_scale(observations) == (1.0, 1.0)
 
 
+def test_typed_inhibitory_censor_reverses_program_bound() -> None:
+    inhibitory = engine_module._TypedObservation(
+        feature_id="feature.pten",
+        program=GliomaConstraintProgram.RTK_PI3K_AKT_MTOR,
+        direction=-1,
+        state=FeatureObservationState.LEFT_CENSORED,
+        value=-0.5,
+        standard_error=0.1,
+        quality_weight=1.0,
+        evidence=(),
+    )
+    target = engine_module._typed_target(inhibitory, 0.0, 1.0)
+    assert target == pytest.approx(0.5)
+    assert engine_module._typed_residual(inhibitory, 0.0, target) == pytest.approx(0.5)
+    assert engine_module._typed_gradient_residual(inhibitory, 0.0, target) == pytest.approx(-0.5)
+    assert engine_module._typed_residual(inhibitory, 1.0, target) == pytest.approx(0.0)
+
+
 def test_typed_missing_evidence_abstains_without_negative_state() -> None:
     request = build_request().model_copy(
         update={

@@ -20,6 +20,11 @@ when its bound proves an upper constraint; missing or unsupported evidence remai
 abstain. Strict `>`/`<` comparisons reject equality; a censored bound proves a
 strict upper constraint only when it is strictly below the threshold.
 
+In the typed glioma program fit, inhibitory observations (`direction=-1`)
+reverse the one-sided censor inequality and are initialized inside the
+resulting feasible interval. Censor limits therefore constrain the signed
+program coordinate without being treated as exact measurements.
+
 Hard constraints cannot carry weights and a hard violation always produces a
 review-required abstention. Soft constraints require an explicit weight and
 always emit an ablation record; measured soft conflicts retain a quality-weighted

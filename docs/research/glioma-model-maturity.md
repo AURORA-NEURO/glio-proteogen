@@ -735,6 +735,11 @@ result carries solver iterations/objective,
 digest-seeded bootstrap intervals, top drivers, and signed-edge ablation effects
 for every supported program.
 
+Inhibitory (`direction=-1`) observations reverse the censor inequality in the
+signed program coordinate. Starts are projected into the combined lower/upper
+feasible interval, so a left-censored PTEN/NF1-like marker cannot be interpreted
+as an exact repressive measurement.
+
 The original closed true/false and numeric constraint evaluator, hard/soft
 semantics, and replay envelope remain compatible. Strict `>`/`<` comparisons
 now reject equality, and a left-censored limit must be strictly inside a `<`

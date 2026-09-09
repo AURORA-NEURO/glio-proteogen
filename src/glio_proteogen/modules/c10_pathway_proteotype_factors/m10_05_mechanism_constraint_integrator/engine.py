@@ -328,6 +328,72 @@ def _typed_observations(
     return tuple(result)
 
 
+def _typed_target(item: _TypedObservation, center: float, scale: float) -> float:
+    """Map an evidence value into the signed program coordinate."""
+
+    return item.direction * max(
+        -_PROGRAM_SCORE_LIMIT,
+        min(_PROGRAM_SCORE_LIMIT, (item.value - center) / scale),
+    )
+
+
+def _typed_residual(item: _TypedObservation, current: float, target: float) -> float:
+    """Return a one-sided residual, reversing the bound for inhibitory markers."""
+
+    if item.state is not FeatureObservationState.LEFT_CENSORED:
+        return current - target
+    violation = current - target if item.direction == 1 else target - current
+    return max(0.0, violation)
+
+
+def _typed_gradient_residual(item: _TypedObservation, current: float, target: float) -> float:
+    """Return the signed derivative residual for a one-sided term."""
+
+    if item.state is not FeatureObservationState.LEFT_CENSORED:
+        return current - target
+    violation = _typed_residual(item, current, target)
+    return violation if item.direction == 1 else -violation
+
+
+def _initial_program_values(
+    observations: tuple[_TypedObservation, ...], center: float, scale: float
+) -> list[float]:
+    """Initialize program coordinates from observed effects and feasible bounds."""
+
+    index = {program: position for position, program in enumerate(_PROGRAM_ORDER)}
+    grouped: dict[GliomaConstraintProgram, list[_TypedObservation]] = defaultdict(list)
+    for item in observations:
+        grouped[item.program].append(item)
+    values = [0.0] * len(_PROGRAM_ORDER)
+    for program, items in grouped.items():
+        observed = tuple(item for item in items if item.state is FeatureObservationState.OBSERVED)
+        weighted = tuple(
+            (
+                _typed_target(item, center, scale),
+                item.quality_weight / max(_MINIMUM_SCALE, item.standard_error**2),
+            )
+            for item in observed
+        )
+        total = sum(weight for _, weight in weighted)
+        value = sum(target * weight for target, weight in weighted) / total if total else 0.0
+        lower = tuple(
+            _typed_target(item, center, scale)
+            for item in items
+            if item.state is FeatureObservationState.LEFT_CENSORED and item.direction == -1
+        )
+        upper = tuple(
+            _typed_target(item, center, scale)
+            for item in items
+            if item.state is FeatureObservationState.LEFT_CENSORED and item.direction == 1
+        )
+        if lower:
+            value = max(value, *lower)
+        if upper:
+            value = min(value, *upper)
+        values[index[program]] = max(-_PROGRAM_SCORE_LIMIT, min(_PROGRAM_SCORE_LIMIT, value))
+    return values
+
+
 def _program_objective(
     values: list[float],
     observations: tuple[_TypedObservation, ...],
@@ -339,13 +405,8 @@ def _program_objective(
     index = {program: position for position, program in enumerate(_PROGRAM_ORDER)}
     objective = _PROGRAM_RIDGE * sum(value * value for value in values)
     for item in observations:
-        target = item.direction * max(
-            -_PROGRAM_SCORE_LIMIT,
-            min(_PROGRAM_SCORE_LIMIT, (item.value - center) / scale),
-        )
-        residual = values[index[item.program]] - target
-        if item.state is FeatureObservationState.LEFT_CENSORED:
-            residual = max(0.0, residual)
+        target = _typed_target(item, center, scale)
+        residual = _typed_residual(item, values[index[item.program]], target)
         scaled = residual / max(_MINIMUM_SCALE, item.standard_error / scale)
         absolute = abs(scaled)
         loss = (
@@ -375,19 +436,7 @@ def _fit_programs(  # noqa: C901 - signed program coordinate updates are intenti
     grouped: dict[GliomaConstraintProgram, list[_TypedObservation]] = defaultdict(list)
     for item in observations:
         grouped[item.program].append(item)
-    values = [0.0] * len(_PROGRAM_ORDER)
-    for program, items in grouped.items():
-        if items:
-            weights = tuple(item.quality_weight for item in items)
-            values[index[program]] = sum(
-                weight
-                * item.direction
-                * max(
-                    -_PROGRAM_SCORE_LIMIT,
-                    min(_PROGRAM_SCORE_LIMIT, (item.value - center) / scale),
-                )
-                for weight, item in zip(weights, items, strict=True)
-            ) / max(_MINIMUM_SCALE, sum(weights))
+    values = _initial_program_values(observations, center, scale)
     objective = _program_objective(values, observations, center, scale, include_edges=include_edges)
     for iteration in range(1, _PROGRAM_ITERATIONS + 1):
         old = values.copy()
@@ -396,15 +445,16 @@ def _fit_programs(  # noqa: C901 - signed program coordinate updates are intenti
             gradient = 2.0 * _PROGRAM_RIDGE * current
             hessian = 2.0 * _PROGRAM_RIDGE
             for item in grouped[program]:
-                target_value = item.direction * max(
-                    -_PROGRAM_SCORE_LIMIT,
-                    min(_PROGRAM_SCORE_LIMIT, (item.value - center) / scale),
-                )
-                residual = (current - target_value) / max(
+                target_value = _typed_target(item, center, scale)
+                residual_value = _typed_residual(item, current, target_value)
+                if (
+                    item.state is FeatureObservationState.LEFT_CENSORED
+                    and residual_value <= 0.0
+                ):
+                    continue
+                residual = residual_value / max(
                     _MINIMUM_SCALE, item.standard_error / scale
                 )
-                if item.state is FeatureObservationState.LEFT_CENSORED and current <= target_value:
-                    continue
                 absolute = abs(residual)
                 huber = 1.0 if absolute <= _PROGRAM_HUBER_DELTA else _PROGRAM_HUBER_DELTA / absolute
                 information = (
@@ -412,7 +462,7 @@ def _fit_programs(  # noqa: C901 - signed program coordinate updates are intenti
                     * huber
                     / max(_MINIMUM_SCALE, (item.standard_error / scale) ** 2)
                 )
-                gradient += information * (current - target_value)
+                gradient += information * _typed_gradient_residual(item, current, target_value)
                 hessian += information
             if include_edges:
                 for edge_source, edge_target, sign in _PROGRAM_EDGES:
