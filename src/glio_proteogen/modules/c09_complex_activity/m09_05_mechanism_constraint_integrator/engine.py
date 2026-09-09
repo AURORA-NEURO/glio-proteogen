@@ -325,10 +325,12 @@ def _measurement_value(observation: ConstraintEvidenceObservation) -> tuple[floa
     standard_error = cast("float", observation.standard_error)
     if observation.state is ConstraintObservationState.OBSERVED:
         return cast("float", observation.value), standard_error
-    return cast("float", observation.censoring_limit) - 0.5 * standard_error, standard_error
+    # Preserve the exact upper bound; a censored member is not a measured
+    # location and only contributes when the latent value exceeds this limit.
+    return cast("float", observation.censoring_limit), standard_error
 
 
-def _fit_observations(  # noqa: C901
+def _fit_observations(  # noqa: C901, PLR0912, PLR0915
     request: IntegrateComplexActivityConstraintsRequest,
 ) -> dict[str, tuple[float, float, float, float]]:
     """Fit complex-member measurements with robust IRLS and soft bounds."""
@@ -354,9 +356,27 @@ def _fit_observations(  # noqa: C901
             item.quality_weight / max(error**2, 1e-12)
             for item, error in zip(items, errors, strict=True)
         )
-        estimate = fsum(
-            weight * value for weight, value in zip(weights, values, strict=True)
-        ) / fsum(weights)
+        observed = tuple(
+            (weight, value)
+            for item, weight, value in zip(items, weights, values, strict=True)
+            if item.state is ConstraintObservationState.OBSERVED
+        )
+        limits = tuple(
+            float(item.censoring_limit)
+            for item in items
+            if item.state is ConstraintObservationState.LEFT_CENSORED
+            and item.censoring_limit is not None
+        )
+        if observed:
+            estimate = fsum(weight * value for weight, value in observed) / max(
+                fsum(weight for weight, _ in observed), 1e-12
+            )
+        elif limits:
+            estimate = min(0.0, *limits)
+        else:
+            continue
+        if limits:
+            estimate = min(estimate, *limits)
         related = tuple(
             parsed
             for constraint in request.policy.constraints
@@ -365,26 +385,36 @@ def _fit_observations(  # noqa: C901
             and constraint.severity is ConstraintSeverity.SOFT
         )
         for _ in range(12):
-            robust = []
-            for weight, value, error in zip(weights, values, errors, strict=True):
-                residual = abs(estimate - value)
+            robust: list[float] = []
+            targets: list[float] = []
+            for item, weight, value, error in zip(items, weights, values, errors, strict=True):
+                if item.state is ConstraintObservationState.LEFT_CENSORED:
+                    limit = cast("float", item.censoring_limit)
+                    violation = estimate - limit
+                    if violation <= 0.0:
+                        continue
+                    residual = violation
+                    target = limit
+                else:
+                    residual = estimate - value
+                    target = value
                 cutoff = 1.5 * error
-                robust.append(weight if residual <= cutoff else weight * cutoff / residual)
+                robust.append(
+                    weight if abs(residual) <= cutoff else weight * cutoff / abs(residual)
+                )
+                targets.append(target)
             data_weight = fsum(robust)
-            proposal = fsum(
-                weight * value for weight, value in zip(robust, values, strict=True)
-            ) / max(data_weight, 1e-12)
+            proposal = (
+                fsum(weight * value for weight, value in zip(robust, targets, strict=True))
+                / max(data_weight, 1e-12)
+                if targets
+                else estimate
+            )
             for _, operator, target in related:
                 tolerance = request.policy.conflict_tolerance
                 if _constraint_is_violated(proposal, operator, target, tolerance):
                     penalty = 1.0 / max(tolerance, 1e-3) ** 2
                     proposal = (data_weight * proposal + penalty * target) / (data_weight + penalty)
-            limits = tuple(
-                item.censoring_limit
-                for item in items
-                if item.state is ConstraintObservationState.LEFT_CENSORED
-                and item.censoring_limit is not None
-            )
             if limits:
                 proposal = min(proposal, *limits)
             next_estimate = 0.5 * estimate + 0.5 * proposal
@@ -395,14 +425,9 @@ def _fit_observations(  # noqa: C901
         posterior_error = sqrt(1.0 / max(fsum(weights), 1e-12))
         lower = estimate - 1.645 * posterior_error
         upper = estimate + 1.645 * posterior_error
-        limits = tuple(
-            item.censoring_limit
-            for item in items
-            if item.state is ConstraintObservationState.LEFT_CENSORED
-            and item.censoring_limit is not None
-        )
         if limits:
-            upper = min(upper, *limits)
+            # Expose the declared detection boundary as the interval ceiling.
+            upper = min(limits)
         estimate = min(max(estimate, lower), upper)
         fitted[feature_id] = (
             round(estimate, 8),

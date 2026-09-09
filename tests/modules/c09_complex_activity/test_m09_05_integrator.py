@@ -168,6 +168,27 @@ def test_measured_complex_members_drive_intervals_and_censoring() -> None:
     assert result.uncertainty.measurement.state is EstimateState.ESTIMATED
 
 
+def test_legacy_censor_only_complex_member_stays_neutral_for_positive_limit() -> None:
+    request = _request("conservation_hold").model_copy(
+        update={
+            "observations": (
+                ConstraintEvidenceObservation(
+                    feature_id="feature.2",
+                    state=ConstraintObservationState.LEFT_CENSORED,
+                    standard_error=0.1,
+                    censoring_limit=0.4,
+                    quality_weight=0.8,
+                ),
+            )
+        }
+    )
+
+    fitted = engine_module._fit_observations(request)
+
+    assert fitted["feature.2"][0] == pytest.approx(0.0)
+    assert fitted["feature.2"][2] == pytest.approx(0.4)
+
+
 def test_soft_numeric_complex_constraint_reports_ablation() -> None:
     request = _request("conservation_hold")
     constraint = request.policy.constraints[0].model_copy(
