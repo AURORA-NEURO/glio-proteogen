@@ -470,6 +470,10 @@ def _typed_bundle(
     fit = _fit_typed(terms, relations)
     if not fit.converged:
         return None
+    measurement_only_fit = _fit_typed(terms, ())
+    topology_only_fit = _fit_typed((), relations)
+    if not measurement_only_fit.converged or not topology_only_fit.converged:
+        return None
     draws: list[tuple[float, ...]] = []
     for replicate in range(request.configuration.bootstrap_replicates):
         perturbed = tuple(
@@ -547,8 +551,14 @@ def _typed_bundle(
                 discordance=float(f"{discordance:.8f}"),
                 top_drivers=tuple(related[:3]) or (program.value,),
                 ablation_effects=(
-                    "Measurement-only ablation is represented by the direct evidence residual.",
-                    "Topology ablation is represented by the signed relation neighborhood.",
+                    (
+                        "measurement_ablation_delta="
+                        f"{topology_only_fit.values[position] - fit.values[position]:.8f}"
+                    ),
+                    (
+                        "topology_ablation_delta="
+                        f"{measurement_only_fit.values[position] - fit.values[position]:.8f}"
+                    ),
                 ),
             )
         )

@@ -239,6 +239,21 @@ def test_typed_glioma_mechanism_graph_is_robust_and_replayable() -> None:
     assert engine.verify(result) == result
 
 
+def test_typed_ablation_effects_are_numeric_leave_one_family_out_deltas() -> None:
+    result = M1504MechanismInference().infer(_typed_request())
+
+    assert result.typed_model
+    for estimate in result.estimates:
+        assert estimate.ablation_effects[0].startswith("measurement_ablation_delta=")
+        assert estimate.ablation_effects[1].startswith("topology_ablation_delta=")
+        for effect in estimate.ablation_effects:
+            value = float(effect.split("=", 1)[1])
+            assert value == pytest.approx(value)
+        assert all(
+            "represented by" not in effect.casefold() for effect in estimate.ablation_effects
+        )
+
+
 def test_typed_request_is_input_order_invariant_and_missing_is_not_negative() -> None:
     request = _typed_request()
     reordered = request.model_copy(

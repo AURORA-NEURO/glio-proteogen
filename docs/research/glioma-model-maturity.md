@@ -933,12 +933,13 @@ bootstrap intervals. Relation coherence propagates activity to connected
 programs instead of returning a fixed posterior.
 
 Each estimate retains direct evidence counts, stability, discordance, relation
-drivers, and measurement/topology ablation explanations. Missing and
-unsupported observations are excluded and insufficient graph support abstains
-for human review. The legacy posterior/state grammar remains unchanged for
-compatibility; typed mechanism activity is research-use-only and is not a
-clinical probability, causal claim, prognosis, kinase-ownership decision, or
-treatment recommendation.
+drivers, and numerical measurement/topology ablation deltas. Those deltas are
+leave-one-family-out refits from the same solver (measurement-only and
+topology-only), not prose proxies. Missing and unsupported observations are
+excluded and insufficient graph support abstains for human review. The legacy
+posterior/state grammar remains unchanged for compatibility; typed mechanism
+activity is research-use-only and is not a clinical probability, causal claim,
+prognosis, kinase-ownership decision, or treatment recommendation.
 
 ## Completed M15-05 typed glioma temporal graph lane
 

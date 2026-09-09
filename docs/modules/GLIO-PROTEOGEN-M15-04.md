@@ -27,9 +27,12 @@ runtime checks controls before strict parsing or hashing, rejects malformed or
 hostile opaque inputs, and deterministically emits either a posterior with
 ordered probability bounds or a state estimate with no posterior fields.
 Supported estimates always include assumptions, alternatives, counter-evidence,
-evidence, and a provisional-ABI finding. Unsupported, prohibited, negative
-control, OOD, unknown, or uncalibrated declarations produce no estimate, require
-review, and remain explicitly abstained.
+evidence, numerical measurement/topology ablation deltas, and a provisional-ABI
+finding. The ablations are deterministic leave-one-family-out refits: removing
+observations isolates the topology contribution, while removing signed
+relations isolates the measurement contribution. Unsupported, prohibited,
+negative control, OOD, unknown, or uncalibrated declarations produce no
+estimate, require review, and remain explicitly abstained.
 
 Request and result digests bind canonical content; result IDs derive from the
 request digest. Replay re-executes the request and rejects result tampering or
