@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+from itertools import pairwise
 from pathlib import Path
 from typing import cast
 
@@ -241,6 +242,44 @@ def test_typed_glioma_feature_network_derives_uncertainty_aware_program_features
     assert all(item.lower_bound is not None and item.upper_bound is not None for item in derived)
     assert all(item.top_drivers and item.ablation_effects for item in derived)
     assert engine.verify(result) == result
+
+
+def test_typed_feature_solver_backtracks_objective_increase(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    terms = (
+        engine_module._TypedTerm(
+            feature_id="feature.rtk",
+            program=GliomaFeatureProgram.RTK_PI3K_AKT_MTOR,
+            state=MechanisticEvidenceState.OBSERVED,
+            effect=1.1,
+            standard_error=0.2,
+            quality_weight=0.95,
+        ),
+        engine_module._TypedTerm(
+            feature_id="feature.p53",
+            program=GliomaFeatureProgram.P53_CELL_CYCLE,
+            state=MechanisticEvidenceState.OBSERVED,
+            effect=-0.7,
+            standard_error=0.25,
+            quality_weight=0.9,
+        ),
+    )
+    original = engine_module._typed_objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == 2 else value
+
+    monkeypatch.setattr(engine_module, "_typed_objective", objective)
+    fit = engine_module._fit_typed(terms)
+    assert fit.converged
+    assert calls > 2
+    assert all(
+        after <= before + engine_module._OBJECTIVE_TOLERANCE
+        for before, after in pairwise(fit.objective_trace)
+    )
 
 
 def test_typed_initialization_keeps_left_censored_limits_feasible() -> None:

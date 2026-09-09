@@ -1052,10 +1052,11 @@ prognosis, kinase ownership, or treatment effect.
 ## Completed M15-03 typed glioma feature lane
 
 The additive M15-03 runtime now turns typed pathway/topology feature evidence
-into derived complex-activity program features using robust Huber coordinate
-descent over signed glioma network edges. It preserves the caller features and
-adds request-digest-seeded bootstrap bounds, stability, discordance, evidence
-counts, top drivers, and topology/measurement ablation explanations for each
+into derived complex-activity program features using robust Huber frozen-parent
+damped Jacobi updates over signed glioma network edges. Objective-safe
+backtracking preserves a monotone replay-auditable trace. It preserves the
+caller features and adds request-digest-seeded bootstrap bounds, stability,
+discordance, evidence counts, top drivers, and topology/measurement ablation explanations for each
 program. Missing and unsupported typed features are excluded; an all-unsupported
 request abstains with review required.
 
