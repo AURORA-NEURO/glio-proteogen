@@ -1034,9 +1034,10 @@ treatment effects, prognosis, or clinical state.
 
 The additive M14-04 runtime now consumes explicit protein/PTM mechanism
 observations instead of relying on caller-declared posterior strings. A robust
-Huber coordinate-descent solver fits signed RTK/PI3K/AKT/mTOR, p53/cell-cycle,
-IDH/HIF1A, mesenchymal, and proliferation coupling, then maps latent states to
-bounded posterior-like research scores. Deterministic request-digest bootstrap
+Huber frozen-parent damped Jacobi solver fits signed RTK/PI3K/AKT/mTOR,
+p53/cell-cycle, IDH/HIF1A, mesenchymal, and proliferation coupling; deterministic
+objective-safe backtracking preserves a monotone trace before mapping latent
+states to bounded posterior-like research scores. Deterministic request-digest bootstrap
 draws provide intervals, stability, discordance, evidence counts, top drivers,
 and numerical measurement/topology leave-one-family-out ablation effects;
 missing and unsupported observations are excluded rather than treated as
