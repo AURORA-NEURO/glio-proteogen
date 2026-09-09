@@ -1117,8 +1117,9 @@ the glioma program graph rather than returning a fixed absolute-difference proxy
 Observed and left-censored effects are weighted by standard error and quality,
 robustified with Huber loss, stabilized with ridge regularization, and coupled by
 signed RTK/PI3K/AKT/mTOR, p53/cell-cycle, IDH/HIF1A, mesenchymal, and proliferation
-edges using deterministic damped coordinate descent. Solver convergence and the
-objective trace are included in the surface metadata for replay auditability.
+edges using frozen-parent deterministic damped Jacobi updates. Objective-safe
+backtracking preserves a monotone trace; solver convergence and that trace are
+included in the surface metadata for replay auditability.
 
 Request-digest-seeded bootstrap perturbations produce bounded intervals, stability,
 discordance, top program drivers, and numerical measurement/topology
