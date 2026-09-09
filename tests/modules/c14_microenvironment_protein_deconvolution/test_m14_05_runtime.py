@@ -35,6 +35,10 @@ from glio_proteogen.kernel.models import (
 from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
     m14_05_protein_subtype_evolution as m1405,
 )
+from glio_proteogen.modules.c14_microenvironment_protein_deconvolution.m14_05_protein_subtype_evolution.engine import (  # noqa: E501
+    _initial_temporal_values,
+    _TypedTerm,
+)
 
 _FOLLOW_UP_SEQUENCE = 2
 _LEFT_CENSORED_BOUND = 0.6
@@ -193,6 +197,44 @@ def test_typed_glioma_temporal_fit_emits_intervals_change_points_and_trace() -> 
     assert result.uncertainty.measurement.state.value == "estimated"
     assert any(item.code == "typed_glioma_temporal_fit" for item in result.limitations)
     assert service.verify(result) == result
+
+
+def test_typed_initialization_keeps_left_censored_limits_feasible() -> None:
+    """Temporal starts use observed centers and feasible censor bounds."""
+
+    grouped = {
+        0: [
+            _TypedTerm(
+                sequence=0,
+                program=GliomaTrajectoryProgram.RTK_PI3K_AKT_MTOR,
+                state=LongitudinalEvidenceState.LEFT_CENSORED,
+                value=-0.3,
+                standard_error=0.2,
+                quality_weight=1.0,
+            )
+        ],
+        1: [
+            _TypedTerm(
+                sequence=1,
+                program=GliomaTrajectoryProgram.RTK_PI3K_AKT_MTOR,
+                state=LongitudinalEvidenceState.OBSERVED,
+                value=1.2,
+                standard_error=0.2,
+                quality_weight=1.0,
+            ),
+            _TypedTerm(
+                sequence=1,
+                program=GliomaTrajectoryProgram.RTK_PI3K_AKT_MTOR,
+                state=LongitudinalEvidenceState.LEFT_CENSORED,
+                value=0.4,
+                standard_error=0.2,
+                quality_weight=1.0,
+            ),
+        ],
+    }
+
+    values = _initial_temporal_values(grouped, 2)
+    assert values == [-0.3, 0.4]
 
 
 def test_typed_temporal_missing_and_unsupported_evidence_abstain_safely() -> None:

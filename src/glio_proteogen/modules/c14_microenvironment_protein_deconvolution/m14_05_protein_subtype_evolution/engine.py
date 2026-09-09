@@ -478,20 +478,34 @@ def _temporal_objective(
     return objective
 
 
-def _fit_temporal(  # noqa: C901, PLR0912, PLR0915 - explicit solver for auditability.
-    terms: tuple[_TypedTerm, ...],
-    sequences: tuple[int, ...],
-) -> _TemporalFit:
-    index_by_sequence = {sequence: index for index, sequence in enumerate(sequences)}
-    grouped: dict[int, list[_TypedTerm]] = defaultdict(list)
-    for item in terms:
-        grouped[index_by_sequence[item.sequence]].append(item)
-    values = [0.0] * len(sequences)
+def _initial_temporal_values(
+    grouped: dict[int, list[_TypedTerm]],
+    sequence_count: int,
+) -> list[float]:
+    """Seed a feasible temporal path without treating censor limits as values."""
+
+    values = [0.0] * sequence_count
     known: set[int] = set()
     for index, group in grouped.items():
-        values[index] = _median(tuple(item.value for item in group))
+        observed = tuple(
+            item for item in group if item.state is LongitudinalEvidenceState.OBSERVED
+        )
+        limits = tuple(
+            item.value for item in group if item.state is LongitudinalEvidenceState.LEFT_CENSORED
+        )
+        if observed:
+            total = sum(item.quality_weight for item in observed)
+            center = sum(item.quality_weight * item.value for item in observed) / max(
+                _MIN_SCALE, total
+            )
+            initial = min((center, *limits)) if limits else center
+        elif limits:
+            initial = min((0.0, *limits))
+        else:
+            continue
+        values[index] = max(-_MAX_EFFECT, min(_MAX_EFFECT, initial))
         known.add(index)
-    for index in range(len(values)):
+    for index in range(sequence_count):
         if index in known:
             continue
         before = max((candidate for candidate in known if candidate < index), default=None)
@@ -503,6 +517,18 @@ def _fit_temporal(  # noqa: C901, PLR0912, PLR0915 - explicit solver for auditab
             values[index] = values[before]
         elif after is not None:
             values[index] = values[after]
+    return values
+
+
+def _fit_temporal(
+    terms: tuple[_TypedTerm, ...],
+    sequences: tuple[int, ...],
+) -> _TemporalFit:
+    index_by_sequence = {sequence: index for index, sequence in enumerate(sequences)}
+    grouped: dict[int, list[_TypedTerm]] = defaultdict(list)
+    for item in terms:
+        grouped[index_by_sequence[item.sequence]].append(item)
+    values = _initial_temporal_values(grouped, len(sequences))
     previous = _temporal_objective(values, terms, index_by_sequence)
     trace = [_quantize(previous)]
     converged = False

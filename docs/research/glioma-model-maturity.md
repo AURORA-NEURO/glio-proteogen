@@ -881,6 +881,17 @@ finding. These program effects are research-use-only sensitivity signals, not
 causal intervention estimates, kinase ownership, treatment recommendations, or
 clinical evidence.
 
+## Completed M14-05 typed glioma temporal lane
+
+The additive M14-05 runtime now fits typed microenvironment temporal program
+effects with standard-error and quality weighting, Huber robustness, temporal
+smoothing, curvature control, and one-sided left-censoring. Initialization uses
+quality-weighted observed centers while clamping to tightest censor limits;
+censor-only cells start at the ridge-neutral feasible value instead of treating
+an upper bound as an exact measurement. Deterministic perturbations produce
+replayable intervals and change-point evidence. The legacy metadata-replay path
+remains compatible, and typed trajectories are research-use-only signals.
+
 ## Completed M14-06 typed glioma perturbation lane
 
 The additive M14-06 runtime now includes a typed perturbation model over the
