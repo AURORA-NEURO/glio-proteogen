@@ -1070,8 +1070,9 @@ The additive M15-04 runtime now supports an opt-in
 represent signed RTK/PI3K/AKT/mTOR, p53/cell-cycle, IDH/HIF1A, mesenchymal, and
 proliferation program effects with standard errors, quality weights, and
 explicit observed, left-censored, missing, or unsupported states. A bounded
-signed relation graph is fitted with Huber-robust coordinate descent, ridge
-stabilization, convergence diagnostics, and deterministic digest-seeded
+signed relation graph is fitted with Huber-robust frozen-parent damped Jacobi
+updates, ridge stabilization, and deterministic objective-safe backtracking;
+the monotone trace is retained with convergence diagnostics and digest-seeded
 bootstrap intervals. Relation coherence propagates activity to connected
 programs instead of returning a fixed posterior.
 

@@ -79,6 +79,9 @@ _RIDGE: Final = 0.03
 _RELATION_SCALE: Final = 0.55
 _SOLVER_ITERATIONS: Final = 160
 _SOLVER_TOLERANCE: Final = 1e-4
+_OBJECTIVE_TOLERANCE: Final = 1e-10
+_BACKTRACKING_STEPS: Final = 18
+_BACKTRACKING_FACTOR: Final = 0.5
 _MIN_SCALE: Final = 1e-6
 _BOOTSTRAP_LOW: Final = 0.05
 _BOOTSTRAP_HIGH: Final = 0.95
@@ -296,6 +299,10 @@ def _huber_loss(residual: float) -> float:
     return _HUBER_DELTA * (magnitude - 0.5 * _HUBER_DELTA)
 
 
+def _quantize(value: float) -> float:
+    return float(f"{value:.8f}")
+
+
 def _relation_sign(relation: MechanismRelation) -> float:
     return -1.0 if relation.kind is MechanismRelationKind.INHIBITS else 1.0
 
@@ -375,7 +382,7 @@ def _initial_typed_values(
     return values
 
 
-def _fit_typed(
+def _fit_typed(  # noqa: C901, PLR0912, PLR0915 - solver safeguards are explicit.
     terms: tuple[_TypedTerm, ...],
     relations: tuple[MechanismRelation, ...],
 ) -> _TypedFit:
@@ -384,16 +391,27 @@ def _fit_typed(
     for term in terms:
         grouped[term.program].append(term)
     values = _initial_typed_values(grouped)
-    previous = _typed_objective(values, terms, relations)
-    trace = [float(f"{previous:.8f}")]
+    initial_objective = _typed_objective(values, terms, relations)
+    if not math.isfinite(initial_objective):
+        return _TypedFit(
+            values=tuple(_quantize(value) for value in values),
+            converged=False,
+            iterations=0,
+            objective=0.0,
+            max_update=0.0,
+            objective_trace=(),
+        )
+    trace = [float(f"{initial_objective:.8f}")]
     converged = False
     max_update = math.inf
     iterations = 0
     for iteration in range(1, _SOLVER_ITERATIONS + 1):
         iterations = iteration
         old = values.copy()
+        previous = trace[-1]
+        proposals = old.copy()
         for position, program in enumerate(_PROGRAM_ORDER):
-            current = values[position]
+            current = old[position]
             gradient = 2.0 * _RIDGE * current
             hessian = 2.0 * _RIDGE
             for term in grouped.get(program, ()):
@@ -416,36 +434,66 @@ def _fit_typed(
                 sign = _relation_sign(relation)
                 if program is relation.source_program:
                     residual = (
-                        values[index[relation.target_program]] - sign * _RELATION_SCALE * current
+                        old[index[relation.target_program]] - sign * _RELATION_SCALE * current
                     )
                     gradient += -relation.weight * sign * _RELATION_SCALE * _huber_weight(
                         residual
                     ) * residual
                     hessian += relation.weight * _RELATION_SCALE**2
                 elif program is relation.target_program:
-                    residual = current - sign * _RELATION_SCALE * values[
+                    residual = current - sign * _RELATION_SCALE * old[
                         index[relation.source_program]
                     ]
                     gradient += relation.weight * _huber_weight(residual) * residual
                     hessian += relation.weight
             proposal = current - gradient / max(_MIN_SCALE, hessian)
-            values[position] = max(
+            proposals[position] = max(
                 -_MAX_EFFECT,
                 min(_MAX_EFFECT, current + _DAMPING * (proposal - current)),
             )
+        objective = _typed_objective(proposals, terms, relations)
+        accepted = proposals
+        if not math.isfinite(objective) or objective > previous + _OBJECTIVE_TOLERANCE:
+            # Robust breakpoints and signed cycles can make a full Jacobi sweep
+            # overshoot. Backtrack the complete vector update to preserve a
+            # deterministic, replay-auditable monotone objective trace.
+            accepted = old.copy()
+            objective = previous
+            delta = [after - before for after, before in zip(proposals, old, strict=True)]
+            step = _DAMPING
+            for _ in range(_BACKTRACKING_STEPS):
+                step *= _BACKTRACKING_FACTOR
+                trial = [
+                    max(-_MAX_EFFECT, min(_MAX_EFFECT, before + step * change))
+                    for before, change in zip(old, delta, strict=True)
+                ]
+                trial_objective = _typed_objective(trial, terms, relations)
+                if math.isfinite(trial_objective) and (
+                    trial_objective <= previous + _OBJECTIVE_TOLERANCE
+                ):
+                    accepted = trial
+                    objective = trial_objective
+                    break
+            else:
+                return _TypedFit(
+                    values=tuple(_quantize(value) for value in old),
+                    converged=False,
+                    iterations=iteration,
+                    objective=_quantize(previous),
+                    max_update=0.0,
+                    objective_trace=tuple(trace),
+                )
+        values = accepted
         max_update = max(abs(new - before) for new, before in zip(values, old, strict=True))
-        objective = _typed_objective(values, terms, relations)
         trace.append(float(f"{objective:.8f}"))
         if max_update <= _SOLVER_TOLERANCE and abs(previous - objective) <= _SOLVER_TOLERANCE:
             converged = True
-            previous = objective
             break
-        previous = objective
     return _TypedFit(
         values=tuple(float(f"{value:.8f}") for value in values),
         converged=converged,
         iterations=iterations,
-        objective=float(f"{previous:.8f}"),
+        objective=float(f"{trace[-1]:.8f}"),
         max_update=float(f"{(max_update if math.isfinite(max_update) else 0.0):.8f}"),
         objective_trace=tuple(trace),
     )
