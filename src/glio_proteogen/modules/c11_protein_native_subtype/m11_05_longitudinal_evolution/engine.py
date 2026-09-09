@@ -58,7 +58,6 @@ _IRLS_DAMPING: Final = 0.65
 _MIN_MEASUREMENTS_PER_SIDE: Final = 2
 _NUMERIC_TRANSITION_POSTERIOR: Final = 0.8
 _MINIMUM_TREND_EFFECT: Final = 0.1
-_DEFAULT_CENSORED_STANDARD_ERROR: Final = 0.5
 _EFFECT_LIMIT: Final = 100.0
 _CI_Z: Final = 1.96
 
@@ -163,6 +162,22 @@ class _Measurement:
 def _measurements(
     request: ModelVariantPeptideLongitudinalEvolutionRequest,
 ) -> tuple[_Measurement, ...]:
+    observed_errors = tuple(
+        observation.standard_error
+        for observation in request.observations
+        if observation.measurement_state is LongitudinalObservationState.OBSERVED
+        and observation.standard_error is not None
+    )
+    if observed_errors:
+        ordered_errors = sorted(observed_errors)
+        midpoint = len(ordered_errors) // 2
+        fallback_censored_error = (
+            ordered_errors[midpoint]
+            if len(ordered_errors) % 2
+            else 0.5 * (ordered_errors[midpoint - 1] + ordered_errors[midpoint])
+        )
+    else:
+        fallback_censored_error = None
     values: list[_Measurement] = []
     for index, observation in enumerate(request.observations):
         if observation.measurement_state is LongitudinalObservationState.OBSERVED:
@@ -172,13 +187,21 @@ def _measurements(
             error = observation.standard_error
             censored = False
         elif observation.measurement_state is LongitudinalObservationState.LEFT_CENSORED:
-            if observation.censoring_limit is None:
+            if observation.censoring_limit is None or (
+                observation.standard_error is None and fallback_censored_error is None
+            ):
                 continue
             # A left-censored peptide contributes a one-sided upper-bound
             # constraint.  The optimizer never treats an unobserved value as a
-            # negative effect; the fallback scale only controls its influence
-            # when the current state violates the detection limit.
-            error = observation.standard_error or _DEFAULT_CENSORED_STANDARD_ERROR
+            # negative effect; when its assay error is omitted, use the robust
+            # median observed error from this same history instead of a fixed
+            # precision proxy.
+            if observation.standard_error is not None:
+                error = observation.standard_error
+            else:
+                if fallback_censored_error is None:
+                    continue
+                error = fallback_censored_error
             value = observation.censoring_limit - 0.5 * error
             censored = True
         else:

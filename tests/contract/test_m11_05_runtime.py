@@ -275,6 +275,60 @@ def test_typed_missing_history_abstains_without_negative_imputation() -> None:
     assert result.support_decision.status is SupportStatus.UNSUPPORTED
 
 
+def test_left_censored_without_error_uses_same_history_observed_scale() -> None:
+    base = _request()
+    observations = tuple(
+        item.model_copy(
+            update={
+                "measurement_state": LongitudinalObservationState.OBSERVED,
+                "effect": effect,
+                "standard_error": 0.2 if item.sequence == 0 else 0.4,
+            }
+        )
+        for item, effect in zip(base.observations, (0.3, 0.4, 0.5), strict=True)
+    )
+    censored = observations[-1].model_copy(
+        update={
+            "measurement_state": LongitudinalObservationState.LEFT_CENSORED,
+            "effect": None,
+            "standard_error": None,
+            "censoring_limit": 0.1,
+        }
+    )
+    result = M1105LongitudinalEngine().infer(
+        base.model_copy(update={"observations": (*observations[:-1], censored)})
+    )
+    assert result.status is TrajectoryStatus.MODELED
+    measured = m1105_engine._measurements(
+        base.model_copy(update={"observations": (*observations[:-1], censored)})
+    )
+    assert measured[-1].censored is True
+    assert measured[-1].standard_error == pytest.approx(0.3)
+    assert result.trajectory[-1].measurement_count == _EXPECTED_MEASUREMENTS_PER_STATE
+    assert M1105LongitudinalEngine().verify(result).model_dump(mode="json") == result.model_dump(
+        mode="json"
+    )
+
+
+def test_censored_only_history_without_error_abstains() -> None:
+    base = _request()
+    censored = tuple(
+        item.model_copy(
+            update={
+                "measurement_state": LongitudinalObservationState.LEFT_CENSORED,
+                "effect": None,
+                "standard_error": None,
+                "censoring_limit": 0.1,
+            }
+        )
+        for item in base.observations
+    )
+    result = M1105LongitudinalEngine().infer(base.model_copy(update={"observations": censored}))
+    assert result.status is TrajectoryStatus.ABSTAINED
+    assert result.trajectory == ()
+    assert result.change_points == ()
+
+
 def test_denied_control_fails_before_payload_traversal() -> None:
     class Hostile:
         def __getattribute__(self, name: str) -> Any:

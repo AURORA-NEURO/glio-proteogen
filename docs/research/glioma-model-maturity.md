@@ -123,7 +123,12 @@ quality/standard-error weighted Huber IRLS, preserves left-censored and
 unsupported states, and detects molecular change points from robust loss
 reduction rather than caller relabeling. The legacy opaque-reference path is
 unchanged and remains provisional; this lane is an evolutionary evidence
-signal, not a validated tumor-evolution or treatment-response predictor.
+signal, not a validated tumor-evolution or treatment-response predictor. A
+left-censored point with no assay error now inherits the within-history median
+observed standard error (using the midpoint average for an even sample), so
+its one-sided contribution has an evidence-derived scale. A history containing
+only censored points without any uncertainty basis abstains rather than
+assigning an arbitrary precision.
 
 The additional `glio-ecgi-kncc-gbm-transition/1.0.0` factor-graph surface is not
 a fifteenth mounted model. It runs the exact PDC000514 Reactome and
