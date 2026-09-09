@@ -34,7 +34,9 @@ control decisions in provenance, and preserves a legacy typed non-estimable
 abstention path. The opt-in `glioma-uncertainty-decomposition-bootstrap/1.0.0`
 path fits robust modality/program summaries over observed and left-censored
 effects, reports all seven uncertainty dimensions, and computes a
-digest-seeded bootstrap sensitivity envelope. It remains internally sensitive,
+digest-seeded bootstrap sensitivity envelope. Left-censored limits remain exact
+one-sided bounds throughout initialization and robust fitting: feasible limits
+contribute no pseudo-target, while violated limits alone exert influence. It remains internally sensitive,
 not externally calibrated. Result verification validates digest, request
 binding, and exact replay.
 

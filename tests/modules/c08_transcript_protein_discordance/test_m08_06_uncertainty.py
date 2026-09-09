@@ -40,6 +40,9 @@ from glio_proteogen.modules.c08_transcript_protein_discordance.m08_06_uncertaint
     M0806UncertaintyDecompositionEngine,
     decompose_transcript_protein_uncertainty,
 )
+from glio_proteogen.modules.c08_transcript_protein_discordance.m08_06_uncertainty_decomposition import (  # noqa: E501
+    engine as m0806_engine,
+)
 
 
 def _artifact(
@@ -203,6 +206,22 @@ def test_typed_glioma_uncertainty_abstains_for_insufficient_supported_evidence()
     assert result.typed_model is True
     assert result.decomposition is None
     assert result.sensitivity_envelope.status is SensitivityEnvelopeStatus.ABSTAINED
+
+
+def test_typed_censor_only_location_stays_neutral_without_pseudo_target() -> None:
+    censored = TypedUncertaintyObservation(
+        observation_id="obs.censored.only",
+        feature_id="EGFR",
+        program=GliomaUncertaintyProgram.RTK_PI3K_AKT_MTOR,
+        modality="protein",
+        state=TypedUncertaintyEvidenceState.LEFT_CENSORED,
+        standard_error=0.3,
+        censoring_limit=0.4,
+        quality_weight=0.8,
+    )
+
+    assert m0806_engine._typed_target(censored) == pytest.approx(0.4)
+    assert m0806_engine._typed_robust_location((censored,)) == pytest.approx(0.0)
 
 
 def test_service_verify_replays_and_tamper_fails() -> None:

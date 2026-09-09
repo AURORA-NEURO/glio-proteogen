@@ -171,9 +171,10 @@ def _typed_target(
 ) -> float:
     if item.state is TypedUncertaintyEvidenceState.OBSERVED:
         return float(item.effect or 0.0) + perturbation
-    return (
-        float(item.censoring_limit or 0.0) - 0.5 * float(item.standard_error or 0.0) + perturbation
-    )
+    # A left-censored effect is an upper bound. Keep the exact boundary and
+    # let the robust location fit apply influence only when the estimate
+    # violates it; subtracting half an error would manufacture a target.
+    return float(item.censoring_limit or 0.0) + perturbation
 
 
 def _typed_active(
@@ -188,7 +189,7 @@ def _typed_active(
     )
 
 
-def _typed_robust_location(
+def _typed_robust_location(  # noqa: C901 - explicit censor-aware IRLS branches are auditable.
     observations: tuple[TypedUncertaintyObservation, ...],
     perturbations: Mapping[str, float] | None = None,
 ) -> float:
@@ -202,9 +203,26 @@ def _typed_robust_location(
         item.quality_weight / max(float(item.standard_error or 1.0) ** 2, 1e-12)
         for item in observations
     )
-    value = sum(weight * target for weight, target in zip(weights, targets, strict=True)) / max(
-        sum(weights), 1e-12
+    observed = tuple(
+        (target, weight)
+        for item, target, weight in zip(observations, targets, weights, strict=True)
+        if item.state is TypedUncertaintyEvidenceState.OBSERVED
     )
+    limits = tuple(
+        target
+        for item, target in zip(observations, targets, strict=True)
+        if item.state is TypedUncertaintyEvidenceState.LEFT_CENSORED
+    )
+    if observed:
+        value = sum(target * weight for target, weight in observed) / max(
+            sum(weight for _, weight in observed), 1e-12
+        )
+    elif limits:
+        value = min(0.0, *limits)
+    else:
+        value = 0.0
+    if limits:
+        value = min(value, *limits)
     for _ in range(32):
         robust_weights = []
         for item, target, base_weight in zip(observations, targets, weights, strict=True):
