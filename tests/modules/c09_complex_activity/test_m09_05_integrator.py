@@ -5,6 +5,7 @@
 
 import json
 from datetime import UTC, datetime
+from itertools import pairwise
 from typing import cast
 
 import numpy as np
@@ -654,6 +655,33 @@ def test_typed_glioma_constraint_fit_is_real_and_replayable() -> None:
     assert first.result.estimates[0].estimate_value >= 0.3
     assert first.canonical_bytes == second.canonical_bytes
     assert engine.verify(first.result, first.canonical_bytes, _typed_request()).verified
+
+
+def test_typed_complex_solver_backtracks_objective_increasing_sweep(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    original = engine_module._typed_objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == 2 else value
+
+    monkeypatch.setattr(engine_module, "_typed_objective", objective)
+    request = _typed_request()
+    fit = engine_module._fit_typed_latent(
+        tuple(sorted(request.typed_observations, key=lambda item: item.observation_id)),
+        ((">=", 0.3, 1.0),),
+        max_iterations=request.policy.max_iterations,
+        tolerance=request.policy.conflict_tolerance,
+    )
+    assert fit is not None
+    _latent, _offsets, _objective, _iterations, _gap, trace = fit
+    assert calls > 2
+    assert all(
+        after <= before + engine_module._TYPED_OBJECTIVE_TOLERANCE
+        for before, after in pairwise(trace)
+    )
 
 
 def test_typed_glioma_missing_is_not_negative_and_hard_constraint_abstains() -> None:

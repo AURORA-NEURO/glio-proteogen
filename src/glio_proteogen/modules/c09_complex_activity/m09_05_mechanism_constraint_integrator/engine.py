@@ -77,6 +77,9 @@ _TYPED_DAMPING: Final = 0.62
 _TYPED_OFFSET_RIDGE: Final = 0.18
 _TYPED_COHERENCE_PENALTY: Final = 0.35
 _TYPED_BOTTLENECK_PENALTY: Final = 0.9
+_TYPED_OBJECTIVE_TOLERANCE: Final = 1e-10
+_TYPED_BACKTRACKING_STEPS: Final = 18
+_TYPED_BACKTRACKING_FACTOR: Final = 0.5
 _TYPED_MAX_ITERATIONS: Final = 160
 _MIN_TYPED_MEMBERS: Final = 2
 
@@ -665,7 +668,7 @@ def _typed_objective(  # noqa: PLR0913 - objective terms are explicit audit inpu
     return float(total)
 
 
-def _fit_typed_latent(  # noqa: PLR0913 - solver controls are explicit replay inputs.
+def _fit_typed_latent(  # noqa: C901, PLR0913, PLR0915 - solver safeguards are explicit replay inputs.
     observations: tuple[GliomaComplexConstraintObservation, ...],
     constraints: tuple[tuple[str, float, float], ...],
     *,
@@ -701,11 +704,25 @@ def _fit_typed_latent(  # noqa: PLR0913 - solver controls are explicit replay in
         return None
     latent = _initial_typed_latent(active, values, weights)
     offsets = np.zeros(len(active), dtype=np.float64)
-    trace: list[float] = []
+    initial_objective = _typed_objective(
+        active,
+        latent,
+        offsets,
+        constraints,
+        tolerance,
+        include_bottleneck=include_bottleneck,
+        include_coherence=include_coherence,
+    )
+    if not isfinite(initial_objective):
+        return None
+    trace: list[float] = [round(initial_objective, 10)]
     gap = float("inf")
     iterations = 0
     for iteration in range(min(max_iterations, _TYPED_MAX_ITERATIONS)):
         iterations = iteration + 1
+        previous_latent = latent
+        previous_offsets = offsets.copy()
+        previous_objective = trace[-1]
         predictions = latent + offsets
         residuals = np.asarray(
             [
@@ -750,21 +767,59 @@ def _fit_typed_latent(  # noqa: PLR0913 - solver controls are explicit replay in
             np.clip(candidate_latent, -M0905_MAX_TYPED_EFFECT, M0905_MAX_TYPED_EFFECT)
         )
         new_latent = _TYPED_DAMPING * candidate_latent + (1.0 - _TYPED_DAMPING) * latent
-        gap = max(abs(new_latent - latent), float(np.max(np.abs(new_offsets - offsets))))
-        latent, offsets = new_latent, new_offsets
         objective = _typed_objective(
             active,
-            latent,
-            offsets,
+            new_latent,
+            new_offsets,
             constraints,
             tolerance,
             include_bottleneck=include_bottleneck,
             include_coherence=include_coherence,
         )
+        accepted_latent = new_latent
+        accepted_offsets = new_offsets
+        if objective > previous_objective + _TYPED_OBJECTIVE_TOLERANCE:
+            # Essential-member bottlenecks and coherence can introduce sharp
+            # curvature. Backtrack the complete latent/offset update together.
+            accepted_latent = previous_latent
+            accepted_offsets = previous_offsets
+            objective = previous_objective
+            latent_delta = new_latent - previous_latent
+            offset_delta = new_offsets - previous_offsets
+            step = _TYPED_DAMPING
+            for _ in range(_TYPED_BACKTRACKING_STEPS):
+                step *= _TYPED_BACKTRACKING_FACTOR
+                trial_latent = float(
+                    np.clip(
+                        previous_latent + step * latent_delta,
+                        -M0905_MAX_TYPED_EFFECT,
+                        M0905_MAX_TYPED_EFFECT,
+                    )
+                )
+                trial_offsets = previous_offsets + step * offset_delta
+                trial_objective = _typed_objective(
+                    active,
+                    trial_latent,
+                    trial_offsets,
+                    constraints,
+                    tolerance,
+                    include_bottleneck=include_bottleneck,
+                    include_coherence=include_coherence,
+                )
+                if trial_objective <= previous_objective + _TYPED_OBJECTIVE_TOLERANCE:
+                    accepted_latent = trial_latent
+                    accepted_offsets = trial_offsets
+                    objective = trial_objective
+                    break
+        latent, offsets = accepted_latent, accepted_offsets
+        gap = max(
+            abs(latent - previous_latent),
+            float(np.max(np.abs(offsets - previous_offsets))),
+        )
         if not isfinite(objective):
             return None
         trace.append(round(objective, 10))
-        if gap <= _TYPED_TOLERANCE:
+        if gap <= _TYPED_TOLERANCE and abs(previous_objective - objective) <= _TYPED_TOLERANCE:
             break
     if not trace or not isfinite(gap):
         return None

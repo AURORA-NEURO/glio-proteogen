@@ -529,7 +529,10 @@ explicit member-level standardized effects, standard errors, quality weights,
 essential/supporting roles, stoichiometric weights, and glioma program
 identifiers. An alternating latent-effect/member-offset Huber IRLS fit keeps
 member-specific departures visible while an essential-subunit bottleneck
-prevents a strong supporting protein from masking a weak required member.
+prevents a strong supporting protein from masking a weak required member. Each
+latent/offset sweep is accepted through a deterministic backtracking line
+search, preserving a monotone objective trace across bottleneck and coherence
+penalties.
 
 The fit uses one-sided loss for left-censored members, excludes missing and
 unsupported members, and requires at least two supported members, an essential
