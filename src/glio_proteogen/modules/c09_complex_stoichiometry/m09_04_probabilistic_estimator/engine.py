@@ -813,6 +813,25 @@ def _fit_typed_latent(
     return latent, offsets, trace[-1], iterations, max_update, tuple(trace)
 
 
+def _bootstrap_members(
+    rng: np.random.Generator,
+    essential_members: tuple[ComplexMemberObservation, ...],
+    supporting_members: tuple[ComplexMemberObservation, ...],
+) -> tuple[ComplexMemberObservation, ...]:
+    """Sample member strata while retaining the essential-subunit bottleneck."""
+
+    sampled: list[ComplexMemberObservation] = [
+        essential_members[int(index)]
+        for index in rng.integers(0, len(essential_members), size=len(essential_members))
+    ]
+    if supporting_members:
+        sampled.extend(
+            supporting_members[int(index)]
+            for index in rng.integers(0, len(supporting_members), size=len(supporting_members))
+        )
+    return tuple(sampled)
+
+
 def _typed_fit_complex(  # noqa: C901 - coupled latent/member coordinates are intentional.
     complex_id: str,
     observations: tuple[ComplexMemberObservation, ...],
@@ -845,11 +864,19 @@ def _typed_fit_complex(  # noqa: C901 - coupled latent/member coordinates are in
     rng = np.random.default_rng(seed)
     bootstrap_values: list[float] = []
     replicates = request.configuration.bootstrap_replicates
+    essential_members = tuple(
+        item for item in active if item.member_role is ComplexMemberRole.ESSENTIAL
+    )
+    supporting_members = tuple(
+        item for item in active if item.member_role is ComplexMemberRole.SUPPORTING
+    )
     for _ in range(replicates):
-        indexes = rng.integers(0, len(active), size=len(active))
+        # Preserve the essential-subunit stratum in every replicate. A plain
+        # bootstrap can omit the sole bottleneck member, making a valid
+        # complex look non-evaluable and understating bottleneck uncertainty.
+        sampled = _bootstrap_members(rng, essential_members, supporting_members)
         perturbed: list[ComplexMemberObservation] = []
-        for index in indexes:
-            item = active[int(index)]
+        for item in sampled:
             effect = _typed_effect(item) + 0.5 * _typed_error(item) * float(rng.normal())
             perturbed.append(
                 item.model_copy(

@@ -4,9 +4,11 @@ from datetime import UTC, datetime
 from http import HTTPStatus
 from math import isfinite
 
+import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 
+import glio_proteogen.modules.c09_complex_stoichiometry.m09_04_probabilistic_estimator.engine as engine_module  # noqa: E501
 from glio_proteogen.contracts.m09_04 import (
     M0904_BASELINE_MEDIA_TYPE,
     ComplexEvidenceState,
@@ -62,6 +64,7 @@ _ACTIVITY_NEUTRAL = 0.5
 _TYPED_MEMBER_COUNT = 3
 _TYPED_SUPPORTED_COUNT = 2
 _TYPED_LOW_ACTIVITY = 0.35
+_EXPECTED_BOOTSTRAP_MEMBER_COUNT = 2
 
 
 def _artifact(name: str, media_type: str = "application/json") -> ArtifactReference:
@@ -498,6 +501,22 @@ def test_typed_complex_bottleneck_and_coherence_are_visible() -> None:
     assert any(
         item.startswith("stoichiometric_coherence_delta=") for item in estimate.ablation_effects
     )
+
+
+def test_typed_bootstrap_preserves_essential_member_stratum() -> None:
+    essential = _typed_member(
+        "observation.essential", "complex.test", "EGFR", 0.8,
+        role=ComplexMemberRole.ESSENTIAL,
+    )
+    supporting = _typed_member("observation.supporting", "complex.test", "AKT1", 0.7)
+
+    sampled = engine_module._bootstrap_members(
+        np.random.default_rng(7), (essential,), (supporting,)
+    )
+
+    assert len(sampled) == _EXPECTED_BOOTSTRAP_MEMBER_COUNT
+    assert sum(item.member_role is ComplexMemberRole.ESSENTIAL for item in sampled) == 1
+    assert sum(item.member_role is ComplexMemberRole.SUPPORTING for item in sampled) == 1
 
 
 def test_typed_missing_and_left_censored_members_never_become_negative_observations() -> None:

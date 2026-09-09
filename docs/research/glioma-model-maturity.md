@@ -483,11 +483,13 @@ prevents a strong supporting protein from masking a weak required member.
 The fit uses one-sided loss for left-censored members, excludes missing and
 unsupported members, and requires at least two supported members, an essential
 member, and a consistent program per complex. Request-digest-seeded bootstrap
-perturbations provide activity intervals, stability, discordance, top member
-drivers, and explicit essential-bottleneck/stoichiometric-coherence ablation
-effects. The original artifact-reference estimator remains the compatibility
-path; typed activity is a research signal and does not establish biochemical
-assembly, diagnosis, prognosis, or treatment response.
+perturbations are stratified by essential versus supporting members so every
+replicate retains the bottleneck stratum; they provide activity intervals,
+stability, discordance, top member drivers, and explicit
+essential-bottleneck/stoichiometric-coherence ablation effects. The original
+artifact-reference estimator remains the compatibility path; typed activity is
+a research signal and does not establish biochemical assembly, diagnosis,
+prognosis, or treatment response.
 
 ## Completed M09-03 typed glioma complex baseline lane
 
