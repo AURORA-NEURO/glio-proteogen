@@ -262,6 +262,11 @@ def test_typed_glioma_graph_solver_emits_bootstrap_and_ablation_metadata() -> No
         and response.ablation_effects
         for response in result.surface.responses
     )
+    assert all(
+        response.ablation_effects[0].startswith("measurement_ablation_delta=")
+        and response.ablation_effects[1].startswith("topology_ablation_delta=")
+        for response in result.surface.responses
+    )
     assert engine.verify(result) == result
 
 

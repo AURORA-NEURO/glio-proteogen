@@ -479,6 +479,9 @@ def _typed_surface(
     topology_free = _fit_typed(terms, include_edges=False)
     if not topology_free.converged:
         raise ValueError("typed topology ablation solver did not converge")  # noqa: TRY003
+    measurement_free = _fit_typed((), include_edges=True)
+    if not measurement_free.converged:
+        raise ValueError("typed measurement ablation solver did not converge")  # noqa: TRY003
     draws: list[tuple[float, ...]] = []
     for draw in range(request.configuration.bootstrap_replicates):
         perturbed = tuple(
@@ -525,6 +528,7 @@ def _typed_surface(
         upper = max(_quantile(samples, _BOOTSTRAP_HIGH), fit.values[position])
         width = max(_MIN_SCALE, upper - lower)
         topology_delta = fit.values[position] - topology_free.values[position]
+        measurement_delta = fit.values[position] - measurement_free.values[position]
         quality = scenario.quality_weight
         perturbation_evidence = tuple((*evidence, *scenario.evidence)[:64])
         responses.append(
@@ -545,8 +549,9 @@ def _typed_surface(
                 discordance=_quantize(min(1.0, abs(topology_delta))),
                 top_drivers=drivers,
                 ablation_effects=(
-                    f"signed_network_edges_removed:{_quantize(topology_delta):.8f}",
-                    f"measurement_weight:{_quantize(quality):.8f}",
+                    f"measurement_ablation_delta={_quantize(measurement_delta):.8f}",
+                    f"topology_ablation_delta={_quantize(topology_delta):.8f}",
+                    f"measurement_quality={_quantize(quality):.8f}",
                 ),
             )
         )

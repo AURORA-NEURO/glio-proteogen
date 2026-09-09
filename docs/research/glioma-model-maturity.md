@@ -973,7 +973,10 @@ edges using deterministic damped coordinate descent. Solver convergence and the
 objective trace are included in the surface metadata for replay auditability.
 
 Request-digest-seeded bootstrap perturbations produce bounded intervals, stability,
-discordance, top program drivers, and measurement/topology ablation explanations.
+discordance, top program drivers, and numerical measurement/topology
+leave-one-family-out ablation deltas. Removing typed observations exposes the
+topology-only propagation; removing signed edges exposes measurement-only
+support.
 Missing and unsupported scenarios are explicitly excluded; incomplete typed
 surfaces abstain with human review rather than manufacturing a negative response.
 The historical scalar sensitivity ABI remains available for compatibility only.
