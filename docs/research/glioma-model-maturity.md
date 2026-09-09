@@ -666,7 +666,9 @@ The lane requires four markers across two programs and abstains without that
 topology support; it never falls back to independent posteriors. Existing
 M10-04 metadata and measured-observation behavior remain compatibility paths,
 and this research-only factor estimate is not a diagnosis, prognosis, or
-treatment-response claim.
+treatment-response claim. HGNC compound symbols are normalized at the mapping
+boundary, preserving namespace prefixes while resolving equivalent forms such
+as `MKI-67`, `MKI_67`, and `MKI67` to the proliferation program.
 
 ## Completed M10-07 typed glioma discordance calibration lane
 

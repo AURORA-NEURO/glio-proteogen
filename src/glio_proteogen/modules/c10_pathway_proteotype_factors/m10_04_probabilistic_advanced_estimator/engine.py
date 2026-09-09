@@ -299,11 +299,18 @@ def _glioma_program_for_feature(feature_id: str) -> str | None:
     compatibility path.
     """
 
-    tokens = set(re.findall(r"[a-z0-9]+", feature_id.casefold()))
+    normalized = feature_id.casefold()
+    tokens = set(re.findall(r"[a-z0-9]+", normalized))
+    # HGNC symbols are frequently written with a hyphen (for example MKI-67
+    # or HIF-1A).  ``re.findall`` intentionally tokenizes punctuation, so add
+    # compact variants for compound identifier tokens without collapsing the
+    # surrounding namespace (``protein.MKI-67`` remains namespace-safe).
+    compound_tokens = re.findall(r"[a-z0-9]+(?:[-_][a-z0-9]+)+", normalized)
+    tokens.update(token.replace("-", "").replace("_", "") for token in compound_tokens)
     aliases = {
         "p53": "tp53",
         "akt": "akt1",
-        "mki-67": "mki67",
+        "mki67": "mki67",
         "hif": "hif1a",
     }
     tokens.update(aliases[token] for token in tuple(tokens) if token in aliases)

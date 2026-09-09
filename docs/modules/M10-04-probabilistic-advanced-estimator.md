@@ -50,7 +50,9 @@ feature-specific Normal priors. The fit abstains unless at least four markers
 cover two programs, emits robust 90% intervals and convergence diagnostics,
 and never falls back to independent posteriors when topology support is
 insufficient. Its model family is `glioma-proteotype-factor-irls/1.0.0` and is
-research-only.
+research-only. HGNC-style compound symbols are canonicalized at the mapping
+boundary, so identifiers such as `MKI-67`, `MKI_67`, and `MKI67` resolve to the
+same proliferation marker without collapsing their surrounding namespace.
 
 ## Evidence and release gates
 

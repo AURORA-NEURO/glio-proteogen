@@ -38,6 +38,9 @@ from glio_proteogen.modules.c10_pathway_proteotype_factors.m10_04_probabilistic_
     estimate_protein_rna_discordance_probabilistic,
     preflight_probabilistic_estimator_authorization,
 )
+from glio_proteogen.modules.c10_pathway_proteotype_factors.m10_04_probabilistic_advanced_estimator import (  # noqa: E501
+    engine as engine_module,
+)
 from glio_proteogen.modules.c10_pathway_proteotype_factors.m10_04_probabilistic_advanced_estimator.plugin import (  # noqa: E501
     ValidatedM1004Request,
 )
@@ -169,6 +172,13 @@ def test_locked_glioma_factor_fit_abstains_without_program_support() -> None:
     assert result.status is ProbabilisticResultStatus.ABSTAINED
     assert result.estimates == ()
     assert result.human_review_required is True
+
+
+@pytest.mark.parametrize("feature_id", ["protein.MKI-67", "gene.MKI_67", "protein.HIF-1A"])
+def test_glioma_marker_mapping_normalizes_hyphenated_symbols(feature_id: str) -> None:
+    program = engine_module._glioma_program_for_feature(feature_id)
+
+    assert program in {"PROLIFERATION", "IDH_HIF1A"}
 
 
 def test_non_normal_prior_abstains_without_negative_inference() -> None:
