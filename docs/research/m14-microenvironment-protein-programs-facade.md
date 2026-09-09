@@ -38,6 +38,16 @@ Every machine-readable `module_responsibility_superseded` flag is therefore `fal
 `program_evidence_substitution_only`; M14-05 and M14-06 are `out_of_scope`; the remaining
 responsibilities are `evidence_source_only`.
 
+## Typed M14-03 solver safeguards
+
+The M14-03 typed research lane fits the fixed glioma microenvironment program graph with
+robust Huber evidence terms, explicit left-censoring, signed program-edge residuals, and ridge
+regularization. Each iteration is a frozen-parent (Jacobi) sweep. A deterministic vector
+backtracking line search accepts only finite objective-non-increasing updates, preserving a
+replay-auditable objective trace and failing closed if no safe step exists. Missing and
+unsupported observations remain excluded from the objective rather than becoming negative
+evidence; this lane remains research-use-only and does not promote a mechanistic claim.
+
 ## Exact operations and limits
 
 - `GET /v2/research/modules/m14/microenvironment-protein-programs/profile`

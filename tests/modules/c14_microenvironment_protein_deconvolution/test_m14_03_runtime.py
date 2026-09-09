@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Iterator, Mapping
 from datetime import UTC, datetime
+from itertools import pairwise
 from typing import Any
 
 import pytest
@@ -42,6 +43,9 @@ from glio_proteogen.kernel.models import (
 from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
     m14_03_mechanistic_feature_constructor as m1403,
 )
+from glio_proteogen.modules.c14_microenvironment_protein_deconvolution.m14_03_mechanistic_feature_constructor import (  # noqa: E501
+    engine as engine_module,
+)
 from glio_proteogen.modules.c14_microenvironment_protein_deconvolution.m14_03_mechanistic_feature_constructor.engine import (  # noqa: E501
     _initial_typed_values,
     _TypedTerm,
@@ -51,6 +55,7 @@ _FEATURE_COUNT = 7
 _RELATION_COUNT = 6
 _CONTROL_COUNT = 7
 _TYPED_BOOTSTRAP_PROBABILITY = 0.9
+_FIRST_CANDIDATE_CALL = 2
 
 
 def _typed_request(
@@ -400,6 +405,41 @@ def test_typed_glioma_microenvironment_graph_constructs_intervals_and_signed_edg
         item.code == "typed_glioma_microenvironment_graph" for item in result.limitations
     )
     assert service.verify(result).model_dump(mode="json") == result.model_dump(mode="json")
+
+
+def test_typed_solver_backtracks_objective_increase(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    request = _typed_request(
+        [
+            {
+                "observation_id": "observation.m1403.backtrack",
+                "program": GliomaMicroenvironmentProgram.HYPOXIA.value,
+                "evidence_state": MechanisticEvidenceState.OBSERVED.value,
+                "standardized_effect": 1.0,
+                "standard_error": 0.2,
+                "quality_weight": 1.0,
+                "evidence": [],
+            }
+        ],
+        bootstrap_replicates=16,
+    )
+    terms = engine_module._typed_terms(request.typed_observations)
+    original = engine_module._typed_objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == _FIRST_CANDIDATE_CALL else value
+
+    monkeypatch.setattr(engine_module, "_typed_objective", objective)
+    fit = engine_module._fit_typed(terms)
+    assert fit.converged
+    assert calls > _FIRST_CANDIDATE_CALL
+    assert all(
+        after <= before + engine_module._OBJECTIVE_TOLERANCE
+        for before, after in pairwise(fit.objective_trace)
+    )
 
 
 def test_typed_initialization_keeps_left_censored_limits_feasible() -> None:
