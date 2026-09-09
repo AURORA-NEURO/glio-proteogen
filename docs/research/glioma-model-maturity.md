@@ -773,8 +773,9 @@ treatment response.
 The additive M12-06 runtime now supports an opt-in
 `glioma-panel-perturbation-response-graph/1.0.0` family. Paired baseline and
 perturbed assay replicates are fit with quality-weighted Huber IRLS arm
-locations, robust finite differences, and a bounded logistic response mapped
-to the caller's response envelope. Digest-seeded bootstrap resampling yields
+locations, conventional midpoint-MAD scaling for even replicate counts,
+robust finite differences, and a bounded logistic response mapped to the
+caller's response envelope. Digest-seeded bootstrap resampling yields
 replayable intervals, robust standard errors, and explicit replicate counts.
 
 The compatibility scalar path remains unchanged. Typed requests require at

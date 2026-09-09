@@ -273,8 +273,12 @@ def _huber_location(values: tuple[float, ...]) -> tuple[float, float]:
     weights: tuple[float, ...] = (1.0,) * len(values)
     for _ in range(_HUBER_ITERATIONS):
         residuals = tuple(value - estimate for value in values)
-        ordered = sorted(abs(value) for value in residuals)
-        scale = max(_MAD_SCALE_FACTOR * ordered[len(ordered) // 2], _MINIMUM_SCALE)
+        # Use the conventional midpoint median for even replicate counts.  The
+        # upper order statistic systematically inflates the robust scale when
+        # a pair of central residuals straddles an assay batch boundary,
+        # weakening Huber down-weighting and making replayed intervals wider
+        # than the evidence supports.
+        scale = max(_MAD_SCALE_FACTOR * _median_abs(residuals), _MINIMUM_SCALE)
         weights = tuple(
             1.0 if abs(residual) / scale <= _HUBER_DELTA else _HUBER_DELTA / (abs(residual) / scale)
             for residual in residuals
@@ -293,6 +297,16 @@ def _huber_location(values: tuple[float, ...]) -> tuple[float, float]:
         weight * residual * residual for weight, residual in zip(weights, residuals, strict=True)
     ) / max(sum(weights) - 1.0, 1.0)
     return estimate, sqrt(max(variance / len(values), _MINIMUM_SCALE**2))
+
+
+def _median_abs(values: tuple[float, ...]) -> float:
+    """Return the midpoint median of absolute residuals for a stable MAD scale."""
+
+    ordered = sorted(abs(value) for value in values)
+    midpoint = len(ordered) // 2
+    if len(ordered) % 2:
+        return ordered[midpoint]
+    return 0.5 * (ordered[midpoint - 1] + ordered[midpoint])
 
 
 def _hash_index(seed: str, draw: int, arm: str, index: int, length: int) -> int:

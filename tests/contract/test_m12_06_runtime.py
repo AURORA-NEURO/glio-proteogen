@@ -44,6 +44,10 @@ from glio_proteogen.modules.c11_protein_native_subtype.m12_06_perturbation_sensi
     M1206ReplayError,
     M1206Service,
 )
+from glio_proteogen.modules.c11_protein_native_subtype.m12_06_perturbation_sensitivity_simulator.engine import (
+    _huber_location,
+    _median_abs,
+)
 
 _RUNNER = CliRunner()
 _NOW = datetime(2026, 1, 2, 3, 4, 5, tzinfo=UTC)
@@ -214,6 +218,15 @@ def test_typed_glioma_replicates_fit_robust_response_and_replay() -> None:
     assert response.sensitivity_standard_error is not None
     assert response.replicate_count == 8
     assert M1206Service().verify(typed, result) == result
+
+
+def test_huber_scale_uses_midpoint_median_for_even_residuals() -> None:
+    """Even replicate residuals use the conventional midpoint MAD."""
+
+    assert _median_abs((-3.0, -1.0, 2.0, 10.0)) == pytest.approx(2.5)
+    estimate, standard_error = _huber_location((0.0, 1.0, 2.0, 100.0))
+    assert estimate > 0.0
+    assert standard_error > 0.0
 
 
 def test_typed_glioma_replicate_order_is_digest_invariant() -> None:

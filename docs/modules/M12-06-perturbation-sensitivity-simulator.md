@@ -25,9 +25,10 @@ upstream consequence artifact is content-addressed and intentionally opaque.
 - Deterministic bounded reference simulation. Baseline and perturbed values
   must remain inside the configured response envelope.
 - Opt-in `glioma-panel-perturbation-response-graph/1.0.0` fits paired assay
-  replicates with quality-weighted Huber IRLS arm locations, robust finite
-  differences, digest-seeded bootstrap intervals, and explicit replicate
-  counts. The compatibility scalar path above remains unchanged.
+  replicates with quality-weighted Huber IRLS arm locations, conventional
+  midpoint-MAD scaling for even replicate counts, robust finite differences,
+  digest-seeded bootstrap intervals, and explicit replicate counts. The
+  compatibility scalar path above remains unchanged.
 - Unsupported scenarios, out-of-envelope values, and denied controls abstain;
   abstention emits no sensitivity surface and requires human review.
 - Seven uncertainty dimensions are always present. Simulated results expose
@@ -56,7 +57,7 @@ wheel import verification.
 | Dossier requirement | Implementation evidence |
 | --- | --- |
 | Sensitivity surface and bounded response | `contracts/m12_06/v1.py`, runtime `engine.py` |
-| Typed glioma replicate response | `engine.py::_huber_location`, `_bounded_from_typed_replicates` |
+| Typed glioma replicate response | `engine.py::_huber_location`, `_bounded_from_typed_replicates`; midpoint MAD keeps even-count robust scales reproducible |
 | Support envelope and safe abstention | `engine.py`, `test_m12_06_runtime.py` |
 | Seven uncertainty dimensions | `engine.py::_uncertainty` |
 | Identity, consent, quality and provenance controls | `engine.py::preflight_m1206_authorization` |
