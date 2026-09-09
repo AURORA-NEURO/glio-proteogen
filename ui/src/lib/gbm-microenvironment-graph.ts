@@ -148,7 +148,7 @@ export function validateMicroenvironmentGraphRequest(request: JsonObject): strin
     if (source.sample_id !== request.sample_id) errors.push("request.sample_id must match request.source_request.sample_id.");
   }
   const axis = nestedAxisRequest(request);
-  if (request.axis_request !== undefined && !axis) errors.push("request.axis_request must be an object when supplied.");
+  if (request.axis_request !== undefined && request.axis_request !== null && !axis) errors.push("request.axis_request must be an object when supplied.");
   if (axis) {
     errors.push(...validateGbmRequest(axis).map((error) => `request.axis_request: ${error}`));
     if (axis.sample_id !== request.sample_id) errors.push("request.sample_id must match request.axis_request.sample_id.");
@@ -184,7 +184,7 @@ export function validateMicroenvironmentGraphResult(
   const axisResult = isJsonObject(result.axis_result) ? result.axis_result : null;
   if (!graphRequest) errors.push("result.graph_request must be an object.");
   if (!graphResult) errors.push("result.graph_result must be an object.");
-  if (result.axis_result !== undefined && !axisResult) errors.push("result.axis_result must be an object when supplied.");
+  if (result.axis_result !== undefined && result.axis_result !== null && !axisResult) errors.push("result.axis_result must be an object when supplied.");
   if (graphRequest) errors.push(...validateEcgiResultRequestBinding(graphResult ?? {}, graphRequest));
   if (graphResult) {
     errors.push(...validateEcgiResult(graphResult).map((error) => `result.graph_result: ${error}`));

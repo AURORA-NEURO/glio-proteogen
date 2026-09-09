@@ -75,6 +75,7 @@ describe("GBM microenvironment graph UI contract", () => {
       profile_id: GBM_MICROENVIRONMENT_GRAPH_PROFILE_ID,
       sample_id: "sample-1",
       source_request: sourceRequest(),
+      axis_request: null,
     };
     expect(validateMicroenvironmentGraphRequest(request)).toEqual([]);
     expect(microenvironmentGraphRequestStats(request)).toEqual({ observations: 1, active: 1, programs: 7 });
@@ -137,6 +138,7 @@ describe("GBM microenvironment graph UI contract", () => {
     expect(validateMicroenvironmentGraphResult(result, request, bridgeProfile)).toEqual([]);
     const { axis_result: _axisResult, ...sourceOnlyResult } = result;
     expect(validateMicroenvironmentGraphResult(sourceOnlyResult, request, bridgeProfile)).toEqual([]);
+    expect(validateMicroenvironmentGraphResult({ ...sourceOnlyResult, axis_result: null }, request, bridgeProfile)).toEqual([]);
     const headers = { get: (name: string) => ({
       "X-GLIO-Profile-Digest": result.profile_digest,
       "X-GLIO-Request-Digest": result.request_digest,
