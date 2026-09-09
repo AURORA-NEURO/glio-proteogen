@@ -6,7 +6,20 @@ import {
   normalizeMicroenvironmentGraphResult,
   validateMicroenvironmentGraphProfile,
   validateMicroenvironmentGraphRequest,
+  validateMicroenvironmentGraphDemo,
+  validateMicroenvironmentGraphResult,
+  validateMicroenvironmentGraphResultHeaders,
+  validateMicroenvironmentGraphVerification,
 } from "../../src/lib/gbm-microenvironment-graph";
+import {
+  algorithmProfile,
+  analysisResult,
+  demoRequest,
+} from "../fixtures/proteogenomic-state";
+import {
+  neftelAnalysisResult,
+  neftelDemoRequest,
+} from "../fixtures/neftel-programs";
 
 const DIGEST = `sha256:${"a".repeat(64)}`;
 
@@ -76,5 +89,50 @@ describe("GBM microenvironment graph UI contract", () => {
     expect(normalized.graphResult?.node_states).toHaveLength(1);
     expect(normalized.graphRequest?.nodes).toEqual([]);
     expect(normalized.sourcePrograms).toEqual([]);
+  });
+
+  it("admits the complete bridge receipt and replay envelope", () => {
+    const request = {
+      profile_id: GBM_MICROENVIRONMENT_GRAPH_PROFILE_ID,
+      sample_id: neftelDemoRequest.sample_id,
+      source_request: neftelDemoRequest,
+    };
+    const bridgeProfile = {
+      ...profile(),
+      graph_profile_digest: algorithmProfile.profile_digest,
+    };
+    const result = {
+      profile_id: GBM_MICROENVIRONMENT_GRAPH_PROFILE_ID,
+      profile_digest: bridgeProfile.profile_digest,
+      request_digest: DIGEST,
+      result_digest: DIGEST,
+      sample_id: neftelDemoRequest.sample_id,
+      source_result: neftelAnalysisResult,
+      graph_request: demoRequest,
+      graph_result: { ...analysisResult, profile_digest: algorithmProfile.profile_digest },
+      limitations: ["synthetic bridge evidence"],
+      research_use_only: true,
+      non_prescriptive: true,
+    };
+    expect(validateMicroenvironmentGraphDemo(request, bridgeProfile)).toEqual([]);
+    expect(validateMicroenvironmentGraphResult(result, request, bridgeProfile)).toEqual([]);
+    const headers = { get: (name: string) => ({
+      "X-GLIO-Profile-Digest": result.profile_digest,
+      "X-GLIO-Request-Digest": result.request_digest,
+      "X-GLIO-Result-Digest": result.result_digest,
+    }[name] ?? null) };
+    expect(validateMicroenvironmentGraphResultHeaders(headers, result)).toEqual([]);
+    const verification = {
+      verified: true,
+      request_digest_match: true,
+      source_replay_match: true,
+      graph_replay_match: true,
+      result_digest_match: true,
+      semantic_match: true,
+      recomputed_request_digest: result.request_digest,
+      recomputed_result_digest: result.result_digest,
+      message: "bridge replay matches",
+    };
+    expect(validateMicroenvironmentGraphVerification(verification, result, request, bridgeProfile)).toEqual([]);
   });
 });
