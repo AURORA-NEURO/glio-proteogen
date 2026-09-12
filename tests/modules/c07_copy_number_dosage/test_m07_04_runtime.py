@@ -28,6 +28,7 @@ from glio_proteogen.modules.c07_copy_number_dosage.m07_04_probabilistic_advanced
 )
 
 _EXPECTED_COALESCED_FEATURE_COUNT = 2
+_FIRST_CANDIDATE_OBJECTIVE_CALL = 2
 
 
 def test_service_accepts_typed_mapping_bytes_and_string() -> None:
@@ -142,6 +143,24 @@ def test_gbm_marker_prior_changes_posterior_and_is_explained() -> None:
     assert "GBM EGFR amplification prior" in marker.diagnostics[0].message
     assert marker.diagnostics[0].iteration_count > 0
     assert marker.diagnostics[0].objective_value is not None
+
+
+def test_dosage_posterior_backtracks_non_monotone_objective(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    observation = request().observations[0]
+    original = m0704_engine._posterior_objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == _FIRST_CANDIDATE_OBJECTIVE_CALL else value
+
+    monkeypatch.setattr(m0704_engine, "_posterior_objective", objective)
+    fit = m0704_engine._fit_posterior(observation)
+
+    assert fit is not None
+    assert calls > _FIRST_CANDIDATE_OBJECTIVE_CALL
 
 
 def test_hard_copy_number_constraint_is_applied_without_negative_coercion() -> None:

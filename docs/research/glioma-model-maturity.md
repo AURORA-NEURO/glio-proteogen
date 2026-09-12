@@ -227,9 +227,10 @@ integration and M07-06 uncertainty decomposition remain out of scope. See
 
 The M07-04 mechanism-guided dosage runtime now coalesces repeated observations
 of one locus into a shared-latent Huber--IRLS posterior. Technical repeats are
-precision-weighted with robust down-weighting, one posterior row is emitted per
-feature, and mixed units or incompatible feature families abstain before any
-numeric claim. Source digests are deduplicated in the resulting evidence ledger;
+precision-weighted with robust down-weighting, and each scalar/shared-latent
+update uses a finite objective check with deterministic backtracking before it
+is accepted. One posterior row is emitted per feature, and mixed units or
+incompatible feature families abstain before any numeric claim. Source digests are deduplicated in the resulting evidence ledger;
 the legacy contract, optimizer identifiers, and replay boundary remain intact.
 
 ## Source-locked phosphosite runtime lane

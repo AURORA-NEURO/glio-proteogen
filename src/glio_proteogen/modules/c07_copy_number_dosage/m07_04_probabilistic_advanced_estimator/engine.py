@@ -87,6 +87,9 @@ _MIN_SCALE: Final = 1e-3
 _MAX_SCALE: Final = 1e3
 _PRIOR_ARITY: Final = 2
 _CONVERGENCE_TOLERANCE: Final = 1e-9
+_OBJECTIVE_TOLERANCE: Final = 1e-10
+_BACKTRACKING_STEPS: Final = 8
+_BACKTRACKING_FACTOR: Final = 0.5
 _COPY_NUMBER_MAX: Final = 32.0
 _GBM_DOSAGE_PRIORS: Final = {
     # Broad, research-only priors for recurrent GBM dosage events. The assay
@@ -599,7 +602,35 @@ def _normal_cdf(value: float, mean: float, scale: float) -> float:
     return 0.5 * (1.0 + erf((value - mean) / (scale * sqrt(2.0))))
 
 
-def _fit_posterior(
+def _posterior_objective(
+    mean: float,
+    value: float,
+    measurement_scale: float,
+    prior: _PriorSpec,
+) -> float:
+    """Evaluate the finite single-feature dosage objective."""
+
+    objective = 0.5 * (
+        (value - mean) ** 2 / measurement_scale**2
+        + (mean - prior.mean) ** 2 / prior.scale**2
+    )
+    return float(objective) if isfinite(objective) else float("inf")
+
+
+def _shared_posterior_objective(
+    mean: float,
+    likelihoods: tuple[tuple[float, float], ...],
+    prior: _PriorSpec,
+) -> float:
+    """Evaluate the robust shared-latent repeated-assay objective."""
+
+    objective = 0.5 * (mean - prior.mean) ** 2 / prior.scale**2
+    for value, scale in likelihoods:
+        objective += _huber_loss((value - mean) / scale)
+    return float(objective) if isfinite(objective) else float("inf")
+
+
+def _fit_posterior(  # noqa: PLR0915 - estimator safeguards remain explicit.
     observation: EstimatorObservation,
     *,
     priors: tuple[ProbabilisticPrior, ...] = (),
@@ -620,6 +651,9 @@ def _fit_posterior(
     prior_variance = prior.scale**2
     measurement_variance = measurement_scale**2
     mean = prior.mean
+    previous_objective = _posterior_objective(mean, value, measurement_scale, prior)
+    if not isfinite(previous_objective):
+        return None
     gap = float("inf")
     robust_weight = 1.0
     for _iteration in range(1, max(1, min(max_iterations, 256)) + 1):
@@ -634,8 +668,36 @@ def _fit_posterior(
             updated = max(updated, lower)
         if upper is not None:
             updated = min(updated, upper)
+        objective = _posterior_objective(updated, value, measurement_scale, prior)
+        if not isfinite(objective) or objective > previous_objective + _OBJECTIVE_TOLERANCE:
+            # Robust reweighting can move away from the declared quadratic
+            # objective. Backtrack the bounded scalar update before accepting.
+            accepted = False
+            delta = updated - mean
+            step = _BACKTRACKING_FACTOR
+            for _ in range(_BACKTRACKING_STEPS):
+                trial = mean + step * delta
+                if lower is not None:
+                    trial = max(trial, lower)
+                if upper is not None:
+                    trial = min(trial, upper)
+                trial_objective = _posterior_objective(
+                    trial, value, measurement_scale, prior
+                )
+                if isfinite(trial_objective) and (
+                    trial_objective <= previous_objective + _OBJECTIVE_TOLERANCE
+                ):
+                    updated = trial
+                    objective = trial_objective
+                    accepted = True
+                    break
+                step *= _BACKTRACKING_FACTOR
+            if not accepted:
+                gap = 0.0
+                break
         gap = abs(updated - mean)
         mean = updated
+        previous_objective = objective
         if gap <= _CONVERGENCE_TOLERANCE:
             break
     posterior_variance = 1.0 / (1.0 / prior_variance + robust_weight / measurement_variance)
@@ -681,10 +743,7 @@ def _fit_posterior(
             posterior_mass=support_mass,
             evidence=evidence,
         )
-    objective = 0.5 * (
-        (value - mean) ** 2 / measurement_variance
-        + (mean - prior.mean) ** 2 / prior_variance
-    )
+    objective = _posterior_objective(mean, value, measurement_scale, prior)
     if not isfinite(objective):
         return None
     rationale = (
@@ -738,6 +797,9 @@ def _fit_feature_posterior(  # noqa: PLR0915 - shared-latent fit is intentionall
     lower, upper = bounds
     prior_variance = prior.scale**2
     mean = prior.mean
+    previous_objective = _shared_posterior_objective(mean, typed_likelihoods, prior)
+    if not isfinite(previous_objective):
+        return None
     gap = float("inf")
     robust_weights = np.ones(len(typed_likelihoods), dtype=np.float64)
     for _iteration in range(1, max(1, min(max_iterations, 256)) + 1):
@@ -757,8 +819,36 @@ def _fit_feature_posterior(  # noqa: PLR0915 - shared-latent fit is intentionall
             updated = max(updated, lower)
         if upper is not None:
             updated = min(updated, upper)
+        objective = _shared_posterior_objective(updated, typed_likelihoods, prior)
+        if not isfinite(objective) or objective > previous_objective + _OBJECTIVE_TOLERANCE:
+            # Keep the shared latent update objective-safe when robust assay
+            # weights change across a Huber breakpoint.
+            accepted = False
+            delta = updated - mean
+            step = _BACKTRACKING_FACTOR
+            for _ in range(_BACKTRACKING_STEPS):
+                trial = mean + step * delta
+                if lower is not None:
+                    trial = max(trial, lower)
+                if upper is not None:
+                    trial = min(trial, upper)
+                trial_objective = _shared_posterior_objective(
+                    trial, typed_likelihoods, prior
+                )
+                if isfinite(trial_objective) and (
+                    trial_objective <= previous_objective + _OBJECTIVE_TOLERANCE
+                ):
+                    updated = trial
+                    objective = trial_objective
+                    accepted = True
+                    break
+                step *= _BACKTRACKING_FACTOR
+            if not accepted:
+                gap = 0.0
+                break
         gap = abs(updated - mean)
         mean = updated
+        previous_objective = objective
         if gap <= _CONVERGENCE_TOLERANCE:
             break
     # Recompute the influence weights at the returned fixed point.  The last
@@ -791,12 +881,11 @@ def _fit_feature_posterior(  # noqa: PLR0915 - shared-latent fit is intentionall
     if posterior_lower > posterior_upper:
         posterior_lower = posterior_upper = mean
     masses: list[float] = []
-    objective = 0.5 * (mean - prior.mean) ** 2 / prior_variance
+    objective = _shared_posterior_objective(mean, typed_likelihoods, prior)
     has_interval = False
     rationale_parts: list[str] = []
     for item, (value, scale) in zip(observations, typed_likelihoods, strict=True):
         residual = (value - mean) / scale
-        objective += _huber_loss(residual)
         masses.append(
             _normal_cdf(float(item.interval_upper), mean, posterior_scale)
             - _normal_cdf(float(item.interval_lower), mean, posterior_scale)
