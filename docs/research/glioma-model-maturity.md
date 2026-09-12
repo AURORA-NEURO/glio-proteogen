@@ -904,7 +904,10 @@ history with quality/standard-error precision, robust Huber influence, ridge
 stabilization, temporal smoothness, curvature control, and damped frozen-parent
 coordinate descent. Each sweep starts from a finite objective and uses a
 deterministic full-vector backtracking gate; a locally non-improving direction
-retains its parent as a stationary replay point. Missing and unsupported observations are excluded; left-censored
+retains its parent as a stationary replay point. Missing and unsupported
+observations are excluded. Repeated observations at a timepoint are initialized
+with a deterministic inverse-variance, quality-weighted Huber/IRLS center before
+temporal interpolation. Left-censored
 observations contribute a one-sided residual, so absence is never manufactured
 as suppression.
 

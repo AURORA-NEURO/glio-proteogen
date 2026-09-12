@@ -278,6 +278,29 @@ def test_typed_initialization_respects_left_censor_bounds() -> None:
     assert values.tolist() == pytest.approx([0.2, -0.05, -0.3])
 
 
+def test_typed_initialization_downweights_failed_longitudinal_replicate() -> None:
+    """Repeated observations at one timepoint use a robust Huber center."""
+
+    terms = tuple(
+        engine_module._TypedTerm(
+            sequence=0,
+            program=GliomaTrajectoryProgram.RTK_PI3K_AKT_MTOR,
+            state=LongitudinalEvidenceState.OBSERVED,
+            value=value,
+            standard_error=0.2,
+            quality_weight=1.0,
+        )
+        for value in (0.2, 0.25, 0.3, 4.0)
+    )
+    center = engine_module._robust_initial_center(terms)
+    arithmetic_mean = sum(term.value for term in terms) / len(terms)
+    assert center < 0.5
+    assert arithmetic_mean > 1.0
+    assert engine_module._initial_measurement_objective(center, terms) <= (
+        engine_module._initial_measurement_objective(arithmetic_mean, terms)
+    )
+
+
 def test_temporal_fit_backtracks_non_monotone_sweep(monkeypatch: pytest.MonkeyPatch) -> None:
     request = _typed_request()
     terms = engine_module._typed_terms(request.observations)
