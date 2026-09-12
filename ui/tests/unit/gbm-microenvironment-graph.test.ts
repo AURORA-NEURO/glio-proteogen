@@ -59,7 +59,7 @@ function profile(): Record<string, unknown> {
     source_profile_digest: DIGEST,
     graph_profile_digest: DIGEST,
     topology_digest: DIGEST,
-    projection_policy: "bulk_program_location_and_rank_to_signed_microenvironment_graph_v2",
+    projection_policy: "bulk_program_location_and_rank_to_signed_gbm_state_graph_v3",
     auxiliary_projection_policy: "independent_published_gbm_axes_as_external_observations_v2",
     projected_axis_signatures: [
       ["SWEET_KRAS_TARGETS_UP", "kras_targets"],

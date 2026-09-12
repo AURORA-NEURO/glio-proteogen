@@ -167,9 +167,9 @@ class MicroenvironmentGraphProfile(FrozenModel):
     graph_profile_digest: Sha256Digest
     topology_digest: Sha256Digest
     projection_policy: Literal[
-        "bulk_program_location_and_rank_to_signed_microenvironment_graph_v2"
+        "bulk_program_location_and_rank_to_signed_gbm_state_graph_v3"
     ] = (
-        "bulk_program_location_and_rank_to_signed_microenvironment_graph_v2"
+        "bulk_program_location_and_rank_to_signed_gbm_state_graph_v3"
     )
     auxiliary_projection_policy: Literal[
         "independent_published_gbm_axes_as_external_observations_v2"
@@ -345,7 +345,7 @@ def microenvironment_graph_profile() -> MicroenvironmentGraphProfile:
         "source_profile_digest": source.profile_digest,
         "graph_profile_digest": graph.profile_digest,
         "topology_digest": _bridge_topology_digest(),
-        "projection_policy": "bulk_program_location_and_rank_to_signed_microenvironment_graph_v2",
+        "projection_policy": "bulk_program_location_and_rank_to_signed_gbm_state_graph_v3",
         "auxiliary_projection_policy": "independent_published_gbm_axes_as_external_observations_v2",
         "projected_axis_signatures": _AXIS_MAP,
         "auxiliary_standard_error_floor": _AUXILIARY_STANDARD_ERROR_FLOOR,
@@ -372,7 +372,7 @@ def microenvironment_graph_profile() -> MicroenvironmentGraphProfile:
         source_profile_digest=source.profile_digest,
         graph_profile_digest=graph.profile_digest,
         topology_digest=_bridge_topology_digest(),
-        projection_policy="bulk_program_location_and_rank_to_signed_microenvironment_graph_v2",
+        projection_policy="bulk_program_location_and_rank_to_signed_gbm_state_graph_v3",
         auxiliary_projection_policy="independent_published_gbm_axes_as_external_observations_v2",
         projected_axis_signatures=_AXIS_MAP,
         auxiliary_standard_error_floor=_AUXILIARY_STANDARD_ERROR_FLOOR,
