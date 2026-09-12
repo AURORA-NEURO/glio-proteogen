@@ -925,6 +925,9 @@ locations, conventional midpoint-MAD scaling for even replicate counts,
 robust finite differences, and a bounded logistic response mapped to the
 caller's response envelope. Digest-seeded bootstrap resampling yields
 replayable intervals, robust standard errors, and explicit replicate counts.
+Each IRLS proposal is checked against a frozen-scale Huber objective and
+deterministically backtracked when it is non-finite or increases loss, keeping
+the typed fit numerically stable across outlier breakpoints.
 
 The compatibility scalar path remains unchanged. Typed requests require at
 least three finite replicates per arm for every supported scenario; missing

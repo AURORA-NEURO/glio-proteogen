@@ -44,6 +44,9 @@ from glio_proteogen.modules.c11_protein_native_subtype.m12_06_perturbation_sensi
     M1206ReplayError,
     M1206Service,
 )
+from glio_proteogen.modules.c11_protein_native_subtype.m12_06_perturbation_sensitivity_simulator import (
+    engine as m1206_engine,
+)
 from glio_proteogen.modules.c11_protein_native_subtype.m12_06_perturbation_sensitivity_simulator.engine import (
     _huber_location,
     _median_abs,
@@ -227,6 +230,22 @@ def test_huber_scale_uses_midpoint_median_for_even_residuals() -> None:
     estimate, standard_error = _huber_location((0.0, 1.0, 2.0, 100.0))
     assert estimate > 0.0
     assert standard_error > 0.0
+
+
+def test_huber_location_rejects_nonfinite_proposals(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = 0
+
+    def nonfinite_proposal(*_args: object) -> float:
+        nonlocal calls
+        calls += 1
+        return 0.0 if calls == 1 else float("nan")
+
+    monkeypatch.setattr(m1206_engine, "_huber_objective", nonfinite_proposal)
+    estimate, standard_error = _huber_location((0.0, 1.0, 2.0))
+
+    assert estimate == pytest.approx(1.0)
+    assert standard_error > 0.0
+    assert calls > 2
 
 
 def test_typed_glioma_replicate_order_is_digest_invariant() -> None:
