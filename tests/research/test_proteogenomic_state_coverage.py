@@ -443,6 +443,67 @@ def test_objective_trace_verifier_returns_an_immutable_copy() -> None:
     assert verified == (1.0, 0.5)
 
 
+def _initial_center_terms() -> tuple[engine_module._ObservationTerm, ...]:
+    return tuple(
+        engine_module._ObservationTerm(
+            observation_id=f"obs.center.{index}",
+            node_index=0,
+            modality=EvidenceModality.PROTEOMICS,
+            state=EvidenceState.OBSERVED,
+            value=value,
+            standard_error=0.2,
+            quality=1.0,
+        )
+        for index, value in enumerate((0.0, 1.0, 4.0))
+    )
+
+
+def test_robust_initial_center_backtracking_accepts_safe_trial(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    terms = _initial_center_terms()
+    monkeypatch.setattr(
+        engine_module,
+        "CONSTANTS",
+        engine_module.CONSTANTS.model_copy(update={"initial_center_irls_iterations": 1}),
+    )
+    calls = 0
+
+    def objective(_center: float, _terms: tuple[engine_module._ObservationTerm, ...]) -> float:
+        nonlocal calls
+        calls += 1
+        return 0.0 if calls in {1, 3} else 1.0
+
+    monkeypatch.setattr(engine_module, "_initial_node_measurement_objective", objective)
+    center = engine_module._robust_initial_node_center(terms)
+    assert calls == 3
+    assert center != sum(item.value for item in terms) / len(terms)
+
+
+@pytest.mark.parametrize("trial_objective", [float("nan"), 1.0])
+def test_robust_initial_center_backtracking_rejects_unsafe_trials(
+    monkeypatch: pytest.MonkeyPatch,
+    trial_objective: float,
+) -> None:
+    terms = _initial_center_terms()
+    monkeypatch.setattr(
+        engine_module,
+        "CONSTANTS",
+        engine_module.CONSTANTS.model_copy(update={"initial_center_irls_iterations": 1}),
+    )
+    calls = 0
+
+    def objective(_center: float, _terms: tuple[engine_module._ObservationTerm, ...]) -> float:
+        nonlocal calls
+        calls += 1
+        return 0.0 if calls == 1 else trial_objective
+
+    monkeypatch.setattr(engine_module, "_initial_node_measurement_objective", objective)
+    center = engine_module._robust_initial_node_center(terms)
+    assert center == pytest.approx(sum(item.value for item in terms) / len(terms), abs=1e-12)
+    assert calls == 2 + engine_module.CONSTANTS.backtracking_steps
+
+
 def test_zero_residual_discordance_and_inactive_censor_driver() -> None:
     empty = ProteogenomicStateRequest(
         sample_id="coverage.empty",
