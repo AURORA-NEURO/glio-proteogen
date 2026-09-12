@@ -418,6 +418,31 @@ def test_solver_backtracking_acceptance_and_exhaustion(
     assert calls == 20
 
 
+@pytest.mark.parametrize(
+    ("trace", "message"),
+    [
+        ((), "complete baseline/candidate"),
+        ((1.0,), "complete baseline/candidate"),
+        ((float("nan"), 0.0), "non-finite"),
+        ((0.0, float("inf")), "non-finite"),
+        ((0.0, 0.1), "increasing candidate"),
+    ],
+)
+def test_objective_trace_verifier_rejects_untrusted_receipts(
+    trace: tuple[float, ...],
+    message: str,
+) -> None:
+    with pytest.raises(engine_module.InferenceConvergenceError, match=message):
+        engine_module._verify_objective_trace(trace)
+
+
+def test_objective_trace_verifier_returns_an_immutable_copy() -> None:
+    trace = [1.0, 0.5]
+    verified = engine_module._verify_objective_trace(trace)
+    trace[0] = 9.0
+    assert verified == (1.0, 0.5)
+
+
 def test_zero_residual_discordance_and_inactive_censor_driver() -> None:
     empty = ProteogenomicStateRequest(
         sample_id="coverage.empty",

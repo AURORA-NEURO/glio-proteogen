@@ -104,6 +104,11 @@ frozen-parent baseline and accepted candidate conditional loss as a pair for
 every sweep; each candidate must not exceed its paired baseline. Termination
 requires the maximum undamped fixed-point residual to meet the profile
 tolerance. The paired trace and its digest remain part of the replay receipt.
+Before those diagnostics are emitted, the engine independently verifies that
+the trace is complete, finite, and pairwise non-increasing within the profile
+tolerance. Cross-sweep global monotonicity is intentionally not asserted because
+successive pairs use different frozen parent snapshots. A malformed trace fails
+closed rather than becoming a replayable research receipt.
 This is a directed conditional estimator, not a claim that downstream evidence
 minimizes a symmetric global edge objective over upstream sources.
 

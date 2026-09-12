@@ -282,6 +282,27 @@ def _objective(
     return total
 
 
+def _verify_objective_trace(trace: Iterable[float]) -> tuple[float, ...]:
+    """Validate the paired frozen-parent objective trace before it is published.
+
+    A sweep objective is evaluated against a frozen parent snapshot, so global
+    monotonicity across successive sweeps is not expected.  Each baseline/candidate
+    pair must nevertheless be finite and non-increasing (within the profile tolerance).
+    Returning a tuple also prevents a mutable working list from being reused as a
+    diagnostics receipt after verification.
+    """
+
+    values = tuple(float(value) for value in trace)
+    if not values or len(values) % 2:
+        raise InferenceConvergenceError("objective trace is not a complete baseline/candidate sequence")
+    for baseline, candidate in zip(values[::2], values[1::2], strict=True):
+        if not np.isfinite(baseline) or not np.isfinite(candidate):
+            raise InferenceConvergenceError("objective trace contains a non-finite value")
+        if candidate > baseline + CONSTANTS.objective_increase_tolerance:
+            raise InferenceConvergenceError("objective trace contains an increasing candidate")
+    return values
+
+
 def _observation_update(current: float, observation: _ObservationTerm) -> tuple[float, float]:
     residual = (current - observation.value) / observation.standard_error
     if observation.state is EvidenceState.LEFT_CENSORED:
@@ -506,13 +527,14 @@ def _solve(  # noqa: PLR0915
         if maximum_update <= tolerance:
             converged = True
             break
+    verified_trace = _verify_objective_trace(trace)
     return _SolveOutcome(
         values=values,
         converged=converged,
         iterations=iterations,
-        objective=trace[-1],
+        objective=verified_trace[-1],
         max_update=maximum_update,
-        objective_trace=tuple(trace),
+        objective_trace=verified_trace,
     )
 
 
