@@ -210,6 +210,7 @@ jobs:
             tests/research/test_gbm_master_kinase_contracts.py \
             tests/research/test_gbm_master_kinase_engine.py \
             tests/research/test_gbm_master_kinase_branch_guards.py \
+            tests/research/test_gbm_master_kinase_ecgi_bridge.py \
             tests/integration/test_gbm_master_kinases_adapter.py \
             tests/integration/test_gbm_master_kinases_cli.py
           uv run coverage report --fail-under=100 \
