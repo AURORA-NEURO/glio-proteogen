@@ -1019,8 +1019,9 @@ stabilization, convergence checks, and a
 request-digest-seeded 64-draw perturbation interval. Every state reports an
 interval, evidence count, stability, discordance, top program drivers, and the
 objective-trace digest; change points use the same signed bootstrap deltas.
-Initialization is censor-aware: observed time-point centers are projected onto
-the tightest left-censor limits, while censor-only points start at the
+Initialization is censor-aware: repeated observations at a time point use a
+deterministic inverse-variance, quality-weighted Huber/IRLS center projected
+onto the tightest left-censor limits, while censor-only points start at the
 ridge-neutral feasible value before temporal interpolation and graph updates.
 Legacy opaque objective requests remain a compatibility-only grammar and do not
 receive a synthetic typed score. This is a research-use-only temporal signal,
