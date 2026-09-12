@@ -1174,8 +1174,9 @@ or unsupported states. A frozen-parent damped Huber Jacobi fit combines temporal
 smoothing with directional RTK/PI3K/AKT/mTOR, p53/cell-cycle, IDH/HIF1A,
 mesenchymal, and proliferation coherence; objective-safe backtracking keeps a
 monotone replay-auditable trace without using future observations to label an
-earlier time point. Initialization is censor-aware: observed centers
-are clamped to tightest left-censor limits, and censor-only cells start at the
+earlier time point. Initialization is censor-aware: repeated observations use
+a deterministic inverse-variance, quality-weighted Huber/IRLS center, then
+are clamped to tightest left-censor limits; censor-only cells start at the
 ridge-neutral feasible value rather than treating an upper bound as an exact
 measurement.
 

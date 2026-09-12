@@ -47,6 +47,8 @@ _OBSERVATION_COUNT = 2
 _TYPED_OBSERVATION_COUNT = 4
 _BACKTRACK_OBJECTIVE_CALL = 2
 _MIN_OBJECTIVE_CALLS = 3
+_ROBUST_CENTER_MAX = 0.5
+_ARITHMETIC_MEAN_MIN = 1.0
 
 
 def _digest(label: str) -> str:
@@ -272,6 +274,30 @@ def test_typed_initialization_keeps_left_censored_limits_feasible() -> None:
     mixed_censor_limit = 0.4
     assert values[order.index(GliomaEvolutionProgram.RTK_PI3K_AKT_MTOR)][0] == left_censor_limit
     assert values[order.index(GliomaEvolutionProgram.P53_CELL_CYCLE)][0] == mixed_censor_limit
+
+
+def test_typed_initialization_downweights_failed_timepoint_replicate() -> None:
+    """Repeated assays at one timepoint use a contamination-resistant Huber center."""
+
+    terms = tuple(
+        _TypedTerm(
+            sequence=0,
+            observation_id=f"observation.replicate.{index}",
+            program=GliomaEvolutionProgram.RTK_PI3K_AKT_MTOR,
+            state=LongitudinalEvidenceState.OBSERVED,
+            value=value,
+            standard_error=0.2,
+            quality_weight=1.0,
+        )
+        for index, value in enumerate((0.2, 0.25, 0.3, 4.0))
+    )
+    center = engine_module._robust_initial_center(terms)
+    arithmetic_mean = sum(term.value for term in terms) / len(terms)
+    assert center < _ROBUST_CENTER_MAX
+    assert arithmetic_mean > _ARITHMETIC_MEAN_MIN
+    assert engine_module._initial_measurement_objective(center, terms) <= (
+        engine_module._initial_measurement_objective(arithmetic_mean, terms)
+    )
 
 
 def test_typed_missing_evidence_abstains_without_negative_state() -> None:
