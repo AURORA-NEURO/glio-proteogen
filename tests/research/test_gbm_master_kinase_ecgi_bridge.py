@@ -145,10 +145,22 @@ def test_bridge_skips_incomplete_supported_intervals(demo_result, missing_bound:
         )
 
 
-def test_bridge_is_consumed_by_ecgi_as_comparison_only(demo_result) -> None:
+@pytest.mark.parametrize(
+    ("method", "profile_id"),
+    [
+        ("location", ECGI_EXTERNAL_PROFILE_ID),
+        ("rank_enrichment", ECGI_EXTERNAL_RANK_PROFILE_ID),
+    ],
+)
+def test_bridge_is_consumed_by_ecgi_as_comparison_only(
+    demo_result,
+    method: str,
+    profile_id: str,
+) -> None:
     profile = build_ecgi_external_kinase_profile(
         demo_result,
         node_id_by_kinase_id={"PRKCD": "kinase.prkcd", "PHKG2": "kinase.phkg2"},
+        method=method,  # type: ignore[arg-type]
     )
     nodes = (
         GraphNode(node_id="kinase.prkcd", kind=NodeKind.KINASE),
@@ -224,7 +236,7 @@ def test_bridge_is_consumed_by_ecgi_as_comparison_only(demo_result) -> None:
     result = analyze_proteogenomic_state(request)
     comparison = result.external_kinase_comparison
     assert comparison is not None
-    assert comparison.profile_id == ECGI_EXTERNAL_PROFILE_ID
+    assert comparison.profile_id == profile_id
     assert comparison.source_digest == demo_result.result_digest
     assert {item.kinase_id for item in comparison.matches} == {
         "kinase.prkcd",
