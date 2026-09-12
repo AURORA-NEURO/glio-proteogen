@@ -2,8 +2,8 @@
 
 The Neftel lane supplies measured bulk-protein program evidence.  This bridge
 does not pretend those programs are cell fractions: it projects complete
-location and competitive-rank MES and OPC program-family estimates into a
-small, signed glioma microenvironment graph and lets ECGI propagate uncertainty through hypoxia,
+location and competitive-rank MES, OPC, and neural-progenitor program-family
+estimates into a small, signed glioma microenvironment graph and lets ECGI propagate uncertainty through hypoxia,
 angiogenesis, myeloid, endothelial, T-cell, and molecular-program relationships. Missing source
 families remain missing and never become negative observations.
 """
@@ -83,7 +83,7 @@ _BRIDGE_DEMO_SOURCE_DIGEST: Final = sha256_digest(
     {
         "demo_id": "synthetic-gbm-microenvironment-graph-v1",
         "source": "neftel-table-s2-protein-catalog-v1",
-        "purpose": "synthetic_mesenchymal_opc_projection",
+        "purpose": "synthetic_mesenchymal_opc_neural_projection",
     }
 )
 
@@ -762,11 +762,12 @@ def verify_microenvironment_graph_replay(
 
 @lru_cache(maxsize=1)
 def synthetic_microenvironment_graph_request() -> MicroenvironmentGraphRequest:
-    """Return a synthetic bridge demo with explicit MES and OPC evidence.
+    """Return a synthetic bridge demo with explicit MES, OPC, and neural evidence.
 
     The base Neftel demo is AC-like.  This bridge adds disjoint, ranked MES and
-    OPC protein markers so both graph-projected families are observable while
-    preserving the catalog's exact source identities and all original controls.
+    OPC protein markers plus NPC1/NPC2 markers so all three graph-projected
+    source families are observable while preserving the catalog's exact source
+    identities and all original controls.
     """
 
     source = neftel_demo_request()
@@ -781,7 +782,15 @@ def synthetic_microenvironment_graph_request() -> MicroenvironmentGraphRequest:
     opc_markers = tuple(
         marker.normalized_symbol
         for marker in catalog.programs["OPC"]
-        if marker.protein_eligible and marker.normalized_symbol not in existing_symbols
+        if marker.protein_eligible
+        and marker.normalized_symbol not in (existing_symbols | set(mes_markers))
+    )[:12]
+    occupied_symbols = existing_symbols | set(mes_markers) | set(opc_markers)
+    neural_markers = tuple(
+        marker.normalized_symbol
+        for program_id in ("NPC1", "NPC2")
+        for marker in catalog.programs[program_id]
+        if marker.protein_eligible and marker.normalized_symbol not in occupied_symbols
     )[:12]
     bridge_observations = tuple(
         ProteinProgramObservation(
@@ -805,6 +814,17 @@ def synthetic_microenvironment_graph_request() -> MicroenvironmentGraphRequest:
             provenance_digest=_BRIDGE_DEMO_SOURCE_DIGEST,
         )
         for index, symbol in enumerate(opc_markers, start=1)
+    ) + tuple(
+        ProteinProgramObservation(
+            observation_id=f"demo.bridge.neural.{index:03d}",
+            gene_symbol=symbol,
+            state=ProteinEvidenceState.OBSERVED,
+            standardized_effect=round(0.80 - index * 0.018, 6),
+            standard_error=0.27,
+            quality_weight=0.91,
+            provenance_digest=_BRIDGE_DEMO_SOURCE_DIGEST,
+        )
+        for index, symbol in enumerate(neural_markers, start=1)
     )
     source = source.model_copy(update={"observations": source.observations + bridge_observations})
     axes = gbm_axes_demo_request().model_copy(update={"sample_id": source.sample_id})

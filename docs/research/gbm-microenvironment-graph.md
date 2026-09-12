@@ -64,11 +64,11 @@ other.
 
 The source, optional axis, and graph receipts are nested in the bridge result
 and replayed independently. The profile binds all child profile digests and
-both projection policies. The synthetic demo adds disjoint MES and OPC markers
-to the AC-like Neftel fixture and includes the versioned synthetic GBM axis
-fixture so the graph surface demonstrates all seven source signatures alongside
-cross-modal secondary evidence; those values are synthetic and contain no
-patient data.
+both projection policies. The synthetic demo adds disjoint MES, OPC, and
+NPC1/NPC2 markers to the AC-like Neftel fixture and includes the versioned
+synthetic GBM axis fixture so the graph surface demonstrates all seven source
+signatures alongside cross-modal secondary evidence; those values are
+synthetic and contain no patient data.
 
 HTTP operations are mounted under
 `/v1/research/gbm-microenvironment-graph` and have matching
