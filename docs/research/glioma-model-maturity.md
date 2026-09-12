@@ -595,6 +595,12 @@ observed effects only and projected onto the tightest left-censor bound;
 censor-only programs start at neutral on the feasible side, preventing a
 detection limit from acting as a measured negative effect.
 
+Observed repeats now initialize each baseline program with a deterministic
+inverse-variance, quality-weighted Huber/IRLS center and objective-safe
+backtracking before censor-bound projection. This prevents a failed assay
+replicate from selecting the nonlinear solver basin while preserving the
+research-only baseline ABI.
+
 The typed result carries a deterministic, program-stratified bootstrap
 interval, evidence count, stability, residual discordance, top feature drivers,
 signed-relation ablation effects, and a replay-bound objective trace digest. At

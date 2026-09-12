@@ -37,6 +37,8 @@ from glio_proteogen.modules.c09_complex_activity import (
 _DIGEST = "sha256:" + ("a" * 64)
 _M0902_MEDIA_TYPE = "application/vnd.glio-proteogen.m09-02+json"
 _FIRST_CANDIDATE_CALL = 2
+_ROBUST_CENTER_MAX = 0.5
+_ARITHMETIC_MEAN_MIN = 1.0
 
 
 def _artifact(name: str, media_type: str = "application/json") -> ArtifactReference:
@@ -218,6 +220,23 @@ def test_typed_initialization_uses_observed_effects_and_censor_bounds() -> None:
     high_bound = censored.model_copy(update={"censoring_limit": -0.2})
 
     assert engine_module._initial_typed_state((observed, high_bound)) == pytest.approx(-0.2)
+
+
+def test_typed_initialization_downweights_failed_program_replicate() -> None:
+    terms = (
+        (0.2, 0.2, 1.0),
+        (0.3, 0.2, 1.0),
+        (4.0, 0.2, 1.0),
+    )
+
+    center = engine_module._robust_initial_baseline_center(terms)
+    arithmetic_mean = sum(term[0] for term in terms) / len(terms)
+
+    assert center < _ROBUST_CENTER_MAX
+    assert arithmetic_mean > _ARITHMETIC_MEAN_MIN
+    assert engine_module._initial_baseline_measurement_objective(
+        center, terms
+    ) <= engine_module._initial_baseline_measurement_objective(arithmetic_mean, terms)
 
 
 def test_typed_censor_only_initialization_is_neutral_when_bound_is_positive() -> None:
