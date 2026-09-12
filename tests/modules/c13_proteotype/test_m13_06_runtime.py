@@ -47,6 +47,8 @@ from glio_proteogen.modules.c13_proteotype.m13_06_perturbation_sensitivity impor
 )
 
 _FIRST_CANDIDATE_CALL = 2
+_ROBUST_CENTER_MAX = 0.5
+_ARITHMETIC_MEAN_MIN = 1.0
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -280,6 +282,29 @@ def test_typed_initialization_keeps_left_censored_limits_feasible() -> None:
         GliomaPerturbationProgram.RTK_PI3K_AKT_MTOR
     )
     assert values[position] == censor_limit
+
+
+def test_typed_initialization_downweights_failed_perturbation_replicate() -> None:
+    """Repeated perturbation deltas use a contamination-resistant Huber center."""
+
+    terms = tuple(
+        engine_module._TypedTerm(
+            scenario_id=f"replicate.{index}",
+            program=GliomaPerturbationProgram.RTK_PI3K_AKT_MTOR,
+            state=PerturbationEvidenceState.OBSERVED,
+            delta=delta,
+            standard_error=0.2,
+            quality_weight=1.0,
+        )
+        for index, delta in enumerate((0.2, 0.25, 0.3, 4.0))
+    )
+    center = engine_module._robust_initial_center(terms)
+    arithmetic_mean = sum(term.delta for term in terms) / len(terms)
+    assert center < _ROBUST_CENTER_MAX
+    assert arithmetic_mean > _ARITHMETIC_MEAN_MIN
+    assert engine_module._initial_measurement_objective(center, terms) <= (
+        engine_module._initial_measurement_objective(arithmetic_mean, terms)
+    )
 
 
 def test_typed_missing_or_unsupported_evidence_abstains_without_negative_response() -> None:

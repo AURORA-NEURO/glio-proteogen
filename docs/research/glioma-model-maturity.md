@@ -1039,7 +1039,9 @@ IDH/HIF1A, mesenchymal, and proliferation edge coherence. Frozen-parent
 damped Jacobi updates and objective-safe backtracking preserve a finite
 monotone objective trace. Deterministic request-digest perturbations produce
 effect intervals, stability, discordance, top drivers, and a replay-bound trace
-digest.
+digest. Repeated scenario deltas are initialized with a deterministic
+inverse-variance, quality-weighted Huber/IRLS center, preventing one failed
+perturbation replicate from dominating the first graph iterate.
 
 The historical bounded replay ABI remains compatibility-only. Missing and
 unsupported typed scenarios are excluded and an all-missing request abstains;
