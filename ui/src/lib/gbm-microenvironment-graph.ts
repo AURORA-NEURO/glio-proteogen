@@ -132,7 +132,7 @@ export function validateMicroenvironmentGraphProfile(profile: JsonObject): strin
   if (profile.graph_engine !== "glio-ecgi/1.0.0") errors.push("profile.graph_engine is invalid.");
   if (profile.auxiliary_source_engine !== "gbm-proteomic-axes/1.0.0") errors.push("profile.auxiliary_source_engine is invalid.");
   if (profile.projection_policy !== "bulk_program_location_and_rank_to_signed_microenvironment_graph_v2") errors.push("profile.projection_policy is invalid.");
-  if (profile.auxiliary_projection_policy !== "independent_published_gbm_axes_as_secondary_observations_v1") errors.push("profile.auxiliary_projection_policy is invalid.");
+  if (profile.auxiliary_projection_policy !== "independent_published_gbm_axes_as_external_observations_v2") errors.push("profile.auxiliary_projection_policy is invalid.");
   const expectedAxisMappings = [
     ["SWEET_KRAS_TARGETS_UP", "kras_targets"],
     ["HALLMARK_MYC_TARGETS_V1", "myc_targets"],
