@@ -2,7 +2,7 @@
 
 `gbm-microenvironment-graph/1.0.0` is a research-only composition lane. It
 executes the exact Neftel Table S2 bulk-protein program runtime first, then
-projects three source families' complete location and competitive-rank
+projects five source families' complete location and competitive-rank
 estimates into the `glio-ecgi/1.0.0` signed evidence graph. When the optional
 published GBM proteomic-axis request is present, all seven source signatures
 are retained as independent molecular-program observations.
@@ -28,6 +28,10 @@ The projection is deliberately narrower than a deconvolution model:
 - `neural_progenitor_like` (the paired NPC1/NPC2 source families) maps to the
   existing `neural` graph node. This is a bulk protein lineage signal, not a
   cellular fraction or categorical subtype call; and
+- `astrocyte_like` maps to the direct `astrocyte_like` graph node; and
+- `cell_cycle` (the paired G1/S and G2/M source families) maps to the direct
+  `cell_cycle` graph node. These two nodes intentionally have no inferred
+  cross-edges until a source-admitted GBM topology is available; and
 - each complete source location estimate is retained as the historical base
   observation while each complete rank estimate is retained as a distinct
   `.rank` observation on the same node. Location and rank use profile-bound

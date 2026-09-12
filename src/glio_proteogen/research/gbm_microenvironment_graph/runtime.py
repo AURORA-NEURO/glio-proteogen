@@ -2,8 +2,9 @@
 
 The Neftel lane supplies measured bulk-protein program evidence.  This bridge
 does not pretend those programs are cell fractions: it projects complete
-location and competitive-rank MES, OPC, and neural-progenitor program-family
-estimates into a small, signed glioma microenvironment graph and lets ECGI propagate uncertainty through hypoxia,
+location and competitive-rank MES, OPC, neural-progenitor, astrocyte-like, and
+cell-cycle program-family estimates into a small, signed glioma state graph and
+lets ECGI propagate uncertainty through hypoxia,
 angiogenesis, myeloid, endothelial, T-cell, and molecular-program relationships. Missing source
 families remain missing and never become negative observations.
 """
@@ -96,6 +97,11 @@ _PROGRAM_MAP: Final = (
     # this source family lets direct protein evidence and external axis
     # evidence be compared without collapsing either provenance.
     ("neural_progenitor_like", "neural"),
+    # These programs are retained as direct lineage/proliferation coordinates.
+    # They intentionally have no inferred cross-edges: adding biological
+    # coupling without a source-admitted graph would overstate the evidence.
+    ("astrocyte_like", "astrocyte_like"),
+    ("cell_cycle", "cell_cycle"),
 )
 _GRAPH_PROGRAMS: Final = (
     "mesenchymal",
@@ -110,6 +116,8 @@ _GRAPH_PROGRAMS: Final = (
     "neural",
     "proneural",
     "egfr_targets",
+    "astrocyte_like",
+    "cell_cycle",
 )
 _GRAPH_EDGES: Final = (
     # Core microenvironment couplings from the original bridge abstraction.
@@ -191,12 +199,16 @@ class MicroenvironmentGraphProfile(FrozenModel):
             "mesenchymal_like",
             "oligodendrocyte_progenitor_like",
             "neural_progenitor_like",
+            "astrocyte_like",
+            "cell_cycle",
         ],
         ...,
     ] = (
         "mesenchymal_like",
         "oligodendrocyte_progenitor_like",
         "neural_progenitor_like",
+        "astrocyte_like",
+        "cell_cycle",
     )
     missing_families_are_not_negative: Literal[True] = True
     cell_fraction_claim_permitted: Literal[False] = False
@@ -374,6 +386,8 @@ def microenvironment_graph_profile() -> MicroenvironmentGraphProfile:
             "mesenchymal_like",
             "oligodendrocyte_progenitor_like",
             "neural_progenitor_like",
+            "astrocyte_like",
+            "cell_cycle",
         ),
         missing_families_are_not_negative=True,
         cell_fraction_claim_permitted=False,
@@ -462,14 +476,10 @@ def _topology_provenance() -> TopologyProvenance:
         derivation="synthetic_abstraction",
         sources=sources,
         curation_note=(
-            "Reactome records provide public biological context for this repository-native "
-            "GBM microenvironment and tumor-lineage abstraction; they are not a "
-            "Reactome-exported graph. "
-            "The four molecular-to-context edges are profile-bound, lower-weight association "
-            "hypotheses (EGFR-to-hypoxia/mesenchymal and neural/proneural-to-mesenchymal "
-            "contrasts), not causal, subtype, or clinical claims. Direct Neftel "
-            "neural-progenitor evidence is retained on the neural node; it is not a cell "
-            "fraction or categorical subtype call."
+            "Reactome provides context for this repository-native GBM state abstraction, not "
+            "an exported graph. Four molecular-to-context edges are lower-weight association "
+            "hypotheses, not causal, subtype, or clinical claims. Neftel lineage and cell-cycle "
+            "coordinates are direct bulk-program signals, not cell fractions or causal coupling."
         ),
     )
 
@@ -699,7 +709,7 @@ def analyze_microenvironment_graph(request: MicroenvironmentGraphRequest) -> Mic
         graph_result=graph_result,
         limitations=(
             "The source engine estimates bulk protein program evidence, not cell fractions.",
-            "Only mesenchymal-like, oligodendrocyte-progenitor-like, and neural-progenitor-like families are projected; missing families remain missing.",
+            "Mesenchymal-like, oligodendrocyte-progenitor-like, neural-progenitor-like, astrocyte-like, and cell-cycle families are projected as direct program nodes; missing families remain missing.",
             "Location and competitive-rank source estimates are retained as separate observations with profile-bound floors and quality weights; they are not silently averaged before ECGI.",
             "Published GBM proteomic-axis scores are independent external-modality observations for seven GBM molecular-program nodes; they never override Neftel evidence.",
             "External published-axis observations use a profile-bound 0.35 standard-error floor to cover cross-engine scale and calibration uncertainty; their narrow bootstrap width is not treated as full uncertainty.",
@@ -762,12 +772,13 @@ def verify_microenvironment_graph_replay(
 
 @lru_cache(maxsize=1)
 def synthetic_microenvironment_graph_request() -> MicroenvironmentGraphRequest:
-    """Return a synthetic bridge demo with explicit MES, OPC, and neural evidence.
+    """Return a synthetic bridge demo with five explicit Neftel families.
 
     The base Neftel demo is AC-like.  This bridge adds disjoint, ranked MES and
-    OPC protein markers plus NPC1/NPC2 markers so all three graph-projected
-    source families are observable while preserving the catalog's exact source
-    identities and all original controls.
+    OPC protein markers, NPC1/NPC2 markers, astrocyte-like markers, and G1/S-
+    plus G2/M markers so all five graph-projected source families are observable
+    while preserving the catalog's exact source identities and all original
+    controls.
     """
 
     source = neftel_demo_request()
@@ -789,6 +800,19 @@ def synthetic_microenvironment_graph_request() -> MicroenvironmentGraphRequest:
     neural_markers = tuple(
         marker.normalized_symbol
         for program_id in ("NPC1", "NPC2")
+        for marker in catalog.programs[program_id]
+        if marker.protein_eligible and marker.normalized_symbol not in occupied_symbols
+    )[:12]
+    occupied_symbols |= set(neural_markers)
+    astrocyte_markers = tuple(
+        marker.normalized_symbol
+        for marker in catalog.programs["AC"]
+        if marker.protein_eligible and marker.normalized_symbol not in occupied_symbols
+    )[:12]
+    occupied_symbols |= set(astrocyte_markers)
+    cell_cycle_markers = tuple(
+        marker.normalized_symbol
+        for program_id in ("G1/S", "G2/M")
         for marker in catalog.programs[program_id]
         if marker.protein_eligible and marker.normalized_symbol not in occupied_symbols
     )[:12]
@@ -825,6 +849,28 @@ def synthetic_microenvironment_graph_request() -> MicroenvironmentGraphRequest:
             provenance_digest=_BRIDGE_DEMO_SOURCE_DIGEST,
         )
         for index, symbol in enumerate(neural_markers, start=1)
+    ) + tuple(
+        ProteinProgramObservation(
+            observation_id=f"demo.bridge.astrocyte.{index:03d}",
+            gene_symbol=symbol,
+            state=ProteinEvidenceState.OBSERVED,
+            standardized_effect=round(0.55 - index * 0.015, 6),
+            standard_error=0.29,
+            quality_weight=0.88,
+            provenance_digest=_BRIDGE_DEMO_SOURCE_DIGEST,
+        )
+        for index, symbol in enumerate(astrocyte_markers, start=1)
+    ) + tuple(
+        ProteinProgramObservation(
+            observation_id=f"demo.bridge.cell_cycle.{index:03d}",
+            gene_symbol=symbol,
+            state=ProteinEvidenceState.OBSERVED,
+            standardized_effect=round(0.72 - index * 0.017, 6),
+            standard_error=0.26,
+            quality_weight=0.90,
+            provenance_digest=_BRIDGE_DEMO_SOURCE_DIGEST,
+        )
+        for index, symbol in enumerate(cell_cycle_markers, start=1)
     )
     source = source.model_copy(update={"observations": source.observations + bridge_observations})
     axes = gbm_axes_demo_request().model_copy(update={"sample_id": source.sample_id})

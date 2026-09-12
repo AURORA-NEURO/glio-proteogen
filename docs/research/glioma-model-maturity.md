@@ -35,8 +35,9 @@ separate algorithms and receipts, not scientifically independent evidence:
   and ranks; and
 - `gbm-microenvironment-graph/1.0.0`: a source-locked Neftel-to-ECGI bridge
   that projects supported mesenchymal-like,
-  oligodendrocyte-progenitor-like, and neural-progenitor-like bulk-protein
-  evidence into matching nodes of a signed GBM microenvironment graph. It
+  oligodendrocyte-progenitor-like, neural-progenitor-like, astrocyte-like, and
+  cell-cycle bulk-protein evidence into matching nodes of a signed GBM state
+  graph. It
   preserves missing families as missing, propagates uncertainty through the
   directed graph, and explicitly does not estimate cell fractions or clinical
   states. It may carry independently digested Winter hypoxia, Verhaak

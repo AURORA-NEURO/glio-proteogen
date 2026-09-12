@@ -64,6 +64,8 @@ def test_profile_binds_both_child_engines() -> None:
         "mesenchymal_like",
         "oligodendrocyte_progenitor_like",
         "neural_progenitor_like",
+        "astrocyte_like",
+        "cell_cycle",
     )
     assert profile.missing_families_are_not_negative is True
     assert profile.cell_fraction_claim_permitted is False
@@ -132,6 +134,14 @@ def test_synthetic_bridge_projects_supported_mes_and_opc_evidence() -> None:
         == "suppressed"
     )
     assert result.axis_result is not None
+    assert (
+        graph_by_node["observation.gbm_microenvironment.astrocyte_like"].state
+        is EvidenceState.OBSERVED
+    )
+    assert (
+        graph_by_node["observation.gbm_microenvironment.cell_cycle"].state
+        is EvidenceState.OBSERVED
+    )
     axis_ids = {str(item.signature_id) for item in result.axis_result.signatures}
     assert {"WINTER_HYPOXIA_UP", "VERHAAK_GLIOBLASTOMA_MESENCHYMAL"}.issubset(axis_ids)
     axis_observations = {

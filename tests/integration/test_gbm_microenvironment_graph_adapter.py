@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 HTTP_OK = 200
 HTTP_UNSUPPORTED_MEDIA_TYPE = 415
 HTTP_UNPROCESSABLE_ENTITY = 422
-GRAPH_NODE_COUNT = 12
+GRAPH_NODE_COUNT = 14
 
 
 def test_bridge_http_demo_analyze_verify_round_trip(tmp_path: Path) -> None:
