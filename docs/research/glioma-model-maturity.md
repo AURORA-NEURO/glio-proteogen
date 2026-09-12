@@ -316,7 +316,7 @@ posterior estimator.
 The strict 20 are a floor for counterfeit estimators, not the whole scientific
 debt inventory. M12-06's legacy scalar compatibility path remains in this
 floor, while its new typed glioma replicate lane is a real robust estimator.
-M06-04, M07-05, M08-03, M09-03, M09-04, M09-05, M09-06, M10-04, M10-05, M11-03, M11-04, M12-03, M12-04, M12-06, M13-04, M15-04, and M15-05 now have typed glioma
+M06-04, M07-05, M08-03, M09-03, M09-04, M09-05, M09-06, M10-04, M10-05, M11-03, M11-04, M12-03, M12-04, M12-06, M13-04, M14-03, M14-05, M15-04, and M15-05 now have typed glioma
 research lanes documented below while their legacy paths remain provisional.
 Three representation constructors—M07-02, M08-02, and
 M09-02—also synthesize numeric vectors from hashes. They remain classified as
