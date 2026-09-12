@@ -8,9 +8,9 @@ published GBM proteomic-axis request is present, all seven source signatures
 are retained as independent molecular-program observations.
 
 The bridge can also carry an optional, independent secondary observation lane
-from `gbm-proteomic-axes/1.0.0`. The published Winter hypoxia, Verhaak subtype,
-EGFR, MYC, and KRAS target signatures are projected onto matching graph nodes
-with their own result digest, interval-derived standard error, and source quality. A
+from `gbm-proteomic-axes/1.0.0`. All seven published signatures (KRAS, MYC,
+hypoxia, mesenchymal, neural, proneural, and EGFR) are projected onto matching
+graph nodes with their own result digest, interval-derived standard error, and source quality. A
 profile-bound standard-error floor of `0.35` is applied because the published
 axis bootstrap captures caller measurement perturbation, not cross-engine scale
 or calibration uncertainty. They are never averaged into, substituted for, or
@@ -30,8 +30,10 @@ The projection is deliberately narrower than a deconvolution model:
   `mesenchymal`, `neural`, `proneural`, and `egfr_targets` in the exact
   profile-declared order. These source-specific nodes are deliberately not
   connected by invented subtype-causality edges; and
-- all other families, including absent source families, become explicit
-  `missing` observations with zero quality rather than negative evidence.
+- a source family that is not present becomes an explicit `missing` observation,
+  while a present family whose own support gate abstains becomes `unsupported`;
+  both carry zero quality and neither is treated as negative evidence. The same
+  distinction is retained for each optional published axis signature.
 
 The graph relations are a small, versioned GBM microenvironment abstraction:
 hypoxia positively connects to angiogenesis and mesenchymal state, mesenchymal

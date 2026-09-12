@@ -15,6 +15,10 @@ from glio_proteogen.research.gbm_microenvironment_graph import (
     verify_microenvironment_graph_replay,
 )
 from glio_proteogen.research.gbm_microenvironment_graph.runtime import result_payload_digest
+from glio_proteogen.research.gbm_proteomic_axes import analyze_gbm_proteomic_axes
+from glio_proteogen.research.gbm_proteomic_axes import (
+    synthetic_demo_request as gbm_axes_demo_request,
+)
 from glio_proteogen.research.neftel_protein_programs import (
     AnalysisSupport,
     MethodEstimate,
@@ -117,7 +121,7 @@ def test_synthetic_bridge_projects_supported_mes_and_opc_evidence() -> None:
     )
 
 
-def test_missing_source_families_remain_missing() -> None:
+def test_present_but_abstained_source_families_remain_unsupported() -> None:
     source = synthetic_demo_request()
     request = MicroenvironmentGraphRequest(sample_id=source.sample_id, source_request=source)
     result = analyze_microenvironment_graph(request)
@@ -126,11 +130,11 @@ def test_missing_source_families_remain_missing() -> None:
     }
     assert (
         graph_by_node["observation.gbm_microenvironment.mesenchymal"].state
-        is EvidenceState.MISSING
+        is EvidenceState.UNSUPPORTED
     )
     assert (
         graph_by_node["observation.gbm_microenvironment.opc_like"].state
-        is EvidenceState.MISSING
+        is EvidenceState.UNSUPPORTED
     )
     assert graph_by_node["observation.gbm_microenvironment.mesenchymal"].standardized_effect is None
 
@@ -153,10 +157,42 @@ def test_rank_estimate_survives_when_location_method_abstains() -> None:
     source_with_abstained_location = source.model_copy(update={"program_evidence": evidence})
     graph_request = runtime._graph_request(request, source_with_abstained_location, None)
     observations = {str(item.observation_id): item for item in graph_request.observations}
-    assert "observation.gbm_microenvironment.mesenchymal" not in observations
+    assert (
+        observations["observation.gbm_microenvironment.mesenchymal"].state
+        is EvidenceState.UNSUPPORTED
+    )
     assert (
         observations["observation.gbm_microenvironment.mesenchymal.rank"].state
         is EvidenceState.OBSERVED
+    )
+
+
+def test_selected_axis_subset_marks_unrequested_graph_axes_missing() -> None:
+    source = synthetic_microenvironment_graph_request().source_request
+    axes = gbm_axes_demo_request().model_copy(
+        update={"sample_id": source.sample_id, "signature_ids": ("WINTER_HYPOXIA_UP",)}
+    )
+    request = MicroenvironmentGraphRequest(
+        sample_id=source.sample_id,
+        source_request=source,
+        axis_request=axes,
+    )
+    source_result = analyze_neftel_protein_programs(source)
+    # The bridge's axis projection is source-optional; this direct check uses
+    # the selected subset to verify that omitted graph signatures remain explicit.
+    graph_request = runtime._graph_request(
+        request,
+        source_result,
+        analyze_gbm_proteomic_axes(axes),
+    )
+    observations = {str(item.observation_id): item for item in graph_request.observations}
+    assert (
+        observations["observation.gbm_microenvironment.axis.hypoxia"].state
+        is EvidenceState.OBSERVED
+    )
+    assert (
+        observations["observation.gbm_microenvironment.axis.kras_targets"].state
+        is EvidenceState.MISSING
     )
 
 

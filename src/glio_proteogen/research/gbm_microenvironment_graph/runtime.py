@@ -461,6 +461,29 @@ def _source_method_observation(
     )
 
 
+def _unsupported_observation(
+    observation_id: str,
+    node_id: str,
+    provenance_digest: Sha256Digest,
+) -> EvidenceObservation:
+    """Preserve a present-but-abstained source estimate without making it numeric.
+
+    ``missing`` means that no source record was supplied at all.  ``unsupported``
+    means that a source record was present but its own support gate refused to emit
+    an estimate.  Keeping that distinction in the bridge receipt prevents an
+    abstention from disappearing while ECGI still excludes it from the objective.
+    """
+
+    return EvidenceObservation(
+        observation_id=observation_id,
+        node_id=node_id,
+        modality=EvidenceModality.PROTEOMICS,
+        state=EvidenceState.UNSUPPORTED,
+        quality_weight=0.0,
+        provenance_digest=provenance_digest,
+    )
+
+
 def _graph_request(
     request: MicroenvironmentGraphRequest,
     source: ProteinProgramResult,
@@ -494,23 +517,75 @@ def _graph_request(
             ),
         )
         if all(item is None for item in projected):
-            observations.append(
-                EvidenceObservation(
-                    observation_id=f"observation.gbm_microenvironment.{graph_program}",
-                    node_id=_node_id(graph_program),
-                    modality=EvidenceModality.PROTEOMICS,
-                    state=EvidenceState.MISSING,
-                    quality_weight=0.0,
-                    provenance_digest=source.result_digest,
+            if evidence.location.support.value == "abstained":
+                observations.append(
+                    _unsupported_observation(
+                        f"observation.gbm_microenvironment.{graph_program}",
+                        _node_id(graph_program),
+                        source.result_digest,
+                    )
                 )
-            )
+            if evidence.rank_enrichment.support.value == "abstained":
+                observations.append(
+                    _unsupported_observation(
+                        f"observation.gbm_microenvironment.{graph_program}.rank",
+                        _node_id(graph_program),
+                        source.result_digest,
+                    )
+                )
+            if evidence.location.support.value != "abstained" or evidence.rank_enrichment.support.value != "abstained":
+                observations.append(
+                    EvidenceObservation(
+                        observation_id=f"observation.gbm_microenvironment.{graph_program}",
+                        node_id=_node_id(graph_program),
+                        modality=EvidenceModality.PROTEOMICS,
+                        state=EvidenceState.MISSING,
+                        quality_weight=0.0,
+                        provenance_digest=source.result_digest,
+                    )
+                )
         else:
             observations.extend(item for item in projected if item is not None)
+            if projected[0] is None and evidence.location.support.value == "abstained":
+                observations.append(
+                    _unsupported_observation(
+                        f"observation.gbm_microenvironment.{graph_program}",
+                        _node_id(graph_program),
+                        source.result_digest,
+                    )
+                )
+            if projected[1] is None and evidence.rank_enrichment.support.value == "abstained":
+                observations.append(
+                    _unsupported_observation(
+                        f"observation.gbm_microenvironment.{graph_program}.rank",
+                        _node_id(graph_program),
+                        source.result_digest,
+                    )
+                )
     if axes is not None:
         by_signature = {str(item.signature_id): item for item in axes.signatures}
         for signature_id, graph_program in _AXIS_MAP:
             estimate = by_signature.get(signature_id)
-            if estimate is None or estimate.published_score is None:
+            if estimate is None:
+                observations.append(
+                    EvidenceObservation(
+                        observation_id=f"observation.gbm_microenvironment.axis.{graph_program}",
+                        node_id=_node_id(graph_program),
+                        modality=EvidenceModality.PROTEOMICS,
+                        state=EvidenceState.MISSING,
+                        quality_weight=0.0,
+                        provenance_digest=axes.result_digest,
+                    )
+                )
+                continue
+            if estimate.support.value == "abstained" or estimate.published_score is None:
+                observations.append(
+                    _unsupported_observation(
+                        f"observation.gbm_microenvironment.axis.{graph_program}",
+                        _node_id(graph_program),
+                        axes.result_digest,
+                    )
+                )
                 continue
             axis_lower = estimate.lower_bound
             axis_upper = estimate.upper_bound
