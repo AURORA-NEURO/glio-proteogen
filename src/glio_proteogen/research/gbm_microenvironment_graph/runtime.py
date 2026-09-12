@@ -90,6 +90,12 @@ _BRIDGE_DEMO_SOURCE_DIGEST: Final = sha256_digest(
 _PROGRAM_MAP: Final = (
     ("mesenchymal_like", "mesenchymal"),
     ("oligodendrocyte_progenitor_like", "opc_like"),
+    # Neftel's paired NPC1/NPC2 families are tumor-lineage evidence rather
+    # than a cell-fraction estimate.  The graph already exposes a neural
+    # program node (also used by the independent Verhaak axis), so retaining
+    # this source family lets direct protein evidence and external axis
+    # evidence be compared without collapsing either provenance.
+    ("neural_progenitor_like", "neural"),
 )
 _GRAPH_PROGRAMS: Final = (
     "mesenchymal",
@@ -180,9 +186,17 @@ class MicroenvironmentGraphProfile(FrozenModel):
     source_location_quality_limited: float = Field(default=0.5, ge=0.0, le=1.0)
     source_rank_quality_supported: float = Field(default=0.85, ge=0.0, le=1.0)
     source_rank_quality_limited: float = Field(default=0.40, ge=0.0, le=1.0)
-    supported_source_families: tuple[Literal["mesenchymal_like", "oligodendrocyte_progenitor_like"], ...] = (
+    supported_source_families: tuple[
+        Literal[
+            "mesenchymal_like",
+            "oligodendrocyte_progenitor_like",
+            "neural_progenitor_like",
+        ],
+        ...,
+    ] = (
         "mesenchymal_like",
         "oligodendrocyte_progenitor_like",
+        "neural_progenitor_like",
     )
     missing_families_are_not_negative: Literal[True] = True
     cell_fraction_claim_permitted: Literal[False] = False
@@ -356,7 +370,11 @@ def microenvironment_graph_profile() -> MicroenvironmentGraphProfile:
         source_location_quality_limited=0.5,
         source_rank_quality_supported=0.85,
         source_rank_quality_limited=0.40,
-        supported_source_families=("mesenchymal_like", "oligodendrocyte_progenitor_like"),
+        supported_source_families=(
+            "mesenchymal_like",
+            "oligodendrocyte_progenitor_like",
+            "neural_progenitor_like",
+        ),
         missing_families_are_not_negative=True,
         cell_fraction_claim_permitted=False,
         clinical_use_permitted=False,
@@ -445,10 +463,13 @@ def _topology_provenance() -> TopologyProvenance:
         sources=sources,
         curation_note=(
             "Reactome records provide public biological context for this repository-native "
-            "GBM microenvironment abstraction; they are not a Reactome-exported graph. "
+            "GBM microenvironment and tumor-lineage abstraction; they are not a "
+            "Reactome-exported graph. "
             "The four molecular-to-context edges are profile-bound, lower-weight association "
             "hypotheses (EGFR-to-hypoxia/mesenchymal and neural/proneural-to-mesenchymal "
-            "contrasts), not causal, subtype, or clinical claims."
+            "contrasts), not causal, subtype, or clinical claims. Direct Neftel "
+            "neural-progenitor evidence is retained on the neural node; it is not a cell "
+            "fraction or categorical subtype call."
         ),
     )
 
@@ -678,7 +699,7 @@ def analyze_microenvironment_graph(request: MicroenvironmentGraphRequest) -> Mic
         graph_result=graph_result,
         limitations=(
             "The source engine estimates bulk protein program evidence, not cell fractions.",
-            "Only mesenchymal-like and oligodendrocyte-progenitor-like families are projected; missing families remain missing.",
+            "Only mesenchymal-like, oligodendrocyte-progenitor-like, and neural-progenitor-like families are projected; missing families remain missing.",
             "Location and competitive-rank source estimates are retained as separate observations with profile-bound floors and quality weights; they are not silently averaged before ECGI.",
             "Published GBM proteomic-axis scores are independent external-modality observations for seven GBM molecular-program nodes; they never override Neftel evidence.",
             "External published-axis observations use a profile-bound 0.35 standard-error floor to cover cross-engine scale and calibration uncertainty; their narrow bootstrap width is not treated as full uncertainty.",

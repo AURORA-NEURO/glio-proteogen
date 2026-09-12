@@ -31,9 +31,10 @@ measurements for an exact port of seven published GBM proteomic models.
 contrasts and preserves the exact marker identities and ranks from Neftel Table
 S2 while applying a separately identified repository-native evidence model.
 `/v1/research/gbm-microenvironment-graph` projects supported Neftel
-mesenchymal-like and oligodendrocyte-progenitor-like bulk-protein evidence into
-a signed GBM microenvironment graph solved by ECGI. Missing source families stay
-missing; the surface never reports cell fractions or clinical states. An
+mesenchymal-like, oligodendrocyte-progenitor-like, and neural-progenitor-like
+bulk-protein evidence into matching nodes of a signed GBM microenvironment
+graph solved by ECGI. Missing source families stay missing; the surface never
+reports cell fractions or clinical states. An
 optional secondary observation lane may carry the independently computed Winter
 hypoxia and Verhaak mesenchymal scores from
 `gbm-proteomic-axes/1.0.0` as external-modality observations; these are separately digested, replayed, and

@@ -25,6 +25,8 @@ from glio_proteogen.research.gbm_proteomic_axes import (
 from glio_proteogen.research.neftel_protein_programs import (
     AnalysisSupport,
     MethodEstimate,
+    ProteinEvidenceState,
+    ProteinProgramObservation,
     analyze_neftel_protein_programs,
     synthetic_demo_request,
 )
@@ -61,6 +63,7 @@ def test_profile_binds_both_child_engines() -> None:
     assert profile.supported_source_families == (
         "mesenchymal_like",
         "oligodendrocyte_progenitor_like",
+        "neural_progenitor_like",
     )
     assert profile.missing_families_are_not_negative is True
     assert profile.cell_fraction_claim_permitted is False
@@ -181,6 +184,50 @@ def test_present_but_abstained_source_families_remain_unsupported() -> None:
         is EvidenceState.UNSUPPORTED
     )
     assert graph_by_node["observation.gbm_microenvironment.mesenchymal"].standardized_effect is None
+
+
+def test_neural_progenitor_family_projects_directly_to_neural_node() -> None:
+    source = synthetic_demo_request()
+    catalog = runtime.marker_catalog()
+    existing_symbols = {item.gene_symbol for item in source.observations}
+    neural_markers = tuple(
+        marker.normalized_symbol
+        for program_id in ("NPC1", "NPC2")
+        for marker in catalog.programs[program_id]
+        if marker.protein_eligible and marker.normalized_symbol not in existing_symbols
+    )[:12]
+    observations = source.observations + tuple(
+        ProteinProgramObservation(
+            observation_id=f"demo.bridge.neural.{index:03d}",
+            gene_symbol=symbol,
+            state=ProteinEvidenceState.OBSERVED,
+            standardized_effect=round(0.80 - index * 0.02, 6),
+            standard_error=0.25,
+            quality_weight=0.92,
+            provenance_digest=sha256_digest({"test": "neural", "index": index}),
+        )
+        for index, symbol in enumerate(neural_markers, start=1)
+    )
+    request = MicroenvironmentGraphRequest(
+        sample_id=source.sample_id,
+        source_request=source.model_copy(update={"observations": observations}),
+    )
+    result = analyze_microenvironment_graph(request)
+    projected = {
+        str(item.observation_id): item for item in result.graph_request.observations
+    }
+    assert projected["observation.gbm_microenvironment.neural"].state is EvidenceState.OBSERVED
+    assert projected["observation.gbm_microenvironment.neural.rank"].state is EvidenceState.OBSERVED
+    neural_node = next(
+        item
+        for item in result.graph_result.node_states
+        if str(item.node_id) == "pathway.gbm_microenvironment.neural"
+    )
+    assert neural_node.support.value != "abstained"
+    assert any(
+        driver.driver_id == "observation.gbm_microenvironment.neural"
+        for driver in neural_node.top_drivers
+    )
 
 
 def test_rank_estimate_survives_when_location_method_abstains() -> None:
