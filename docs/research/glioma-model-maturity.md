@@ -938,7 +938,9 @@ The additive M11-06 research runtime now fits typed proteomic replicate evidence
 instead of deriving a response from an upstream digest. Each perturbation carries
 baseline and perturbed replicate vectors, a bounded quality weight, and the
 declared perturbation kind. Arm locations use damped Huber IRLS with a midpoint
-median absolute-deviation scale for even replicate counts;
+median absolute-deviation scale for even replicate counts. Each proposal is
+evaluated against a frozen-scale Huber objective and accepted only when finite
+and non-increasing, with deterministic backtracking across outlier breakpoints;
 the reported effect is a finite-difference change in robust arm location, mapped
 through a bounded hyperbolic response envelope. This is a reproducible sensitivity
 estimate, not a causal intervention or a clinical response model.

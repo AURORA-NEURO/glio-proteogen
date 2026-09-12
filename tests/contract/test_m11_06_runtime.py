@@ -43,7 +43,11 @@ from glio_proteogen.kernel.models import (
 from glio_proteogen.modules.c11_protein_native_subtype import (
     m11_06_perturbation_sensitivity_simulator as m1106,
 )
+from glio_proteogen.modules.c11_protein_native_subtype.m11_06_perturbation_sensitivity_simulator import (  # noqa: E501
+    engine as m1106_engine,
+)
 from glio_proteogen.modules.c11_protein_native_subtype.m11_06_perturbation_sensitivity_simulator.engine import (  # noqa: E501
+    _huber_location,
     _median_abs,
 )
 
@@ -56,6 +60,7 @@ _HTTP_NOT_FOUND = 404
 _HTTP_OK = 200
 _HTTP_UNPROCESSABLE = 422
 _HTTP_UNSUPPORTED_MEDIA = 415
+_MINIMUM_OBJECTIVE_CALLS = 2
 M1106AuthorizationError = m1106.M1106AuthorizationError
 M1106ReplayVerificationError = m1106.M1106ReplayVerificationError
 M1106SensitivityEngine = m1106.M1106SensitivityEngine
@@ -203,6 +208,22 @@ def test_typed_sensitivity_reports_effect_and_bootstrap_uncertainty() -> None:
 
 def test_huber_scale_uses_midpoint_median_for_even_residuals() -> None:
     assert _median_abs((-3.0, -1.0, 2.0, 10.0)) == pytest.approx(2.5)
+
+
+def test_huber_location_rejects_nonfinite_proposals(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = 0
+
+    def nonfinite_proposal(*_args: object) -> float:
+        nonlocal calls
+        calls += 1
+        return 0.0 if calls == 1 else float("nan")
+
+    monkeypatch.setattr(m1106_engine, "_huber_objective", nonfinite_proposal)
+    estimate, standard_error = _huber_location((0.0, 1.0, 2.0))
+
+    assert estimate == pytest.approx(1.0)
+    assert standard_error > 0.0
+    assert calls > _MINIMUM_OBJECTIVE_CALLS
 
 
 def test_typed_sensitivity_abstains_without_minimum_replicates() -> None:

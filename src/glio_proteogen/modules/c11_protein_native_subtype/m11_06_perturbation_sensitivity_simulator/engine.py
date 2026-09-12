@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Mapping
-from math import sqrt, tanh
+from math import isfinite, sqrt, tanh
 from typing import Any, Final, cast
 
 from pydantic import TypeAdapter
@@ -50,6 +50,9 @@ _HUBER_ITERATIONS: Final = 24
 _HUBER_DAMPING: Final = 0.7
 _MAD_SCALE_FACTOR: Final = 1.4826
 _MINIMUM_SCALE: Final = 1e-6
+_OBJECTIVE_TOLERANCE: Final = 1e-12
+_BACKTRACKING_STEPS: Final = 12
+_BACKTRACKING_FACTOR: Final = 0.5
 _BOOTSTRAP_QUANTILE: Final = 0.05
 _RESPONSE_SCALE: Final = 3.0
 
@@ -148,7 +151,13 @@ def _text_is_prohibited(value: str) -> bool:
 
 
 def _huber_location(values: tuple[float, ...]) -> tuple[float, float]:
-    """Estimate a proteomic arm location and robust standard error."""
+    """Estimate a proteomic arm location and robust standard error.
+
+    IRLS weights are computed from a scale frozen at the parent iterate.  The
+    damped proposal is accepted only when the corresponding Huber objective is
+    finite and non-increasing; a deterministic scalar backtracking line search
+    handles outlier breakpoints without allowing an oscillating arm estimate.
+    """
 
     estimate = sum(values) / len(values)
     for _ in range(_HUBER_ITERATIONS):
@@ -165,17 +174,61 @@ def _huber_location(values: tuple[float, ...]) -> tuple[float, float]:
             sum(weight * value for weight, value in zip(weights, values, strict=True))
             / denominator
         )
-        damped = _HUBER_DAMPING * updated + (1.0 - _HUBER_DAMPING) * estimate
-        if abs(damped - estimate) <= _MINIMUM_SCALE / 100.0:
-            estimate = damped
+        proposal = _HUBER_DAMPING * updated + (1.0 - _HUBER_DAMPING) * estimate
+        baseline_objective = _huber_objective(values, estimate, scale)
+        proposal_objective = _huber_objective(values, proposal, scale)
+        accepted = proposal
+        if not isfinite(proposal_objective) or (
+            proposal_objective > baseline_objective + _OBJECTIVE_TOLERANCE
+        ):
+            direction = proposal - estimate
+            accepted = estimate
+            step = _BACKTRACKING_FACTOR
+            for _ in range(_BACKTRACKING_STEPS):
+                trial = estimate + step * direction
+                trial_objective = _huber_objective(values, trial, scale)
+                if isfinite(trial_objective) and (
+                    trial_objective <= baseline_objective + _OBJECTIVE_TOLERANCE
+                ):
+                    accepted = trial
+                    break
+                step *= _BACKTRACKING_FACTOR
+        if abs(accepted - estimate) <= _MINIMUM_SCALE / 100.0:
+            estimate = accepted
             break
-        estimate = damped
+        estimate = accepted
     residuals = tuple(value - estimate for value in values)
+    scale = max(_MAD_SCALE_FACTOR * _median_abs(residuals), _MINIMUM_SCALE)
+    weights = tuple(
+        1.0
+        if abs(residual) / scale <= _HUBER_DELTA
+        else _HUBER_DELTA / (abs(residual) / scale)
+        for residual in residuals
+    )
     weighted_variance = sum(
         weight * residual * residual
         for weight, residual in zip(weights, residuals, strict=True)
     ) / max(sum(weights) - 1.0, 1.0)
     return estimate, sqrt(max(weighted_variance / len(values), _MINIMUM_SCALE**2))
+
+
+def _huber_objective(values: tuple[float, ...], center: float, scale: float) -> float:
+    """Evaluate the frozen-scale Huber objective used by the arm line search."""
+
+    return float(
+        sum(_huber_loss((value - center) / max(scale, _MINIMUM_SCALE)) for value in values)
+    )
+
+
+def _huber_loss(residual: float) -> float:
+    """Return the standard Huber loss for a standardized residual."""
+
+    absolute = abs(residual)
+    return (
+        0.5 * residual * residual
+        if absolute <= _HUBER_DELTA
+        else _HUBER_DELTA * (absolute - 0.5 * _HUBER_DELTA)
+    )
 
 
 def _median_abs(values: tuple[float, ...]) -> float:
