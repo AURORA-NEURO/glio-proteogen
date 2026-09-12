@@ -253,6 +253,46 @@ def test_typed_initialization_respects_left_censor_bounds() -> None:
     assert initial[index[GliomaPerturbationProgram.P53_CELL_CYCLE]] == -0.3
 
 
+def test_typed_initialization_downweights_failed_perturbation_replicate() -> None:
+    """A failed perturbation batch cannot seed a spurious program response."""
+
+    program = GliomaPerturbationProgram.RTK_PI3K_AKT_MTOR
+    grouped = {
+        program: [
+            engine_module._TypedTerm(
+                scenario_id="scenario.a",
+                program=program,
+                state=PerturbationEvidenceState.OBSERVED,
+                delta=0.2,
+                standard_error=0.1,
+                quality_weight=1.0,
+            ),
+            engine_module._TypedTerm(
+                scenario_id="scenario.b",
+                program=program,
+                state=PerturbationEvidenceState.OBSERVED,
+                delta=0.3,
+                standard_error=0.1,
+                quality_weight=1.0,
+            ),
+            engine_module._TypedTerm(
+                scenario_id="scenario.failed-batch",
+                program=program,
+                state=PerturbationEvidenceState.OBSERVED,
+                delta=8.0,
+                standard_error=0.1,
+                quality_weight=1.0,
+            ),
+        ]
+    }
+
+    initial = engine_module._initial_typed_values(grouped)
+    center = initial[list(engine_module._PROGRAM_ORDER).index(program)]
+    arithmetic_mean = (0.2 + 0.3 + 8.0) / 3.0
+    assert 0.2 < center < 0.4
+    assert center < arithmetic_mean / 2.0
+
+
 def test_typed_missing_or_unsupported_evidence_abstains_without_negative_conversion() -> None:
     typed_missing = _perturbation("scenario.missing").model_copy(
         update={

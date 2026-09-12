@@ -1070,9 +1070,10 @@ digest-seeded bootstrap perturbations produce replayable intervals, stability,
 discordance, top drivers, and numerical measurement/topology leave-one-family-
 out ablation deltas from the same robust graph solver.
 
-Initialization is censor-aware as well: observed scenario centers are projected
-onto tightest left-censor limits, and censor-only programs begin at the
-ridge-neutral feasible value. This prevents an upper bound from becoming a
+Initialization is censor-aware as well: observed scenario centers use
+inverse-variance, quality-weighted Huber IRLS before projection onto tightest
+left-censor limits, and censor-only programs begin at the ridge-neutral feasible
+value. This prevents an extreme failed batch or an upper bound from becoming a
 synthetic observation before signed-edge propagation begins.
 
 Missing and unsupported typed evidence is excluded and cannot become a negative
