@@ -301,6 +301,22 @@ def test_typed_initialization_keeps_left_censored_limits_feasible() -> None:
     assert values == [0.4, -0.3]
 
 
+def test_typed_initialization_downweights_failed_panel_replicate() -> None:
+    """Repeated panel-mechanism observations use a robust Huber center."""
+
+    terms = tuple(
+        (0, target, 0.2, 1.0, MechanismObservationState.OBSERVED)
+        for target in (0.2, 0.25, 0.3, 4.0)
+    )
+    center = engine_module._robust_initial_center(terms)
+    arithmetic_mean = sum(term[1] for term in terms) / len(terms)
+    assert center < 0.5
+    assert arithmetic_mean > 1.0
+    assert engine_module._initial_measurement_objective(center, terms) <= (
+        engine_module._initial_measurement_objective(arithmetic_mean, terms)
+    )
+
+
 def test_state_method_preserves_alternatives_and_counter_evidence() -> None:
     result = M1204MechanismEngine().infer(_request("state:mechanism-b:State mechanism:active"))
     assert result.status is MechanismInferenceStatus.INFERRED

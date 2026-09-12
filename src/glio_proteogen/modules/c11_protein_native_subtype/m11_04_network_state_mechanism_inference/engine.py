@@ -66,6 +66,8 @@ _M1104_SOLVER_TOLERANCE: Final = 1e-6
 _M1104_OBJECTIVE_TOLERANCE: Final = 1e-10
 _M1104_BACKTRACKING_STEPS: Final = 18
 _M1104_BACKTRACKING_FACTOR: Final = 0.5
+_M1104_INITIAL_HUBER_ITERATIONS: Final = 32
+_M1104_INITIAL_HUBER_TOLERANCE: Final = 1e-8
 _M1104_MIN_SCALE: Final = 1e-6
 _M1104_MIN_TYPED_MECHANISMS: Final = 2
 _M1104_LOW_QUANTILE: Final = 0.05
@@ -335,6 +337,87 @@ def _typed_objective(
     return objective
 
 
+def _initial_measurement_objective(
+    center: float,
+    terms: tuple[tuple[int, float, float, float, MechanismObservationState], ...],
+) -> float:
+    """Evaluate the frozen-scale robust objective for one mechanism start."""
+
+    return float(
+        sum(
+            quality
+            * _huber_loss(
+                (
+                    max(0.0, center - target)
+                    if state is MechanismObservationState.LEFT_CENSORED
+                    else center - target
+                )
+                / max(_M1104_MIN_SCALE, uncertainty)
+            )
+            for _index, target, uncertainty, quality, state in terms
+        )
+    )
+
+
+def _robust_initial_center(
+    terms: tuple[tuple[int, float, float, float, MechanismObservationState], ...],
+) -> float:
+    """Find a deterministic inverse-variance Huber center for repeated evidence."""
+
+    if len(terms) == 1:
+        return terms[0][1]
+    information = tuple(
+        quality / max(_M1104_MIN_SCALE, uncertainty**2)
+        for _index, _target, uncertainty, quality, _state in terms
+    )
+    denominator = max(sum(information), _M1104_MIN_SCALE)
+    estimate = (
+        sum(weight * term[1] for weight, term in zip(information, terms, strict=True))
+        / denominator
+    )
+    for _ in range(_M1104_INITIAL_HUBER_ITERATIONS):
+        residuals = tuple(
+            (term[1] - estimate) / max(_M1104_MIN_SCALE, term[2]) for term in terms
+        )
+        robust_weights = tuple(
+            weight
+            * (
+                1.0
+                if abs(residual) <= _M1104_HUBER_DELTA
+                else _M1104_HUBER_DELTA / abs(residual)
+            )
+            for weight, residual in zip(information, residuals, strict=True)
+        )
+        robust_denominator = max(sum(robust_weights), _M1104_MIN_SCALE)
+        proposal = sum(
+            weight * term[1]
+            for weight, term in zip(robust_weights, terms, strict=True)
+        ) / robust_denominator
+        baseline_objective = _initial_measurement_objective(estimate, terms)
+        proposal_objective = _initial_measurement_objective(proposal, terms)
+        accepted = proposal
+        if not math.isfinite(proposal_objective) or (
+            proposal_objective > baseline_objective + _M1104_OBJECTIVE_TOLERANCE
+        ):
+            direction = proposal - estimate
+            accepted = estimate
+            step = _M1104_BACKTRACKING_FACTOR
+            for _ in range(_M1104_BACKTRACKING_STEPS):
+                trial = estimate + step * direction
+                trial_objective = _initial_measurement_objective(trial, terms)
+                if math.isfinite(trial_objective) and (
+                    trial_objective <= baseline_objective + _M1104_OBJECTIVE_TOLERANCE
+                ):
+                    accepted = trial
+                    break
+                step *= _M1104_BACKTRACKING_FACTOR
+        if abs(accepted - estimate) <= _M1104_INITIAL_HUBER_TOLERANCE:
+            estimate = accepted
+            break
+        estimate = accepted
+    return estimate
+
+
 def _initial_typed_values(
     observations: tuple[tuple[int, float, float, float, MechanismObservationState], ...],
     mechanism_count: int,
@@ -351,11 +434,7 @@ def _initial_typed_values(
             item[1] for item in terms if item[4] is MechanismObservationState.LEFT_CENSORED
         )
         if observed:
-            total = sum(item[3] / max(_M1104_MIN_SCALE, item[2] ** 2) for item in observed)
-            center = sum(
-                item[1] * item[3] / max(_M1104_MIN_SCALE, item[2] ** 2)
-                for item in observed
-            ) / max(_M1104_MIN_SCALE, total)
+            center = _robust_initial_center(observed)
             values[position] = min((center, *limits)) if limits else center
         elif limits:
             values[position] = min((0.0, *limits))

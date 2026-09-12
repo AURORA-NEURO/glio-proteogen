@@ -884,8 +884,10 @@ activation, inhibition, and coupling relations are fitted with robust Huber
 loss, ridge stabilization, and frozen-parent damped Jacobi coordinate descent;
 objective-safe backtracking preserves a monotone replay-auditable trace.
 Deterministic digest-seeded bootstrap perturbations produce posterior intervals
-per panel mechanism. Initialization treats left-censored effects as upper bounds: observed
-centers are clamped to feasible limits and censor-only mechanisms start at the
+per panel mechanism. Repeated observations use a deterministic inverse-variance,
+quality-weighted Huber/IRLS center. Initialization treats left-censored effects
+as upper bounds: robust observed centers are clamped to feasible limits and
+censor-only mechanisms start at the
 ridge-neutral feasible value.
 
 The original closed posterior/state grammar remains compatible for other model
