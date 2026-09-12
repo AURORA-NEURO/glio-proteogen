@@ -547,6 +547,10 @@ after a finite objective-safe backtracking check; failed descent falls back to
 the parent as an auditable stationary point instead of manufacturing a result.
 Objective traces are quantized for replay, while deterministic bootstrap and
 member/program ablations keep measurement and topology uncertainty visible.
+Observed member repeats initialize each complex with a deterministic
+quality/stoichiometry-weighted Huber/IRLS center and objective-safe backtracking
+before censor-bound projection, preventing a failed member assay from choosing
+the nonlinear solver basin.
 
 ## Completed M09-04 typed glioma complex stoichiometry lane
 

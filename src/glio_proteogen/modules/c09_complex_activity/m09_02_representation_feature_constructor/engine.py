@@ -306,6 +306,9 @@ _TYPED_TOLERANCE: Final = 1e-5
 _TYPED_OBJECTIVE_TOLERANCE: Final = 1e-10
 _TYPED_BACKTRACKING_STEPS: Final = 18
 _TYPED_BACKTRACKING_FACTOR: Final = 0.5
+_TYPED_INITIAL_HUBER_ITERATIONS: Final = 32
+_TYPED_INITIAL_HUBER_TOLERANCE: Final = 1e-8
+_TYPED_INITIAL_OBJECTIVE_TOLERANCE: Final = 1e-10
 _TYPED_MIN_OBSERVATIONS: Final = 3
 _TYPED_MAX_ITERATIONS: Final = 256
 
@@ -371,17 +374,16 @@ def _initial_typed_complex_state(
         and item.censoring_limit is not None
     )
     if observed:
-        values = np.asarray([_typed_target(item) for item in observed], dtype=np.float64)
-        weights = np.asarray(
-            [
-                item.quality_weight
-                * item.stoichiometric_weight
-                / max(_typed_error(item) ** 2, 1e-12)
-                for item in observed
-            ],
-            dtype=np.float64,
+        terms = tuple(
+            (
+                _typed_target(item),
+                _typed_error(item),
+                item.quality_weight,
+                item.stoichiometric_weight,
+            )
+            for item in observed
         )
-        state = float(np.average(values, weights=weights))
+        state = _robust_initial_complex_center(terms)
         if limits:
             state = min(state, *limits)
     elif limits:
@@ -404,6 +406,81 @@ def _typed_huber(value: float) -> float:
         if magnitude <= _TYPED_HUBER_K
         else _TYPED_HUBER_K * magnitude - 0.5 * _TYPED_HUBER_K**2
     )
+
+
+def _initial_complex_measurement_objective(
+    center: float,
+    terms: tuple[tuple[float, float, float, float], ...],
+) -> float:
+    """Evaluate the frozen-scale robust objective for a complex start."""
+
+    return float(
+        sum(
+            quality
+            * stoichiometric_weight
+            / max(standard_error**2, 1e-12)
+            * _typed_huber((center - target) / max(1e-6, standard_error))
+            for target, standard_error, quality, stoichiometric_weight in terms
+        )
+    )
+
+
+def _robust_initial_complex_center(
+    terms: tuple[tuple[float, float, float, float], ...],
+) -> float:
+    """Find a deterministic quality/stoichiometry-weighted Huber center."""
+
+    if len(terms) == 1:
+        return terms[0][0]
+    information = tuple(
+        quality * stoichiometric_weight / max(1e-6, standard_error**2)
+        for _target, standard_error, quality, stoichiometric_weight in terms
+    )
+    estimate = sum(
+        weight * term[0] for weight, term in zip(information, terms, strict=True)
+    ) / max(sum(information), 1e-6)
+    for _ in range(_TYPED_INITIAL_HUBER_ITERATIONS):
+        residuals = tuple(
+            (term[0] - estimate) / max(1e-6, term[1]) for term in terms
+        )
+        robust_weights = tuple(
+            weight
+            * (
+                1.0
+                if abs(residual) <= _TYPED_HUBER_K
+                else _TYPED_HUBER_K / abs(residual)
+            )
+            for weight, residual in zip(information, residuals, strict=True)
+        )
+        proposal = sum(
+            weight * term[0]
+            for weight, term in zip(robust_weights, terms, strict=True)
+        ) / max(sum(robust_weights), 1e-6)
+        baseline_objective = _initial_complex_measurement_objective(estimate, terms)
+        proposal_objective = _initial_complex_measurement_objective(proposal, terms)
+        accepted = proposal
+        if not isfinite(proposal_objective) or (
+            proposal_objective
+            > baseline_objective + _TYPED_INITIAL_OBJECTIVE_TOLERANCE
+        ):
+            direction = proposal - estimate
+            accepted = estimate
+            step = _TYPED_BACKTRACKING_FACTOR
+            for _ in range(_TYPED_BACKTRACKING_STEPS):
+                trial = estimate + step * direction
+                trial_objective = _initial_complex_measurement_objective(trial, terms)
+                if isfinite(trial_objective) and (
+                    trial_objective
+                    <= baseline_objective + _TYPED_INITIAL_OBJECTIVE_TOLERANCE
+                ):
+                    accepted = trial
+                    break
+                step *= _TYPED_BACKTRACKING_FACTOR
+        if abs(accepted - estimate) <= _TYPED_INITIAL_HUBER_TOLERANCE:
+            estimate = accepted
+            break
+        estimate = accepted
+    return float(estimate)
 
 
 def _typed_censor_activation(state: float, observation: GliomaComplexObservation) -> float:
