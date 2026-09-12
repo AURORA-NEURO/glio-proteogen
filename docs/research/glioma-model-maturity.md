@@ -999,7 +999,9 @@ weights, and explicit observed, left-censored, missing, or unsupported states.
 Signed activation, inhibition, and coupling relations are fitted with robust
 Huber loss, ridge stabilization, frozen-parent damped Jacobi coordinate descent,
 and objective-safe backtracking; deterministic digest-seeded bootstrap posterior
-intervals remain replayable from the request digest.
+intervals remain replayable from the request digest. Repeated mechanisms start
+from a deterministic inverse-variance, quality-weighted Huber/IRLS center so a
+failed proteotype replicate cannot dominate the graph initialization.
 
 The original caller-declared posterior/state grammar remains compatible for
 other model families. The typed path requires two supported mechanisms and a
