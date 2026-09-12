@@ -843,7 +843,9 @@ objective-safe backtracking preserves a monotone replay-auditable trace, and the
 solver records objective and convergence diagnostics rather than returning a
 fixed posterior.
 Digest-seeded bootstrap perturbations produce per-mechanism posterior
-intervals, while missing and unsupported observations are excluded from the
+intervals. Repeated mechanism observations start from a deterministic
+inverse-variance, quality-weighted Huber/IRLS center, so failed variant
+replicates cannot dominate graph initialization. Missing and unsupported observations are excluded from the
 objective and cannot become negative evidence.
 
 The original closed posterior/state method grammar remains compatible for all
