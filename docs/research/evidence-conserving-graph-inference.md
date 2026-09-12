@@ -82,6 +82,14 @@ cannot receive unpenalized support above an essential member. Pathway state is
 therefore propagated through the directed signed topology, rather than being
 calculated as an independent pathway average.
 
+Before graph propagation, each node with repeated observed evidence is seeded
+by a deterministic inverse-variance, quality-weighted Huber/IRLS center. The
+profile-bound `initial_center_irls_iterations` budget and the same objective
+safe backtracking constants are used for every node, preventing a single failed
+assay from selecting the graph solver basin. Censor-only nodes retain the
+ridge-neutral feasible start unless their bound itself supplies directional
+evidence.
+
 A left-censored observation by itself is direction-informative only when its
 upper bound is strictly below the suppression threshold. Otherwise it cannot
 turn the ridge origin into a supported neutral estimate. Such a node abstains

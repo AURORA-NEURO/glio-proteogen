@@ -533,6 +533,7 @@ class AlgorithmConstants(FrozenModel):
     left_censor_support_policy: Literal["binding_upper_bound_or_independent_directed_evidence"]
     bootstrap_kinase_policy: Literal["conditional_supported_kinase_rescore"]
     bootstrap_sampling_policy: Literal["antithetic_normal_v1"]
+    initial_center_irls_iterations: int = Field(gt=0, le=256)
     huber_delta: float = Field(gt=0.0)
     ridge_penalty: float = Field(gt=0.0)
     complex_coherence_weight: float = Field(gt=0.0)

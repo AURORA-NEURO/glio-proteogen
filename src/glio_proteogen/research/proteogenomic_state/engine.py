@@ -318,6 +318,71 @@ def _feedback_update(current: float, item: _FeedbackTerm) -> tuple[float, float]
     return weight, weight * item.value
 
 
+def _initial_node_measurement_objective(
+    center: float,
+    terms: tuple[_ObservationTerm, ...],
+) -> float:
+    """Evaluate the frozen-scale Huber objective for one node start."""
+
+    return float(
+        sum(
+            item.quality
+            * _huber_loss((center - item.value) / item.standard_error)
+            for item in terms
+        )
+    )
+
+
+def _robust_initial_node_center(terms: tuple[_ObservationTerm, ...]) -> float:
+    """Find a deterministic inverse-variance, quality-weighted Huber center."""
+
+    if len(terms) == 1:
+        return float(terms[0].value)
+    information = tuple(
+        item.quality / (item.standard_error * item.standard_error) for item in terms
+    )
+    estimate = sum(
+        weight * item.value for weight, item in zip(information, terms, strict=True)
+    ) / max(sum(information), np.finfo(_FLOAT).tiny)
+    for _ in range(CONSTANTS.initial_center_irls_iterations):
+        residuals = tuple(
+            (item.value - estimate) / item.standard_error for item in terms
+        )
+        robust_information = tuple(
+            weight * _huber_weight(residual)
+            for weight, residual in zip(information, residuals, strict=True)
+        )
+        proposal = sum(
+            weight * item.value
+            for weight, item in zip(robust_information, terms, strict=True)
+        ) / max(sum(robust_information), np.finfo(_FLOAT).tiny)
+        baseline_objective = _initial_node_measurement_objective(estimate, terms)
+        proposal_objective = _initial_node_measurement_objective(proposal, terms)
+        accepted = proposal
+        if not np.isfinite(proposal_objective) or (
+            proposal_objective
+            > baseline_objective + CONSTANTS.objective_increase_tolerance
+        ):
+            direction = proposal - estimate
+            accepted = estimate
+            step = CONSTANTS.backtracking_factor
+            for _ in range(CONSTANTS.backtracking_steps):
+                trial = estimate + step * direction
+                trial_objective = _initial_node_measurement_objective(trial, terms)
+                if np.isfinite(trial_objective) and (
+                    trial_objective
+                    <= baseline_objective + CONSTANTS.objective_increase_tolerance
+                ):
+                    accepted = trial
+                    break
+                step *= CONSTANTS.backtracking_factor
+        if abs(accepted - estimate) <= CONSTANTS.tolerance:
+            estimate = accepted
+            break
+        estimate = accepted
+    return float(estimate)
+
+
 def _initial_values(
     node_count: int,
     observations: tuple[_ObservationTerm, ...],
@@ -334,21 +399,19 @@ def _initial_values(
     if initial is not None:
         return np.asarray(initial, dtype=_FLOAT).copy()
     values = np.zeros(node_count, dtype=_FLOAT)
-    numerator = np.zeros(node_count, dtype=_FLOAT)
-    denominator = np.zeros(node_count, dtype=_FLOAT)
+    by_node_observed: dict[int, list[_ObservationTerm]] = defaultdict(list)
     for item in observations:
-        if item.state is not EvidenceState.OBSERVED:
-            continue
-        weight = item.quality / (item.standard_error**2)
-        numerator[item.node_index] += weight * item.value
-        denominator[item.node_index] += weight
-    np.divide(numerator, denominator, out=values, where=denominator > 0.0)
+        if item.state is EvidenceState.OBSERVED:
+            by_node_observed[item.node_index].append(item)
+    for node_index, terms in by_node_observed.items():
+        values[node_index] = _robust_initial_node_center(tuple(terms))
+    observed_nodes = set(by_node_observed)
     by_node: dict[int, list[float]] = defaultdict(list)
     for item in observations:
         if item.state is EvidenceState.LEFT_CENSORED:
             by_node[item.node_index].append(item.value)
     for node_index, limits in by_node.items():
-        if denominator[node_index] > 0.0:
+        if node_index in observed_nodes:
             values[node_index] = min(values[node_index], *limits)
         else:
             # A negative upper bound is directional evidence; a non-negative

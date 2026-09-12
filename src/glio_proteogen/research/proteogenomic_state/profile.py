@@ -32,6 +32,7 @@ CONSTANTS = AlgorithmConstants(
     left_censor_support_policy="binding_upper_bound_or_independent_directed_evidence",
     bootstrap_kinase_policy="conditional_supported_kinase_rescore",
     bootstrap_sampling_policy="antithetic_normal_v1",
+    initial_center_irls_iterations=32,
     huber_delta=1.345,
     ridge_penalty=0.035,
     complex_coherence_weight=0.45,

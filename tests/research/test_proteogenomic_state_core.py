@@ -36,6 +36,9 @@ from glio_proteogen.research.proteogenomic_state.cancellation import (
 )
 from glio_proteogen.research.proteogenomic_state.canonical import sha256_digest
 
+_ROBUST_CENTER_MAX = 0.5
+_ARITHMETIC_MEAN_MIN = 1.0
+
 
 def _digest(label: str) -> str:
     return sha256_digest({"test-source": label})
@@ -309,6 +312,30 @@ def test_censor_limits_do_not_seed_latent_activity_as_point_observations() -> No
         len(censor_graph.node_ids), censor_graph.observations, None
     )
     assert censor_initial.tolist() == pytest.approx([0.0], abs=1e-12)
+
+
+def test_initial_node_center_downweights_failed_proteomics_replicate() -> None:
+    terms = tuple(
+        engine_module._ObservationTerm(
+            observation_id=f"obs.{index}",
+            node_index=0,
+            modality=EvidenceModality.PROTEOMICS,
+            state=EvidenceState.OBSERVED,
+            value=value,
+            standard_error=0.2,
+            quality=1.0,
+        )
+        for index, value in enumerate((0.2, 0.3, 4.0))
+    )
+
+    center = engine_module._robust_initial_node_center(terms)
+    arithmetic_mean = sum(item.value for item in terms) / len(terms)
+
+    assert center < _ROBUST_CENTER_MAX
+    assert arithmetic_mean > _ARITHMETIC_MEAN_MIN
+    assert engine_module._initial_node_measurement_objective(center, terms) <= (
+        engine_module._initial_node_measurement_objective(arithmetic_mean, terms)
+    )
 
 
 def test_essential_complex_subunit_caps_the_complex_state() -> None:
