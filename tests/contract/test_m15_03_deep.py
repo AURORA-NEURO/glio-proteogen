@@ -312,6 +312,29 @@ def test_typed_initialization_keeps_left_censored_limits_feasible() -> None:
     assert values[list(GliomaFeatureProgram).index(GliomaFeatureProgram.RTK_PI3K_AKT_MTOR)] == 0.4
 
 
+def test_typed_initialization_downweights_failed_recurrence_replicate() -> None:
+    """Repeated typed observations use a contamination-resistant Huber center."""
+
+    terms = tuple(
+        engine_module._TypedTerm(
+            feature_id=f"feature.replicate.{index}",
+            program=GliomaFeatureProgram.RTK_PI3K_AKT_MTOR,
+            state=MechanisticEvidenceState.OBSERVED,
+            effect=effect,
+            standard_error=0.2,
+            quality_weight=1.0,
+        )
+        for index, effect in enumerate((0.2, 0.25, 0.3, 4.0))
+    )
+    center = engine_module._robust_initial_center(terms)
+    arithmetic_mean = sum(term.effect for term in terms) / len(terms)
+    assert center < 0.5
+    assert arithmetic_mean > 1.0
+    assert engine_module._initial_measurement_objective(center, terms) <= (
+        engine_module._initial_measurement_objective(arithmetic_mean, terms)
+    )
+
+
 def test_typed_feature_request_with_only_missing_evidence_abstains() -> None:
     base = build_scenario_request()
     feature = base.candidate_features[0].model_copy(

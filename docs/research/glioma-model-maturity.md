@@ -1126,7 +1126,11 @@ prognosis, kinase ownership, or treatment guidance.
 The additive M15-03 runtime now turns typed pathway/topology feature evidence
 into derived complex-activity program features using robust Huber frozen-parent
 damped Jacobi updates over signed glioma network edges. Objective-safe
-backtracking preserves a monotone replay-auditable trace. It preserves the
+backtracking preserves a monotone replay-auditable trace. Repeated observations
+for each program are initialized with a deterministic inverse-variance,
+quality-weighted Huber/IRLS center (with objective-safe scalar backtracking), so
+a failed recurrence replicate cannot pull the graph start like an arithmetic
+mean. It preserves the
 caller features and adds request-digest-seeded bootstrap bounds, stability,
 discordance, evidence counts, top drivers, and topology/measurement ablation explanations for each
 program. Missing and unsupported typed features are excluded; an all-unsupported
