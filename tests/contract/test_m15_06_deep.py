@@ -346,6 +346,29 @@ def test_typed_initialization_respects_left_censor_bounds() -> None:
     assert initial[index[GliomaPerturbationProgram.P53_CELL_CYCLE]] == -0.3
 
 
+def test_typed_initialization_downweights_failed_perturbation_replicate() -> None:
+    """Repeated perturbation deltas use a contamination-resistant Huber center."""
+
+    terms = tuple(
+        engine_module._TypedTerm(
+            scenario_id=f"scenario.replicate.{index}",
+            program=GliomaPerturbationProgram.RTK_PI3K_AKT_MTOR,
+            state=PerturbationEvidenceState.OBSERVED,
+            delta=delta,
+            standard_error=0.2,
+            quality_weight=1.0,
+        )
+        for index, delta in enumerate((0.2, 0.25, 0.3, 4.0))
+    )
+    center = engine_module._robust_initial_center(terms)
+    arithmetic_mean = sum(term.delta for term in terms) / len(terms)
+    assert center < 0.5
+    assert arithmetic_mean > 1.0
+    assert engine_module._initial_measurement_objective(center, terms) <= (
+        engine_module._initial_measurement_objective(arithmetic_mean, terms)
+    )
+
+
 def test_typed_missing_or_unsupported_evidence_abstains_without_negative_response() -> None:
     missing = _perturbation(
         program=GliomaPerturbationProgram.RTK_PI3K_AKT_MTOR,

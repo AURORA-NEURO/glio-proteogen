@@ -1205,9 +1205,10 @@ discordance, top program drivers, and numerical measurement/topology
 leave-one-family-out ablation deltas. Removing typed observations exposes the
 topology-only propagation; removing signed edges exposes measurement-only
 support.
-Typed starts preserve the same evidence semantics: observed deltas seed a
-quality-weighted location projected onto the tightest left-censor bound, while
-censor-only programs start at the ridge-neutral feasible value. A detection
+Typed starts preserve the same evidence semantics: repeated observed deltas use
+a deterministic inverse-variance, quality-weighted Huber/IRLS center projected
+onto the tightest left-censor bound, while censor-only programs start at the
+ridge-neutral feasible value. A detection
 limit therefore cannot become a synthetic longitudinal effect before graph
 propagation.
 Missing and unsupported scenarios are explicitly excluded; incomplete typed
