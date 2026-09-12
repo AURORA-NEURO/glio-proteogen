@@ -41,6 +41,8 @@ _EXPECTED_ESTIMATES = 2
 _FIRST_CANDIDATE_CALL = 2
 _TYPED_ESTIMATE_COUNT = 3
 _POSTERIOR_MIDPOINT = 0.5
+_ROBUST_CENTER_MAX = 0.5
+_ARITHMETIC_MEAN_MIN = 1.0
 
 
 def _artifact(name: str, media_type: str = "application/json") -> ArtifactReference:
@@ -387,6 +389,19 @@ def test_typed_initialization_respects_left_censor_bounds() -> None:
     program_ids = (GliomaDiscordanceProgram.RTK_PI3K_AKT_MTOR.value,)
     values = engine_module._initial_typed_values(typed, program_ids)
     assert values == pytest.approx([-0.1])
+
+
+def test_typed_initialization_downweights_failed_discordance_replicate() -> None:
+    """Repeated transcript-protein effects use a robust Huber center."""
+
+    terms = tuple((value, 0.2, False, 1.0) for value in (0.2, 0.25, 0.3, 4.0))
+    center = engine_module._robust_initial_center(terms)
+    arithmetic_mean = sum(term[0] for term in terms) / len(terms)
+    assert center < _ROBUST_CENTER_MAX
+    assert arithmetic_mean > _ARITHMETIC_MEAN_MIN
+    assert engine_module._initial_measurement_objective(center, terms) <= (
+        engine_module._initial_measurement_objective(arithmetic_mean, terms)
+    )
 
 
 def test_typed_glioma_discordance_requires_supported_program_coverage() -> None:

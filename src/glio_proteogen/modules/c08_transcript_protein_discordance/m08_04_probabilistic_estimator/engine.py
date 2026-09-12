@@ -72,6 +72,8 @@ _TYPED_TOLERANCE: Final = 1e-6
 _TYPED_OBJECTIVE_TOLERANCE: Final = 1e-10
 _TYPED_BACKTRACKING_STEPS: Final = 18
 _TYPED_BACKTRACKING_FACTOR: Final = 0.5
+_TYPED_INITIAL_HUBER_ITERATIONS: Final = 32
+_TYPED_INITIAL_HUBER_TOLERANCE: Final = 1e-8
 _TYPED_MIN_OBSERVATIONS: Final = 3
 _TYPED_MIN_PROGRAMS: Final = 2
 _TYPED_LOW_QUANTILE: Final = 0.05
@@ -450,6 +452,86 @@ def _typed_target(observation: TypedTranscriptProteinObservation) -> tuple[float
     return observation.protein_effect - transcript_effect, uncertainty, False
 
 
+def _initial_measurement_objective(
+    center: float,
+    terms: tuple[tuple[float, float, bool, float], ...],
+) -> float:
+    """Evaluate the frozen-scale robust objective for one program start."""
+
+    return float(
+        sum(
+            quality
+            * _typed_huber(
+                (
+                    max(0.0, center - target)
+                    if censored
+                    else center - target
+                )
+                / uncertainty
+            )
+            for target, uncertainty, censored, quality in terms
+        )
+    )
+
+
+def _robust_initial_center(
+    terms: tuple[tuple[float, float, bool, float], ...],
+) -> float:
+    """Find a deterministic inverse-variance Huber center for repeated assays."""
+
+    if len(terms) == 1:
+        return terms[0][0]
+    information = tuple(
+        quality / max(1e-6, uncertainty**2)
+        for _target, uncertainty, _censored, quality in terms
+    )
+    denominator = max(sum(information), 1e-6)
+    estimate = sum(
+        weight * term[0] for weight, term in zip(information, terms, strict=True)
+    ) / denominator
+    for _ in range(_TYPED_INITIAL_HUBER_ITERATIONS):
+        residuals = tuple(
+            (term[0] - estimate) / max(1e-6, term[1]) for term in terms
+        )
+        robust_weights = tuple(
+            weight
+            * (
+                1.0
+                if abs(residual) <= _TYPED_HUBER_K
+                else _TYPED_HUBER_K / abs(residual)
+            )
+            for weight, residual in zip(information, residuals, strict=True)
+        )
+        robust_denominator = max(sum(robust_weights), 1e-6)
+        proposal = sum(
+            weight * term[0]
+            for weight, term in zip(robust_weights, terms, strict=True)
+        ) / robust_denominator
+        baseline_objective = _initial_measurement_objective(estimate, terms)
+        proposal_objective = _initial_measurement_objective(proposal, terms)
+        accepted = proposal
+        if not isfinite(proposal_objective) or (
+            proposal_objective > baseline_objective + _TYPED_OBJECTIVE_TOLERANCE
+        ):
+            direction = proposal - estimate
+            accepted = estimate
+            step = _TYPED_BACKTRACKING_FACTOR
+            for _ in range(_TYPED_BACKTRACKING_STEPS):
+                trial = estimate + step * direction
+                trial_objective = _initial_measurement_objective(trial, terms)
+                if isfinite(trial_objective) and (
+                    trial_objective <= baseline_objective + _TYPED_OBJECTIVE_TOLERANCE
+                ):
+                    accepted = trial
+                    break
+                step *= _TYPED_BACKTRACKING_FACTOR
+        if abs(accepted - estimate) <= _TYPED_INITIAL_HUBER_TOLERANCE:
+            estimate = accepted
+            break
+        estimate = accepted
+    return estimate
+
+
 def _typed_objective(
     values: tuple[float, ...],
     observations: tuple[TypedTranscriptProteinObservation, ...],
@@ -488,21 +570,20 @@ def _initial_typed_values(
     """Build a feasible discordance start without turning censor limits into values."""
 
     index = {program: position for position, program in enumerate(program_ids)}
-    grouped: dict[str, list[tuple[float, bool, float]]] = {}
+    grouped: dict[str, list[tuple[float, float, bool, float]]] = {}
     for observation in observations:
-        target, _uncertainty, censored = _typed_target(observation)
+        target, uncertainty, censored = _typed_target(observation)
         if perturbations is not None:
             target += perturbations.get(observation.observation_id, 0.0)
         grouped.setdefault(observation.program.value, []).append(
-            (target, censored, observation.quality_weight)
+            (target, uncertainty, censored, observation.quality_weight)
         )
     values = [0.0] * len(program_ids)
     for program, terms in grouped.items():
-        observed = tuple(item for item in terms if not item[1])
-        limits = tuple(item[0] for item in terms if item[1])
+        observed = tuple(item for item in terms if not item[2])
+        limits = tuple(item[0] for item in terms if item[2])
         if observed:
-            total = sum(item[2] for item in observed)
-            center = sum(item[2] * item[0] for item in observed) / max(1e-6, total)
+            center = _robust_initial_center(tuple(observed))
             initial = min((center, *limits)) if limits else center
         elif limits:
             initial = min((0.0, *limits))
