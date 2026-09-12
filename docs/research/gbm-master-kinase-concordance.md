@@ -15,6 +15,20 @@ needed for an exact runtime reproduction. GLIO-PROTEOGEN therefore uses a
 separately identified estimator over the paper's published, CC-BY-4.0
 supplementary signatures and describes its output as signature concordance.
 
+## Explicit ECGI handoff
+
+The Python helper
+`build_ecgi_external_kinase_profile(result, node_id_by_kinase_id=...)` is the
+narrow integration point to the `glio-ecgi/1.0.0` comparison lane. The caller
+must map each HGNC kinase symbol to an exact ECGI kinase-node identifier; the
+adapter never guesses namespaces or creates implicit nodes. It exports only
+combined master-kinase records with `supported` evidence, preserves their
+location interval, and binds the external profile to the complete master-kinase
+`result_digest`. ECGI reports this profile as comparison-only: it does not
+merge or override the local phosphosite enrichment estimate. Limited and
+abstained source records are omitted, and a mapping with no supported records
+fails closed instead of manufacturing neutral activity.
+
 ## Frozen source catalog
 
 The reproducible importer reads Supplementary Tables 5a, 5d, and 5e from the

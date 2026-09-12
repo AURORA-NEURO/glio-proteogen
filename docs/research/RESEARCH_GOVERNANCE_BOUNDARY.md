@@ -213,6 +213,12 @@ robust estimator, competitive null, fixed 24-hypothesis FDR family,
 uncertainty, support gates, and limitations are documented in
 `gbm-master-kinase-concordance.md`.
 
+When a caller wants to inspect the master-kinase evidence beside ECGI, the
+research package exposes an explicit HGNC-to-ECGI node mapping helper. It
+exports only supported master-kinase location intervals and binds the handoff
+to the source result digest; ECGI treats it as an external comparison profile
+and never merges or lets it override the local phosphosite-substrate estimate.
+
 The functional-proteotype output is a joint, relative bulk-protein concordance
 with four source-locked Table 2d signatures. It does not choose a subtype or
 convert source Table 2e pathways into sample-level activity. The admitted

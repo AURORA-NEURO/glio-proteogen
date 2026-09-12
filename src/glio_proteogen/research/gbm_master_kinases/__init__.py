@@ -42,6 +42,7 @@ from .contracts import (
 )
 from .demo import DEMO_ID, build_demo_request, demo_request_digest, synthetic_demo_request
 from .errors import CatalogIntegrityError, MasterKinaseError
+from .integration import ECGI_EXTERNAL_PROFILE_ID, build_ecgi_external_kinase_profile
 from .profile import algorithm_profile
 from .service import MasterKinaseService, analyze_master_kinases, verify_replay
 
@@ -50,6 +51,7 @@ __all__ = [
     "ALGORITHM_PROFILE_ID",
     "ALGORITHM_VERSION",
     "DEMO_ID",
+    "ECGI_EXTERNAL_PROFILE_ID",
     "MAX_BOOTSTRAPS",
     "MAX_COMPUTATIONAL_WORK_UNITS",
     "MAX_OBSERVATIONS",
@@ -89,6 +91,7 @@ __all__ = [
     "algorithm_profile",
     "analyze_master_kinases",
     "build_demo_request",
+    "build_ecgi_external_kinase_profile",
     "demo_request_digest",
     "estimate_computational_work_units",
     "is_pinned_phosphosite",
