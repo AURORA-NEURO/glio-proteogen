@@ -71,6 +71,9 @@ _PROGRAM_TOLERANCE: Final = 1e-5
 _PROGRAM_OBJECTIVE_TOLERANCE: Final = 1e-10
 _PROGRAM_BACKTRACKING_STEPS: Final = 18
 _PROGRAM_BACKTRACKING_FACTOR: Final = 0.5
+_PROGRAM_INITIAL_HUBER_ITERATIONS: Final = 32
+_PROGRAM_INITIAL_HUBER_TOLERANCE: Final = 1e-8
+_PROGRAM_INITIAL_OBJECTIVE_TOLERANCE: Final = 1e-10
 _PROGRAM_SCORE_LIMIT: Final = 4.0
 _BOOTSTRAP_LOW: Final = 0.05
 _BOOTSTRAP_HIGH: Final = 0.95
@@ -359,6 +362,83 @@ def _typed_gradient_residual(item: _TypedObservation, current: float, target: fl
     return violation if item.direction == 1 else -violation
 
 
+def _initial_program_measurement_objective(
+    center: float,
+    terms: tuple[tuple[float, float, float], ...],
+) -> float:
+    """Evaluate the frozen-scale robust objective for a program start."""
+
+    total = 0.0
+    for target, standard_error, quality in terms:
+        standardized = (center - target) / max(_MINIMUM_SCALE, standard_error)
+        magnitude = abs(standardized)
+        loss = (
+            0.5 * magnitude * magnitude
+            if magnitude <= _PROGRAM_HUBER_DELTA
+            else _PROGRAM_HUBER_DELTA * (magnitude - 0.5 * _PROGRAM_HUBER_DELTA)
+        )
+        total += quality * loss
+    return float(total)
+
+
+def _robust_initial_program_center(
+    terms: tuple[tuple[float, float, float], ...],
+) -> float:
+    """Find a deterministic inverse-variance, quality-weighted Huber center."""
+
+    if len(terms) == 1:
+        return terms[0][0]
+    information = tuple(
+        quality / max(_MINIMUM_SCALE, standard_error**2)
+        for _target, standard_error, quality in terms
+    )
+    estimate = sum(
+        weight * term[0] for weight, term in zip(information, terms, strict=True)
+    ) / max(sum(information), _MINIMUM_SCALE)
+    for _ in range(_PROGRAM_INITIAL_HUBER_ITERATIONS):
+        residuals = tuple(
+            (term[0] - estimate) / max(_MINIMUM_SCALE, term[1]) for term in terms
+        )
+        robust_weights = tuple(
+            weight
+            * (
+                1.0
+                if abs(residual) <= _PROGRAM_HUBER_DELTA
+                else _PROGRAM_HUBER_DELTA / abs(residual)
+            )
+            for weight, residual in zip(information, residuals, strict=True)
+        )
+        proposal = sum(
+            weight * term[0]
+            for weight, term in zip(robust_weights, terms, strict=True)
+        ) / max(sum(robust_weights), _MINIMUM_SCALE)
+        baseline_objective = _initial_program_measurement_objective(estimate, terms)
+        proposal_objective = _initial_program_measurement_objective(proposal, terms)
+        accepted = proposal
+        if not math.isfinite(proposal_objective) or (
+            proposal_objective
+            > baseline_objective + _PROGRAM_INITIAL_OBJECTIVE_TOLERANCE
+        ):
+            direction = proposal - estimate
+            accepted = estimate
+            step = _PROGRAM_BACKTRACKING_FACTOR
+            for _ in range(_PROGRAM_BACKTRACKING_STEPS):
+                trial = estimate + step * direction
+                trial_objective = _initial_program_measurement_objective(trial, terms)
+                if math.isfinite(trial_objective) and (
+                    trial_objective
+                    <= baseline_objective + _PROGRAM_INITIAL_OBJECTIVE_TOLERANCE
+                ):
+                    accepted = trial
+                    break
+                step *= _PROGRAM_BACKTRACKING_FACTOR
+        if abs(accepted - estimate) <= _PROGRAM_INITIAL_HUBER_TOLERANCE:
+            estimate = accepted
+            break
+        estimate = accepted
+    return float(estimate)
+
+
 def _initial_program_values(
     observations: tuple[_TypedObservation, ...], center: float, scale: float
 ) -> list[float]:
@@ -374,12 +454,12 @@ def _initial_program_values(
         weighted = tuple(
             (
                 _typed_target(item, center, scale),
-                item.quality_weight / max(_MINIMUM_SCALE, item.standard_error**2),
+                max(_MINIMUM_SCALE, item.standard_error / scale),
+                item.quality_weight,
             )
             for item in observed
         )
-        total = sum(weight for _, weight in weighted)
-        value = sum(target * weight for target, weight in weighted) / total if total else 0.0
+        value = _robust_initial_program_center(weighted) if weighted else 0.0
         lower = tuple(
             _typed_target(item, center, scale)
             for item in items

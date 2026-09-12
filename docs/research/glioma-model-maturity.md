@@ -853,6 +853,10 @@ one-sided residuals, while missing and unsupported values are excluded. The
 solver records a monotone objective trace alongside iterations/objective,
 digest-seeded bootstrap intervals, top drivers, and signed-edge ablation effects
 for every supported program.
+Observed program repeats initialize with a deterministic inverse-variance,
+quality-weighted Huber/IRLS center and objective-safe backtracking before
+feasible-interval projection, preventing a failed feature assay from choosing
+the signed glioma-program basin.
 
 Inhibitory (`direction=-1`) observations reverse the censor inequality in the
 signed program coordinate. Starts are projected into the combined lower/upper

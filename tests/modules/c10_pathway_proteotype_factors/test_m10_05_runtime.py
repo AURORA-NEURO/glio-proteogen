@@ -162,6 +162,23 @@ def test_typed_glioma_constraint_graph_emits_replayable_program_states() -> None
     assert service.verify(result).result_digest == result.result_digest
 
 
+def test_typed_program_initialization_downweights_failed_replicate() -> None:
+    terms = (
+        (0.2, 0.2, 1.0),
+        (0.3, 0.2, 1.0),
+        (4.0, 0.2, 1.0),
+    )
+
+    center = engine_module._robust_initial_program_center(terms)
+    arithmetic_mean = sum(term[0] for term in terms) / len(terms)
+
+    assert center < 0.5
+    assert arithmetic_mean > 1.0
+    assert engine_module._initial_program_measurement_objective(center, terms) <= (
+        engine_module._initial_program_measurement_objective(arithmetic_mean, terms)
+    )
+
+
 def test_typed_program_solver_backtracks_objective_increase(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     observations = (
         engine_module._TypedObservation(
