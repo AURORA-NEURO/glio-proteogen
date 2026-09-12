@@ -35,6 +35,12 @@ const PROFILE_FIELDS = new Set([
   "projection_policy",
   "auxiliary_projection_policy",
   "auxiliary_standard_error_floor",
+  "source_location_standard_error_floor",
+  "source_rank_standard_error_floor",
+  "source_location_quality_supported",
+  "source_location_quality_limited",
+  "source_rank_quality_supported",
+  "source_rank_quality_limited",
   "supported_source_families",
   "missing_families_are_not_negative",
   "cell_fraction_claim_permitted",
@@ -124,9 +130,13 @@ export function validateMicroenvironmentGraphProfile(profile: JsonObject): strin
   if (profile.source_engine !== "neftel-bulk-protein-programs/1.0.0") errors.push("profile.source_engine is invalid.");
   if (profile.graph_engine !== "glio-ecgi/1.0.0") errors.push("profile.graph_engine is invalid.");
   if (profile.auxiliary_source_engine !== "gbm-proteomic-axes/1.0.0") errors.push("profile.auxiliary_source_engine is invalid.");
-  if (profile.projection_policy !== "supported_bulk_programs_to_signed_microenvironment_graph_v1") errors.push("profile.projection_policy is invalid.");
+  if (profile.projection_policy !== "bulk_program_location_and_rank_to_signed_microenvironment_graph_v2") errors.push("profile.projection_policy is invalid.");
   if (profile.auxiliary_projection_policy !== "independent_published_gbm_axes_as_secondary_observations_v1") errors.push("profile.auxiliary_projection_policy is invalid.");
   if (profile.auxiliary_standard_error_floor !== 0.35) errors.push("profile.auxiliary_standard_error_floor must equal 0.35.");
+  if (profile.source_location_standard_error_floor !== 0.05) errors.push("profile.source_location_standard_error_floor must equal 0.05.");
+  if (profile.source_rank_standard_error_floor !== 0.10) errors.push("profile.source_rank_standard_error_floor must equal 0.10.");
+  if (profile.source_location_quality_supported !== 1.0 || profile.source_location_quality_limited !== 0.5) errors.push("profile source location quality weights are invalid.");
+  if (profile.source_rank_quality_supported !== 0.85 || profile.source_rank_quality_limited !== 0.40) errors.push("profile source rank quality weights are invalid.");
   if (!Array.isArray(profile.supported_source_families) || profile.supported_source_families.join(",") !== "mesenchymal_like,oligodendrocyte_progenitor_like") {
     errors.push("profile.supported_source_families must contain the two supported GBM families in profile order.");
   }

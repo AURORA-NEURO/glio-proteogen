@@ -10,11 +10,17 @@ from glio_proteogen.research.gbm_microenvironment_graph import (
     MicroenvironmentGraphRequest,
     analyze_microenvironment_graph,
     microenvironment_graph_profile,
+    runtime,
     synthetic_microenvironment_graph_request,
     verify_microenvironment_graph_replay,
 )
 from glio_proteogen.research.gbm_microenvironment_graph.runtime import result_payload_digest
-from glio_proteogen.research.neftel_protein_programs import synthetic_demo_request
+from glio_proteogen.research.neftel_protein_programs import (
+    AnalysisSupport,
+    MethodEstimate,
+    analyze_neftel_protein_programs,
+    synthetic_demo_request,
+)
 from glio_proteogen.research.proteogenomic_state import EvidenceState
 
 
@@ -28,6 +34,12 @@ def test_profile_binds_both_child_engines() -> None:
         == "independent_published_gbm_axes_as_secondary_observations_v1"
     )
     assert profile.auxiliary_standard_error_floor == 0.35
+    assert profile.source_location_standard_error_floor == 0.05
+    assert profile.source_rank_standard_error_floor == 0.10
+    assert profile.source_location_quality_supported == 1.0
+    assert profile.source_location_quality_limited == 0.5
+    assert profile.source_rank_quality_supported == 0.85
+    assert profile.source_rank_quality_limited == 0.40
     assert profile.supported_source_families == (
         "mesenchymal_like",
         "oligodendrocyte_progenitor_like",
@@ -53,6 +65,14 @@ def test_synthetic_bridge_projects_supported_mes_and_opc_evidence() -> None:
     )
     assert (
         graph_by_node["observation.gbm_microenvironment.opc_like"].state
+        is EvidenceState.OBSERVED
+    )
+    assert (
+        graph_by_node["observation.gbm_microenvironment.mesenchymal.rank"].state
+        is EvidenceState.OBSERVED
+    )
+    assert (
+        graph_by_node["observation.gbm_microenvironment.opc_like.rank"].state
         is EvidenceState.OBSERVED
     )
     node_by_id = {str(item.node_id): item for item in result.graph_result.node_states}
@@ -92,6 +112,31 @@ def test_missing_source_families_remain_missing() -> None:
         is EvidenceState.MISSING
     )
     assert graph_by_node["observation.gbm_microenvironment.mesenchymal"].standardized_effect is None
+
+
+def test_rank_estimate_survives_when_location_method_abstains() -> None:
+    request = synthetic_microenvironment_graph_request()
+    source = analyze_neftel_protein_programs(request.source_request)
+    abstained_location = MethodEstimate(
+        support=AnalysisSupport.ABSTAINED,
+        effective_sample_size=0.0,
+        bootstrap_replicates_used=0,
+        reason="test location abstention",
+    )
+    evidence = tuple(
+        item.model_copy(update={"location": abstained_location})
+        if str(item.program_id) == "mesenchymal_like"
+        else item
+        for item in source.program_evidence
+    )
+    source_with_abstained_location = source.model_copy(update={"program_evidence": evidence})
+    graph_request = runtime._graph_request(request, source_with_abstained_location, None)
+    observations = {str(item.observation_id): item for item in graph_request.observations}
+    assert "observation.gbm_microenvironment.mesenchymal" not in observations
+    assert (
+        observations["observation.gbm_microenvironment.mesenchymal.rank"].state
+        is EvidenceState.OBSERVED
+    )
 
 
 def test_replay_is_exact_and_sample_binding_is_strict() -> None:

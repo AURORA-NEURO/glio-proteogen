@@ -2,8 +2,8 @@
 
 `gbm-microenvironment-graph/1.0.0` is a research-only composition lane. It
 executes the exact Neftel Table S2 bulk-protein program runtime first, then
-projects the two program families with a supported protein estimate into the
-`glio-ecgi/1.0.0` signed evidence graph.
+projects the two program families' complete location and competitive-rank
+estimates into the `glio-ecgi/1.0.0` signed evidence graph.
 
 The bridge can also carry an optional, independent secondary observation lane
 from `gbm-proteomic-axes/1.0.0`. The published Winter hypoxia and Verhaak
@@ -19,6 +19,11 @@ The projection is deliberately narrower than a deconvolution model:
 
 - `mesenchymal_like` maps to the `mesenchymal` graph node;
 - `oligodendrocyte_progenitor_like` maps to `opc_like`; and
+- each complete source location estimate is retained as the historical base
+  observation while each complete rank estimate is retained as a distinct
+  `.rank` observation on the same node. Location and rank use profile-bound
+  standard-error floors (`0.05` and `0.10`) and method-specific quality weights
+  (`1.0/0.5` and `0.85/0.40` for supported/limited evidence); and
 - all other families, including absent source families, become explicit
   `missing` observations with zero quality rather than negative evidence.
 

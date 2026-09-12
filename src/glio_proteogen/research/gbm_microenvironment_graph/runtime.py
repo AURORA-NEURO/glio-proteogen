@@ -1,9 +1,9 @@
 """Source-locked Neftel protein programs coupled through a GBM state graph.
 
 The Neftel lane supplies measured bulk-protein program evidence.  This bridge
-does not pretend those programs are cell fractions: it projects only the
-supported MES and OPC program-family estimates into a small, signed glioma
-microenvironment graph and lets ECGI propagate uncertainty through hypoxia,
+does not pretend those programs are cell fractions: it projects complete
+location and competitive-rank MES and OPC program-family estimates into a
+small, signed glioma microenvironment graph and lets ECGI propagate uncertainty through hypoxia,
 angiogenesis, myeloid, endothelial, and T-cell relationships.  Missing source
 families remain missing and never become negative observations.
 """
@@ -28,6 +28,7 @@ from glio_proteogen.research.gbm_proteomic_axes import (
     synthetic_demo_request as gbm_axes_demo_request,
 )
 from glio_proteogen.research.neftel_protein_programs import (
+    MethodEstimate,
     ProteinEvidenceState,
     ProteinProgramObservation,
     ProteinProgramRequest,
@@ -109,6 +110,8 @@ _AXIS_MAP: Final = (
     ("VERHAAK_GLIOBLASTOMA_MESENCHYMAL", "mesenchymal"),
 )
 _AUXILIARY_STANDARD_ERROR_FLOOR: Final = 0.35
+_SOURCE_LOCATION_STANDARD_ERROR_FLOOR: Final = 0.05
+_SOURCE_RANK_STANDARD_ERROR_FLOOR: Final = 0.10
 
 
 class MicroenvironmentGraphProfile(FrozenModel):
@@ -127,8 +130,10 @@ class MicroenvironmentGraphProfile(FrozenModel):
     source_profile_digest: Sha256Digest
     graph_profile_digest: Sha256Digest
     topology_digest: Sha256Digest
-    projection_policy: Literal["supported_bulk_programs_to_signed_microenvironment_graph_v1"] = (
-        "supported_bulk_programs_to_signed_microenvironment_graph_v1"
+    projection_policy: Literal[
+        "bulk_program_location_and_rank_to_signed_microenvironment_graph_v2"
+    ] = (
+        "bulk_program_location_and_rank_to_signed_microenvironment_graph_v2"
     )
     auxiliary_projection_policy: Literal[
         "independent_published_gbm_axes_as_secondary_observations_v1"
@@ -138,6 +143,20 @@ class MicroenvironmentGraphProfile(FrozenModel):
         ge=_AUXILIARY_STANDARD_ERROR_FLOOR,
         le=_AUXILIARY_STANDARD_ERROR_FLOOR,
     )
+    source_location_standard_error_floor: float = Field(
+        default=_SOURCE_LOCATION_STANDARD_ERROR_FLOOR,
+        ge=_SOURCE_LOCATION_STANDARD_ERROR_FLOOR,
+        le=_SOURCE_LOCATION_STANDARD_ERROR_FLOOR,
+    )
+    source_rank_standard_error_floor: float = Field(
+        default=_SOURCE_RANK_STANDARD_ERROR_FLOOR,
+        ge=_SOURCE_RANK_STANDARD_ERROR_FLOOR,
+        le=_SOURCE_RANK_STANDARD_ERROR_FLOOR,
+    )
+    source_location_quality_supported: float = Field(default=1.0, ge=0.0, le=1.0)
+    source_location_quality_limited: float = Field(default=0.5, ge=0.0, le=1.0)
+    source_rank_quality_supported: float = Field(default=0.85, ge=0.0, le=1.0)
+    source_rank_quality_limited: float = Field(default=0.40, ge=0.0, le=1.0)
     supported_source_families: tuple[Literal["mesenchymal_like", "oligodendrocyte_progenitor_like"], ...] = (
         "mesenchymal_like",
         "oligodendrocyte_progenitor_like",
@@ -263,9 +282,15 @@ def microenvironment_graph_profile() -> MicroenvironmentGraphProfile:
         "source_profile_digest": source.profile_digest,
         "graph_profile_digest": graph.profile_digest,
         "topology_digest": _bridge_topology_digest(),
-        "projection_policy": "supported_bulk_programs_to_signed_microenvironment_graph_v1",
+        "projection_policy": "bulk_program_location_and_rank_to_signed_microenvironment_graph_v2",
         "auxiliary_projection_policy": "independent_published_gbm_axes_as_secondary_observations_v1",
         "auxiliary_standard_error_floor": _AUXILIARY_STANDARD_ERROR_FLOOR,
+        "source_location_standard_error_floor": _SOURCE_LOCATION_STANDARD_ERROR_FLOOR,
+        "source_rank_standard_error_floor": _SOURCE_RANK_STANDARD_ERROR_FLOOR,
+        "source_location_quality_supported": 1.0,
+        "source_location_quality_limited": 0.5,
+        "source_rank_quality_supported": 0.85,
+        "source_rank_quality_limited": 0.40,
         "supported_source_families": tuple(item[0] for item in _PROGRAM_MAP),
         "missing_families_are_not_negative": True,
         "cell_fraction_claim_permitted": False,
@@ -282,9 +307,15 @@ def microenvironment_graph_profile() -> MicroenvironmentGraphProfile:
         source_profile_digest=source.profile_digest,
         graph_profile_digest=graph.profile_digest,
         topology_digest=_bridge_topology_digest(),
-        projection_policy="supported_bulk_programs_to_signed_microenvironment_graph_v1",
+        projection_policy="bulk_program_location_and_rank_to_signed_microenvironment_graph_v2",
         auxiliary_projection_policy="independent_published_gbm_axes_as_secondary_observations_v1",
         auxiliary_standard_error_floor=_AUXILIARY_STANDARD_ERROR_FLOOR,
+        source_location_standard_error_floor=_SOURCE_LOCATION_STANDARD_ERROR_FLOOR,
+        source_rank_standard_error_floor=_SOURCE_RANK_STANDARD_ERROR_FLOOR,
+        source_location_quality_supported=1.0,
+        source_location_quality_limited=0.5,
+        source_rank_quality_supported=0.85,
+        source_rank_quality_limited=0.40,
         supported_source_families=("mesenchymal_like", "oligodendrocyte_progenitor_like"),
         missing_families_are_not_negative=True,
         cell_fraction_claim_permitted=False,
@@ -379,6 +410,44 @@ def _topology_provenance() -> TopologyProvenance:
     )
 
 
+def _source_method_observation(
+    graph_program: str,
+    method: Literal["location", "rank"],
+    estimate: MethodEstimate,
+    source_digest: Sha256Digest,
+) -> EvidenceObservation | None:
+    """Project one complete Neftel method estimate without inventing support."""
+
+    if (
+        estimate.score is None
+        or estimate.lower_bound is None
+        or estimate.upper_bound is None
+    ):
+        return None
+    standard_error_floor = (
+        _SOURCE_LOCATION_STANDARD_ERROR_FLOOR
+        if method == "location"
+        else _SOURCE_RANK_STANDARD_ERROR_FLOOR
+    )
+    supported_quality = 1.0 if method == "location" else 0.85
+    limited_quality = 0.5 if method == "location" else 0.40
+    quality = supported_quality if estimate.support.value == "supported" else limited_quality
+    suffix = "" if method == "location" else ".rank"
+    return EvidenceObservation(
+        observation_id=f"observation.gbm_microenvironment.{graph_program}{suffix}",
+        node_id=_node_id(graph_program),
+        modality=EvidenceModality.PROTEOMICS,
+        state=EvidenceState.OBSERVED,
+        standardized_effect=float(estimate.score),
+        standard_error=max(
+            standard_error_floor,
+            abs(float(estimate.upper_bound) - float(estimate.lower_bound)) / 3.29,
+        ),
+        quality_weight=quality,
+        provenance_digest=source_digest,
+    )
+
+
 def _graph_request(
     request: MicroenvironmentGraphRequest,
     source: ProteinProgramResult,
@@ -391,7 +460,7 @@ def _graph_request(
     observations: list[EvidenceObservation] = []
     for family, graph_program in family_to_graph.items():
         evidence = by_id.get(family)
-        if evidence is None or evidence.location is None or evidence.location.score is None:
+        if evidence is None:
             observations.append(
                 EvidenceObservation(
                     observation_id=f"observation.gbm_microenvironment.{graph_program}",
@@ -403,27 +472,27 @@ def _graph_request(
                 )
             )
             continue
-        location = evidence.location
-        score_value = location.score
-        if score_value is None:
-            continue
-        score = float(score_value)
-        lower = score if location.lower_bound is None else float(location.lower_bound)
-        upper = score if location.upper_bound is None else float(location.upper_bound)
-        standard_error = max(0.05, abs(upper - lower) / 3.29)
-        quality = 1.0 if evidence.support.value == "supported" else 0.5
-        observations.append(
-            EvidenceObservation(
-                observation_id=f"observation.gbm_microenvironment.{graph_program}",
-                node_id=_node_id(graph_program),
-                modality=EvidenceModality.PROTEOMICS,
-                state=EvidenceState.OBSERVED,
-                standardized_effect=score,
-                standard_error=standard_error,
-                quality_weight=quality,
-                provenance_digest=source.result_digest,
-            )
+        projected = (
+            _source_method_observation(
+                graph_program, "location", evidence.location, source.result_digest
+            ),
+            _source_method_observation(
+                graph_program, "rank", evidence.rank_enrichment, source.result_digest
+            ),
         )
+        if all(item is None for item in projected):
+            observations.append(
+                EvidenceObservation(
+                    observation_id=f"observation.gbm_microenvironment.{graph_program}",
+                    node_id=_node_id(graph_program),
+                    modality=EvidenceModality.PROTEOMICS,
+                    state=EvidenceState.MISSING,
+                    quality_weight=0.0,
+                    provenance_digest=source.result_digest,
+                )
+            )
+        else:
+            observations.extend(item for item in projected if item is not None)
     if axes is not None:
         by_signature = {str(item.signature_id): item for item in axes.signatures}
         for signature_id, graph_program in _AXIS_MAP:
@@ -489,6 +558,7 @@ def analyze_microenvironment_graph(request: MicroenvironmentGraphRequest) -> Mic
         limitations=(
             "The source engine estimates bulk protein program evidence, not cell fractions.",
             "Only mesenchymal-like and oligodendrocyte-progenitor-like families are projected; missing families remain missing.",
+            "Location and competitive-rank source estimates are retained as separate observations with profile-bound floors and quality weights; they are not silently averaged before ECGI.",
             "Published GBM proteomic-axis scores are independent secondary observations for hypoxia and mesenchymal nodes; they never override Neftel evidence.",
             "Secondary published-axis observations use a profile-bound 0.35 standard-error floor to cover cross-engine scale and calibration uncertainty; their narrow bootstrap width is not treated as full uncertainty.",
             "The signed graph describes research associations and does not establish causality, prognosis, or treatment response.",
