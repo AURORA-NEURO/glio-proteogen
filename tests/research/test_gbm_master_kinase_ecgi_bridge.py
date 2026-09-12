@@ -100,7 +100,14 @@ def test_bridge_rejects_ambiguous_mappings(demo_result, mapping, message: str) -
         )
 
 
-def test_bridge_rejects_all_abstained_estimates() -> None:
+@pytest.mark.parametrize(
+    ("method", "message"),
+    [
+        ("location", "no supported master-kinase estimates"),
+        ("rank_enrichment", "no supported master-kinase rank_enrichment estimates"),
+    ],
+)
+def test_bridge_rejects_all_abstained_estimates(method: str, message: str) -> None:
     request = MasterKinaseRequest(
         sample_id="bridge.abstained",
         observations=(
@@ -121,10 +128,11 @@ def test_bridge_rejects_all_abstained_estimates() -> None:
         ),
     )
     result = analyze_master_kinases(request)
-    with pytest.raises(ValueError, match="no supported master-kinase estimates"):
+    with pytest.raises(ValueError, match=message):
         build_ecgi_external_kinase_profile(
             result,
             node_id_by_kinase_id={"PRKCD": "kinase.prkcd"},
+            method=method,  # type: ignore[arg-type]
         )
 
 
