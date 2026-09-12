@@ -66,6 +66,32 @@ def test_profile_binds_both_child_engines() -> None:
     assert profile.cell_fraction_claim_permitted is False
 
 
+def test_profile_declares_lower_weight_molecular_context_edges() -> None:
+    edges = runtime._graph_edges()
+    by_pair = {(str(edge.source_id), str(edge.target_id)): edge for edge in edges}
+    expected = {
+        (
+            "pathway.gbm_microenvironment.egfr_targets",
+            "pathway.gbm_microenvironment.hypoxia",
+        ): 1,
+        (
+            "pathway.gbm_microenvironment.egfr_targets",
+            "pathway.gbm_microenvironment.mesenchymal",
+        ): 1,
+        (
+            "pathway.gbm_microenvironment.neural",
+            "pathway.gbm_microenvironment.mesenchymal",
+        ): -1,
+        (
+            "pathway.gbm_microenvironment.proneural",
+            "pathway.gbm_microenvironment.mesenchymal",
+        ): -1,
+    }
+    for pair, sign in expected.items():
+        assert by_pair[pair].sign == sign
+        assert by_pair[pair].weight == 0.65
+
+
 def test_synthetic_bridge_projects_supported_mes_and_opc_evidence() -> None:
     request = synthetic_microenvironment_graph_request()
     result = analyze_microenvironment_graph(request)
@@ -198,6 +224,28 @@ def test_selected_axis_subset_marks_unrequested_graph_axes_missing() -> None:
     assert (
         observations["observation.gbm_microenvironment.axis.kras_targets"].state
         is EvidenceState.MISSING
+    )
+
+
+def test_molecular_axis_evidence_reaches_context_nodes_through_signed_edges() -> None:
+    source = synthetic_demo_request()
+    axes = gbm_axes_demo_request().model_copy(
+        update={"sample_id": source.sample_id, "signature_ids": ("EGFR_UP.V1_UP",)}
+    )
+    request = MicroenvironmentGraphRequest(
+        sample_id=source.sample_id,
+        source_request=source,
+        axis_request=axes,
+    )
+    result = analyze_microenvironment_graph(request)
+    by_id = {str(item.node_id): item for item in result.graph_result.node_states}
+    mesenchymal = by_id["pathway.gbm_microenvironment.mesenchymal"]
+    hypoxia = by_id["pathway.gbm_microenvironment.hypoxia"]
+    assert mesenchymal.support.value != "abstained"
+    assert hypoxia.support.value != "abstained"
+    assert any(
+        driver.driver_id == "edge.gbm_microenvironment.7"
+        for driver in mesenchymal.top_drivers
     )
 
 

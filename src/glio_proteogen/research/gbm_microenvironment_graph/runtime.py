@@ -106,12 +106,20 @@ _GRAPH_PROGRAMS: Final = (
     "egfr_targets",
 )
 _GRAPH_EDGES: Final = (
-    ("hypoxia", "angiogenic", 1),
-    ("hypoxia", "mesenchymal", 1),
-    ("mesenchymal", "myeloid", 1),
-    ("myeloid", "t_cell", -1),
-    ("opc_like", "mesenchymal", -1),
-    ("angiogenic", "endothelial", 1),
+    # Core microenvironment couplings from the original bridge abstraction.
+    ("hypoxia", "angiogenic", 1, 1.0),
+    ("hypoxia", "mesenchymal", 1, 1.0),
+    ("mesenchymal", "myeloid", 1, 1.0),
+    ("myeloid", "t_cell", -1, 1.0),
+    ("opc_like", "mesenchymal", -1, 1.0),
+    ("angiogenic", "endothelial", 1, 1.0),
+    # Molecular-to-context couplings are lower-weight, signed hypotheses. They
+    # let source-locked GBM axes inform the context graph without presenting a
+    # subtype label as a causal or clinically validated mechanism.
+    ("egfr_targets", "hypoxia", 1, 0.65),
+    ("egfr_targets", "mesenchymal", 1, 0.65),
+    ("neural", "mesenchymal", -1, 0.65),
+    ("proneural", "mesenchymal", -1, 0.65),
 )
 _AXIS_MAP: Final = (
     ("SWEET_KRAS_TARGETS_UP", "kras_targets"),
@@ -375,9 +383,9 @@ def _graph_edges() -> tuple[GraphEdge, ...]:
             target_id=_node_id(target_program),
             kind=EdgeKind.REGULATES,
             sign=sign,  # type: ignore[arg-type]
-            weight=1.0,
+            weight=weight,
         )
-        for index, (source_program, target_program, sign) in enumerate(_GRAPH_EDGES)
+        for index, (source_program, target_program, sign, weight) in enumerate(_GRAPH_EDGES)
     )
 
 
@@ -437,7 +445,10 @@ def _topology_provenance() -> TopologyProvenance:
         sources=sources,
         curation_note=(
             "Reactome records provide public biological context for this repository-native "
-            "GBM microenvironment abstraction; they are not a Reactome-exported graph."
+            "GBM microenvironment abstraction; they are not a Reactome-exported graph. "
+            "The four molecular-to-context edges are profile-bound, lower-weight association "
+            "hypotheses (EGFR-to-hypoxia/mesenchymal and neural/proneural-to-mesenchymal "
+            "contrasts), not causal, subtype, or clinical claims."
         ),
     )
 

@@ -28,8 +28,10 @@ The projection is deliberately narrower than a deconvolution model:
   (`1.0/0.5` and `0.85/0.40` for supported/limited evidence); and
 - the seven published axes map to `kras_targets`, `myc_targets`, `hypoxia`,
   `mesenchymal`, `neural`, `proneural`, and `egfr_targets` in the exact
-  profile-declared order. These source-specific nodes are deliberately not
-  connected by invented subtype-causality edges; and
+  profile-declared order. The EGFR axis is connected to hypoxia and
+  mesenchymal context, while neural and proneural axes are signed against
+  mesenchymal context through lower-weight, profile-bound association
+  hypotheses. These edges are not subtype-causality or clinical claims; and
 - a source family that is not present becomes an explicit `missing` observation,
   while a present family whose own support gate abstains becomes `unsupported`;
   both carry zero quality and neither is treated as negative evidence. The same
@@ -39,9 +41,13 @@ The graph relations are a small, versioned GBM microenvironment abstraction:
 hypoxia positively connects to angiogenesis and mesenchymal state, mesenchymal
 state positively connects to myeloid state, myeloid state is signed against the
 T-cell node, OPC-like state is signed against mesenchymal state, and
-angiogenesis positively connects to endothelium. ECGI's robust IRLS solver,
-one-sided censoring, graph consistency, bootstrap intervals, and ablations are
-used without a second proxy score or caller-declared state.
+angiogenesis positively connects to endothelium. Four lower-weight molecular
+context edges (EGFR→hypoxia, EGFR→mesenchymal, neural→mesenchymal−, and
+proneural→mesenchymal−) allow the published axes to inform downstream context
+states without letting a molecular subtype score override direct evidence.
+ECGI's robust IRLS solver, one-sided censoring, graph consistency, bootstrap
+intervals, and ablations are used without a second proxy score or caller-
+declared state.
 
 The source, optional axis, and graph receipts are nested in the bridge result
 and replayed independently. The profile binds all child profile digests and
