@@ -1100,6 +1100,25 @@ The opaque posterior/state grammar remains compatibility-only and the typed lane
 is review-gated. It does not claim causal mechanism, clinical probability,
 prognosis, kinase ownership, or treatment effect.
 
+## Completed M14-03 typed glioma microenvironment lane
+
+The additive M14-03 runtime now initializes each microenvironment program from
+an inverse-variance, quality-weighted Huber center over supported repeated
+proteomic observations. The center uses deterministic IRLS with a frozen
+standardized residual scale and objective-safe backtracking, so a failed assay
+batch cannot pull the signed graph start toward an extreme replicate. Left-
+censored observations remain one-sided upper bounds: observed centers are
+projected onto the tightest bound and censor-only programs start at the
+ridge-neutral feasible value.
+
+The subsequent fit still performs signed Huber coordinate descent over the
+hypoxia/angiogenic, hypoxia/mesenchymal, mesenchymal/myeloid, myeloid/T-cell,
+and OPC-like/mesenchymal relations. Deterministic bootstrap perturbations and
+the monotone objective trace remain replay-bound. The historical categorical
+constructor is unchanged for compatibility; typed outputs are experimental
+microenvironment program effects, not cellular fractions, diagnosis,
+prognosis, kinase ownership, or treatment guidance.
+
 ## Completed M15-03 typed glioma feature lane
 
 The additive M15-03 runtime now turns typed pathway/topology feature evidence

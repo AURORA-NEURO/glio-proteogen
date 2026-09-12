@@ -484,6 +484,47 @@ def test_typed_initialization_keeps_left_censored_limits_feasible() -> None:
     assert values[order.index(GliomaMicroenvironmentProgram.MYELOID)] == mixed_censor_limit
 
 
+def test_typed_initialization_downweights_failed_replicate() -> None:
+    """A single extreme phosphoproteomic replicate cannot seed the graph state."""
+
+    program = GliomaMicroenvironmentProgram.HYPOXIA
+    grouped = {
+        program: [
+            _TypedTerm(
+                observation_id="replicate-a",
+                program=program,
+                state=MechanisticEvidenceState.OBSERVED,
+                effect=0.8,
+                standard_error=0.1,
+                quality_weight=1.0,
+            ),
+            _TypedTerm(
+                observation_id="replicate-b",
+                program=program,
+                state=MechanisticEvidenceState.OBSERVED,
+                effect=0.9,
+                standard_error=0.1,
+                quality_weight=1.0,
+            ),
+            _TypedTerm(
+                observation_id="failed-batch",
+                program=program,
+                state=MechanisticEvidenceState.OBSERVED,
+                effect=8.0,
+                standard_error=0.1,
+                quality_weight=1.0,
+            ),
+        ]
+    }
+
+    values = _initial_typed_values(grouped)
+    center = values[list(GliomaMicroenvironmentProgram).index(program)]
+    low_replicate = 0.8
+    arithmetic_mean = (low_replicate + 0.9 + 8.0) / 3.0
+    assert low_replicate < center < 1.0
+    assert center < arithmetic_mean / 2.0
+
+
 def test_typed_missing_and_unsupported_evidence_abstain_without_negative_observations() -> None:
     request = _typed_request(
         [
