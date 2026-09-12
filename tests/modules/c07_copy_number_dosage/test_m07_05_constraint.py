@@ -49,6 +49,8 @@ from glio_proteogen.modules.c07_copy_number_dosage.m07_05_mechanism_constraint_i
 
 _EXPECTED_ESTIMATES = 2
 _FIRST_CANDIDATE_CALL = 2
+_ROBUST_CENTER_MAX = 0.5
+_ARITHMETIC_MEAN_MIN = 1.0
 
 
 def _artifact(
@@ -266,6 +268,23 @@ def test_typed_initialization_uses_observed_dosage_and_projects_censor_bounds() 
     )
 
     assert engine_module._initial_typed_program_state((observed, censored)) == pytest.approx(-0.2)
+
+
+def test_typed_initialization_downweights_failed_dosage_replicate() -> None:
+    terms = (
+        (0.2, 0.2, 1.0),
+        (0.3, 0.2, 1.0),
+        (4.0, 0.2, 1.0),
+    )
+
+    center = engine_module._robust_initial_dosage_center(terms)
+    arithmetic_mean = sum(term[0] for term in terms) / len(terms)
+
+    assert center < _ROBUST_CENTER_MAX
+    assert arithmetic_mean > _ARITHMETIC_MEAN_MIN
+    assert engine_module._initial_dosage_measurement_objective(
+        center, terms
+    ) <= engine_module._initial_dosage_measurement_objective(arithmetic_mean, terms)
 
 
 def test_typed_censor_only_initialization_is_neutral_when_limit_is_positive() -> None:

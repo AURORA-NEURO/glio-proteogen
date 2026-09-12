@@ -630,6 +630,10 @@ from a frozen parent state and accepted only after a finite full-vector
 objective-safe backtracking check, so the replay-visible trace is monotone
 within the configured tolerance rather than a collection of independent proxy
 formulas.
+Observed dosage repeats initialize each program with a deterministic
+inverse-variance, quality-weighted Huber/IRLS center and objective-safe
+backtracking before censor-bound projection, keeping failed assays from
+choosing the coupled solver basin.
 
 The typed integration evaluates hard and soft constraints against fitted
 feature states, preserves soft effects with ablation records, and emits
