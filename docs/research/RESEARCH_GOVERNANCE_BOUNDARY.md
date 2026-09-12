@@ -215,9 +215,11 @@ uncertainty, support gates, and limitations are documented in
 
 When a caller wants to inspect the master-kinase evidence beside ECGI, the
 research package exposes an explicit HGNC-to-ECGI node mapping helper. It
-exports only supported master-kinase location intervals and binds the handoff
-to the source result digest; ECGI treats it as an external comparison profile
-and never merges or lets it override the local phosphosite-substrate estimate.
+exports one selected supported master-kinase method—robust location by default,
+or competitive rank enrichment when explicitly requested—and binds that
+method-specific handoff to the source result digest. ECGI treats it as an
+external comparison profile and never merges or lets it override the local
+phosphosite-substrate estimate.
 
 The functional-proteotype output is a joint, relative bulk-protein concordance
 with four source-locked Table 2d signatures. It does not choose a subtype or

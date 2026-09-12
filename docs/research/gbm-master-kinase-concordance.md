@@ -21,10 +21,12 @@ The Python helper
 `build_ecgi_external_kinase_profile(result, node_id_by_kinase_id=...)` is the
 narrow integration point to the `glio-ecgi/1.0.0` comparison lane. The caller
 must map each HGNC kinase symbol to an exact ECGI kinase-node identifier; the
-adapter never guesses namespaces or creates implicit nodes. It exports only
-combined master-kinase records with `supported` evidence, preserves their
-location interval, and binds the external profile to the complete master-kinase
-`result_digest`. ECGI reports this profile as comparison-only: it does not
+adapter never guesses namespaces or creates implicit nodes. It can export either
+the robust `location` method (the backward-compatible default) or the independent
+competitive `rank_enrichment` method by passing `method="rank_enrichment"`.
+Each method has its own profile identifier, preserves its interval, and binds
+the external profile to the complete master-kinase `result_digest`. ECGI reports
+these profiles as comparison-only: it does not
 merge or override the local phosphosite enrichment estimate. Limited and
 abstained source records are omitted, and a mapping with no supported records
 fails closed instead of manufacturing neutral activity.

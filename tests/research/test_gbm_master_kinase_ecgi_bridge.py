@@ -6,6 +6,7 @@ import pytest
 
 from glio_proteogen.research.gbm_master_kinases import (
     ECGI_EXTERNAL_PROFILE_ID,
+    ECGI_EXTERNAL_RANK_PROFILE_ID,
     MasterKinaseRequest,
     PhosphositeEvidenceState,
     PhosphositeObservation,
@@ -57,6 +58,30 @@ def test_bridge_requires_explicit_mapping_and_binds_result_digest(demo_result) -
     assert phkg2.activity == source.location.score
     assert phkg2.lower_bound == source.location.lower_bound
     assert phkg2.upper_bound == source.location.upper_bound
+
+
+def test_bridge_can_export_independent_rank_enrichment_profile(demo_result) -> None:
+    profile = build_ecgi_external_kinase_profile(
+        demo_result,
+        node_id_by_kinase_id={"PRKCD": "kinase.prkcd", "PHKG2": "kinase.phkg2"},
+        method="rank_enrichment",
+    )
+    assert profile.profile_id == ECGI_EXTERNAL_RANK_PROFILE_ID
+    assert profile.source_digest == demo_result.result_digest
+    phkg2 = next(item for item in profile.estimates if item.kinase_id == "kinase.phkg2")
+    source = next(item for item in demo_result.kinase_evidence if item.kinase_id == "PHKG2")
+    assert phkg2.activity == source.rank_enrichment.score
+    assert phkg2.lower_bound == source.rank_enrichment.lower_bound
+    assert phkg2.upper_bound == source.rank_enrichment.upper_bound
+
+
+def test_bridge_rejects_unknown_method(demo_result) -> None:
+    with pytest.raises(ValueError, match="method must be 'location' or 'rank_enrichment'"):
+        build_ecgi_external_kinase_profile(
+            demo_result,
+            node_id_by_kinase_id={"PRKCD": "kinase.prkcd"},
+            method="unknown",  # type: ignore[arg-type]
+        )
 
 
 @pytest.mark.parametrize(
