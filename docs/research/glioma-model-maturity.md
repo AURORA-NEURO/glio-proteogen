@@ -447,7 +447,9 @@ topology propagation auditable under strongly discordant protein evidence.
 The additive M08-02 runtime fits paired transcript/protein effects with a
 bounded translation prior, robust Huber coordinate descent, and explicit
 one-sided censoring. Initial states are formed from observed assay effects only
-and projected onto the tightest censor boundary; censor-only modalities remain
+using a deterministic inverse-variance, quality-weighted Huber/IRLS center with
+objective-safe backtracking, then projected onto the tightest censor boundary;
+censor-only modalities remain
 at the ridge-neutral feasible value. Censored residuals contribute only when a
 candidate violates their upper bound, so detection limits cannot manufacture a
 negative discordance. Each paired update is evaluated from a frozen parent

@@ -316,6 +316,8 @@ EXPECTED_TYPED_GENES_PER_FEATURE = 4
 FIRST_CANDIDATE_CALL = 2
 NEGATIVE_TRANSCRIPT_LIMIT = -0.4
 NEGATIVE_PROTEIN_LIMIT = -0.3
+ROBUST_CENTER_MAX = 0.5
+ARITHMETIC_MEAN_MIN = 1.0
 
 
 def test_typed_glioma_discordance_is_evidence_driven_and_replay_bound() -> None:
@@ -421,6 +423,23 @@ def test_typed_initial_state_uses_observed_center_and_censor_bound() -> None:
     protein = m0802.engine._initial_typed_component_state(items, "protein")
     assert transcript <= NEGATIVE_TRANSCRIPT_LIMIT
     assert protein <= NEGATIVE_PROTEIN_LIMIT
+
+
+def test_typed_initial_component_center_downweights_failed_replicate() -> None:
+    terms = (
+        (0.2, 0.2, 1.0),
+        (0.3, 0.2, 1.0),
+        (4.0, 0.2, 1.0),
+    )
+
+    center = m0802.engine._robust_initial_component_center(terms)
+    arithmetic_mean = sum(term[0] for term in terms) / len(terms)
+
+    assert center < ROBUST_CENTER_MAX
+    assert arithmetic_mean > ARITHMETIC_MEAN_MIN
+    assert m0802.engine._initial_component_measurement_objective(center, terms) <= (
+        m0802.engine._initial_component_measurement_objective(arithmetic_mean, terms)
+    )
 
 
 def test_censor_only_initial_state_stays_neutral_when_limit_is_positive() -> None:

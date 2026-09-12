@@ -328,6 +328,9 @@ _TYPED_CONVERGENCE_GAP: Final = 5e-4
 _TYPED_CONVERGENCE_OBJECTIVE_TOLERANCE: Final = 1e-4
 _TYPED_BACKTRACKING_STEPS: Final = 18
 _TYPED_BACKTRACKING_FACTOR: Final = 0.5
+_TYPED_INITIAL_HUBER_ITERATIONS: Final = 32
+_TYPED_INITIAL_HUBER_TOLERANCE: Final = 1e-8
+_TYPED_INITIAL_OBJECTIVE_TOLERANCE: Final = 1e-10
 _TYPED_MAX_ITERATIONS: Final = 1024
 _TYPED_MIN_OBSERVATIONS: Final = 3
 
@@ -417,6 +420,80 @@ def _typed_huber(value: float) -> float:
     )
 
 
+def _initial_component_measurement_objective(
+    center: float,
+    terms: tuple[tuple[float, float, float], ...],
+) -> float:
+    """Evaluate the frozen-scale robust objective for one assay component."""
+
+    return float(
+        sum(
+            quality
+            / max(standard_error**2, 1e-12)
+            * _typed_huber((center - effect) / max(1e-6, standard_error))
+            for effect, standard_error, quality in terms
+        )
+    )
+
+
+def _robust_initial_component_center(
+    terms: tuple[tuple[float, float, float], ...],
+) -> float:
+    """Find a deterministic inverse-variance, quality-weighted Huber center."""
+
+    if len(terms) == 1:
+        return terms[0][0]
+    information = tuple(
+        quality / max(1e-6, standard_error**2)
+        for _effect, standard_error, quality in terms
+    )
+    estimate = sum(
+        weight * term[0] for weight, term in zip(information, terms, strict=True)
+    ) / max(sum(information), 1e-6)
+    for _ in range(_TYPED_INITIAL_HUBER_ITERATIONS):
+        residuals = tuple(
+            (term[0] - estimate) / max(1e-6, term[1]) for term in terms
+        )
+        robust_weights = tuple(
+            weight
+            * (
+                1.0
+                if abs(residual) <= _TYPED_HUBER_K
+                else _TYPED_HUBER_K / abs(residual)
+            )
+            for weight, residual in zip(information, residuals, strict=True)
+        )
+        proposal = sum(
+            weight * term[0]
+            for weight, term in zip(robust_weights, terms, strict=True)
+        ) / max(sum(robust_weights), 1e-6)
+        baseline_objective = _initial_component_measurement_objective(estimate, terms)
+        proposal_objective = _initial_component_measurement_objective(proposal, terms)
+        accepted = proposal
+        if not isfinite(proposal_objective) or (
+            proposal_objective
+            > baseline_objective + _TYPED_INITIAL_OBJECTIVE_TOLERANCE
+        ):
+            direction = proposal - estimate
+            accepted = estimate
+            step = _TYPED_BACKTRACKING_FACTOR
+            for _ in range(_TYPED_BACKTRACKING_STEPS):
+                trial = estimate + step * direction
+                trial_objective = _initial_component_measurement_objective(trial, terms)
+                if isfinite(trial_objective) and (
+                    trial_objective
+                    <= baseline_objective + _TYPED_INITIAL_OBJECTIVE_TOLERANCE
+                ):
+                    accepted = trial
+                    break
+                step *= _TYPED_BACKTRACKING_FACTOR
+        if abs(accepted - estimate) <= _TYPED_INITIAL_HUBER_TOLERANCE:
+            estimate = accepted
+            break
+        estimate = accepted
+    return float(estimate)
+
+
 def _typed_pair_objective(  # noqa: PLR0913 - explicit modality ablations stay visible.
     observations: tuple[GliomaTranscriptProteinObservation, ...],
     transcript: float,
@@ -455,7 +532,7 @@ def _initial_typed_component_state(
     """Build an observed-only feasible start for one assay modality."""
 
     effect_name = f"{modality}_effect"
-    observed: list[tuple[float, float]] = []
+    observed: list[tuple[float, float, float]] = []
     limits: list[float] = []
     for item in observations:
         effect = getattr(item, effect_name)
@@ -466,11 +543,10 @@ def _initial_typed_component_state(
         error = _typed_component_error(item, modality)
         weight = item.quality_weight / max(error**2, 1e-12)
         if weight > 0.0:
-            observed.append((float(effect), weight))
-    weight_total = sum(weight for _, weight in observed)
+            observed.append((float(effect), error, item.quality_weight))
     value = (
-        sum(effect * weight for effect, weight in observed) / weight_total
-        if weight_total > 0.0
+        _robust_initial_component_center(tuple(observed))
+        if observed
         else 0.0
     )
     if limits:
