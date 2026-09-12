@@ -536,6 +536,10 @@ The sensitivity envelope is explicitly internal bootstrap coverage rather than
 external calibration. The original owner-review abstention path remains
 unchanged for metadata-only requests, while typed output is a research
 uncertainty diagnostic and cannot support diagnosis, prognosis, or treatment.
+Repeated observed uncertainty terms now seed each location fit with a
+deterministic inverse-variance, quality-weighted Huber/IRLS center and an
+objective-safe backtracking guard before censor-bound projection, so failed
+replicates do not dominate the uncertainty decomposition basin.
 
 ## Completed M09-02 typed glioma complex activity lane
 

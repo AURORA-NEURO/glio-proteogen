@@ -8,7 +8,7 @@ from __future__ import annotations
 import hashlib
 from collections.abc import Mapping
 from dataclasses import dataclass
-from math import sqrt
+from math import isfinite, sqrt
 from typing import Final
 
 import numpy as np
@@ -65,6 +65,9 @@ _TYPED_DAMPING: Final = 0.3
 _TYPED_OBJECTIVE_TOLERANCE: Final = 1e-10
 _TYPED_BACKTRACKING_STEPS: Final = 16
 _TYPED_BACKTRACKING_FACTOR: Final = 0.5
+_TYPED_INITIAL_HUBER_ITERATIONS: Final = 32
+_TYPED_INITIAL_HUBER_TOLERANCE: Final = 1e-8
+_TYPED_INITIAL_OBJECTIVE_TOLERANCE: Final = 1e-10
 
 
 @dataclass(frozen=True, slots=True)
@@ -216,6 +219,78 @@ def _typed_active(
     )
 
 
+def _initial_location_objective(
+    center: float,
+    terms: tuple[tuple[float, float, float], ...],
+) -> float:
+    """Evaluate the frozen-scale Huber objective for an uncertainty start."""
+
+    return float(
+        sum(
+            quality * _typed_huber((center - target) / max(1e-6, standard_error))
+            for target, standard_error, quality in terms
+        )
+    )
+
+
+def _robust_initial_location_center(
+    terms: tuple[tuple[float, float, float], ...],
+) -> float:
+    """Find a deterministic inverse-variance, quality-weighted Huber center."""
+
+    if len(terms) == 1:
+        return terms[0][0]
+    information = tuple(
+        quality / max(1e-6, standard_error**2)
+        for _target, standard_error, quality in terms
+    )
+    estimate = sum(
+        weight * term[0] for weight, term in zip(information, terms, strict=True)
+    ) / max(sum(information), 1e-6)
+    for _ in range(_TYPED_INITIAL_HUBER_ITERATIONS):
+        residuals = tuple(
+            (term[0] - estimate) / max(1e-6, term[1]) for term in terms
+        )
+        robust_weights = tuple(
+            weight
+            * (
+                1.0
+                if abs(residual) <= _TYPED_HUBER_K
+                else _TYPED_HUBER_K / abs(residual)
+            )
+            for weight, residual in zip(information, residuals, strict=True)
+        )
+        proposal = sum(
+            weight * term[0]
+            for weight, term in zip(robust_weights, terms, strict=True)
+        ) / max(sum(robust_weights), 1e-6)
+        baseline_objective = _initial_location_objective(estimate, terms)
+        proposal_objective = _initial_location_objective(proposal, terms)
+        accepted = proposal
+        if not isfinite(proposal_objective) or (
+            proposal_objective
+            > baseline_objective + _TYPED_INITIAL_OBJECTIVE_TOLERANCE
+        ):
+            direction = proposal - estimate
+            accepted = estimate
+            step = _TYPED_BACKTRACKING_FACTOR
+            for _ in range(_TYPED_BACKTRACKING_STEPS):
+                trial = estimate + step * direction
+                trial_objective = _initial_location_objective(trial, terms)
+                if isfinite(trial_objective) and (
+                    trial_objective
+                    <= baseline_objective + _TYPED_INITIAL_OBJECTIVE_TOLERANCE
+                ):
+                    accepted = trial
+                    break
+                step *= _TYPED_BACKTRACKING_FACTOR
+        if abs(accepted - estimate) <= _TYPED_INITIAL_HUBER_TOLERANCE:
+            estimate = accepted
+            break
+        estimate = accepted
+    return float(estimate)
+
+
 def _typed_robust_location(  # noqa: C901, PLR0912, PLR0915 - explicit IRLS branches are auditable.
     observations: tuple[TypedUncertaintyObservation, ...],
     perturbations: Mapping[str, float] | None = None,
@@ -231,8 +306,8 @@ def _typed_robust_location(  # noqa: C901, PLR0912, PLR0915 - explicit IRLS bran
         for item in observations
     )
     observed = tuple(
-        (target, weight)
-        for item, target, weight in zip(observations, targets, weights, strict=True)
+        (target, float(item.standard_error or 1.0), item.quality_weight)
+        for item, target in zip(observations, targets, strict=True)
         if item.state is TypedUncertaintyEvidenceState.OBSERVED
     )
     limits = tuple(
@@ -241,9 +316,7 @@ def _typed_robust_location(  # noqa: C901, PLR0912, PLR0915 - explicit IRLS bran
         if item.state is TypedUncertaintyEvidenceState.LEFT_CENSORED
     )
     if observed:
-        value = sum(target * weight for target, weight in observed) / max(
-            sum(weight for _, weight in observed), 1e-12
-        )
+        value = _robust_initial_location_center(observed)
     elif limits:
         value = min(0.0, *limits)
     else:

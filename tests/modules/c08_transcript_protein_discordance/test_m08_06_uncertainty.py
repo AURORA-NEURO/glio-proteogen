@@ -44,6 +44,9 @@ from glio_proteogen.modules.c08_transcript_protein_discordance.m08_06_uncertaint
     engine as m0806_engine,
 )
 
+_ROBUST_CENTER_MAX = 0.5
+_ARITHMETIC_MEAN_MIN = 1.0
+
 
 def _artifact(
     label: str, char: str = "a", media_type: str = "application/json"
@@ -225,6 +228,23 @@ def test_typed_censor_only_location_stays_neutral_without_pseudo_target() -> Non
     assert m0806_engine._typed_robust_location(
         (censored,), {censored.observation_id: -1.0}
     ) == pytest.approx(-0.6)
+
+
+def test_typed_location_initialization_downweights_failed_uncertainty_replicate() -> None:
+    terms = (
+        (0.2, 0.2, 1.0),
+        (0.3, 0.2, 1.0),
+        (4.0, 0.2, 1.0),
+    )
+
+    center = m0806_engine._robust_initial_location_center(terms)
+    arithmetic_mean = sum(term[0] for term in terms) / len(terms)
+
+    assert center < _ROBUST_CENTER_MAX
+    assert arithmetic_mean > _ARITHMETIC_MEAN_MIN
+    assert m0806_engine._initial_location_objective(center, terms) <= (
+        m0806_engine._initial_location_objective(arithmetic_mean, terms)
+    )
 
 
 def test_service_verify_replays_and_tamper_fails() -> None:
