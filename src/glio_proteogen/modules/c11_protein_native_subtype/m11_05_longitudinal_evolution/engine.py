@@ -55,6 +55,9 @@ _MAD_SCALE_FACTOR: Final = 1.4826
 _IRLS_TOLERANCE: Final = 1e-10
 _IRLS_ITERATIONS: Final = 24
 _IRLS_DAMPING: Final = 0.65
+_OBJECTIVE_TOLERANCE: Final = 1e-10
+_BACKTRACKING_STEPS: Final = 8
+_BACKTRACKING_FACTOR: Final = 0.5
 _MIN_MEASUREMENTS_PER_SIDE: Final = 2
 _NUMERIC_TRANSITION_POSTERIOR: Final = 0.8
 _MINIMUM_TREND_EFFECT: Final = 0.1
@@ -230,7 +233,9 @@ def _midpoint_median(values: Sequence[float]) -> float:
     return 0.5 * (ordered[midpoint - 1] + ordered[midpoint])
 
 
-def _weighted_huber_location(values: Sequence[_Measurement]) -> tuple[float, float]:
+def _weighted_huber_location(  # noqa: C901, PLR0912 - robust censor-aware IRLS is explicit.
+    values: Sequence[_Measurement],
+) -> tuple[float, float]:
     """Fit a robust local level with precision and quality weighting.
 
     Iteratively reweighted Huber updates protect evolutionary calls from one
@@ -261,6 +266,9 @@ def _weighted_huber_location(values: Sequence[_Measurement]) -> tuple[float, flo
     else:
         limits = tuple(item.value for item in values if item.censored)
         estimate = min(0.0, *limits) if limits else 0.0
+    previous_objective = _weighted_loss(values, estimate)
+    if not isfinite(previous_objective):
+        return estimate, float("inf")
     for _ in range(_IRLS_ITERATIONS):
         residuals = [
             item.value - estimate
@@ -292,10 +300,32 @@ def _weighted_huber_location(values: Sequence[_Measurement]) -> tuple[float, flo
             for weight, item in zip(robust_weights, values, strict=True)
         ) / total
         damped = _IRLS_DAMPING * updated + (1.0 - _IRLS_DAMPING) * estimate
+        objective = _weighted_loss(values, damped)
+        if not isfinite(objective) or objective > previous_objective + _OBJECTIVE_TOLERANCE:
+            # Robust breakpoints and one-sided censoring can make a full IRLS
+            # step increase loss. Backtrack the scalar update to keep the
+            # location fit deterministic and objective-monotone.
+            accepted = False
+            delta = damped - estimate
+            step = _BACKTRACKING_FACTOR
+            for _ in range(_BACKTRACKING_STEPS):
+                trial = estimate + step * delta
+                trial_objective = _weighted_loss(values, trial)
+                if isfinite(trial_objective) and (
+                    trial_objective <= previous_objective + _OBJECTIVE_TOLERANCE
+                ):
+                    damped = trial
+                    objective = trial_objective
+                    accepted = True
+                    break
+                step *= _BACKTRACKING_FACTOR
+            if not accepted:
+                break
         if abs(damped - estimate) <= _IRLS_TOLERANCE:
             estimate = damped
             break
         estimate = damped
+        previous_objective = objective
     return estimate, sqrt(1.0 / max(sum(base), _MINIMUM_WEIGHT_DENOMINATOR))
 
 

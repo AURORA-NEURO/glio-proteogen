@@ -61,6 +61,7 @@ from glio_proteogen.modules.c11_protein_native_subtype.m11_05_longitudinal_evolu
 )
 from glio_proteogen.modules.c11_protein_native_subtype.m11_05_longitudinal_evolution.engine import (
     _limitations,
+    _Measurement,
 )
 
 if TYPE_CHECKING:
@@ -77,6 +78,7 @@ _EXPECTED_MEASURED_STATES = 2
 _EXPECTED_MEASURED_CHANGE_POINT = 2
 _EXPECTED_MEASURED_POSTERIOR = 0.8
 _EXPECTED_MEASUREMENTS_PER_STATE = 2
+_FIRST_CANDIDATE_LOSS_CALL = 2
 
 
 def _digest(letter: str) -> str:
@@ -257,6 +259,34 @@ def test_typed_effect_lane_detects_molecular_shift_without_label_change() -> Non
     assert M1105LongitudinalEngine().verify(result).model_dump(mode="json") == result.model_dump(
         mode="json"
     )
+
+
+def test_robust_location_backtracks_non_monotone_loss(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    measurements = tuple(
+        _Measurement(
+            index=index,
+            value=value,
+            standard_error=0.15,
+            quality_weight=0.9,
+            censored=False,
+        )
+        for index, value in enumerate((-1.0, -0.8, 1.1, 1.2))
+    )
+    original = m1105_engine._weighted_loss
+    calls = 0
+
+    def loss(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == _FIRST_CANDIDATE_LOSS_CALL else value
+
+    monkeypatch.setattr(m1105_engine, "_weighted_loss", loss)
+    estimate, error = m1105_engine._weighted_huber_location(measurements)
+
+    assert calls > _FIRST_CANDIDATE_LOSS_CALL
+    assert estimate == pytest.approx(0.15, abs=0.2)
+    assert error > 0.0
 
 
 def test_typed_missing_history_abstains_without_negative_imputation() -> None:
