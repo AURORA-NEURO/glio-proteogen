@@ -36,7 +36,7 @@ a signed GBM microenvironment graph solved by ECGI. Missing source families stay
 missing; the surface never reports cell fractions or clinical states. An
 optional secondary observation lane may carry the independently computed Winter
 hypoxia and Verhaak mesenchymal scores from
-`gbm-proteomic-axes/1.0.0`; these are separately digested, replayed, and
+`gbm-proteomic-axes/1.0.0` as external-modality observations; these are separately digested, replayed, and
 explicitly prevented from overriding Neftel evidence. This experimental axis
 lane is research-only and does not transfer kinase ownership into governed
 modules.

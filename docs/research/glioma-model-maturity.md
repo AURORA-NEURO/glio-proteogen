@@ -40,7 +40,7 @@ separate algorithms and receipts, not scientifically independent evidence:
   directed graph, and explicitly does not estimate cell fractions or clinical
   states. It may carry independently digested Winter hypoxia, Verhaak
   mesenchymal/neural/proneural, KRAS, MYC, and EGFR proteomic-axis scores as
-  secondary observations. Profile-bound, lower-weight EGFR-to-context and
+  external-modality observations. Profile-bound, lower-weight EGFR-to-context and
   neural/proneural-to-mesenchymal association edges now let those molecular
   axes inform downstream context states without overriding direct evidence;
   their measurement intervals are bounded by a profile-locked 0.35
