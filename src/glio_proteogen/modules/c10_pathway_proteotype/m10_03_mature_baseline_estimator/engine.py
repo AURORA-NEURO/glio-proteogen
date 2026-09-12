@@ -69,6 +69,9 @@ _TYPED_TOLERANCE: Final = 1e-5
 _TYPED_OBJECTIVE_TOLERANCE: Final = 1e-10
 _TYPED_BACKTRACKING_STEPS: Final = 24
 _TYPED_BACKTRACKING_FACTOR: Final = 0.5
+_TYPED_INITIAL_HUBER_ITERATIONS: Final = 32
+_TYPED_INITIAL_HUBER_TOLERANCE: Final = 1e-8
+_TYPED_INITIAL_OBJECTIVE_TOLERANCE: Final = 1e-10
 _TYPED_DAMPING: Final = 0.65
 _TYPED_PROGRAM_COUPLING: Final = 0.45
 _TYPED_PROGRAM_RIDGE: Final = 0.12
@@ -534,6 +537,76 @@ def _typed_objective(  # noqa: PLR0913, PLR0917 - explicit objective coordinates
     return float(total)
 
 
+def _initial_program_measurement_objective(
+    center: float,
+    values: np.ndarray,
+    errors: np.ndarray,
+    weights: np.ndarray,
+) -> float:
+    """Evaluate the frozen-scale Huber objective for a program start."""
+
+    standardized = (center - values) / np.maximum(errors, 1e-6)
+    magnitudes = np.abs(standardized)
+    losses = np.where(
+        magnitudes <= _HUBER_K,
+        0.5 * magnitudes * magnitudes,
+        _HUBER_K * (magnitudes - 0.5 * _HUBER_K),
+    )
+    return float(np.sum(weights * losses))
+
+
+def _robust_initial_program_center(
+    values: np.ndarray,
+    errors: np.ndarray,
+    weights: np.ndarray,
+) -> float:
+    """Find a deterministic inverse-variance, quality-weighted Huber center."""
+
+    if values.size == 1:
+        return float(values[0])
+    information = weights / np.maximum(errors * errors, 1e-6)
+    estimate = float(np.sum(information * values) / max(float(np.sum(information)), 1e-6))
+    for _ in range(_TYPED_INITIAL_HUBER_ITERATIONS):
+        standardized = (values - estimate) / np.maximum(errors, 1e-6)
+        influence = np.minimum(1.0, _HUBER_K / np.maximum(1.0, np.abs(standardized)))
+        robust_information = information * influence
+        proposal = float(
+            np.sum(robust_information * values)
+            / max(float(np.sum(robust_information)), 1e-6)
+        )
+        baseline_objective = _initial_program_measurement_objective(
+            estimate, values, errors, weights
+        )
+        proposal_objective = _initial_program_measurement_objective(
+            proposal, values, errors, weights
+        )
+        accepted = proposal
+        if not math.isfinite(proposal_objective) or (
+            proposal_objective
+            > baseline_objective + _TYPED_INITIAL_OBJECTIVE_TOLERANCE
+        ):
+            direction = proposal - estimate
+            accepted = estimate
+            step = _TYPED_BACKTRACKING_FACTOR
+            for _ in range(_TYPED_BACKTRACKING_STEPS):
+                trial = estimate + step * direction
+                trial_objective = _initial_program_measurement_objective(
+                    trial, values, errors, weights
+                )
+                if math.isfinite(trial_objective) and (
+                    trial_objective
+                    <= baseline_objective + _TYPED_INITIAL_OBJECTIVE_TOLERANCE
+                ):
+                    accepted = trial
+                    break
+                step *= _TYPED_BACKTRACKING_FACTOR
+        if abs(accepted - estimate) <= _TYPED_INITIAL_HUBER_TOLERANCE:
+            estimate = accepted
+            break
+        estimate = accepted
+    return float(estimate)
+
+
 def _fit_typed_arrays(  # noqa: C901, PLR0912, PLR0915 - coupled coordinates are intentional.
     observations: tuple[TypedProteinRnaObservation, ...],
     values: np.ndarray,
@@ -567,7 +640,9 @@ def _fit_typed_arrays(  # noqa: C901, PLR0912, PLR0915 - coupled coordinates are
     program_state: dict[str, float] = {}
     for program in sorted(set(programs)):
         indexes = np.asarray([index for index, value in enumerate(programs) if value == program])
-        program_state[program] = float(np.average(latent[indexes], weights=weights[indexes]))
+        program_state[program] = _robust_initial_program_center(
+            latent[indexes], errors[indexes], weights[indexes]
+        )
     initial_objective = _typed_objective(
         observations,
         values,

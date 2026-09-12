@@ -727,6 +727,11 @@ from a frozen parent and accepted only after a finite full-vector backtracking
 check, which prevents a robust surrogate sweep from increasing the true
 objective.
 
+Program coordinates are initialized with a deterministic inverse-variance,
+quality-weighted Huber/IRLS center rather than a plain weighted mean, with
+objective-safe backtracking. This keeps failed protein/RNA pairs from choosing
+the coupled glioma-program basin.
+
 The program coordinates are coupled by the locked signed GBM relation graph
 (RTK/PI3K/AKT/mTOR to p53/cell-cycle and proliferation, IDH/HIF1A to
 mesenchymal, and mesenchymal to proliferation). Edge penalties are included in

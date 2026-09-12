@@ -52,6 +52,8 @@ _TWO_TARGETS = 2
 _TYPED_BOOTSTRAP_REPLICATES = 16
 _NEUTRAL_DISCORDANCE = 0.0
 _FIRST_CANDIDATE_CALL = 2
+_ROBUST_CENTER_MAX = 0.5
+_ARITHMETIC_MEAN_MIN = 1.0
 
 
 def _artifact(name: str, media_type: str = "application/json") -> ArtifactReference:
@@ -296,6 +298,23 @@ def test_typed_glioma_discordance_fit_is_paired_and_replayable() -> None:
     assert alpha.top_drivers
     assert alpha.ablation_effects
     assert result.diagnostics[0].model_family == "glioma-protein-rna-discordance-programs/1.0.0"
+
+
+def test_typed_program_initialization_downweights_failed_replicate() -> None:
+    values = np.asarray((0.2, 0.3, 4.0), dtype=np.float64)
+    errors = np.asarray((0.2, 0.2, 0.2), dtype=np.float64)
+    weights = np.ones(3, dtype=np.float64)
+
+    center = engine_module._robust_initial_program_center(values, errors, weights)
+    arithmetic_mean = float(np.mean(values))
+
+    assert center < _ROBUST_CENTER_MAX
+    assert arithmetic_mean > _ARITHMETIC_MEAN_MIN
+    assert engine_module._initial_program_measurement_objective(
+        center, values, errors, weights
+    ) <= engine_module._initial_program_measurement_objective(
+        arithmetic_mean, values, errors, weights
+    )
 
 
 def test_typed_baseline_solver_backtracks_objective_increase(monkeypatch) -> None:  # type: ignore[no-untyped-def]
