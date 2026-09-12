@@ -34,6 +34,15 @@ def test_profile_binds_both_child_engines() -> None:
         == "independent_published_gbm_axes_as_secondary_observations_v1"
     )
     assert profile.auxiliary_standard_error_floor == 0.35
+    assert profile.projected_axis_signatures == (
+        ("SWEET_KRAS_TARGETS_UP", "kras_targets"),
+        ("HALLMARK_MYC_TARGETS_V1", "myc_targets"),
+        ("WINTER_HYPOXIA_UP", "hypoxia"),
+        ("VERHAAK_GLIOBLASTOMA_MESENCHYMAL", "mesenchymal"),
+        ("VERHAAK_GLIOBLASTOMA_NEURAL", "neural"),
+        ("VERHAAK_GLIOBLASTOMA_PRONEURAL", "proneural"),
+        ("EGFR_UP.V1_UP", "egfr_targets"),
+    )
     assert profile.source_location_standard_error_floor == 0.05
     assert profile.source_rank_standard_error_floor == 0.10
     assert profile.source_location_quality_supported == 1.0
@@ -87,12 +96,24 @@ def test_synthetic_bridge_projects_supported_mes_and_opc_evidence() -> None:
     assert result.axis_result is not None
     axis_ids = {str(item.signature_id) for item in result.axis_result.signatures}
     assert {"WINTER_HYPOXIA_UP", "VERHAAK_GLIOBLASTOMA_MESENCHYMAL"}.issubset(axis_ids)
-    assert result.graph_request.observations[-2].observation_id.endswith("axis.hypoxia")
-    assert result.graph_request.observations[-1].observation_id.endswith("axis.mesenchymal")
+    axis_observations = {
+        str(item.observation_id): item
+        for item in result.graph_request.observations
+        if ".axis." in item.observation_id
+    }
+    assert set(axis_observations) == {
+        "observation.gbm_microenvironment.axis.kras_targets",
+        "observation.gbm_microenvironment.axis.myc_targets",
+        "observation.gbm_microenvironment.axis.hypoxia",
+        "observation.gbm_microenvironment.axis.mesenchymal",
+        "observation.gbm_microenvironment.axis.neural",
+        "observation.gbm_microenvironment.axis.proneural",
+        "observation.gbm_microenvironment.axis.egfr_targets",
+    }
     assert all(
         observation.standard_error is not None
         and observation.standard_error >= 0.35
-        for observation in result.graph_request.observations[-2:]
+        for observation in axis_observations.values()
     )
 
 

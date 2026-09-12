@@ -34,6 +34,7 @@ const PROFILE_FIELDS = new Set([
   "topology_digest",
   "projection_policy",
   "auxiliary_projection_policy",
+  "projected_axis_signatures",
   "auxiliary_standard_error_floor",
   "source_location_standard_error_floor",
   "source_rank_standard_error_floor",
@@ -114,9 +115,9 @@ export type MicroenvironmentGraphRequestStats = {
 
 export function microenvironmentGraphRequestStats(request: JsonObject): MicroenvironmentGraphRequestStats {
   const source = nestedSourceRequest(request);
-  if (!source) return { observations: 0, active: 0, programs: 7 };
+  if (!source) return { observations: 0, active: 0, programs: 12 };
   const stats = neftelRequestStats(source);
-  return { observations: stats.observations, active: stats.active, programs: 7 };
+  return { observations: stats.observations, active: stats.active, programs: 12 };
 }
 
 export function validateMicroenvironmentGraphProfile(profile: JsonObject): string[] {
@@ -132,6 +133,16 @@ export function validateMicroenvironmentGraphProfile(profile: JsonObject): strin
   if (profile.auxiliary_source_engine !== "gbm-proteomic-axes/1.0.0") errors.push("profile.auxiliary_source_engine is invalid.");
   if (profile.projection_policy !== "bulk_program_location_and_rank_to_signed_microenvironment_graph_v2") errors.push("profile.projection_policy is invalid.");
   if (profile.auxiliary_projection_policy !== "independent_published_gbm_axes_as_secondary_observations_v1") errors.push("profile.auxiliary_projection_policy is invalid.");
+  const expectedAxisMappings = [
+    ["SWEET_KRAS_TARGETS_UP", "kras_targets"],
+    ["HALLMARK_MYC_TARGETS_V1", "myc_targets"],
+    ["WINTER_HYPOXIA_UP", "hypoxia"],
+    ["VERHAAK_GLIOBLASTOMA_MESENCHYMAL", "mesenchymal"],
+    ["VERHAAK_GLIOBLASTOMA_NEURAL", "neural"],
+    ["VERHAAK_GLIOBLASTOMA_PRONEURAL", "proneural"],
+    ["EGFR_UP.V1_UP", "egfr_targets"],
+  ];
+  if (JSON.stringify(profile.projected_axis_signatures) !== JSON.stringify(expectedAxisMappings)) errors.push("profile.projected_axis_signatures must preserve the seven published GBM axis mappings.");
   if (profile.auxiliary_standard_error_floor !== 0.35) errors.push("profile.auxiliary_standard_error_floor must equal 0.35.");
   if (profile.source_location_standard_error_floor !== 0.05) errors.push("profile.source_location_standard_error_floor must equal 0.05.");
   if (profile.source_rank_standard_error_floor !== 0.10) errors.push("profile.source_rank_standard_error_floor must equal 0.10.");

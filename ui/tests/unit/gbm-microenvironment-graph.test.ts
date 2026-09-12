@@ -61,6 +61,15 @@ function profile(): Record<string, unknown> {
     topology_digest: DIGEST,
     projection_policy: "bulk_program_location_and_rank_to_signed_microenvironment_graph_v2",
     auxiliary_projection_policy: "independent_published_gbm_axes_as_secondary_observations_v1",
+    projected_axis_signatures: [
+      ["SWEET_KRAS_TARGETS_UP", "kras_targets"],
+      ["HALLMARK_MYC_TARGETS_V1", "myc_targets"],
+      ["WINTER_HYPOXIA_UP", "hypoxia"],
+      ["VERHAAK_GLIOBLASTOMA_MESENCHYMAL", "mesenchymal"],
+      ["VERHAAK_GLIOBLASTOMA_NEURAL", "neural"],
+      ["VERHAAK_GLIOBLASTOMA_PRONEURAL", "proneural"],
+      ["EGFR_UP.V1_UP", "egfr_targets"],
+    ],
     auxiliary_standard_error_floor: 0.35,
     source_location_standard_error_floor: 0.05,
     source_rank_standard_error_floor: 0.10,
@@ -85,7 +94,7 @@ describe("GBM microenvironment graph UI contract", () => {
       axis_request: null,
     };
     expect(validateMicroenvironmentGraphRequest(request)).toEqual([]);
-    expect(microenvironmentGraphRequestStats(request)).toEqual({ observations: 1, active: 1, programs: 7 });
+    expect(microenvironmentGraphRequestStats(request)).toEqual({ observations: 1, active: 1, programs: 12 });
   });
 
   it("keeps the secondary axis receipt optional for source-only requests", () => {

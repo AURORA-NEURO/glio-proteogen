@@ -3,12 +3,14 @@
 `gbm-microenvironment-graph/1.0.0` is a research-only composition lane. It
 executes the exact Neftel Table S2 bulk-protein program runtime first, then
 projects the two program families' complete location and competitive-rank
-estimates into the `glio-ecgi/1.0.0` signed evidence graph.
+estimates into the `glio-ecgi/1.0.0` signed evidence graph. When the optional
+published GBM proteomic-axis request is present, all seven source signatures
+are retained as independent molecular-program observations.
 
 The bridge can also carry an optional, independent secondary observation lane
-from `gbm-proteomic-axes/1.0.0`. The published Winter hypoxia and Verhaak
-mesenchymal signatures are projected onto the matching graph nodes with their
-own result digest, interval-derived standard error, and source quality. A
+from `gbm-proteomic-axes/1.0.0`. The published Winter hypoxia, Verhaak subtype,
+EGFR, MYC, and KRAS target signatures are projected onto matching graph nodes
+with their own result digest, interval-derived standard error, and source quality. A
 profile-bound standard-error floor of `0.35` is applied because the published
 axis bootstrap captures caller measurement perturbation, not cross-engine scale
 or calibration uncertainty. They are never averaged into, substituted for, or
@@ -24,6 +26,10 @@ The projection is deliberately narrower than a deconvolution model:
   `.rank` observation on the same node. Location and rank use profile-bound
   standard-error floors (`0.05` and `0.10`) and method-specific quality weights
   (`1.0/0.5` and `0.85/0.40` for supported/limited evidence); and
+- the seven published axes map to `kras_targets`, `myc_targets`, `hypoxia`,
+  `mesenchymal`, `neural`, `proneural`, and `egfr_targets` in the exact
+  profile-declared order. These source-specific nodes are deliberately not
+  connected by invented subtype-causality edges; and
 - all other families, including absent source families, become explicit
   `missing` observations with zero quality rather than negative evidence.
 
@@ -39,7 +45,7 @@ The source, optional axis, and graph receipts are nested in the bridge result
 and replayed independently. The profile binds all child profile digests and
 both projection policies. The synthetic demo adds disjoint MES and OPC markers
 to the AC-like Neftel fixture and includes the versioned synthetic GBM axis
-fixture so the graph surface demonstrates both supported directions and
+fixture so the graph surface demonstrates all seven source signatures alongside
 cross-modal secondary evidence; those values are synthetic and contain no
 patient data.
 

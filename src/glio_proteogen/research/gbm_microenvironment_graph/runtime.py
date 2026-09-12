@@ -4,7 +4,7 @@ The Neftel lane supplies measured bulk-protein program evidence.  This bridge
 does not pretend those programs are cell fractions: it projects complete
 location and competitive-rank MES and OPC program-family estimates into a
 small, signed glioma microenvironment graph and lets ECGI propagate uncertainty through hypoxia,
-angiogenesis, myeloid, endothelial, and T-cell relationships.  Missing source
+angiogenesis, myeloid, endothelial, T-cell, and molecular-program relationships. Missing source
 families remain missing and never become negative observations.
 """
 
@@ -96,6 +96,11 @@ _GRAPH_PROGRAMS: Final = (
     "hypoxia",
     "angiogenic",
     "opc_like",
+    "kras_targets",
+    "myc_targets",
+    "neural",
+    "proneural",
+    "egfr_targets",
 )
 _GRAPH_EDGES: Final = (
     ("hypoxia", "angiogenic", 1),
@@ -106,8 +111,13 @@ _GRAPH_EDGES: Final = (
     ("angiogenic", "endothelial", 1),
 )
 _AXIS_MAP: Final = (
+    ("SWEET_KRAS_TARGETS_UP", "kras_targets"),
+    ("HALLMARK_MYC_TARGETS_V1", "myc_targets"),
     ("WINTER_HYPOXIA_UP", "hypoxia"),
     ("VERHAAK_GLIOBLASTOMA_MESENCHYMAL", "mesenchymal"),
+    ("VERHAAK_GLIOBLASTOMA_NEURAL", "neural"),
+    ("VERHAAK_GLIOBLASTOMA_PRONEURAL", "proneural"),
+    ("EGFR_UP.V1_UP", "egfr_targets"),
 )
 _AUXILIARY_STANDARD_ERROR_FLOOR: Final = 0.35
 _SOURCE_LOCATION_STANDARD_ERROR_FLOOR: Final = 0.05
@@ -138,6 +148,7 @@ class MicroenvironmentGraphProfile(FrozenModel):
     auxiliary_projection_policy: Literal[
         "independent_published_gbm_axes_as_secondary_observations_v1"
     ] = "independent_published_gbm_axes_as_secondary_observations_v1"
+    projected_axis_signatures: tuple[tuple[NonEmptyStr, NonEmptyStr], ...] = _AXIS_MAP
     auxiliary_standard_error_floor: float = Field(
         default=_AUXILIARY_STANDARD_ERROR_FLOOR,
         ge=_AUXILIARY_STANDARD_ERROR_FLOOR,
@@ -284,6 +295,7 @@ def microenvironment_graph_profile() -> MicroenvironmentGraphProfile:
         "topology_digest": _bridge_topology_digest(),
         "projection_policy": "bulk_program_location_and_rank_to_signed_microenvironment_graph_v2",
         "auxiliary_projection_policy": "independent_published_gbm_axes_as_secondary_observations_v1",
+        "projected_axis_signatures": _AXIS_MAP,
         "auxiliary_standard_error_floor": _AUXILIARY_STANDARD_ERROR_FLOOR,
         "source_location_standard_error_floor": _SOURCE_LOCATION_STANDARD_ERROR_FLOOR,
         "source_rank_standard_error_floor": _SOURCE_RANK_STANDARD_ERROR_FLOOR,
@@ -309,6 +321,7 @@ def microenvironment_graph_profile() -> MicroenvironmentGraphProfile:
         topology_digest=_bridge_topology_digest(),
         projection_policy="bulk_program_location_and_rank_to_signed_microenvironment_graph_v2",
         auxiliary_projection_policy="independent_published_gbm_axes_as_secondary_observations_v1",
+        projected_axis_signatures=_AXIS_MAP,
         auxiliary_standard_error_floor=_AUXILIARY_STANDARD_ERROR_FLOOR,
         source_location_standard_error_floor=_SOURCE_LOCATION_STANDARD_ERROR_FLOOR,
         source_rank_standard_error_floor=_SOURCE_RANK_STANDARD_ERROR_FLOOR,
@@ -559,7 +572,7 @@ def analyze_microenvironment_graph(request: MicroenvironmentGraphRequest) -> Mic
             "The source engine estimates bulk protein program evidence, not cell fractions.",
             "Only mesenchymal-like and oligodendrocyte-progenitor-like families are projected; missing families remain missing.",
             "Location and competitive-rank source estimates are retained as separate observations with profile-bound floors and quality weights; they are not silently averaged before ECGI.",
-            "Published GBM proteomic-axis scores are independent secondary observations for hypoxia and mesenchymal nodes; they never override Neftel evidence.",
+            "Published GBM proteomic-axis scores are independent secondary observations for seven GBM molecular-program nodes; they never override Neftel evidence.",
             "Secondary published-axis observations use a profile-bound 0.35 standard-error floor to cover cross-engine scale and calibration uncertainty; their narrow bootstrap width is not treated as full uncertainty.",
             "The signed graph describes research associations and does not establish causality, prognosis, or treatment response.",
             "All outputs are research-use-only and non-prescriptive.",
