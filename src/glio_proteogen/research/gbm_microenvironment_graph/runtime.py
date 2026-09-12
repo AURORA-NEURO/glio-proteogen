@@ -158,8 +158,8 @@ class MicroenvironmentGraphProfile(FrozenModel):
         "bulk_program_location_and_rank_to_signed_microenvironment_graph_v2"
     )
     auxiliary_projection_policy: Literal[
-        "independent_published_gbm_axes_as_secondary_observations_v1"
-    ] = "independent_published_gbm_axes_as_secondary_observations_v1"
+        "independent_published_gbm_axes_as_external_observations_v2"
+    ] = "independent_published_gbm_axes_as_external_observations_v2"
     projected_axis_signatures: tuple[tuple[NonEmptyStr, NonEmptyStr], ...] = _AXIS_MAP
     auxiliary_standard_error_floor: float = Field(
         default=_AUXILIARY_STANDARD_ERROR_FLOOR,
@@ -320,7 +320,7 @@ def microenvironment_graph_profile() -> MicroenvironmentGraphProfile:
         "graph_profile_digest": graph.profile_digest,
         "topology_digest": _bridge_topology_digest(),
         "projection_policy": "bulk_program_location_and_rank_to_signed_microenvironment_graph_v2",
-        "auxiliary_projection_policy": "independent_published_gbm_axes_as_secondary_observations_v1",
+        "auxiliary_projection_policy": "independent_published_gbm_axes_as_external_observations_v2",
         "projected_axis_signatures": _AXIS_MAP,
         "auxiliary_standard_error_floor": _AUXILIARY_STANDARD_ERROR_FLOOR,
         "source_location_standard_error_floor": _SOURCE_LOCATION_STANDARD_ERROR_FLOOR,
@@ -347,7 +347,7 @@ def microenvironment_graph_profile() -> MicroenvironmentGraphProfile:
         graph_profile_digest=graph.profile_digest,
         topology_digest=_bridge_topology_digest(),
         projection_policy="bulk_program_location_and_rank_to_signed_microenvironment_graph_v2",
-        auxiliary_projection_policy="independent_published_gbm_axes_as_secondary_observations_v1",
+        auxiliary_projection_policy="independent_published_gbm_axes_as_external_observations_v2",
         projected_axis_signatures=_AXIS_MAP,
         auxiliary_standard_error_floor=_AUXILIARY_STANDARD_ERROR_FLOOR,
         source_location_standard_error_floor=_SOURCE_LOCATION_STANDARD_ERROR_FLOOR,
@@ -495,6 +495,8 @@ def _unsupported_observation(
     observation_id: str,
     node_id: str,
     provenance_digest: Sha256Digest,
+    *,
+    modality: EvidenceModality = EvidenceModality.PROTEOMICS,
 ) -> EvidenceObservation:
     """Preserve a present-but-abstained source estimate without making it numeric.
 
@@ -507,7 +509,7 @@ def _unsupported_observation(
     return EvidenceObservation(
         observation_id=observation_id,
         node_id=node_id,
-        modality=EvidenceModality.PROTEOMICS,
+        modality=modality,
         state=EvidenceState.UNSUPPORTED,
         quality_weight=0.0,
         provenance_digest=provenance_digest,
@@ -601,7 +603,7 @@ def _graph_request(
                     EvidenceObservation(
                         observation_id=f"observation.gbm_microenvironment.axis.{graph_program}",
                         node_id=_node_id(graph_program),
-                        modality=EvidenceModality.PROTEOMICS,
+                        modality=EvidenceModality.EXTERNAL,
                         state=EvidenceState.MISSING,
                         quality_weight=0.0,
                         provenance_digest=axes.result_digest,
@@ -614,6 +616,7 @@ def _graph_request(
                         f"observation.gbm_microenvironment.axis.{graph_program}",
                         _node_id(graph_program),
                         axes.result_digest,
+                        modality=EvidenceModality.EXTERNAL,
                     )
                 )
                 continue
@@ -632,7 +635,7 @@ def _graph_request(
                 EvidenceObservation(
                     observation_id=f"observation.gbm_microenvironment.axis.{graph_program}",
                     node_id=_node_id(graph_program),
-                    modality=EvidenceModality.PROTEOMICS,
+                    modality=EvidenceModality.EXTERNAL,
                     state=EvidenceState.OBSERVED,
                     standardized_effect=float(estimate.published_score),
                     standard_error=standard_error,

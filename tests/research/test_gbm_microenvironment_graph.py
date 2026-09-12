@@ -28,7 +28,7 @@ from glio_proteogen.research.neftel_protein_programs import (
     analyze_neftel_protein_programs,
     synthetic_demo_request,
 )
-from glio_proteogen.research.proteogenomic_state import EvidenceState
+from glio_proteogen.research.proteogenomic_state import EvidenceModality, EvidenceState
 from glio_proteogen.research.proteogenomic_state.canonical import sha256_digest
 
 
@@ -40,7 +40,7 @@ def test_profile_binds_both_child_engines() -> None:
     assert profile.auxiliary_source_profile_digest == gbm_axes_algorithm_profile().profile_digest
     assert (
         profile.auxiliary_projection_policy
-        == "independent_published_gbm_axes_as_secondary_observations_v1"
+        == "independent_published_gbm_axes_as_external_observations_v2"
     )
     assert profile.auxiliary_standard_error_floor == 0.35
     assert profile.projected_axis_signatures == (
@@ -150,6 +150,19 @@ def test_synthetic_bridge_projects_supported_mes_and_opc_evidence() -> None:
         and observation.standard_error >= 0.35
         for observation in axis_observations.values()
     )
+    assert all(
+        observation.modality is EvidenceModality.EXTERNAL
+        for observation in axis_observations.values()
+    )
+    mesenchymal = next(
+        item
+        for item in result.graph_result.node_states
+        if str(item.node_id) == "pathway.gbm_microenvironment.mesenchymal"
+    )
+    assert any(
+        effect.kind.value == "modality" and effect.omitted == "external"
+        for effect in mesenchymal.ablation_effects
+    )
 
 
 def test_present_but_abstained_source_families_remain_unsupported() -> None:
@@ -222,8 +235,16 @@ def test_selected_axis_subset_marks_unrequested_graph_axes_missing() -> None:
         is EvidenceState.OBSERVED
     )
     assert (
+        observations["observation.gbm_microenvironment.axis.hypoxia"].modality
+        is EvidenceModality.EXTERNAL
+    )
+    assert (
         observations["observation.gbm_microenvironment.axis.kras_targets"].state
         is EvidenceState.MISSING
+    )
+    assert (
+        observations["observation.gbm_microenvironment.axis.kras_targets"].modality
+        is EvidenceModality.EXTERNAL
     )
 
 

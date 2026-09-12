@@ -10,12 +10,16 @@ are retained as independent molecular-program observations.
 The bridge can also carry an optional, independent secondary observation lane
 from `gbm-proteomic-axes/1.0.0`. All seven published signatures (KRAS, MYC,
 hypoxia, mesenchymal, neural, proneural, and EGFR) are projected onto matching
-graph nodes with their own result digest, interval-derived standard error, and source quality. A
-profile-bound standard-error floor of `0.35` is applied because the published
-axis bootstrap captures caller measurement perturbation, not cross-engine scale
-or calibration uncertainty. They are never averaged into, substituted for, or
-allowed to override the Neftel program evidence. Replay requires the axis
-request and axis receipt to agree on presence, digest, and semantic content.
+graph nodes as `external`-modality observations with their own result digest,
+interval-derived standard error, and source quality. A profile-bound
+standard-error floor of `0.35` is applied because the published axis bootstrap
+captures caller measurement perturbation, not cross-engine scale or calibration
+uncertainty. They are never averaged into, substituted for, or allowed to
+override the Neftel program evidence. Keeping the modality separate means the
+ECGI receipt can ablate the independent axis source on its own, quantifying how
+much a context state changes when that source is omitted. Replay requires the
+axis request and axis receipt to agree on presence, digest, and semantic
+content.
 
 The projection is deliberately narrower than a deconvolution model:
 
@@ -32,6 +36,9 @@ The projection is deliberately narrower than a deconvolution model:
   mesenchymal context, while neural and proneural axes are signed against
   mesenchymal context through lower-weight, profile-bound association
   hypotheses. These edges are not subtype-causality or clinical claims; and
+- the independent axis lane uses the `external` modality for observed,
+  missing, and unsupported declarations, so source-level ablation remains
+  distinct from direct Neftel proteomics; and
 - a source family that is not present becomes an explicit `missing` observation,
   while a present family whose own support gate abstains becomes `unsupported`;
   both carry zero quality and neither is treated as negative evidence. The same
