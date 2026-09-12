@@ -53,6 +53,9 @@ from glio_proteogen.modules.c07_copy_number.m07_02_representation_feature_constr
     service as m0702_service,
 )
 
+_ROBUST_CENTER_MAX = 0.5
+_ARITHMETIC_MEAN_MIN = 1.0
+
 
 def _artifact(
     label: str,
@@ -234,6 +237,23 @@ def test_typed_initializer_projects_observed_center_to_censor_bound() -> None:
     initial = m0702_engine._initial_typed_feature_value(items, targets)
     assert initial == pytest.approx(targets[1])
     assert initial <= targets[1]
+
+
+def test_typed_initializer_downweights_failed_copy_number_replicate() -> None:
+    terms = (
+        (0.2, 0.2, 1.0),
+        (0.3, 0.2, 1.0),
+        (4.0, 0.2, 1.0),
+    )
+
+    center = m0702_engine._robust_initial_feature_center(terms)
+    arithmetic_mean = sum(term[0] for term in terms) / len(terms)
+
+    assert center < _ROBUST_CENTER_MAX
+    assert arithmetic_mean > _ARITHMETIC_MEAN_MIN
+    assert m0702_engine._initial_feature_measurement_objective(center, terms) <= (
+        m0702_engine._initial_feature_measurement_objective(arithmetic_mean, terms)
+    )
 
 
 def test_typed_initializer_keeps_censor_only_fit_at_neutral_when_feasible() -> None:

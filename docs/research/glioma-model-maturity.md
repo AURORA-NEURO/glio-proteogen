@@ -657,6 +657,11 @@ Left-censored segments contribute one-sided
 detection-limit loss; missing and unsupported segments carry no numeric value
 and force safe abstention when a requested feature lacks support.
 
+Repeated observed segments initialize each feature with a deterministic
+inverse-variance, quality-weighted Huber/IRLS center and objective-safe
+backtracking before projection to detection bounds, preventing a failed assay
+replicate from selecting the latent dosage basin.
+
 The representation exposes model-derived channels (latent dosage, residual
 scale, amplification/deletion fractions, allelic imbalance, mean purity, and
 focal-segment score), deterministic bootstrap stability, discordance, genomic
