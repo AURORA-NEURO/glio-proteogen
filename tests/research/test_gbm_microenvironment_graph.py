@@ -15,6 +15,9 @@ from glio_proteogen.research.gbm_microenvironment_graph import (
     verify_microenvironment_graph_replay,
 )
 from glio_proteogen.research.gbm_microenvironment_graph.runtime import result_payload_digest
+from glio_proteogen.research.gbm_proteomic_axes import (
+    algorithm_profile as gbm_axes_algorithm_profile,
+)
 from glio_proteogen.research.gbm_proteomic_axes import analyze_gbm_proteomic_axes
 from glio_proteogen.research.gbm_proteomic_axes import (
     synthetic_demo_request as gbm_axes_demo_request,
@@ -26,6 +29,7 @@ from glio_proteogen.research.neftel_protein_programs import (
     synthetic_demo_request,
 )
 from glio_proteogen.research.proteogenomic_state import EvidenceState
+from glio_proteogen.research.proteogenomic_state.canonical import sha256_digest
 
 
 def test_profile_binds_both_child_engines() -> None:
@@ -33,6 +37,7 @@ def test_profile_binds_both_child_engines() -> None:
     assert profile.source_profile_digest.startswith("sha256:")
     assert profile.graph_profile_digest.startswith("sha256:")
     assert profile.auxiliary_source_engine == "gbm-proteomic-axes/1.0.0"
+    assert profile.auxiliary_source_profile_digest == gbm_axes_algorithm_profile().profile_digest
     assert (
         profile.auxiliary_projection_policy
         == "independent_published_gbm_axes_as_secondary_observations_v1"
@@ -219,3 +224,23 @@ def test_replay_rejects_axis_presence_mismatch() -> None:
     )
     assert replay.axis_replay_match is False
     assert replay.verified is False
+
+
+@pytest.mark.parametrize("forged_field", ["profile", "source", "graph", "axis"])
+def test_receipt_rejects_forged_profile_bindings(forged_field: str) -> None:
+    result = analyze_microenvironment_graph(synthetic_microenvironment_graph_request())
+    forged_digest = sha256_digest(f"forged-{forged_field}")
+    if forged_field == "profile":
+        forged = result.model_copy(update={"profile_digest": forged_digest})
+    elif forged_field == "source":
+        forged_source = result.source_result.model_copy(update={"profile_digest": forged_digest})
+        forged = result.model_copy(update={"source_result": forged_source})
+    elif forged_field == "graph":
+        forged_graph = result.graph_result.model_copy(update={"profile_digest": forged_digest})
+        forged = result.model_copy(update={"graph_result": forged_graph})
+    else:
+        assert result.axis_result is not None
+        forged_axis = result.axis_result.model_copy(update={"profile_digest": forged_digest})
+        forged = result.model_copy(update={"axis_result": forged_axis})
+    with pytest.raises(ValueError, match="profile digest does not match"):
+        forged.receipt_is_closed()

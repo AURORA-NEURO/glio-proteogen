@@ -25,6 +25,9 @@ from glio_proteogen.research.gbm_proteomic_axes import (
     verify_gbm_proteomic_axes_replay,
 )
 from glio_proteogen.research.gbm_proteomic_axes import (
+    algorithm_profile as gbm_axes_algorithm_profile,
+)
+from glio_proteogen.research.gbm_proteomic_axes import (
     synthetic_demo_request as gbm_axes_demo_request,
 )
 from glio_proteogen.research.neftel_protein_programs import (
@@ -137,6 +140,7 @@ class MicroenvironmentGraphProfile(FrozenModel):
     auxiliary_source_engine: Literal["gbm-proteomic-axes/1.0.0"] = (
         "gbm-proteomic-axes/1.0.0"
     )
+    auxiliary_source_profile_digest: Sha256Digest
     source_profile_digest: Sha256Digest
     graph_profile_digest: Sha256Digest
     topology_digest: Sha256Digest
@@ -223,6 +227,18 @@ class MicroenvironmentGraphResult(FrozenModel):
 
     @model_validator(mode="after")
     def receipt_is_closed(self) -> Self:
+        profile = microenvironment_graph_profile()
+        if self.profile_digest != profile.profile_digest:
+            raise ValueError("result profile digest does not match the bridge profile")
+        if self.source_result.profile_digest != profile.source_profile_digest:
+            raise ValueError("source result profile digest does not match the bridge profile")
+        if self.graph_result.profile_digest != profile.graph_profile_digest:
+            raise ValueError("graph result profile digest does not match the bridge profile")
+        if (
+            self.axis_result is not None
+            and self.axis_result.profile_digest != profile.auxiliary_source_profile_digest
+        ):
+            raise ValueError("axis result profile digest does not match the bridge profile")
         if self.sample_id != self.source_result.sample_id or self.sample_id != self.graph_result.sample_id:
             raise ValueError("all bridge receipts must use one sample identifier")
         if self.axis_result is not None and self.axis_result.sample_id != self.sample_id:
@@ -283,6 +299,7 @@ def _profile_digest(profile: MicroenvironmentGraphProfile | dict[str, object]) -
 def microenvironment_graph_profile() -> MicroenvironmentGraphProfile:
     source = neftel_algorithm_profile()
     graph = ecgi_algorithm_profile()
+    axes_profile = gbm_axes_algorithm_profile()
     payload = {
         "profile_id": PROFILE_ID,
         "algorithm_id": ALGORITHM_ID,
@@ -290,6 +307,7 @@ def microenvironment_graph_profile() -> MicroenvironmentGraphProfile:
         "source_engine": "neftel-bulk-protein-programs/1.0.0",
         "graph_engine": "glio-ecgi/1.0.0",
         "auxiliary_source_engine": "gbm-proteomic-axes/1.0.0",
+        "auxiliary_source_profile_digest": axes_profile.profile_digest,
         "source_profile_digest": source.profile_digest,
         "graph_profile_digest": graph.profile_digest,
         "topology_digest": _bridge_topology_digest(),
@@ -316,6 +334,7 @@ def microenvironment_graph_profile() -> MicroenvironmentGraphProfile:
         source_engine="neftel-bulk-protein-programs/1.0.0",
         graph_engine="glio-ecgi/1.0.0",
         auxiliary_source_engine="gbm-proteomic-axes/1.0.0",
+        auxiliary_source_profile_digest=axes_profile.profile_digest,
         source_profile_digest=source.profile_digest,
         graph_profile_digest=graph.profile_digest,
         topology_digest=_bridge_topology_digest(),
