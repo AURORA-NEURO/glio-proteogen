@@ -265,6 +265,48 @@ def test_typed_initialization_keeps_left_censored_limits_feasible() -> None:
     assert values == [-0.3, 0.4]
 
 
+def test_typed_temporal_initialization_downweights_failed_replicate() -> None:
+    """Repeated time-point assays use a robust center before smoothing."""
+
+    program = GliomaTrajectoryProgram.RTK_PI3K_AKT_MTOR
+    grouped = {
+        0: [
+            _TypedTerm(
+                sequence=0,
+                program=program,
+                state=LongitudinalEvidenceState.OBSERVED,
+                value=0.2,
+                standard_error=0.1,
+                quality_weight=1.0,
+            ),
+            _TypedTerm(
+                sequence=0,
+                program=program,
+                state=LongitudinalEvidenceState.OBSERVED,
+                value=0.3,
+                standard_error=0.1,
+                quality_weight=1.0,
+            ),
+            _TypedTerm(
+                sequence=0,
+                program=program,
+                state=LongitudinalEvidenceState.OBSERVED,
+                value=8.0,
+                standard_error=0.1,
+                quality_weight=1.0,
+            ),
+        ]
+    }
+
+    values = _initial_temporal_values(grouped, 1)
+    center = values[0]
+    low_replicate = 0.2
+    high_bound = 0.4
+    arithmetic_mean = (low_replicate + 0.3 + 8.0) / 3.0
+    assert low_replicate < center < high_bound
+    assert center < arithmetic_mean / 2.0
+
+
 def test_typed_posterior_probability_is_bootstrap_class_support() -> None:
     """Typed support is empirical class agreement, not a fixed confidence."""
 
