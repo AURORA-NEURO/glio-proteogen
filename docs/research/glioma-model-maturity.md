@@ -119,8 +119,9 @@ separate algorithms and receipts, not scientifically independent evidence:
 
 The provisional M11-05 longitudinal module now also has an additive typed
 proteomic-effect lane. It fits subject-level recurrence trajectories with
-quality/standard-error weighted Huber IRLS with midpoint-median MAD scaling,
-preserves left-censored and unsupported states, and detects molecular change
+quality/standard-error weighted Huber IRLS with midpoint-median MAD scaling and
+an objective-monotone scalar line search, preserves left-censored and
+unsupported states, and detects molecular change
 points from robust loss reduction rather than caller relabeling. The legacy
 opaque-reference path is unchanged and remains provisional; this lane is an
 evolutionary evidence signal, not a validated tumor-evolution or treatment-
