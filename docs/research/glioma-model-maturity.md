@@ -510,6 +510,12 @@ measurement uncertainty instead of only shifting an unused surrogate target.
 Directly connected unobserved programs are propagated only through the signed
 graph and retain zero measurement support.
 
+Repeated observed features now initialize each mechanism program with a
+deterministic inverse-variance, quality-weighted Huber/IRLS center and a
+monotone backtracking safeguard, rather than a plain weighted mean. This keeps
+an isolated failed assay replicate from shifting the nonlinear solver's basin
+while preserving censor-bound feasibility.
+
 The historical caller-declared/digest-only constraint path remains unchanged.
 Typed estimates are normalized research signals with explicit program coverage
 and are not biochemical activity, diagnosis, prognosis, or treatment evidence.

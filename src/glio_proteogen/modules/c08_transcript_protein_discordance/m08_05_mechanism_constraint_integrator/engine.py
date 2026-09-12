@@ -72,6 +72,9 @@ _GLIOMA_TOLERANCE: Final = 1e-4
 _GLIOMA_OBJECTIVE_TOLERANCE: Final = 1e-10
 _GLIOMA_BACKTRACKING_STEPS: Final = 18
 _GLIOMA_BACKTRACKING_FACTOR: Final = 0.5
+_GLIOMA_INITIAL_HUBER_ITERATIONS: Final = 32
+_GLIOMA_INITIAL_HUBER_TOLERANCE: Final = 1e-8
+_GLIOMA_INITIAL_OBJECTIVE_TOLERANCE: Final = 1e-10
 _GLIOMA_MIN_OBSERVATIONS: Final = 3
 _GLIOMA_MIN_PROGRAMS: Final = 2
 _GLIOMA_BOOTSTRAP_REPLICATES: Final = 64
@@ -492,15 +495,86 @@ def _initial_glioma_program_value(
     observed = tuple(item for item in members if item[4] is None)
     limits = tuple(float(item[4]) for item in members if item[4] is not None)
     if observed:
-        weights = tuple(item[3] / max(item[2] ** 2, 1e-12) for item in observed)
-        center = sum(weight * item[1] for weight, item in zip(weights, observed, strict=True))
-        center /= max(sum(weights), 1e-12)
+        terms = tuple((item[1], item[2], item[3]) for item in observed)
+        center = _robust_initial_program_center(terms)
         value = min(center, *limits) if limits else center
     elif limits:
         value = min(0.0, *limits)
     else:
         value = 0.0
     return float(np.clip(value, -_GLIOMA_MAX_ABUNDANCE, _GLIOMA_MAX_ABUNDANCE))
+
+
+def _initial_program_measurement_objective(
+    center: float,
+    terms: tuple[tuple[float, float, float], ...],
+) -> float:
+    """Evaluate a frozen-scale Huber objective for one program start."""
+
+    return float(
+        sum(
+            quality * _glioma_huber((center - target) / max(1e-6, standard_error))
+            for target, standard_error, quality in terms
+        )
+    )
+
+
+def _robust_initial_program_center(
+    terms: tuple[tuple[float, float, float], ...],
+) -> float:
+    """Find a deterministic quality/inverse-variance Huber center for repeats."""
+
+    if len(terms) == 1:
+        return terms[0][0]
+    information = tuple(
+        quality / max(1e-6, standard_error**2)
+        for _target, standard_error, quality in terms
+    )
+    estimate = sum(
+        weight * term[0] for weight, term in zip(information, terms, strict=True)
+    ) / max(sum(information), 1e-6)
+    for _ in range(_GLIOMA_INITIAL_HUBER_ITERATIONS):
+        residuals = tuple(
+            (term[0] - estimate) / max(1e-6, term[1]) for term in terms
+        )
+        robust_weights = tuple(
+            weight
+            * (
+                1.0
+                if abs(residual) <= _GLIOMA_HUBER_K
+                else _GLIOMA_HUBER_K / abs(residual)
+            )
+            for weight, residual in zip(information, residuals, strict=True)
+        )
+        proposal = sum(
+            weight * term[0]
+            for weight, term in zip(robust_weights, terms, strict=True)
+        ) / max(sum(robust_weights), 1e-6)
+        baseline_objective = _initial_program_measurement_objective(estimate, terms)
+        proposal_objective = _initial_program_measurement_objective(proposal, terms)
+        accepted = proposal
+        if not isfinite(proposal_objective) or (
+            proposal_objective
+            > baseline_objective + _GLIOMA_INITIAL_OBJECTIVE_TOLERANCE
+        ):
+            direction = proposal - estimate
+            accepted = estimate
+            step = _GLIOMA_BACKTRACKING_FACTOR
+            for _ in range(_GLIOMA_BACKTRACKING_STEPS):
+                trial = estimate + step * direction
+                trial_objective = _initial_program_measurement_objective(trial, terms)
+                if isfinite(trial_objective) and (
+                    trial_objective
+                    <= baseline_objective + _GLIOMA_INITIAL_OBJECTIVE_TOLERANCE
+                ):
+                    accepted = trial
+                    break
+                step *= _GLIOMA_BACKTRACKING_FACTOR
+        if abs(accepted - estimate) <= _GLIOMA_INITIAL_HUBER_TOLERANCE:
+            estimate = accepted
+            break
+        estimate = accepted
+    return float(estimate)
 
 
 def _glioma_objective(
