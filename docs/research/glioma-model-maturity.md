@@ -959,9 +959,12 @@ The additive M13-03 research runtime now consumes typed glioma observations for
 proteins, phosphosites, pathways, and complexes. It solves a fixed signed
 RTK/PI3K/AKT/mTOR, p53/cell-cycle, IDH/HIF1A, proliferation, and mesenchymal
 graph with damped Huber IRLS coordinate descent, one-sided left-censoring loss,
-ridge stabilization, convergence diagnostics, and deterministic digest-seeded
-bootstrap intervals. Pathway activity is propagated through the graph rather
-than computed as independent digest or weighted-average formulas; replicated
+ridge stabilization, finite objective initialization, deterministic full-vector
+backtracking, convergence diagnostics, and deterministic digest-seeded
+bootstrap intervals. The internal objective trace is quantized for replay and
+must remain non-increasing; a locally non-improving sweep retains its parent
+state. Pathway activity is propagated through the graph rather than computed as
+independent digest or weighted-average formulas; replicated
 observations yield non-degenerate uncertainty and order-invariant receipts.
 Initialization is censor-aware: left-censored effects are upper bounds with a
 ridge-neutral feasible start, never exact locations.

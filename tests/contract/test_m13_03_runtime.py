@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import warnings
 from datetime import UTC, datetime
+from itertools import pairwise
 from typing import Any
 
 import pytest
 from pydantic import ValidationError
 
+import glio_proteogen.modules.c11_protein_native_subtype.m13_03_mechanistic_feature_constructor.engine as m1303_engine  # noqa: E501
 from glio_proteogen.contracts.m13_03 import (
     M1303_M1302_INPUT_MEDIA_TYPE,
     ConstructProteotypeMechanisticFeaturesRequest,
@@ -63,6 +65,7 @@ preflight_mechanistic_feature_authorization = m1303.preflight_mechanistic_featur
 verify_mechanistic_feature_replay = m1303.verify_mechanistic_feature_replay
 _MAX_EFFECT = 20.0
 _CENSORED_LIMIT = 0.2
+_FIRST_CANDIDATE_OBJECTIVE_CALL = 2
 
 
 def artifact(label: str, media_type: str = "application/json") -> ArtifactReference:
@@ -269,6 +272,28 @@ def test_typed_graph_is_order_invariant_and_bootstrap_interval_is_replayable() -
     assert state.lower_bound is not None
     assert state.upper_bound is not None
     assert state.lower_bound <= state.upper_bound
+
+
+def test_signed_graph_fit_backtracks_non_monotone_objective(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    terms = m1303_engine._active_observations(request().observations)
+    original = m1303_engine._objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == _FIRST_CANDIDATE_OBJECTIVE_CALL else value
+
+    monkeypatch.setattr(m1303_engine, "_objective", objective)
+    fit = m1303_engine._fit(terms)
+
+    assert fit.converged
+    assert calls > _FIRST_CANDIDATE_OBJECTIVE_CALL
+    assert all(
+        after <= before + m1303_engine._OBJECTIVE_TOLERANCE
+        for before, after in pairwise(fit.objective_trace)
+    )
 
 
 def test_bootstrap_interval_reflects_replicate_evidence() -> None:

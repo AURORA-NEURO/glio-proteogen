@@ -59,6 +59,9 @@ _HUBER_DELTA: Final = 1.5
 _HUBER_ITERATIONS: Final = 24
 _HUBER_DAMPING: Final = 0.7
 _RIDGE: Final = 0.03
+_OBJECTIVE_TOLERANCE: Final = 1e-10
+_BACKTRACKING_STEPS: Final = 8
+_BACKTRACKING_FACTOR: Final = 0.5
 _SOLVER_ITERATIONS: Final = 128
 _SOLVER_TOLERANCE: Final = 1e-5
 _MAD_SCALE: Final = 1.4826
@@ -128,6 +131,7 @@ class _Fit:
     iterations: int
     objective: float
     max_update: float
+    objective_trace: tuple[float, ...]
 
 
 class MechanisticFeatureAuthorizationError(PermissionError):
@@ -708,13 +712,25 @@ def _objective(
     return objective
 
 
-def _fit(observations: tuple[_ObservationTerm, ...]) -> _Fit:
+def _fit(  # noqa: C901, PLR0912, PLR0915 - solver safeguards are explicit.
+    observations: tuple[_ObservationTerm, ...],
+) -> _Fit:
     edges = _graph_terms()
     values = _initial_values(observations)
     grouped: dict[int, list[_ObservationTerm]] = defaultdict(list)
     for item in observations:
         grouped[_ENTITY_INDEX[item.entity_id]].append(item)
     previous_objective = _objective(values, observations, edges)
+    if not math.isfinite(previous_objective):
+        return _Fit(
+            values=tuple(_quantize(value) for value in values),
+            converged=False,
+            iterations=0,
+            objective=0.0,
+            max_update=0.0,
+            objective_trace=(),
+        )
+    objective_trace = [_quantize(previous_objective)]
     max_update = math.inf
     converged = False
     iterations = 0
@@ -755,6 +771,35 @@ def _fit(observations: tuple[_ObservationTerm, ...]) -> _Fit:
             values[index] = max(-_MAX_EFFECT, min(_MAX_EFFECT, damped))
         max_update = max(abs(new - before) for new, before in zip(values, old, strict=True))
         objective = _objective(values, observations, edges)
+        if not math.isfinite(objective) or objective > previous_objective + _OBJECTIVE_TOLERANCE:
+            # Signed cycles and robust Huber breakpoints can make a complete
+            # coordinate sweep overshoot. Backtrack the full vector update so
+            # the internal trace remains finite and monotone.
+            accepted = False
+            delta = [after - before for after, before in zip(values, old, strict=True)]
+            step = _BACKTRACKING_FACTOR
+            for _ in range(_BACKTRACKING_STEPS):
+                trial = [
+                    max(-_MAX_EFFECT, min(_MAX_EFFECT, before + step * change))
+                    for before, change in zip(old, delta, strict=True)
+                ]
+                trial_objective = _objective(trial, observations, edges)
+                if math.isfinite(trial_objective) and (
+                    trial_objective <= previous_objective + _OBJECTIVE_TOLERANCE
+                ):
+                    values = trial
+                    objective = trial_objective
+                    accepted = True
+                    break
+                step *= _BACKTRACKING_FACTOR
+            if not accepted:
+                values = old
+                objective = previous_objective
+                max_update = 0.0
+                converged = True
+                break
+            max_update = max(abs(new - before) for new, before in zip(values, old, strict=True))
+        objective_trace.append(_quantize(objective))
         if (
             max_update <= _SOLVER_TOLERANCE
             and abs(previous_objective - objective) <= _SOLVER_TOLERANCE
@@ -769,6 +814,7 @@ def _fit(observations: tuple[_ObservationTerm, ...]) -> _Fit:
         iterations=iterations,
         objective=_quantize(previous_objective),
         max_update=_quantize(max_update if math.isfinite(max_update) else 0.0),
+        objective_trace=tuple(objective_trace),
     )
 
 
