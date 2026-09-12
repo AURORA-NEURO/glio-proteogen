@@ -261,6 +261,46 @@ def test_typed_initialization_keeps_left_censored_limits_feasible() -> None:
     assert values[position] == 0.4
 
 
+def test_typed_initialization_downweights_failed_mechanism_replicate() -> None:
+    """An extreme batch replicate cannot seed every downstream mechanism edge."""
+
+    program = GliomaMechanismProgram.RTK_PI3K_AKT_MTOR
+    terms = {
+        program: [
+            engine_module._TypedTerm(
+                observation_id="replicate-a",
+                program=program,
+                state=MechanismEvidenceState.OBSERVED,
+                effect=0.7,
+                standard_error=0.1,
+                quality_weight=1.0,
+            ),
+            engine_module._TypedTerm(
+                observation_id="replicate-b",
+                program=program,
+                state=MechanismEvidenceState.OBSERVED,
+                effect=0.8,
+                standard_error=0.1,
+                quality_weight=1.0,
+            ),
+            engine_module._TypedTerm(
+                observation_id="failed-batch",
+                program=program,
+                state=MechanismEvidenceState.OBSERVED,
+                effect=8.0,
+                standard_error=0.1,
+                quality_weight=1.0,
+            ),
+        ]
+    }
+
+    values = engine_module._initial_typed_values(terms)
+    center = values[list(GliomaMechanismProgram).index(program)]
+    arithmetic_mean = (0.7 + 0.8 + 8.0) / 3.0
+    assert 0.7 < center < 0.9
+    assert center < arithmetic_mean / 2.0
+
+
 def test_typed_network_all_missing_abstains_without_negative_state() -> None:
     base = build_scenario_request()
     request = base.model_copy(
