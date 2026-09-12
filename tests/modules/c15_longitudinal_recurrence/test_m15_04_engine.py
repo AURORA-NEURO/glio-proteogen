@@ -292,6 +292,29 @@ def test_typed_initialization_keeps_left_censored_limits_feasible() -> None:
     assert values[position] == 0.4
 
 
+def test_typed_initialization_downweights_failed_recurrence_replicate() -> None:
+    """Repeated mechanism observations use a contamination-resistant Huber center."""
+
+    terms = tuple(
+        engine_module._TypedTerm(
+            observation_id=f"observation.replicate.{index}",
+            program=GliomaMechanismProgram.RTK_PI3K_AKT_MTOR,
+            state=MechanismEvidenceState.OBSERVED,
+            value=value,
+            standard_error=0.2,
+            quality_weight=1.0,
+        )
+        for index, value in enumerate((0.2, 0.25, 0.3, 4.0))
+    )
+    center = engine_module._robust_initial_center(terms)
+    arithmetic_mean = sum(term.value for term in terms) / len(terms)
+    assert center < 0.5
+    assert arithmetic_mean > 1.0
+    assert engine_module._initial_measurement_objective(center, terms) <= (
+        engine_module._initial_measurement_objective(arithmetic_mean, terms)
+    )
+
+
 def test_typed_ablation_effects_are_numeric_leave_one_family_out_deltas() -> None:
     result = M1504MechanismInference().infer(_typed_request())
 

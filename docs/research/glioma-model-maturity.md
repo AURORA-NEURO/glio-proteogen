@@ -1150,8 +1150,10 @@ explicit observed, left-censored, missing, or unsupported states. A bounded
 signed relation graph is fitted with Huber-robust frozen-parent damped Jacobi
 updates, ridge stabilization, and deterministic objective-safe backtracking;
 the monotone trace is retained with convergence diagnostics and digest-seeded
-bootstrap intervals. Relation coherence propagates activity to connected
-programs instead of returning a fixed posterior.
+bootstrap intervals. Repeated observations are initialized with a deterministic
+inverse-variance, quality-weighted Huber/IRLS center so a failed recurrence
+replicate cannot dominate the graph start. Relation coherence propagates
+activity to connected programs instead of returning a fixed posterior.
 
 Each estimate retains direct evidence counts, stability, discordance, relation
 drivers, and numerical measurement/topology ablation deltas. Those deltas are

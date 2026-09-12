@@ -82,6 +82,8 @@ _SOLVER_TOLERANCE: Final = 1e-4
 _OBJECTIVE_TOLERANCE: Final = 1e-10
 _BACKTRACKING_STEPS: Final = 18
 _BACKTRACKING_FACTOR: Final = 0.5
+_INITIAL_HUBER_ITERATIONS: Final = 32
+_INITIAL_HUBER_TOLERANCE: Final = 1e-8
 _MIN_SCALE: Final = 1e-6
 _BOOTSTRAP_LOW: Final = 0.05
 _BOOTSTRAP_HIGH: Final = 0.95
@@ -352,6 +354,72 @@ def _typed_objective(
     return objective
 
 
+def _initial_measurement_objective(
+    center: float,
+    terms: tuple[_TypedTerm, ...],
+) -> float:
+    """Evaluate the frozen-scale robust objective for one program start."""
+
+    return float(
+        sum(
+            term.quality_weight
+            * _huber_loss((center - term.value) / max(_MIN_SCALE, term.standard_error))
+            for term in terms
+        )
+    )
+
+
+def _robust_initial_center(terms: tuple[_TypedTerm, ...]) -> float:
+    """Find a deterministic inverse-variance Huber center for repeated evidence."""
+
+    if len(terms) == 1:
+        return terms[0].value
+    information = tuple(
+        term.quality_weight / max(_MIN_SCALE, term.standard_error**2) for term in terms
+    )
+    denominator = max(sum(information), _MIN_SCALE)
+    estimate = (
+        sum(weight * term.value for weight, term in zip(information, terms, strict=True))
+        / denominator
+    )
+    for _ in range(_INITIAL_HUBER_ITERATIONS):
+        residuals = tuple(
+            (term.value - estimate) / max(_MIN_SCALE, term.standard_error) for term in terms
+        )
+        robust_weights = tuple(
+            weight * _huber_weight(residual)
+            for weight, residual in zip(information, residuals, strict=True)
+        )
+        robust_denominator = max(sum(robust_weights), _MIN_SCALE)
+        proposal = sum(
+            weight * term.value
+            for weight, term in zip(robust_weights, terms, strict=True)
+        ) / robust_denominator
+        baseline_objective = _initial_measurement_objective(estimate, terms)
+        proposal_objective = _initial_measurement_objective(proposal, terms)
+        accepted = proposal
+        if not math.isfinite(proposal_objective) or (
+            proposal_objective > baseline_objective + _OBJECTIVE_TOLERANCE
+        ):
+            direction = proposal - estimate
+            accepted = estimate
+            step = _BACKTRACKING_FACTOR
+            for _ in range(_BACKTRACKING_STEPS):
+                trial = estimate + step * direction
+                trial_objective = _initial_measurement_objective(trial, terms)
+                if math.isfinite(trial_objective) and (
+                    trial_objective <= baseline_objective + _OBJECTIVE_TOLERANCE
+                ):
+                    accepted = trial
+                    break
+                step *= _BACKTRACKING_FACTOR
+        if abs(accepted - estimate) <= _INITIAL_HUBER_TOLERANCE:
+            estimate = accepted
+            break
+        estimate = accepted
+    return estimate
+
+
 def _initial_typed_values(
     grouped: dict[GliomaMechanismProgram, list[_TypedTerm]],
 ) -> list[float]:
@@ -369,10 +437,7 @@ def _initial_typed_values(
             if term.state is MechanismEvidenceState.LEFT_CENSORED
         )
         if observed:
-            total = sum(term.quality_weight for term in observed)
-            center = sum(term.quality_weight * term.value for term in observed) / max(
-                _MIN_SCALE, total
-            )
+            center = _robust_initial_center(observed)
             initial = min((center, *limits)) if limits else center
         elif limits:
             initial = min((0.0, *limits))
