@@ -1450,9 +1450,14 @@ inventory. See
    phosphosite rows with explicit support and abstention. A caller-side robust
    Huber rank-one projection now converges for 27 of the 28 selected Reactome
    complexes using exact source member genes, but emits no packaged model or
-   sample scores. The numerical lane remains design-only and admission-blocked
-   pending processing/uncertainty semantics, protein-adjusted phosphosite
-   factors, licensing, and evaluation; it must learn edge-family reliability
+   sample scores. A caller-side parent-protein Huber-IRLS adapter now fits
+   protein-adjusted relative phosphosite residuals with deterministic
+   Theil-Sen initialization, explicit paired-support abstention, and robust
+   uncertainty while preserving composite rows and source missingness. It does
+   not claim occupancy or localization and emits no sample residuals. The
+   numerical lane remains design-only and admission-blocked pending
+   processing/uncertainty semantics, topology projection, licensing, and
+   evaluation; it must learn edge-family reliability
    inside nested case-group folds while retaining the real robust ECGI solver,
    explicit topology/modality ablations, and an internal-concordance-only
    ceiling. Exact byte locks, grouping, endpoints, leakage controls, gates, and

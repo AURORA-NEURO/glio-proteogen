@@ -259,6 +259,25 @@ These are source-cohort concordance factors—not complex assembly or pathway
 activity—and they remain caller-side until nested case-group evaluation,
 protein-adjusted phosphosite factors, and redistribution approval pass.
 
+The companion `tools/build_cptac_gbm_adjusted_phosphosite_catalog.py` now fills
+the next numerical gap on the same private bundle. For each atomic source
+phosphosite row with an exact human `Gene` parent in the unshared protein
+matrix, it fits a deterministic Theil–Sen-start, Huber-IRLS parent regression
+(`site_ratio = alpha + beta * parent_protein_ratio + error`) with ridge on the
+slope, damping, monotone objective backtracking, and a robust residual scale.
+Only the residual contrast between qualified primary tumors and qualified solid
+tissue normals is emitted. The output carries pair support, regression
+parameters, objective trace digest, convergence state, and model-derived
+uncertainty; it never carries sample labels, matrix cells, or residual vectors.
+Rows with absent genes, unmatched proteins, non-human annotations, or fewer than
+eight paired finite observations abstain explicitly, while rows with no finite
+site observations remain `missing`. Composite site/peptide strings stay atomic.
+The signal is named **protein-adjusted relative phosphosite signal** and is
+explicitly not phosphosite occupancy, localization confidence, or biochemical
+kinase activity. This is a caller-side source adapter, not a released model or
+runtime endpoint; processing semantics, nested case-group evaluation, topology
+projection, and redistribution approval remain blockers.
+
 ## Model family and bounded graph semantics
 
 The only admissible family is a missing-aware robust confirmatory set-factor
