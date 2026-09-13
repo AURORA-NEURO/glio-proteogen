@@ -141,7 +141,10 @@ def test_forged_model_digest_and_malformed_allele_are_rejected() -> None:
 
 def test_profile_digest_is_bound_and_model_digest_is_deterministic() -> None:
     request = synthetic_presentation_request()
-    assert presentation_profile().profile_digest == presentation_profile().profile_digest
+    profile = presentation_profile()
+    assert profile.profile_digest == presentation_profile().profile_digest
+    assert profile.binding_score_policy == "position_log_odds_sum_v1"
+    assert profile.allele_aggregation_policy == "independent_allele_noisy_or_v1"
     assert model_digest(request.models[0]) == request.models[0].model_digest
 
 
