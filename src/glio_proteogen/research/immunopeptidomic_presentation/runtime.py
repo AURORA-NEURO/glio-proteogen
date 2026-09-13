@@ -208,6 +208,12 @@ class PresentationProfile(FrozenModel):
     numpy_version: Literal["2.5.2"] = EXPECTED_NUMPY_VERSION
     execution_scope: Literal["caller_supplied_hla_model_only"] = "caller_supplied_hla_model_only"
     score_model: Literal["allele_pssm_processing_logit"] = "allele_pssm_processing_logit"
+    binding_score_policy: Literal["position_log_odds_sum_v1"] = (
+        "position_log_odds_sum_v1"
+    )
+    allele_aggregation_policy: Literal["independent_allele_noisy_or_v1"] = (
+        "independent_allele_noisy_or_v1"
+    )
     max_peptides: Literal[256] = MAX_PEPTIDES
     max_alleles: Literal[16] = MAX_ALLELES
     default_bootstrap_replicates: Literal[64] = DEFAULT_BOOTSTRAP_REPLICATES
@@ -321,9 +327,27 @@ def _sigmoid(value: float) -> float:
     return z / (1.0 + z)
 
 
-def _logsumexp(values: list[float]) -> float:
-    maximum = max(values)
-    return maximum + math.log(math.fsum(math.exp(value - maximum) for value in values) / len(values))
+def _noisy_or(probabilities: tuple[float, ...]) -> float:
+    """Return the probability that at least one requested allele presents.
+
+    Allele models are calibrated marginal probabilities.  Combining them as a
+    geometric mean of logits (the historical implementation) can lower the
+    result when one allele is strongly supportive and has no direct
+    probability interpretation.  The noisy-OR is the explicit independence
+    approximation for the union event and is monotone in every allele score.
+    """
+
+    if not probabilities:
+        return 0.0
+    complement = math.fsum(
+        math.log1p(-min(max(float(probability), _PROBABILITY_EPSILON), 1.0 - _PROBABILITY_EPSILON))
+        for probability in probabilities
+    )
+    return min(1.0 - math.exp(complement), 1.0)
+
+
+def _aggregate_probabilities(logits: tuple[float, ...]) -> float:
+    return _noisy_or(tuple(_sigmoid(logit) for logit in logits))
 
 
 def _matrix_for(model: HlaPresentationModel, length: int) -> PositionWeightMatrix | None:
@@ -335,7 +359,14 @@ def _score_allele(model: HlaPresentationModel, peptide: PeptideObservation, expr
     if matrix is None:
         return None
     values = [AMINO_ACIDS.index(residue) for residue in peptide.sequence]
-    binding = math.fsum(matrix.values[position * 20 + amino_acid] for position, amino_acid in enumerate(values)) / len(values)
+    # Matrix entries are position-specific log-odds.  Summing them is the
+    # PSSM likelihood-ratio coordinate; dividing by peptide length would turn
+    # a calibrated log-odds model into an arbitrary length-dependent shrinkage
+    # proxy because each supported peptide length has its own matrix.
+    binding = math.fsum(
+        matrix.values[position * 20 + amino_acid]
+        for position, amino_acid in enumerate(values)
+    )
     processing = model.processing_weights[values[0]] + model.processing_weights[values[-1]]
     expression = 0.0
     if peptide.state == "observed" and peptide.expression_effect is not None:
@@ -367,7 +398,7 @@ def _aggregate(models: list[HlaPresentationModel], peptide: PeptideObservation, 
     scores = tuple(score for model in models if (score := _score_allele(model, peptide, expression_shift)) is not None)
     if not scores:
         return None
-    return scores, _sigmoid(_logsumexp([score.logit for score in scores]))
+    return scores, _aggregate_probabilities(tuple(score.logit for score in scores))
 
 
 def _drivers(
@@ -408,7 +439,7 @@ def _ablation(
                 "variant": score.variant_contribution,
             }[component_name]
             logits.append(score.logit - contribution / model.temperature)
-        probability = _sigmoid(_logsumexp(logits))
+        probability = _aggregate_probabilities(tuple(logits))
         effects.append(AblationEffect(component=component_name, probability_delta=full_probability - probability))
     return tuple(effects)
 
@@ -418,6 +449,7 @@ _LIMITATIONS: Final = (
     "Scores require a caller-supplied, licensed HLA/processing model and are not NetMHC predictions unless that model is supplied.",
     "Presentation probability is a calibrated-model coordinate, not proof of cell-surface presentation or T-cell recognition.",
     "HLA typing, peptide generation, proteasomal cleavage, TAP transport, tumor purity, and sampling remain external uncertainties.",
+    "Multi-allele probabilities use an explicit independence approximation; correlated HLA presentation is not modeled.",
     "Missing and unsupported expression evidence is ignored; it never becomes a negative peptide observation.",
 )
 

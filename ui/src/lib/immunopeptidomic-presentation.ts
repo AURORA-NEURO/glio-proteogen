@@ -22,6 +22,8 @@ const PROFILE_FIELDS = new Set([
   "numpy_version",
   "execution_scope",
   "score_model",
+  "binding_score_policy",
+  "allele_aggregation_policy",
   "max_peptides",
   "max_alleles",
   "default_bootstrap_replicates",
@@ -105,7 +107,7 @@ export function validatePresentationProfile(profile: JsonObject): string[] {
   const errors: string[] = [];
   exactFields(profile, PROFILE_FIELDS, "profile", errors);
   if (profile.profile_id !== IMMUNOPEPTIDOMIC_PRESENTATION_PROFILE_ID || profile.algorithm_id !== "glioma-immunopeptidomic-presentation" || profile.algorithm_version !== "0.1.0") errors.push("profile algorithm identity is invalid.");
-  if (profile.numpy_version !== "2.5.2" || profile.execution_scope !== "caller_supplied_hla_model_only" || profile.score_model !== "allele_pssm_processing_logit") errors.push("profile must bind the caller-supplied PSSM/logit model and NumPy 2.5.2.");
+  if (profile.numpy_version !== "2.5.2" || profile.execution_scope !== "caller_supplied_hla_model_only" || profile.score_model !== "allele_pssm_processing_logit" || profile.binding_score_policy !== "position_log_odds_sum_v1" || profile.allele_aggregation_policy !== "independent_allele_noisy_or_v1") errors.push("profile must bind the caller-supplied PSSM/logit model, position-wise log-odds sum, noisy-OR allele aggregation, and NumPy 2.5.2.");
   if (profile.max_peptides !== 256 || profile.max_alleles !== 16 || profile.default_bootstrap_replicates !== 64) errors.push("profile limits or bootstrap default are invalid.");
   if (profile.clinical_use_permitted !== false || profile.treatment_recommendation_permitted !== false) errors.push("profile must forbid clinical and treatment recommendations.");
   digest(profile.profile_digest, "profile.profile_digest", errors);

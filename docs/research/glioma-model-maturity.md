@@ -387,13 +387,16 @@ response.
 The caller-owned `glioma-immunopeptidomic-presentation/0.1.0` runtime is now
 linked end to end in the scientific workbench. The UI validates exact HLA
 identifiers, peptide evidence states, digest-bound caller PSSMs, and the
-three-supported-peptide release gate before execution. Ranked allele-aware
-presentation probabilities, seeded bootstrap intervals, binding/processing/
-expression/variant ablations, model digests, limitations, and replay receipts
-are rendered from backend results rather than synthesized in the browser. This
-remains a licensed-model integration boundary: GLIO-PROTEOGEN ships no NetMHC
-weights, does not claim cell-surface presentation or T-cell recognition, and
-emits no neoantigen, clinical, or treatment recommendation.
+three-supported-peptide release gate before execution. The numerical path now
+sums position-specific log-odds and combines calibrated allele marginals with
+an explicit independent noisy-OR, rather than using a geometric logit average.
+Ranked allele-aware presentation probabilities, seeded bootstrap intervals,
+binding/processing/expression/variant ablations, model digests, limitations,
+and replay receipts are rendered from backend results rather than synthesized
+in the browser. This remains a licensed-model integration boundary:
+GLIO-PROTEOGEN ships no NetMHC weights, does not claim cell-surface
+presentation or T-cell recognition, and emits no neoantigen, clinical, or
+treatment recommendation.
 
 ## Completed GBM RNA composition workbench lane
 

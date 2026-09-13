@@ -53,6 +53,8 @@ describe("glioma immunopeptidomic presentation UI contract", () => {
       numpy_version: "2.5.2",
       execution_scope: "caller_supplied_hla_model_only",
       score_model: "allele_pssm_processing_logit",
+      binding_score_policy: "position_log_odds_sum_v1",
+      allele_aggregation_policy: "independent_allele_noisy_or_v1",
       max_peptides: 256,
       max_alleles: 16,
       default_bootstrap_replicates: 64,

@@ -19,17 +19,21 @@ unsupported amino acids. The fixed amino-acid axis is
 This makes the result reproducible for a licensed local model package without
 turning a synthetic coefficient table into a repository-trained claim. The
 profile digest binds the NumPy version, dimensions, score family, bootstrap
-default, and explicit caller-owned execution scope.
+default, explicit caller-owned execution scope, position-wise log-odds scoring,
+and the multi-allele aggregation policy.
 
 ## Scoring and evidence conservation
 
-For every peptide/allele pair the runtime computes a mean position-matrix
-binding score and a terminal-residue processing score. It adds optional
-standardized expression evidence and a caller-declared variant contribution,
-then applies the model temperature to a logistic presentation coordinate. When
-multiple alleles support a peptide, their logits are combined with a stable
-log-mean-exp, so one allele cannot be counted twice merely because the request
-lists it twice.
+For every peptide/allele pair the runtime sums the position-specific log-odds
+entries (a PSSM likelihood-ratio coordinate with a separate matrix per peptide
+length) and computes a
+terminal-residue processing score. It adds optional standardized expression
+evidence and a caller-declared variant contribution, then applies the model
+temperature to a logistic presentation coordinate. When multiple alleles
+support a peptide, the calibrated marginal probabilities are combined with an
+explicit independent allele noisy-OR, representing the probability that at
+least one requested allele presents the peptide; duplicate allele identifiers
+are rejected before scoring.
 
 Observed expression is perturbed by its standard error during deterministic
 request-digest-seeded bootstrap replicates. Left-censored expression is treated

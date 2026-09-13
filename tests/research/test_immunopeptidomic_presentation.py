@@ -10,6 +10,7 @@ from glio_proteogen.research.immunopeptidomic_presentation import (
     analyze_immunopeptidomic_presentation,
     model_digest,
     presentation_profile,
+    runtime,
     synthetic_presentation_request,
     verify_presentation_replay,
 )
@@ -142,6 +143,20 @@ def test_profile_digest_is_bound_and_model_digest_is_deterministic() -> None:
     request = synthetic_presentation_request()
     assert presentation_profile().profile_digest == presentation_profile().profile_digest
     assert model_digest(request.models[0]) == request.models[0].model_digest
+
+
+def test_pssm_uses_position_log_odds_sum_and_noisy_or_is_monotone() -> None:
+    request = synthetic_presentation_request()
+    peptide = request.peptides[0]
+    score = runtime._score_allele(request.models[0], peptide)
+    assert score is not None
+    assert score.binding_score == 4.0
+    one_allele = runtime._aggregate_probabilities((0.0,))
+    two_alleles = runtime._aggregate_probabilities((0.0, 0.0))
+    stronger_allele = runtime._aggregate_probabilities((0.0, 1.0))
+    assert one_allele == pytest.approx(0.5)
+    assert two_alleles == pytest.approx(0.75)
+    assert stronger_allele > two_alleles
 
 
 def test_replay_rejects_modified_result() -> None:

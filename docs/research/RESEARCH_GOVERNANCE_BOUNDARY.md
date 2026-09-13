@@ -106,9 +106,10 @@ weights and unexplained mass only; no bundled GBmap artifact is traversed and
 the output is never relabelled as a histologic cell fraction.
 `/v1/research/immunopeptidomic-presentation` accepts exact HLA-I alleles,
 caller-owned digest-bound position matrices, terminal processing coefficients,
-and typed glioma peptide evidence. It computes an allele-aware presentation
-coordinate with one-sided censoring, deterministic bootstrap intervals,
-component ablations, and exact replay. It does not bundle NetMHC or another
+and typed glioma peptide evidence. It computes a position log-odds-sum
+coordinate, combines calibrated allele marginals with an explicit
+independent noisy-OR, and retains one-sided censoring, deterministic bootstrap
+intervals, component ablations, and exact replay. It does not bundle NetMHC or another
 pretrained artifact, and it cannot claim cell-surface presentation,
 immunogenicity, diagnosis, prognosis, or treatment response.
 
