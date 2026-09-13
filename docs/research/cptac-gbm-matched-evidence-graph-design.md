@@ -340,6 +340,27 @@ Huber adjustment. The locked run recovers all six signed directions (cosine
 algorithm oracle only; it does not validate the CPTAC cohort, pathway activity,
 or any clinical endpoint.
 
+### Source-factor bootstrap sensitivity
+
+`tools/bootstrap_cptac_gbm_source_factors.py` adds a deterministic uncertainty
+diagnostic around the fitted source coordinates. It resamples the exact 110
+manifest case groups with replacement, refits each protein factor and each
+protein-adjusted phosphosite factor (including the parent-protein Huber
+regression), and records only the 5th/50th/95th percentiles of the loading
+cosine to the full-source fit. Site-level failures are dropped per replicate;
+an interval requires at least three surviving features and eight successful
+replicates. This preserves sparse/missing phosphosite evidence without turning
+it into a negative observation or discarding an otherwise supported factor.
+
+The locked 64-replicate run produced intervals for 27/28 complexes and 5/6
+pathways in the protein modality, and 23/28 complexes and 5/6 pathways in the
+phosphosite modality. The receipt is 9.1 KiB and binds the source manifest,
+both fitted-factor receipts, source-file digests, profile constants, and the
+replicate count. Case labels, raw matrix values, and resample indices are never
+emitted. These are source-cohort parameter-sensitivity intervals only; they do
+not override ECGI measurement uncertainty, supply prediction intervals, or
+justify applying the diagnostic edge multipliers.
+
 ## Model family and bounded graph semantics
 
 The only admissible family is a missing-aware robust confirmatory set-factor

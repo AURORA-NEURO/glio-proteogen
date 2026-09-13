@@ -1474,6 +1474,14 @@ inventory. See
    under 10% missingness and two gross outliers (cosine 0.9756) and recovers a
    protein-adjustment slope within 0.014 absolute error on replay. This is an
    algorithm check only, not cohort or clinical validation. The
+   deterministic 64-replicate case-group bootstrap now supplies loading-cosine
+   intervals for 27/28 complexes and 5/6 pathways in protein space, plus 23/28
+   complexes and 5/6 pathways in protein-adjusted phosphosite space. Sparse
+   site failures abstain per replicate and never become negative evidence; the
+   9.1 KiB receipt contains only aggregate intervals and immutable source/factor
+   digests, not labels, values, or resample indices. These intervals quantify
+   source-cohort parameter sensitivity and do not satisfy the still-pending
+   nested held-out uncertainty gate. The
    numerical lane remains design-only and admission-blocked pending
    processing/uncertainty semantics, topology projection, licensing, and
    evaluation; it must learn edge-family reliability
