@@ -18,6 +18,8 @@ import sys
 from pathlib import Path
 from typing import Final, cast
 
+import numpy as np
+
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -32,6 +34,11 @@ MAX_NODES: Final = 256
 MAX_EDGES: Final = 2_048
 PROTEIN_EDGE_WEIGHT: Final = 0.90
 PATHWAY_EDGE_WEIGHT: Final = 0.80
+HUBER_DELTA: Final = 1.345
+ROBUST_SCALE_FLOOR: Final = 0.05
+OBJECTIVE_TOLERANCE: Final = 1.0e-10
+MIN_COSINE_SUPPORT: Final = 2
+NORM_EPSILON: Final = 1.0e-12
 
 
 def _digest_bytes(path: Path) -> str:
@@ -152,6 +159,127 @@ def _site_projection(
     return [by_site[key] for key in sorted(by_site)]
 
 
+def _robust_summary(values: list[float]) -> dict[str, object]:
+    """Summarize concordance scores without allowing one factor to dominate."""
+
+    if not values:
+        return {"support": 0, "center": None, "scale": None}
+    array = np.asarray(values, dtype=np.float64)
+    center = float(np.median(array))
+    scale = max(float(np.median(np.abs(array - center)) * 1.4826), ROBUST_SCALE_FLOOR)
+    for _ in range(32):
+        residual = (array - center) / scale
+        weights = np.minimum(1.0, HUBER_DELTA / np.maximum(np.abs(residual), 1.0e-15))
+        updated = float(np.sum(weights * array) / np.sum(weights))
+        if abs(updated - center) <= OBJECTIVE_TOLERANCE:
+            center = updated
+            break
+        center = updated
+    return {
+        "support": len(values),
+        "center": round(center, 8),
+        "scale": round(max(float(np.median(np.abs(array - center)) * 1.4826), ROBUST_SCALE_FLOOR), 8),
+    }
+
+
+def _loading_map(factor: object) -> dict[str, float]:
+    if not isinstance(factor, dict):
+        return {}
+    members = factor.get("protein_members")
+    protein_factor = factor.get("protein_factor")
+    if not isinstance(members, list) or not isinstance(protein_factor, dict):
+        return {}
+    loadings = protein_factor.get("loadings")
+    if not isinstance(loadings, list) or len(loadings) != len(members):
+        return {}
+    return {
+        member: float(loading)
+        for member, loading in zip(members, loadings, strict=True)
+        if isinstance(member, str) and isinstance(loading, (int, float))
+    }
+
+
+def _cosine(left: list[float], right: list[float]) -> float | None:
+    if len(left) < MIN_COSINE_SUPPORT or len(left) != len(right):
+        return None
+    left_array = np.asarray(left, dtype=np.float64)
+    right_array = np.asarray(right, dtype=np.float64)
+    denominator = float(np.linalg.norm(left_array) * np.linalg.norm(right_array))
+    if denominator <= NORM_EPSILON:
+        return None
+    return float(np.dot(left_array, right_array) / denominator)
+
+
+def _edge_family_diagnostics(
+    bindings: tuple[ReactomeComplexBinding, ...],
+    complex_factors: dict[str, dict[str, object]],
+    pathway_factors: dict[str, dict[str, object]],
+) -> dict[str, object]:
+    complex_pathway_scores: list[float] = []
+    site_parent_scores: list[float] = []
+    member_mass_scores: list[float] = []
+    for binding in bindings:
+        factor = complex_factors.get(binding.reactome_id)
+        if factor is None or factor.get("state") != "observed":
+            continue
+        complex_loadings = _loading_map(factor)
+        if complex_loadings:
+            member_mass_scores.append(
+                float(np.sum(np.abs(np.asarray(list(complex_loadings.values()), dtype=np.float64))))
+                / max(np.sqrt(len(complex_loadings)), 1.0)
+            )
+        pathway = pathway_factors.get(binding.anchor_pathway.top_level_pathway_id)
+        pathway_loadings = _loading_map(pathway)
+        shared = sorted(set(complex_loadings) & set(pathway_loadings))
+        score = _cosine(
+            [complex_loadings[gene] for gene in shared],
+            [pathway_loadings[gene] for gene in shared],
+        )
+        if score is not None:
+            complex_pathway_scores.append(score)
+        phosphosite = factor.get("phosphosite")
+        features = phosphosite.get("features") if isinstance(phosphosite, dict) else None
+        if not isinstance(features, list):
+            continue
+        site_values: list[float] = []
+        parent_values: list[float] = []
+        for feature in features:
+            if not isinstance(feature, dict):
+                continue
+            gene = feature.get("gene")
+            loading = feature.get("loading")
+            if isinstance(gene, str) and isinstance(loading, (int, float)) and gene in complex_loadings:
+                site_values.append(float(loading))
+                parent_values.append(complex_loadings[gene])
+        site_score = _cosine(site_values, parent_values)
+        if site_score is not None:
+            site_parent_scores.append(site_score)
+    return {
+        "protein_to_complex": {
+            "diagnostic": "robust member-loading mass",
+            **_robust_summary(member_mass_scores),
+        },
+        "complex_to_pathway": {
+            "diagnostic": "robust cosine of shared protein loadings",
+            **_robust_summary(complex_pathway_scores),
+        },
+        "phosphosite_to_parent": {
+            "diagnostic": "robust cosine of site and parent loadings",
+            **_robust_summary(site_parent_scores),
+        },
+        "applied_multipliers": {
+            "protein_to_complex": 1.0,
+            "complex_to_pathway": 1.0,
+        },
+        "selection_status": "diagnostic_only_not_nested_evaluation",
+        "selection_grid": [0.0, 0.25, 0.5, 1.0, 2.0],
+        "interpretation": (
+            "Concordance diagnostics are source-cohort summaries. They do not tune edge weights, "
+            "establish direction, or replace nested case-group evaluation."
+        ),
+    }
+
+
 def _build_projection(
     complex_receipt: dict[str, object],
     pathway_receipt: dict[str, object],
@@ -269,6 +397,9 @@ def _build_projection(
         "topology_digest": topology_digest,
         "topology": topology,
         "edge_family_counts": edge_family_counts,
+        "edge_family_diagnostics": _edge_family_diagnostics(
+            bindings, complex_factors, pathway_factors
+        ),
         "ablations": ablations,
         "phosphosite_projection": site_projection,
         "semantics": {

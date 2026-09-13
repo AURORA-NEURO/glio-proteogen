@@ -319,6 +319,15 @@ duplicate factor IDs, unresolved complexes, and graphs over the 256-node or
 2,048-edge request bounds. Kinase-substrate edges are recorded as unsupported
 because no matched source substrate catalog was captured.
 
+The projection also reports robust edge-family diagnostics without applying
+unvalidated weight changes. Across 23 jointly observed complexes, the robust
+protein member-loading mass centers at `0.93905268`, complex-to-pathway shared
+protein-loading cosine at `0.97369012`, and phosphosite-to-parent loading cosine
+at `0.84765918`. These are source-cohort concordance summaries with a fixed
+selection grid exposed for later nested evaluation; applied multipliers remain
+`1.0`. This prevents source-cohort fit statistics from being mistaken for
+held-out reliability or from silently changing ECGI behavior.
+
 The deterministic oracle `tools/evaluate_cptac_gbm_synthetic_oracle.py` closes
 the first scientific test loop without touching private source bytes. It builds
 a signed six-member glioma-like latent factor with 10% missing cells and two

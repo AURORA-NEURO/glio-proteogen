@@ -1467,7 +1467,9 @@ inventory. See
    with separate protein-to-complex and complex-to-pathway ablation families.
    Four hundred fifty-eight atomic phosphosite projections are retained as
    annotation metadata only; no numerical site-parent or kinase-substrate
-   edges are invented. The
+   edges are invented. The projection reports robust source-cohort edge-family
+   diagnostics (complex-to-pathway cosine 0.9737; phosphosite-to-parent cosine
+   0.8477) but applies no learned multiplier until nested evaluation. The
    deterministic synthetic oracle now recovers 6/6 signed latent directions
    under 10% missingness and two gross outliers (cosine 0.9756) and recovers a
    protein-adjustment slope within 0.014 absolute error on replay. This is an
