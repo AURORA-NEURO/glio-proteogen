@@ -149,12 +149,13 @@ def fit_rank_one(matrix: np.ndarray) -> dict[str, object]:
         raise ValueError("factor objective trace is non-finite")
     if any(right > left + 1.0e-10 for left, right in pairwise(trace)):
         raise ValueError("factor objective trace is not monotone")
+    quantized_trace = [round(float(value), 10) for value in trace]
     return {
         "loadings": [round(float(value), 8) for value in loadings],
         "feature_support": [int(value) for value in valid.sum(axis=1)],
         "sample_support": [int(value) for value in valid.sum(axis=0)],
-        "objective_trace": [round(float(value), 10) for value in trace],
-        "trace_digest": "sha256:" + hashlib.sha256(_canonical_bytes(trace)).hexdigest(),
+        "objective_trace": quantized_trace,
+        "trace_digest": "sha256:" + hashlib.sha256(_canonical_bytes(quantized_trace)).hexdigest(),
         "iterations": len(trace),
         "converged": converged,
         "orientation": "nonnegative_dot_equal_membership",
