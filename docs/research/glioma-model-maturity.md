@@ -1468,6 +1468,10 @@ inventory. See
    Four hundred fifty-eight atomic phosphosite projections are retained as
    annotation metadata only; no numerical site-parent or kinase-substrate
    edges are invented. The
+   deterministic synthetic oracle now recovers 6/6 signed latent directions
+   under 10% missingness and two gross outliers (cosine 0.9756) and recovers a
+   protein-adjustment slope within 0.014 absolute error on replay. This is an
+   algorithm check only, not cohort or clinical validation. The
    numerical lane remains design-only and admission-blocked pending
    processing/uncertainty semantics, topology projection, licensing, and
    evaluation; it must learn edge-family reliability

@@ -319,6 +319,18 @@ duplicate factor IDs, unresolved complexes, and graphs over the 256-node or
 2,048-edge request bounds. Kinase-substrate edges are recorded as unsupported
 because no matched source substrate catalog was captured.
 
+The deterministic oracle `tools/evaluate_cptac_gbm_synthetic_oracle.py` closes
+the first scientific test loop without touching private source bytes. It builds
+a signed six-member glioma-like latent factor with 10% missing cells and two
+gross outliers, then checks the production Huber rank-one solver against the
+known loading direction. It separately injects parent-protein outliers and
+missing cells into a phosphosite trend and checks the production Theil–Sen-start
+Huber adjustment. The locked run recovers all six signed directions (cosine
+`0.97564114`, recovery `1.0`), estimates the parent slope with absolute error
+`0.01396269`, and reproduces the same result on replay. This is an internal
+algorithm oracle only; it does not validate the CPTAC cohort, pathway activity,
+or any clinical endpoint.
+
 ## Model family and bounded graph semantics
 
 The only admissible family is a missing-aware robust confirmatory set-factor
