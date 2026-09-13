@@ -54,6 +54,9 @@ const profile = {
   bootstrap_kkt_tolerance: 0.001,
   bootstrap_l1_step_tolerance: 1e-8,
   bootstrap_relative_objective_tolerance: 1e-10,
+  feature_driver_policy: "pearson_residual_and_reference_contribution_v1",
+  max_feature_drivers: 12,
+  reference_ablation_policy: "leave_one_reference_out_exact_refit_v1",
   profile_digest: digest,
 };
 const result = {
@@ -67,6 +70,8 @@ const result = {
   support: "limited",
   known_weights: [{ reference_id: "malignant_gbm", rna_weight: 0.9, rank: 1 }],
   weight_intervals: [],
+  feature_drivers: [],
+  reference_ablations: [],
   unknown_gene_mass: [0.05, 0.05],
   fitted_probabilities: [0.8, 0.2],
   unknown_mass: 0.1,

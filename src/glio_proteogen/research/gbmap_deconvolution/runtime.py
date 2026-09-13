@@ -53,6 +53,9 @@ MIXTURE_BOOTSTRAP_MAX_ITERATIONS: Final = 2_000
 MIXTURE_BOOTSTRAP_KKT_TOLERANCE: Final = 1e-3
 MIXTURE_BOOTSTRAP_L1_STEP_TOLERANCE: Final = 1e-8
 MIXTURE_BOOTSTRAP_RELATIVE_OBJECTIVE_TOLERANCE: Final = 1e-10
+MIXTURE_MAX_FEATURE_DRIVERS: Final = 12
+MIXTURE_FEATURE_DRIVER_POLICY: Final = "pearson_residual_and_reference_contribution_v1"
+MIXTURE_ABLATION_POLICY: Final = "leave_one_reference_out_exact_refit_v1"
 
 
 def _finite_probability_vector(values: tuple[float, ...], *, name: str) -> None:
@@ -188,6 +191,13 @@ class GbmMixtureProfile(FrozenModel):
         ge=MIXTURE_BOOTSTRAP_RELATIVE_OBJECTIVE_TOLERANCE,
         le=MIXTURE_BOOTSTRAP_RELATIVE_OBJECTIVE_TOLERANCE,
     )
+    feature_driver_policy: Literal[
+        "pearson_residual_and_reference_contribution_v1"
+    ] = MIXTURE_FEATURE_DRIVER_POLICY
+    max_feature_drivers: Literal[12] = MIXTURE_MAX_FEATURE_DRIVERS
+    reference_ablation_policy: Literal["leave_one_reference_out_exact_refit_v1"] = (
+        MIXTURE_ABLATION_POLICY
+    )
     profile_digest: Sha256Digest
 
     @model_validator(mode="after")
@@ -216,6 +226,104 @@ class GbmMixtureWeightInterval(FrozenModel):
         return self
 
 
+class GbmMixtureFeatureDriver(FrozenModel):
+    """A marker-level residual and its fitted lineage attribution.
+
+    The driver is computed from the same fitted probability vector as the
+    simplex result.  It is an explanation of count misfit, not a differential
+    expression statistic or a biological importance claim.
+    """
+
+    feature_id: Identifier
+    observed_fraction: float = Field(ge=0.0, le=1.0)
+    fitted_fraction: float = Field(ge=0.0, le=1.0)
+    unknown_fraction: float = Field(ge=0.0, le=1.0)
+    signed_residual: float = Field(ge=-1.0, le=1.0)
+    pearson_residual: float
+    dominant_reference_id: Identifier | None = None
+    dominant_reference_fraction: float = Field(ge=0.0, le=1.0)
+
+    @model_validator(mode="after")
+    def values_close(self) -> Self:
+        if not math.isclose(
+            self.signed_residual,
+            self.observed_fraction - self.fitted_fraction,
+            rel_tol=0.0,
+            abs_tol=2e-10,
+        ):
+            raise ValueError("feature driver residual does not match observed and fitted fractions")
+        if self.unknown_fraction > self.fitted_fraction + 2e-10:
+            raise ValueError("unknown feature mass cannot exceed fitted feature mass")
+        if self.dominant_reference_id is None and self.dominant_reference_fraction != 0.0:
+            raise ValueError("unknown-dominated feature drivers must have zero reference fraction")
+        return self
+
+
+class GbmMixtureReferenceAblation(FrozenModel):
+    """Exact leave-one-reference-out sensitivity for one caller signature."""
+
+    reference_id: Identifier
+    full_weight: float = Field(ge=0.0, le=1.0)
+    full_unknown_mass: float = Field(ge=0.0, le=1.0)
+    support: Literal["estimated", "abstained"]
+    remaining_known_mass: float | None = Field(default=None, ge=0.0, le=1.0)
+    unknown_mass_without_reference: float | None = Field(default=None, ge=0.0, le=1.0)
+    unknown_mass_delta: float | None = None
+    reason: NonEmptyStr | None = None
+
+    @model_validator(mode="after")
+    def ablation_is_closed(self) -> Self:
+        numeric = (
+            self.remaining_known_mass,
+            self.unknown_mass_without_reference,
+            self.unknown_mass_delta,
+        )
+        if self.support == "estimated":
+            if (
+                self.remaining_known_mass is None
+                or self.unknown_mass_without_reference is None
+                or self.unknown_mass_delta is None
+                or self.reason is not None
+            ):
+                raise ValueError("estimated reference ablations require complete numeric deltas")
+            if not math.isclose(
+                self.remaining_known_mass + self.unknown_mass_without_reference,
+                1.0,
+                rel_tol=0.0,
+                abs_tol=2e-8,
+            ):
+                raise ValueError("reference ablation simplex mass does not close")
+            if not math.isclose(
+                self.unknown_mass_delta,
+                self.unknown_mass_without_reference - self.full_unknown_mass,
+                rel_tol=0.0,
+                abs_tol=2e-10,
+            ):
+                raise ValueError("reference ablation unknown-mass delta does not close")
+            if not math.isfinite(self.unknown_mass_delta):
+                raise ValueError("reference ablation unknown-mass delta must be finite")
+        elif any(value is not None for value in numeric) or self.reason is None:
+            raise ValueError("abstained reference ablations require only a reason")
+        return self
+
+
+def _validate_result_explanations(
+    feature_ids: tuple[str, ...],
+    known_weights: tuple[GbmMixtureWeight, ...],
+    feature_drivers: tuple[GbmMixtureFeatureDriver, ...],
+    reference_ablations: tuple[GbmMixtureReferenceAblation, ...],
+) -> None:
+    if len({item.feature_id for item in feature_drivers}) != len(feature_drivers):
+        raise ValueError("feature drivers must use unique feature identifiers")
+    if any(item.feature_id not in feature_ids for item in feature_drivers):
+        raise ValueError("feature drivers must reference the fitted feature axis")
+    if len({item.reference_id for item in reference_ablations}) != len(reference_ablations):
+        raise ValueError("reference ablations must use unique reference identifiers")
+    fitted_ids = {weight.reference_id for weight in known_weights}
+    if any(item.reference_id not in fitted_ids for item in reference_ablations):
+        raise ValueError("reference ablations must reference fitted lineages")
+
+
 class GbmMixtureResult(FrozenModel):
     """Replay-closed composition result; weights are not cell fractions."""
 
@@ -232,6 +340,12 @@ class GbmMixtureResult(FrozenModel):
     support: Literal["limited", "abstained"]
     known_weights: tuple[GbmMixtureWeight, ...] = Field(default=(), max_length=MAX_MIXTURE_LINEAGES)
     weight_intervals: tuple[GbmMixtureWeightInterval, ...] = Field(
+        default=(), max_length=MAX_MIXTURE_LINEAGES
+    )
+    feature_drivers: tuple[GbmMixtureFeatureDriver, ...] = Field(
+        default=(), max_length=MIXTURE_MAX_FEATURE_DRIVERS
+    )
+    reference_ablations: tuple[GbmMixtureReferenceAblation, ...] = Field(
         default=(), max_length=MAX_MIXTURE_LINEAGES
     )
     unknown_gene_mass: tuple[float, ...] = Field(default=(), max_length=MAX_MIXTURE_FEATURES)
@@ -276,6 +390,12 @@ class GbmMixtureResult(FrozenModel):
                 for value in (*self.unknown_gene_mass, *self.fitted_probabilities)
             ):
                 raise ValueError("limited composition vectors must be finite and non-negative")
+            _validate_result_explanations(
+                self.feature_ids,
+                self.known_weights,
+                self.feature_drivers,
+                self.reference_ablations,
+            )
             if not math.isclose(
                 math.fsum(self.fitted_probabilities),
                 1.0,
@@ -325,7 +445,13 @@ class GbmMixtureResult(FrozenModel):
                 for weight, interval in zip(self.known_weights, self.weight_intervals, strict=True):
                     if not interval.lower_bound <= weight.rna_weight <= interval.upper_bound:
                         raise ValueError("bootstrap interval must contain its fitted weight")
-        elif self.known_weights or self.unknown_gene_mass or self.fitted_probabilities:
+        elif (
+            self.known_weights
+            or self.unknown_gene_mass
+            or self.fitted_probabilities
+            or self.feature_drivers
+            or self.reference_ablations
+        ):
             raise ValueError("abstained result cannot carry fitted composition")
         elif self.weight_intervals or any(
             value is not None
@@ -432,6 +558,9 @@ def mixture_profile() -> GbmMixtureProfile:
         "bootstrap_kkt_tolerance": MIXTURE_BOOTSTRAP_KKT_TOLERANCE,
         "bootstrap_l1_step_tolerance": MIXTURE_BOOTSTRAP_L1_STEP_TOLERANCE,
         "bootstrap_relative_objective_tolerance": MIXTURE_BOOTSTRAP_RELATIVE_OBJECTIVE_TOLERANCE,
+        "feature_driver_policy": MIXTURE_FEATURE_DRIVER_POLICY,
+        "max_feature_drivers": MIXTURE_MAX_FEATURE_DRIVERS,
+        "reference_ablation_policy": MIXTURE_ABLATION_POLICY,
     }
     return GbmMixtureProfile(profile_digest=profile_digest(payload))
 
@@ -559,6 +688,132 @@ def _bootstrap_intervals(
     )
 
 
+def _feature_drivers(
+    request: GbmMixtureRequest,
+    solution: ReferenceMixtureSolution,
+) -> tuple[GbmMixtureFeatureDriver, ...]:
+    """Rank marker channels by count misfit and preserve lineage attribution.
+
+    The fitted probability vector is a mixture of known references and the
+    explicit unknown background.  A Pearson residual therefore identifies a
+    channel that the constrained fit cannot explain, while the weighted
+    reference mass identifies which supplied GBM signature was responsible for
+    the expected part of that channel.  No differential-expression or
+    cell-fraction interpretation is introduced here.
+    """
+
+    depth = float(sum(request.counts))
+    if depth <= 0.0:
+        return ()
+    fitted = np.asarray(solution.fitted_probabilities, dtype=np.float64)
+    unknown = np.asarray(solution.unknown_gene_mass, dtype=np.float64)
+    if (
+        fitted.ndim != 1
+        or unknown.ndim != 1
+        or len(fitted) != len(request.feature_ids)
+        or len(unknown) != len(request.feature_ids)
+    ):
+        return ()
+    weights = np.asarray(solution.known_rna_weights, dtype=np.float64)
+    # Reference signatures are stored row-major as (references, features);
+    # slice the feature column when attributing its fitted mass.
+    signatures = np.asarray([item.signature for item in request.references], dtype=np.float64)
+    observed = np.asarray(request.counts, dtype=np.float64) / depth
+    rows: list[tuple[float, GbmMixtureFeatureDriver]] = []
+    for index, feature_id in enumerate(request.feature_ids):
+        fitted_fraction = min(max(float(fitted[index]), 0.0), 1.0)
+        observed_fraction = min(max(float(observed[index]), 0.0), 1.0)
+        unknown_fraction = min(max(float(unknown[index]), 0.0), fitted_fraction)
+        signed_residual = observed_fraction - fitted_fraction
+        variance = max(fitted_fraction * (1.0 - fitted_fraction) / depth, 1.0 / depth**2)
+        pearson_residual = signed_residual / math.sqrt(variance)
+        known_contributions = weights * signatures[:, index]
+        known_total = float(np.sum(known_contributions, dtype=np.float64))
+        if known_total > 1e-15:
+            dominant_index = int(np.argmax(known_contributions))
+            dominant_id: str | None = request.references[dominant_index].reference_id
+            dominant_fraction = min(
+                1.0,
+                max(0.0, float(known_contributions[dominant_index] / known_total)),
+            )
+        else:
+            dominant_id = None
+            dominant_fraction = 0.0
+        driver = GbmMixtureFeatureDriver(
+            feature_id=feature_id,
+            observed_fraction=round(observed_fraction, 12),
+            fitted_fraction=round(fitted_fraction, 12),
+            unknown_fraction=round(unknown_fraction, 12),
+            signed_residual=round(signed_residual, 12),
+            pearson_residual=round(float(pearson_residual), 8),
+            dominant_reference_id=dominant_id,
+            dominant_reference_fraction=round(dominant_fraction, 12),
+        )
+        rows.append((abs(float(pearson_residual)), driver))
+    rows.sort(key=lambda item: (-item[0], item[1].feature_id))
+    return tuple(item[1] for item in rows[:MIXTURE_MAX_FEATURE_DRIVERS])
+
+
+def _reference_ablations(
+    request: GbmMixtureRequest,
+    solution: ReferenceMixtureSolution,
+) -> tuple[GbmMixtureReferenceAblation, ...]:
+    """Refit the exact simplex after removing each supplied lineage signature."""
+
+    full_unknown = round(float(solution.unknown_mass), 12)
+    output: list[GbmMixtureReferenceAblation] = []
+    for index, reference in enumerate(request.references):
+        remaining = tuple(
+            item for position, item in enumerate(request.references) if position != index
+        )
+        try:
+            candidate_request = _canonical_request(request.model_copy(update={"references": remaining}))
+            candidate = solve_reference_mixture(
+                candidate_request.counts,
+                _matrix(candidate_request),
+                candidate_request.unknown_background,
+                concentration=candidate_request.concentration,
+                lambda_mass=candidate_request.lambda_mass,
+                lambda_shape=candidate_request.lambda_shape,
+                initial_unknown_mass=candidate_request.initial_unknown_mass,
+                configuration=_solver_configuration(candidate_request),
+            )
+            if not candidate.converged or not candidate.trace or not verify_objective_trace(candidate):
+                output.append(
+                    GbmMixtureReferenceAblation(
+                        reference_id=reference.reference_id,
+                        full_weight=round(float(solution.known_rna_weights[index]), 12),
+                        full_unknown_mass=full_unknown,
+                        support="abstained",
+                        reason="leave-one-reference-out simplex refit did not converge",
+                    )
+                )
+                continue
+            unknown_without = round(float(candidate.unknown_mass), 12)
+            output.append(
+                GbmMixtureReferenceAblation(
+                    reference_id=reference.reference_id,
+                    full_weight=round(float(solution.known_rna_weights[index]), 12),
+                    full_unknown_mass=full_unknown,
+                    support="estimated",
+                    remaining_known_mass=round(1.0 - unknown_without, 12),
+                    unknown_mass_without_reference=unknown_without,
+                    unknown_mass_delta=round(unknown_without - full_unknown, 12),
+                )
+            )
+        except (ValueError, FloatingPointError) as error:
+            output.append(
+                GbmMixtureReferenceAblation(
+                    reference_id=reference.reference_id,
+                    full_weight=round(float(solution.known_rna_weights[index]), 12),
+                    full_unknown_mass=full_unknown,
+                    support="abstained",
+                    reason=f"leave-one-reference-out refit abstained: {error}",
+                )
+            )
+    return tuple(output)
+
+
 def _limited_result(
     request: GbmMixtureRequest,
     solution: ReferenceMixtureSolution,
@@ -568,6 +823,8 @@ def _limited_result(
     unknown_mass_lower_bound: float | None = None,
     unknown_mass_upper_bound: float | None = None,
     bootstrap_replicates_used: int = 0,
+    feature_drivers: tuple[GbmMixtureFeatureDriver, ...] = (),
+    reference_ablations: tuple[GbmMixtureReferenceAblation, ...] = (),
 ) -> GbmMixtureResult:
     weights = tuple(
         GbmMixtureWeight(
@@ -591,6 +848,8 @@ def _limited_result(
         support="limited",
         known_weights=weights,
         weight_intervals=weight_intervals,
+        feature_drivers=feature_drivers,
+        reference_ablations=reference_ablations,
         unknown_gene_mass=tuple(round(float(value), 12) for value in solution.unknown_gene_mass),
         fitted_probabilities=tuple(round(float(value), 12) for value in solution.fitted_probabilities),
         unknown_mass=round(solution.unknown_mass, 12),
@@ -681,6 +940,8 @@ def analyze_gbm_mixture(request: GbmMixtureRequest) -> GbmMixtureResult:
     except (ValueError, FloatingPointError) as error:
         return _seal(_abstained_result(request, f"composition diagnostics failed safely: {error}"))
     intervals, unknown_lower, unknown_upper, bootstrap_used = _bootstrap_intervals(request, solution)
+    feature_drivers = _feature_drivers(request, solution)
+    reference_ablations = _reference_ablations(request, solution)
     return _seal(
         _limited_result(
             request,
@@ -690,6 +951,8 @@ def analyze_gbm_mixture(request: GbmMixtureRequest) -> GbmMixtureResult:
             unknown_mass_lower_bound=unknown_lower,
             unknown_mass_upper_bound=unknown_upper,
             bootstrap_replicates_used=bootstrap_used,
+            feature_drivers=feature_drivers,
+            reference_ablations=reference_ablations,
         )
     )
 
@@ -772,8 +1035,10 @@ __all__ = [
     "MIXTURE_L1_STEP_TOLERANCE",
     "MIXTURE_PROFILE_ID",
     "MIXTURE_RELATIVE_OBJECTIVE_TOLERANCE",
+    "GbmMixtureFeatureDriver",
     "GbmMixtureProfile",
     "GbmMixtureReference",
+    "GbmMixtureReferenceAblation",
     "GbmMixtureReplayRequest",
     "GbmMixtureRequest",
     "GbmMixtureResult",

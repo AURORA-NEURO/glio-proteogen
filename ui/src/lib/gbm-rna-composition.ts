@@ -19,7 +19,8 @@ const PROFILE_FIELDS = new Set([
   "l1_step_tolerance", "relative_objective_tolerance", "bootstrap_sampling_policy",
   "bootstrap_lower_quantile", "bootstrap_upper_quantile", "max_bootstrap_replicates",
   "bootstrap_max_iterations", "bootstrap_kkt_tolerance", "bootstrap_l1_step_tolerance",
-  "bootstrap_relative_objective_tolerance", "profile_digest",
+  "bootstrap_relative_objective_tolerance", "feature_driver_policy", "max_feature_drivers",
+  "reference_ablation_policy", "profile_digest",
 ]);
 const REQUEST_FIELDS = new Set([
   "profile_id", "sample_id", "feature_ids", "counts", "references", "unknown_background",
@@ -30,7 +31,7 @@ const RESULT_FIELDS = new Set([
   "result_id", "profile_id", "profile_digest", "request_digest", "result_digest", "sample_id",
   "feature_ids", "support", "known_weights", "unknown_gene_mass", "fitted_probabilities",
   "unknown_mass", "unknown_mass_lower_bound", "unknown_mass_upper_bound", "bootstrap_replicates_used",
-  "weight_intervals", "objective", "initial_objective", "iterations", "kkt_residual",
+  "weight_intervals", "feature_drivers", "reference_ablations", "objective", "initial_objective", "iterations", "kkt_residual",
   "signature_condition_number", "objective_trace", "trace_digest", "ood", "abstention_reason",
   "source_digests", "limitations",
 ]);
@@ -76,6 +77,7 @@ export function validateGbmMixtureProfile(profile: JsonObject): string[] {
   if (profile.histologic_fraction_claim_permitted !== false || profile.clinical_use_permitted !== false) errors.push("profile must forbid histologic-fraction and clinical claims.");
   if (profile.solver !== "dirichlet_multinomial_adaptive_unknown_simplex" || profile.max_features !== 512 || profile.max_lineages !== 32 || profile.max_iterations !== 500) errors.push("profile solver or limits are invalid.");
   if (profile.bootstrap_sampling_policy !== "fitted_dirichlet_multinomial_posterior_predictive_v1" || profile.max_bootstrap_replicates !== 256 || profile.bootstrap_max_iterations !== 2000) errors.push("profile bootstrap policy or limits are invalid.");
+  if (profile.feature_driver_policy !== "pearson_residual_and_reference_contribution_v1" || profile.max_feature_drivers !== 12 || profile.reference_ablation_policy !== "leave_one_reference_out_exact_refit_v1") errors.push("profile driver or ablation policy is invalid.");
   for (const field of ["kkt_tolerance", "l1_step_tolerance", "relative_objective_tolerance"]) finite(profile[field], `profile.${field}`, errors, 0);
   if (profile.bootstrap_lower_quantile !== 0.05 || profile.bootstrap_upper_quantile !== 0.95) errors.push("profile bootstrap quantiles must be fixed at 0.05 and 0.95.");
   if (profile.bootstrap_kkt_tolerance !== 0.001 || profile.bootstrap_l1_step_tolerance !== 1e-8 || profile.bootstrap_relative_objective_tolerance !== 1e-10) errors.push("profile bootstrap solver tolerances are invalid.");
@@ -155,6 +157,21 @@ export function validateGbmMixtureResult(result: JsonObject, request: JsonObject
   if (result.support === "limited") {
     if (!weights.length) errors.push("limited result must carry known lineage weights.");
     if (features.length !== arrayAt(result, ["unknown_gene_mass"]).length || features.length !== arrayAt(result, ["fitted_probabilities"]).length) errors.push("limited composition vectors must share one feature axis.");
+    const drivers = arrayAt(result, ["feature_drivers"]);
+    if (drivers.length > 12) errors.push("result.feature_drivers must contain at most 12 entries.");
+    uniqueStrings(drivers.flatMap((value) => isJsonObject(value) ? [value.feature_id] : []), "result.feature_drivers.feature_id", errors);
+    drivers.forEach((value, index) => {
+      if (!isJsonObject(value)) { errors.push(`result.feature_drivers[${index}] must be an object.`); return; }
+      if (!features.includes(value.feature_id)) errors.push(`result.feature_drivers[${index}].feature_id must reference result.feature_ids.`);
+      for (const field of ["observed_fraction", "fitted_fraction", "unknown_fraction", "signed_residual", "pearson_residual", "dominant_reference_fraction"]) finite(value[field], `result.feature_drivers[${index}].${field}`, errors);
+    });
+    const ablations = arrayAt(result, ["reference_ablations"]);
+    uniqueStrings(ablations.flatMap((value) => isJsonObject(value) ? [value.reference_id] : []), "result.reference_ablations.reference_id", errors);
+    ablations.forEach((value, index) => {
+      if (!isJsonObject(value)) { errors.push(`result.reference_ablations[${index}] must be an object.`); return; }
+      if (typeof value.reference_id !== "string" || !referencesFromResult(weights).includes(value.reference_id)) errors.push(`result.reference_ablations[${index}].reference_id must reference a fitted lineage.`);
+      if (!["estimated", "abstained"].includes(textAt(value, ["support"]))) errors.push(`result.reference_ablations[${index}].support is invalid.`);
+    });
     finite(result.unknown_mass, "result.unknown_mass", errors, 0);
     if (typeof result.unknown_mass === "number" && result.unknown_mass > 1) errors.push("result.unknown_mass must be <= 1.");
     const bootstrap = result.bootstrap_replicates_used;
@@ -190,6 +207,10 @@ export function validateGbmMixtureResult(result: JsonObject, request: JsonObject
   return errors;
 }
 
+function referencesFromResult(weights: unknown[]): string[] {
+  return weights.flatMap((value) => isJsonObject(value) && typeof value.reference_id === "string" ? [value.reference_id] : []);
+}
+
 export function validateGbmMixtureResultHeaders(headers: HeaderReader, result: JsonObject): string[] {
   const errors: string[] = [];
   for (const [name, field] of [["X-GLIO-Profile-Digest", "profile_digest"], ["X-GLIO-Request-Digest", "request_digest"], ["X-GLIO-Result-Digest", "result_digest"]] as const) {
@@ -214,6 +235,8 @@ export function gbmRnaCompositionRequestStats(request: JsonObject): { features: 
 
 export type GbmMixtureWeight = { id: string; weight: number | null; rank: number | null };
 export type GbmMixtureWeightInterval = { id: string; lower: number | null; upper: number | null };
+export type GbmMixtureFeatureDriver = { id: string; observed: number | null; fitted: number | null; unknown: number | null; residual: number | null; pearson: number | null; dominantReference: string | null; dominantFraction: number | null };
+export type GbmMixtureReferenceAblation = { id: string; support: string; fullWeight: number | null; fullUnknownMass: number | null; remainingKnownMass: number | null; unknownMassWithoutReference: number | null; unknownMassDelta: number | null; reason: string | null };
 export type GbmMixtureEvidence = {
   support: string;
   weights: GbmMixtureWeight[];
@@ -232,6 +255,8 @@ export type GbmMixtureEvidence = {
   abstentionReason: string | null;
   unknownGeneMass: number[];
   fittedProbabilities: number[];
+  featureDrivers: GbmMixtureFeatureDriver[];
+  referenceAblations: GbmMixtureReferenceAblation[];
 };
 
 export function normalizeGbmMixtureResult(result: JsonObject): GbmMixtureEvidence {
@@ -253,6 +278,8 @@ export function normalizeGbmMixtureResult(result: JsonObject): GbmMixtureEvidenc
     abstentionReason: textAt(result, ["abstention_reason"], "") || null,
     unknownGeneMass: arrayAt(result, ["unknown_gene_mass"]).filter((value): value is number => typeof value === "number"),
     fittedProbabilities: arrayAt(result, ["fitted_probabilities"]).filter((value): value is number => typeof value === "number"),
+    featureDrivers: arrayAt(result, ["feature_drivers"]).flatMap((value) => isJsonObject(value) ? [{ id: textAt(value, ["feature_id"], "unknown"), observed: numberAt(value, ["observed_fraction"]), fitted: numberAt(value, ["fitted_fraction"]), unknown: numberAt(value, ["unknown_fraction"]), residual: numberAt(value, ["signed_residual"]), pearson: numberAt(value, ["pearson_residual"]), dominantReference: textAt(value, ["dominant_reference_id"]), dominantFraction: numberAt(value, ["dominant_reference_fraction"]) }] : []),
+    referenceAblations: arrayAt(result, ["reference_ablations"]).flatMap((value) => isJsonObject(value) ? [{ id: textAt(value, ["reference_id"], "unknown"), support: textAt(value, ["support"], "abstained"), fullWeight: numberAt(value, ["full_weight"]), fullUnknownMass: numberAt(value, ["full_unknown_mass"]), remainingKnownMass: numberAt(value, ["remaining_known_mass"]), unknownMassWithoutReference: numberAt(value, ["unknown_mass_without_reference"]), unknownMassDelta: numberAt(value, ["unknown_mass_delta"]), reason: textAt(value, ["reason"]) }] : []),
   };
 }
 
