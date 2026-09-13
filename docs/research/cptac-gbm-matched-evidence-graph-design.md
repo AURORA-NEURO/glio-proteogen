@@ -224,6 +224,28 @@ on these provided ratios is at best cohort-transductive at the upstream
 normalization layer, even when every repository-side transformation is fitted
 inside folds.
 
+## Current caller-side feature adapter
+
+The first numerical source adapter is now implemented in
+`tools/build_cptac_gbm_matched_feature_catalog.py`. Given the private source
+receipt and the six verified files, it computes a robust qualified-tumor minus
+qualified-normal contrast for every protein gene and every phosphosite row. It
+uses the `Unshared Log Ratio` protein block, the phosphosite `Log Ratio` block,
+Huber-weighted group locations, a MAD-derived model uncertainty floor, explicit
+support fractions, and an ECGI-domain check that abstains rather than clips
+out-of-range standardized effects. The single disqualified tumor is excluded
+from the contrast but remains in the cohort oracle. Composite site strings and
+multi-peptide rows are emitted as one atomic feature record. Blank cells remain
+missing and non-human or unannotated rows are unsupported.
+
+An execution against the audited local bundle produced 10,977 protein feature
+records and 41,580 phosphosite records (16.5 MiB private catalog). The catalog
+contains feature-level contrasts and support counts but no aliquot, case, or
+patient identifier. It is a caller-side intermediate, not a packaged model or
+an inference endpoint; topology projection, protein-adjusted phosphosite
+factors, nested case-group evaluation, and redistribution approval remain
+admission blockers below.
+
 ## Model family and bounded graph semantics
 
 The only admissible family is a missing-aware robust confirmatory set-factor
