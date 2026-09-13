@@ -231,6 +231,13 @@ def fit_panel(source_dir: Path, manifest_path: Path) -> dict[str, object]:
         _pathway_factor(grouped[pathway_id], genes, protein_matrix, adjusted_sites)
         for pathway_id in sorted(grouped)
     ]
+    source_files = {
+        name: {
+            "bytes": paths[name].stat().st_size,
+            "sha256": "sha256:" + hashlib.sha256(paths[name].read_bytes()).hexdigest(),
+        }
+        for name in (PROTEIN_FILENAME, PHOSPHOSITE_FILENAME)
+    }
     profile = {
         "model_id": MODEL_ID,
         "parent_adjustment_model": ADJUSTED_MODEL_ID,
@@ -257,6 +264,7 @@ def fit_panel(source_dir: Path, manifest_path: Path) -> dict[str, object]:
         "algorithm_profile_digest": "sha256:" + hashlib.sha256(_canonical_bytes(profile)).hexdigest(),
         "source_manifest_digest": manifest_digest,
         "source_complex_catalog_digest": source.content_digest,
+        "source_files": source_files,
         "sample_maps": {"protein": protein_map, "phosphoproteome": phospho_map},
         "matrix_oracles": {
             "protein": protein_oracles,
