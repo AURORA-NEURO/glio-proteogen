@@ -190,6 +190,17 @@ export function validateMicroenvironmentGraphProfile(profile: JsonObject): strin
   return errors;
 }
 
+export function validateMicroenvironmentGraphProfileHeaders(
+  headers: HeaderReader,
+  profile: JsonObject,
+): string[] {
+  const errors: string[] = [];
+  if (headers.get("X-GLIO-Profile-Digest") !== profile.profile_digest) {
+    errors.push("X-GLIO-Profile-Digest response header does not match the bridge profile.");
+  }
+  return errors;
+}
+
 export function validateMicroenvironmentGraphRequest(request: JsonObject): string[] {
   const errors: string[] = [];
   exactFields(request, REQUEST_FIELDS, "request", errors, REQUEST_OPTIONAL_FIELDS);
@@ -220,10 +231,20 @@ export function validateMicroenvironmentGraphRequest(request: JsonObject): strin
 export function validateMicroenvironmentGraphDemo(
   request: JsonObject,
   profile: JsonObject | null,
+  headers?: HeaderReader,
 ): string[] {
   const errors = validateMicroenvironmentGraphRequest(request);
   if (profile && request.profile_id !== profile.profile_id) errors.push("demo.profile_id does not match the admitted bridge profile.");
   if (profile) requireDigest(profile.profile_digest, "profile.profile_digest", errors);
+  if (profile && headers && headers.get("X-GLIO-Profile-Digest") !== profile.profile_digest) {
+    errors.push("X-GLIO-Profile-Digest demo header does not match the bridge profile.");
+  }
+  if (headers) {
+    const requestDigest = headers.get("X-GLIO-Request-Digest");
+    if (typeof requestDigest !== "string" || !DIGEST.test(requestDigest)) {
+      errors.push("X-GLIO-Request-Digest demo header must be a lowercase sha256 digest.");
+    }
+  }
   return errors;
 }
 
