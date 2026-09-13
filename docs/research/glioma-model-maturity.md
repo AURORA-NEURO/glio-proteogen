@@ -1440,18 +1440,18 @@ inventory. See
 2. **Broader GBM complex/pathway evidence graph.** The source-locked PDC000514
    participant-set transition lane now supplies a real protein-only complex
    component, but it does not complete a multimodal pathway graph. Replace the
-   remaining synthetic demo topology with a versioned Reactome graph and a
-   source-admitted matched PDC000204/PDC000205 protein/phosphosite cohort. A
-   read-only byte audit found the same 110 unique non-pool aliquot labels in the
-   same order across both assay maps and matrices, but this is not yet a patient
-   join: the local bundle has no PDC000205 study/version record, no file-level PDC
-   provenance, and no official case/specimen map. The separate PDC000204
-   metadata reports 111 cases/aliquots, which is unresolved against the 110
-   captured labels. The next lane is therefore design-only and admission-blocked;
-   it must learn edge-family reliability inside nested case-group folds while
-   retaining the real robust ECGI solver, explicit topology/modality ablations,
-   and an internal-concordance-only ceiling. Exact byte locks, grouping,
-   endpoints, leakage controls, gates, and blockers are specified in
+   remaining synthetic demo topology with a versioned Reactome graph and the
+   source-admitted matched PDC000204/PDC000205 protein/phosphosite cohort. The
+   maintainer-only matched-source receipt now binds all six local files to exact
+   PDC study-version/file records and proves the same 110 official non-pool
+   aliquots (100 primary tumors, 10 solid-tissue normals; one disqualified tumor)
+   across both assay maps. The numerical lane remains design-only and
+   admission-blocked pending processing/uncertainty semantics, topology
+   projection, licensing, and evaluation; it must learn edge-family reliability
+   inside nested case-group folds while retaining the real robust ECGI solver,
+   explicit topology/modality ablations, and an internal-concordance-only
+   ceiling. Exact byte locks, grouping, endpoints, leakage controls, gates, and
+   blockers are specified in
    [`cptac-gbm-matched-evidence-graph-design.md`](cptac-gbm-matched-evidence-graph-design.md).
 3. **Glioma immunopeptidomic presentation.** Bind exact HLA alleles and pinned
    pretrained processing/binding/presentation models, with allele support,

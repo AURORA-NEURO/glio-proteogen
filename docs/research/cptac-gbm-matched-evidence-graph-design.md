@@ -19,13 +19,17 @@ lane, or the no-fusion KNCC composition surface.
 
 ## Read-only candidate-source audit
 
-The audited local directory was
-`.codex-tmp/cptac-gbm-joint-source`. The directory contains six files and no
-download receipt, PDC file manifest, study-version manifest, license record, or
-case/specimen map. The following byte locks were independently recomputed on
-2026-08-30. “Candidate role” records the intended capture association; the
-bytes themselves do not encode a PDC study ID and therefore do not yet prove
-that association.
+The audited local directory is `.codex-tmp/cptac-gbm-joint-source`. The six
+external files remain outside the repository. On 2026-09-12 the maintainer-only
+`tools/capture_cptac_gbm_matched_source_manifest.py` captured a private
+`CPTAC_GBM_MATCHED.v1.canonical-source-lock.json` receipt beside those inputs.
+It binds every local byte lock to the official PDC study-version UUID, file ID,
+size, MD5, and `Protein Assembly` category, and records the exact GraphQL
+queries and response collections. The receipt is deliberately not package data:
+it contains source identifiers and is ignored by the repository's artifact
+boundary. Expiring download URLs and HTTP metadata are excluded so a receipt
+digest is replay-stable; licensing and redistribution approval remain separate
+admission gates.
 
 | Candidate role | Local file | Bytes | SHA-256 |
 |---|---|---:|---|
@@ -36,8 +40,8 @@ that association.
 | PDC000205 phosphoproteome sample map | `CPTAC3_Glioblastoma_Multiforme_Phosphoproteome.sample.txt` | 3,869 | `5b5567ae9df8bcd3abed5dc1e219bb50403f021a83053e6c20585e8f52567f13` |
 | PDC000205 phosphoproteome summary | `CPTAC3_Glioblastoma_Multiforme_Phosphoproteome.summary.tsv` | 2,038,094 | `297972bc5ac7eec63d0da50f357210f0f0b15136c1d8e93e158c45db712f5d0e` |
 
-The byte-level and table-level checks establish the following facts, and only
-these facts:
+The byte-level, table-level, and official metadata checks establish the
+following facts, and only these facts:
 
 - each sample map has 11 non-empty TMT11 plex records, ten non-pool channels per
   plex, `POOL` in channel `126C`, and label reagent `SG252258_SH258846`;
@@ -49,8 +53,15 @@ these facts:
   unique non-pool labels in the same order. The protein matrix's 110
   `Unshared Log Ratio` headers, its 110 companion `Log Ratio` headers, and the
   phosphosite matrix's 110 `Log Ratio` headers bind to that order exactly;
-- this is an exact **aliquot-label match**, not yet a patient match. String
-  prefixes or suffixes are not an admitted case identifier;
+- the official PDC000204 and PDC000205 biospecimen collections each contain
+  111 unique aliquots, including the `ref` pool. The 110 non-pool labels in the
+  two local maps resolve exactly to both official collections and have identical
+  case ID, case submitter ID, sample type, taxon, and case-status fields;
+- the matched non-pool cohort contains 100 primary-tumor and 10 solid-tissue-
+  normal aliquots. One primary-tumor aliquot is officially `Disqualified` and
+  109 are `Qualified`; the disqualified state is retained rather than converted
+  to missing or silently dropped. This is an exact **official aliquot/case
+  match**, not a label-substring heuristic;
 - the protein matrix contains three non-feature rows (`Mean`, `Median`, and
   `StdDev`) followed by 10,977 unique human gene rows. Its summary contains the
   same 10,977 genes exactly. Across the primary unshared-ratio block, 1,148,949
@@ -93,16 +104,11 @@ its declared raw-byte length/hash and canonical/response digests all reproduce.
 That fixture identifies `PDC000204`, study UUID
 `cfe9f4a2-1797-11ea-9bfa-0a42f3c845fe`, analytical fraction `Proteome`,
 experiment type `TMT11`, and structured counts of 111 cases and 111 aliquots.
-Its narrative describes tissue from 99 GBM patients and normal brain from ten
-GTEx participants. Neither the structured count, that narrative, nor the 110
-captured labels can be reconciled from the available files. The fixture is
-metadata-only and does not bind any of the six candidate files to a PDC file
-record or version.
-
-There is no corresponding local PDC000205 metadata/source manifest in the
-audited inventory. Therefore the phrases “PDC000204 protein” and “PDC000205
-phosphoproteome” remain candidate capture attributions until exact PDC
-study-version and file records are captured and verified.
+The private matched-source receipt now adds the corresponding PDC000205 study
+UUID `efc3143a-1797-11ea-9bfa-0a42f3c845fe`, exact file records for both
+fractions, and the official case/specimen reconciliation described above. The
+receipt does not grant redistribution rights or provide measurement-level
+uncertainty, so it is source admission evidence rather than a fitted model.
 
 ## Topology sources and fixed glioma scope
 
@@ -370,14 +376,19 @@ normal-brain sensitivity, and deterministic replay are not external validation.
 Implementation and any model artifact are blocked until all of the following
 are resolved:
 
-1. **PDC file provenance:** capture exact PDC000204 and PDC000205
-   study-version UUIDs and a file-level manifest binding each of the six names,
-   byte sizes, source MD5/SHA-256, stable file IDs/URLs, retrieval time, and
-   processing category to the locked local bytes.
-2. **Case/specimen identity:** capture official case/sample/aliquot relationships
-   for both studies and reconcile the 99-plus-10 narrative, 111 structured
-   PDC000204 cases/aliquots, and 110 local assay labels. No label-substring
-   heuristic is acceptable.
+1. **PDC file provenance (partially resolved):** the private
+   `CPTAC_GBM_MATCHED.v1.canonical-source-lock.json` receipt now binds exact
+   PDC000204/PDC000205 study-version UUIDs, all six file IDs, byte sizes, source
+   MD5/SHA-256 values, and `Protein Assembly` processing category to the locked
+   local bytes. Retrieval-time and redistribution/license records are still
+   required before a fitted artifact can be released; expiring signed URLs are
+   intentionally not stored in the replay-stable receipt.
+2. **Case/specimen identity (resolved for source admission):** the receipt
+   captures official case/sample/aliquot relationships for both studies and
+   reconciles the 111-row collections with the 110 non-pool assay labels. The
+   exact 100-tumor/10-normal split and one disqualified tumor are retained as
+   cohort oracles. Pathology-level exclusion and technical replicate semantics
+   remain part of blocker 3.
 3. **Cohort semantics:** source-lock tumor/normal, specimen, analyte, technical
    replicate, pathology, and exclusion fields. Demonstrate at least 80 strict
    matched tumor case groups without selecting by completeness.
