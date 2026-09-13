@@ -28,8 +28,17 @@ from glio_proteogen.research.longitudinal_gbm_complex_transition.source_catalog 
     complex_transition_source_catalog,
 )
 from tools.build_cptac_gbm_adjusted_phosphosite_catalog import (
+    MAX_ITERATIONS as ADJUSTED_MAX_ITERATIONS,
+)
+from tools.build_cptac_gbm_adjusted_phosphosite_catalog import (
+    MIN_ADJUSTMENT_PAIRS,
+    REGRESSION_RIDGE,
+    ROBUST_SCALE_FLOOR,
     fit_parent_regression,
     read_phosphosite_matrix,
+)
+from tools.build_cptac_gbm_adjusted_phosphosite_catalog import (
+    MODEL_ID as ADJUSTED_MODEL_ID,
 )
 from tools.build_cptac_gbm_matched_feature_catalog import (
     PHOSPHOSITE_FILENAME,
@@ -210,7 +219,13 @@ def fit_panel(source_dir: Path, manifest_path: Path) -> dict[str, object]:
     ]
     profile = {
         "model_id": MODEL_ID,
-        "parent_adjustment_model": "cptac-gbm-protein-adjusted-phosphosite/1.0.0",
+        "parent_adjustment_model": ADJUSTED_MODEL_ID,
+        "parent_adjustment_profile": {
+            "max_iterations": ADJUSTED_MAX_ITERATIONS,
+            "min_adjustment_pairs": MIN_ADJUSTMENT_PAIRS,
+            "regression_ridge": REGRESSION_RIDGE,
+            "robust_scale_floor": ROBUST_SCALE_FLOOR,
+        },
         "factor_model": FACTOR_MODEL_ID,
         "min_site_support": MIN_SITE_SUPPORT,
         "min_site_rows": MIN_SITE_ROWS,
