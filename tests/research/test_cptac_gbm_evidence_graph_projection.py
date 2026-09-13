@@ -173,3 +173,82 @@ def test_projection_rejects_bootstrap_factor_digest_mismatch() -> None:
             pathway_receipt_digest="sha256:" + "b" * 64,
             bootstrap_receipt=bootstrap_receipt,
         )
+
+
+def test_projection_opt_in_kinase_crosswalk_adds_real_experimental_edges() -> None:
+    complex_receipt, pathway_receipt = _receipts()
+    complex_digest = "sha256:" + "a" * 64
+    pathway_digest = "sha256:" + "b" * 64
+    factors = cast("list[dict[str, object]]", complex_receipt["factors"])
+    phosphosite = cast("dict[str, object]", factors[0]["phosphosite"])
+    features = cast("list[dict[str, object]]", phosphosite["features"])
+    feature_id = features[0]["feature_id"]
+    kinase_map = {
+        "schema_version": projection.KINASE_MAP_MODEL_ID,
+        "source_manifest_digest": complex_receipt["source_manifest_digest"],
+        "factor_receipt_digest": complex_digest,
+        "algorithm_profile": {"model_id": projection.KINASE_MAP_MODEL_ID},
+        "algorithm_profile_digest": "",
+        "receipt_digest": "",
+        "source_kinase_catalog": {"content_digest": "sha256:" + "d" * 64},
+        "edges": [
+            {
+                "kinase_id": "CDK1",
+                "feature_id": feature_id,
+                "edge_weight": 0.42,
+                "sign": 1,
+                "source_edge_ids": ["table5d:1"],
+                "source_site_labels": ["GENE-S1s"],
+                "known_substrate_fraction": 1.0,
+                "mean_svm_probability": 0.8,
+                "mean_spearman_rho": 0.525,
+            }
+        ],
+    }
+    profile = cast("dict[str, object]", kinase_map["algorithm_profile"])
+    kinase_map["algorithm_profile_digest"] = "sha256:" + projection.hashlib.sha256(
+        projection._canonical_bytes(profile)
+    ).hexdigest()
+    digest_payload = {key: value for key, value in kinase_map.items() if key != "receipt_digest"}
+    kinase_map["receipt_digest"] = "sha256:" + projection.hashlib.sha256(
+        projection._canonical_bytes(digest_payload)
+    ).hexdigest()
+    result = projection._build_projection(
+        complex_receipt,
+        pathway_receipt,
+        complex_transition_source_catalog().complexes,
+        complex_receipt_digest=complex_digest,
+        pathway_receipt_digest=pathway_digest,
+        kinase_edge_map=kinase_map,
+        kinase_edge_map_digest="sha256:" + "e" * 64,
+    )
+    topology = cast("dict[str, object]", result["topology"])
+    edges = cast("list[dict[str, object]]", topology["edges"])
+    kinase_edges = [edge for edge in edges if edge["kind"] == "kinase_substrate"]
+    assert len(kinase_edges) == 1
+    assert kinase_edges[0]["weight"] == 0.42
+    assert cast("dict[str, int]", result["edge_family_counts"])["kinase_substrate"] == 1
+    semantics = cast("dict[str, object]", result["semantics"])
+    assert "kinase_substrate" in cast("list[str]", semantics["numerical_edge_families"])
+    assert semantics["unsupported_relations"] == []
+
+
+def test_projection_rejects_forged_kinase_map_digest() -> None:
+    complex_receipt, pathway_receipt = _receipts()
+    kinase_map = {
+        "schema_version": projection.KINASE_MAP_MODEL_ID,
+        "source_manifest_digest": complex_receipt["source_manifest_digest"],
+        "factor_receipt_digest": "sha256:" + "a" * 64,
+        "algorithm_profile": {"model_id": projection.KINASE_MAP_MODEL_ID},
+        "algorithm_profile_digest": "sha256:" + "0" * 64,
+        "receipt_digest": "sha256:" + "1" * 64,
+        "edges": [],
+    }
+    with pytest.raises(ValueError, match="algorithm profile digest"):
+        projection._build_projection(
+            complex_receipt,
+            pathway_receipt,
+            complex_transition_source_catalog().complexes,
+            complex_receipt_digest="sha256:" + "a" * 64,
+            kinase_edge_map=kinase_map,
+        )

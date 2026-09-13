@@ -1,11 +1,13 @@
-# ruff: noqa: C901, E501, PLR0912, PLR0913, T201, TRY003, TRY004
+# ruff: noqa: C901, E501, PLR0912, PLR0913, PLR0915, T201, TRY003, TRY004
 """Build a bounded, source-bound evidence-graph projection for matched GBM.
 
 The projection joins exact Reactome complex memberships to the fitted protein
 and protein-adjusted phosphosite receipts.  Protein-to-complex and
-complex-to-pathway edges are the only numerical families.  Phosphosite-to-
-parent links are retained as annotation metadata, never converted into a
-numerical edge; no kinase-substrate source is present in the matched capture.
+complex-to-pathway edges are the only numerical families by default.
+Phosphosite-to-parent links are retained as annotation metadata, never
+converted into a numerical edge by default.  An explicit caller-side SPHINKS
+crosswalk may add experimental kinase-substrate edges after exact source-site
+validation.
 The output is a topology/provenance receipt and contains no patient values.
 """
 
@@ -31,6 +33,7 @@ from tools.capture_cptac_gbm_matched_source_manifest import _canonical_bytes
 
 MODEL_ID: Final = "cptac-gbm-evidence-graph-projection/1.0.0"
 BOOTSTRAP_MODEL_ID: Final = "cptac-gbm-source-factor-bootstrap/1.0.0"
+KINASE_MAP_MODEL_ID: Final = "cptac-gbm-kinase-edge-map/1.0.0"
 MAX_NODES: Final = 256
 MAX_EDGES: Final = 2_048
 PROTEIN_EDGE_WEIGHT: Final = 0.90
@@ -40,6 +43,8 @@ ROBUST_SCALE_FLOOR: Final = 0.05
 OBJECTIVE_TOLERANCE: Final = 1.0e-10
 MIN_COSINE_SUPPORT: Final = 2
 NORM_EPSILON: Final = 1.0e-12
+MIN_GRAPH_EDGE_WEIGHT: Final = 0.01
+MAX_GRAPH_EDGE_WEIGHT: Final = 10.0
 
 
 def _digest_bytes(path: Path) -> str:
@@ -150,6 +155,77 @@ def _bootstrap_intervals(
         return indexed
 
     return index("complexes", "complex_id"), index("pathways", "pathway_id")
+
+
+def _kinase_edge_records(
+    receipt: dict[str, object],
+    *,
+    source_manifest: str,
+    complex_receipt_digest: str,
+    site_ids: set[str],
+) -> list[dict[str, object]]:
+    """Validate an optional exact SPHINKS-to-matched-site crosswalk."""
+
+    if receipt.get("schema_version") != KINASE_MAP_MODEL_ID:
+        raise ValueError("kinase edge map has an unsupported schema version")
+    if receipt.get("source_manifest_digest") != source_manifest:
+        raise ValueError("kinase edge map does not share the exact source manifest digest")
+    if receipt.get("factor_receipt_digest") != complex_receipt_digest:
+        raise ValueError("kinase edge map factor digest does not match")
+    profile = receipt.get("algorithm_profile")
+    profile_digest = receipt.get("algorithm_profile_digest")
+    if not isinstance(profile, dict) or not isinstance(profile_digest, str):
+        raise ValueError("kinase edge map is missing its algorithm profile digest")
+    expected_profile_digest = "sha256:" + hashlib.sha256(_canonical_bytes(profile)).hexdigest()
+    if profile_digest != expected_profile_digest:
+        raise ValueError("kinase edge map algorithm profile digest does not match")
+    receipt_digest = receipt.get("receipt_digest")
+    digest_payload = {key: value for key, value in receipt.items() if key != "receipt_digest"}
+    expected_receipt_digest = "sha256:" + hashlib.sha256(_canonical_bytes(digest_payload)).hexdigest()
+    if receipt_digest != expected_receipt_digest:
+        raise ValueError("kinase edge map receipt digest does not match")
+    values = receipt.get("edges")
+    if not isinstance(values, list):
+        raise ValueError("kinase edge map is missing edges")
+    records: list[dict[str, object]] = []
+    seen: set[tuple[str, str]] = set()
+    for value in values:
+        if not isinstance(value, dict):
+            raise ValueError("kinase edge map contains a non-object edge")
+        item = cast("dict[str, object]", value)
+        kinase_id = item.get("kinase_id")
+        feature_id = item.get("feature_id")
+        weight = item.get("edge_weight")
+        sign = item.get("sign")
+        if not isinstance(kinase_id, str) or not isinstance(feature_id, str):
+            raise ValueError("kinase edge map edge lacks kinase or phosphosite ID")
+        if (kinase_id, feature_id) in seen:
+            raise ValueError("kinase edge map contains duplicate kinase-site relations")
+        seen.add((kinase_id, feature_id))
+        if feature_id not in site_ids:
+            raise ValueError("kinase edge map references an unprojected phosphosite")
+        if isinstance(weight, bool) or not isinstance(weight, (int, float)) or not np.isfinite(weight):
+            raise ValueError("kinase edge map contains a non-finite edge weight")
+        if (
+            float(weight) < MIN_GRAPH_EDGE_WEIGHT
+            or float(weight) > MAX_GRAPH_EDGE_WEIGHT
+            or sign != 1
+        ):
+            raise ValueError("kinase edge map edge weight or sign is outside graph bounds")
+        records.append(
+            {
+                "kinase_id": kinase_id,
+                "feature_id": feature_id,
+                "edge_weight": round(float(weight), 8),
+                "sign": 1,
+                "source_edge_ids": item.get("source_edge_ids", []),
+                "source_site_labels": item.get("source_site_labels", []),
+                "known_substrate_fraction": item.get("known_substrate_fraction"),
+                "mean_svm_probability": item.get("mean_svm_probability"),
+                "mean_spearman_rho": item.get("mean_spearman_rho"),
+            }
+        )
+    return sorted(records, key=lambda item: (str(item["kinase_id"]), str(item["feature_id"])))
 
 
 def _site_projection(
@@ -386,6 +462,8 @@ def _build_projection(
     pathway_receipt_digest: str = "sha256:" + "0" * 64,
     bootstrap_receipt: dict[str, object] | None = None,
     bootstrap_receipt_digest: str = "sha256:" + "0" * 64,
+    kinase_edge_map: dict[str, object] | None = None,
+    kinase_edge_map_digest: str = "sha256:" + "0" * 64,
 ) -> dict[str, object]:
     source_manifest, source_catalog = _validate_receipt_pair(complex_receipt, pathway_receipt)
     complex_factors = _factor_by_complex(complex_receipt)
@@ -404,6 +482,20 @@ def _build_projection(
     source_by_id = {binding.reactome_id: binding for binding in bindings}
     if set(complex_factors) - set(source_by_id):
         raise ValueError("complex receipt contains a complex outside the source catalog")
+    site_projection = _site_projection(bindings, complex_factors)
+    projected_site_ids = {
+        cast("str", item["feature_id"]) for item in site_projection
+    }
+    kinase_records = (
+        _kinase_edge_records(
+            kinase_edge_map,
+            source_manifest=source_manifest,
+            complex_receipt_digest=complex_receipt_digest,
+            site_ids=projected_site_ids,
+        )
+        if kinase_edge_map is not None
+        else []
+    )
     nodes: dict[str, dict[str, object]] = {}
     edges: dict[str, dict[str, object]] = {}
     for binding in bindings:
@@ -471,30 +563,69 @@ def _build_projection(
                     "source_semantics": "exact_reactome_membership; not essentiality",
                 },
             )
-    if len(nodes) > MAX_NODES or len(edges) > MAX_EDGES:
-        raise ValueError("source topology projection exceeds bounded graph limits")
-    site_projection = _site_projection(bindings, complex_factors)
     edge_family_counts = {
         "protein_to_complex": sum(item["edge_family"] == "protein_to_complex" for item in edges.values()),
         "complex_to_pathway": sum(item["edge_family"] == "complex_to_pathway" for item in edges.values()),
     }
+    if kinase_records:
+        for record in kinase_records:
+            kinase_id = cast("str", record["kinase_id"])
+            feature_id = cast("str", record["feature_id"])
+            kinase_node = _node_id("kinase", kinase_id)
+            site_node = _node_id("phosphosite", feature_id)
+            nodes.setdefault(
+                kinase_node,
+                {"node_id": kinase_node, "kind": "kinase", "display_name": kinase_id},
+            )
+            nodes.setdefault(
+                site_node,
+                {"node_id": site_node, "kind": "phosphosite", "display_name": feature_id},
+            )
+            edge_id = _edge_id(kinase_node, site_node, "kinase_substrate")
+            edges[edge_id] = {
+                "edge_id": edge_id,
+                "source_id": kinase_node,
+                "target_id": site_node,
+                "kind": "kinase_substrate",
+                "sign": 1,
+                "weight": record["edge_weight"],
+                "essential": False,
+                "edge_family": "kinase_substrate",
+                "source_semantics": "SPHINKS exact gene/residue crosswalk; experimental substrate concordance",
+                "source_edge_ids": record["source_edge_ids"],
+                "source_site_labels": record["source_site_labels"],
+                "known_substrate_fraction": record["known_substrate_fraction"],
+                "mean_svm_probability": record["mean_svm_probability"],
+                "mean_spearman_rho": record["mean_spearman_rho"],
+            }
+        edge_family_counts["kinase_substrate"] = len(kinase_records)
+    if len(nodes) > MAX_NODES or len(edges) > MAX_EDGES:
+        raise ValueError("source topology projection exceeds bounded graph limits")
     topology = {
         "nodes": sorted(nodes.values(), key=lambda item: cast("str", item["node_id"])),
         "edges": sorted(edges.values(), key=lambda item: cast("str", item["edge_id"])),
     }
     topology_digest = "sha256:" + hashlib.sha256(_canonical_bytes(topology)).hexdigest()
+    ablation_families = ["protein_to_complex", "complex_to_pathway"]
+    if kinase_records:
+        ablation_families.append("kinase_substrate")
     ablations = [
         {
             "edge_family": family,
             "omitted_edge_count": edge_family_counts[family],
             "interpretation": (
-                "remove numerical source-to-complex concordance family"
+                "remove experimental kinase-substrate source family"
+                if family == "kinase_substrate"
+                else "remove numerical source-to-complex concordance family"
                 if family == "protein_to_complex"
                 else "remove numerical complex-to-pathway concordance family"
             ),
         }
-        for family in ("protein_to_complex", "complex_to_pathway")
+        for family in ablation_families
     ]
+    numerical_edge_families = ["protein_to_complex", "complex_to_pathway"]
+    if kinase_records:
+        numerical_edge_families.append("kinase_substrate")
     profile = {
         "model_id": MODEL_ID,
         "protein_edge_weight": PROTEIN_EDGE_WEIGHT,
@@ -502,7 +633,12 @@ def _build_projection(
         "max_nodes": MAX_NODES,
         "max_edges": MAX_EDGES,
         "site_parent_semantics": "annotation_only",
-        "kinase_substrate_source": "absent; no kinase edges projected",
+        "kinase_substrate_source": (
+            "SPHINKS exact gene/residue crosswalk; experimental edges opt-in"
+            if kinase_records
+            else "absent; no kinase edges projected"
+        ),
+        "kinase_edge_map_digest": kinase_edge_map_digest,
     }
     diagnostics = _edge_family_diagnostics(bindings, complex_factors, pathway_factors)
     diagnostics["protein_to_phosphosite"] = _cross_modal_diagnostics(
@@ -525,10 +661,14 @@ def _build_projection(
         "ablations": ablations,
         "phosphosite_projection": site_projection,
         "semantics": {
-            "numerical_edge_families": ["protein_to_complex", "complex_to_pathway"],
+            "numerical_edge_families": numerical_edge_families,
             "annotation_only_relations": ["phosphosite_site_of_parent_protein"],
-            "unsupported_relations": ["kinase_substrate"],
-            "claim_ceiling": "source-cohort concordance topology; not pathway activity, occupancy, kinase activity, or causality",
+            "unsupported_relations": [] if kinase_records else ["kinase_substrate"],
+            "claim_ceiling": (
+                "source-cohort concordance topology with experimental kinase-site edges; not biochemical causality"
+                if kinase_records
+                else "source-cohort concordance topology; not pathway activity, occupancy, kinase activity, or causality"
+            ),
         },
         "factor_support": {
             "complexes": len(complex_factors),
@@ -544,7 +684,11 @@ def _build_projection(
             "The six-root topology is the exact closure of the admitted 28-complex panel, not the ten-root design target.",
             "Reactome membership is not essentiality, assembly, activity, flux, or causal regulation.",
             "Phosphosite parent links carry provenance only; no occupancy or localization confidence is inferred.",
-            "No kinase-substrate source was captured, so kinase nodes and feedback edges are absent.",
+            (
+                "SPHINKS kinase-site edges are experimental source concordance and require nested evaluation before reliability tuning."
+                if kinase_records
+                else "No kinase-substrate source was captured, so kinase nodes and feedback edges are absent."
+            ),
         ],
     }
     if bootstrap_receipt is not None:
@@ -554,6 +698,15 @@ def _build_projection(
             "sampling_unit": "exact manifest case group",
             "interval_semantics": "loading cosine to full-source fit; source sensitivity only",
         }
+    if kinase_records:
+        kinase_source_catalog = kinase_edge_map.get("source_kinase_catalog") if kinase_edge_map is not None else None
+        result["kinase_edge_map"] = {
+            "receipt_digest": kinase_edge_map_digest,
+            "edge_count": len(kinase_records),
+            "mapped_feature_count": len({str(item["feature_id"]) for item in kinase_records}),
+            "kinase_count": len({str(item["kinase_id"]) for item in kinase_records}),
+            "source_catalog": kinase_source_catalog,
+        }
     return result
 
 
@@ -561,12 +714,16 @@ def build_projection(
     complex_receipt_path: Path,
     pathway_receipt_path: Path,
     bootstrap_receipt_path: Path | None = None,
+    kinase_edge_map_path: Path | None = None,
 ) -> dict[str, object]:
     complex_receipt = _receipt(complex_receipt_path)
     pathway_receipt = _receipt(pathway_receipt_path)
     source = complex_transition_source_catalog()
     bootstrap_receipt = (
         _receipt(bootstrap_receipt_path) if bootstrap_receipt_path is not None else None
+    )
+    kinase_edge_map = (
+        _receipt(kinase_edge_map_path) if kinase_edge_map_path is not None else None
     )
     return _build_projection(
         complex_receipt,
@@ -580,6 +737,12 @@ def build_projection(
             if bootstrap_receipt_path is not None
             else "sha256:" + "0" * 64
         ),
+        kinase_edge_map=kinase_edge_map,
+        kinase_edge_map_digest=(
+            _digest_bytes(kinase_edge_map_path)
+            if kinase_edge_map_path is not None
+            else "sha256:" + "0" * 64
+        ),
     )
 
 
@@ -588,9 +751,15 @@ def main() -> int:
     parser.add_argument("--complex-receipt", type=Path, required=True)
     parser.add_argument("--pathway-receipt", type=Path, required=True)
     parser.add_argument("--bootstrap-receipt", type=Path, default=None)
+    parser.add_argument("--kinase-edge-map", type=Path, default=None)
     parser.add_argument("destination", type=Path)
     args = parser.parse_args()
-    payload = build_projection(args.complex_receipt, args.pathway_receipt, args.bootstrap_receipt)
+    payload = build_projection(
+        args.complex_receipt,
+        args.pathway_receipt,
+        args.bootstrap_receipt,
+        args.kinase_edge_map,
+    )
     args.destination.write_bytes(_canonical_bytes(payload))
     topology = cast("dict[str, object]", payload["topology"])
     print(

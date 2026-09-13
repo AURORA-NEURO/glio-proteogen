@@ -319,6 +319,20 @@ duplicate factor IDs, unresolved complexes, and graphs over the 256-node or
 2,048-edge request bounds. Kinase-substrate edges are recorded as unsupported
 because no matched source substrate catalog was captured.
 
+`tools/build_cptac_gbm_kinase_edge_map.py` now provides an explicit opt-in
+crosswalk for the mapped factor sites. It joins the RefSeq-plus-residue CPTAC
+IDs to the licensed SPHINKS Table 5d HGNC-plus-residue labels, rejects
+ambiguous keys, and collapses repeated source rows by mean SVM probability and
+Spearman rho. The locked private run maps 32 selected phosphosite features to
+75 kinase-site relations across 15 kinases; nine kinases meet the ECGI
+three-substrate support gate. The resulting receipt carries source/profile and
+canonical digests, emits no abundance values, and uses a fixed
+`max(0.01, probability * max(rho, 0.05))` edge weight pending nested
+evaluation. Supplying that receipt to the projection adds 15 kinase nodes, 23
+site nodes, and 75 experimental `kinase_substrate` edges (218 nodes/267 edges
+total); the default projection remains kinase-free and fails closed on forged
+or unresolved mappings.
+
 The projection also reports robust edge-family diagnostics without applying
 unvalidated weight changes. Across 23 jointly observed complexes, the robust
 protein member-loading mass centers at `0.93905268`, complex-to-pathway shared

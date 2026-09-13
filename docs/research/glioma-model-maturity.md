@@ -1477,6 +1477,13 @@ inventory. See
    robust gene-collapsed cross-modal diagnostic centers at cosine 0.8203 across
    23 complexes and 0.8221 across five pathways; it is metadata-only and does
    not create numerical edges or occupancy claims. The
+   opt-in SPHINKS kinase-site crosswalk now joins exact gene/residue tokens,
+   aggregates repeated source rows, and maps 32 selected sites to 75 relations
+   across 15 kinases; nine pass the three-substrate ECGI support gate. When
+   supplied, the projection adds those digest-bound experimental edges and
+   remains explicit about its fixed source-reliability weighting and nested
+   evaluation requirement. The default projection still records kinase edges
+   as unsupported, so no source mapping is silently enabled.
    deterministic synthetic oracle now recovers 6/6 signed latent directions
    under 10% missingness and two gross outliers (cosine 0.9756) and recovers a
    protein-adjustment slope within 0.014 absolute error on replay. This is an
