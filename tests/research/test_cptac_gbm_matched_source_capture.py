@@ -95,6 +95,15 @@ def test_parse_sample_map_rejects_duplicate_aliquots() -> None:
         capture.parse_sample_map(payload)
 
 
+def test_parse_sample_map_rejects_truncated_or_misplaced_pool_rows() -> None:
+    truncated = _sample_map("P").replace(b"CPT000000010\n", b"\n", 1)
+    with pytest.raises(ValueError, match="110"):
+        capture.parse_sample_map(truncated)
+    misplaced = _sample_map("P").replace(b"POOL\tCPT000000001", b"CPT000000000\tPOOL", 1)
+    with pytest.raises(ValueError, match="reference"):
+        capture.parse_sample_map(misplaced)
+
+
 def test_matched_biospecimens_require_identical_case_metadata() -> None:
     rows = _biospecimen_rows()
     rows["PDC000205"][1]["case_id"] = "different"

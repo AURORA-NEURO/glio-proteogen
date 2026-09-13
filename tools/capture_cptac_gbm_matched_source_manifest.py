@@ -33,6 +33,19 @@ SAMPLE_MAP_FILES: Final = {
     "PDC000204": "CPTAC3_Glioblastoma_Multiforme_Proteome.sample.txt",
     "PDC000205": "CPTAC3_Glioblastoma_Multiforme_Phosphoproteome.sample.txt",
 }
+TMT_CHANNELS: Final = (
+    "126C",
+    "127N",
+    "127C",
+    "128N",
+    "128C",
+    "129N",
+    "129C",
+    "130N",
+    "130C",
+    "131N",
+    "131C",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -224,19 +237,16 @@ def parse_sample_map(payload: bytes) -> tuple[list[str], dict[str, object]]:
     }
     if not required.issubset(rows[0]):
         raise ValueError("sample map is missing one or more TMT11 columns")
-    channels = (
-        "126C",
-        "127N",
-        "127C",
-        "128N",
-        "128C",
-        "129N",
-        "129C",
-        "130N",
-        "130C",
-        "131N",
-        "131C",
-    )
+    channels = TMT_CHANNELS
+    for row in rows:
+        if any(row.get(channel) is None for channel in channels):
+            raise ValueError("sample map contains a truncated TMT11 row")
+        if str(row.get("126C", "")).strip() != "POOL":
+            raise ValueError("sample map must use POOL as the 126C reference channel")
+        if any(
+            str(row.get(channel, "")).strip() == "POOL" for channel in channels if channel != "126C"
+        ):
+            raise ValueError("sample map contains POOL in a non-reference channel")
     labels = [
         str(row[channel]).strip()
         for row in rows
@@ -245,6 +255,8 @@ def parse_sample_map(payload: bytes) -> tuple[list[str], dict[str, object]]:
     ]
     if len(labels) != len(set(labels)):
         raise ValueError("sample map contains duplicate non-pool aliquot labels")
+    if len(labels) != 110:
+        raise ValueError("sample map must contain exactly 110 non-pool aliquot labels")
     return labels, {
         "rows": len(rows),
         "analytical_samples": len({str(row["AnalyticalSample"]) for row in rows}),
