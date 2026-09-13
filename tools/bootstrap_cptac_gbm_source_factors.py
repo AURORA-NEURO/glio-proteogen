@@ -1,4 +1,4 @@
-# ruff: noqa: C901, E501, PLR0911, PLR0913, PLR2004, T201, TRY003, TRY004
+# ruff: noqa: C901, E501, PLR0911, PLR0912, PLR0913, PLR2004, T201, TRY003, TRY004
 """Bootstrap caller-side matched GBM factor coordinates.
 
 This tool refits only the selected source factor features under deterministic
@@ -249,6 +249,12 @@ def bootstrap_factors(
     manifest_digest = str(complex_receipt.get("source_manifest_digest", ""))
     if manifest_digest != pathway_receipt.get("source_manifest_digest"):
         raise ValueError("factor receipts do not share a source manifest digest")
+    if manifest_digest != _digest_file(manifest_path):
+        raise ValueError("factor receipt manifest digest does not match manifest bytes")
+    source = complex_transition_source_catalog()
+    for receipt in (complex_receipt, pathway_receipt):
+        if receipt.get("source_complex_catalog_digest") != source.content_digest:
+            raise ValueError("factor receipt complex catalog digest does not match source catalog")
     complex_factors = _factor_map(complex_receipt, "factors")
     pathway_factors = _factor_map(pathway_receipt, "pathways")
     labels, _ = parse_sample_map(paths[SAMPLE_MAP_FILES["PDC000204"]].read_bytes())
@@ -266,7 +272,6 @@ def bootstrap_factors(
     }
     gene_index = {gene: index for index, gene in enumerate(genes)}
     groups = _case_groups(manifest_path, labels)
-    source = complex_transition_source_catalog()
     binding_by_id = {binding.reactome_id: binding for binding in source.complexes}
     complex_protein_values: dict[str, list[float]] = {identifier: [] for identifier in complex_factors}
     complex_site_values: dict[str, list[float]] = {identifier: [] for identifier in complex_factors}
@@ -280,6 +285,7 @@ def bootstrap_factors(
         "replicates": replicates,
     }
     base_seed = int(hashlib.sha256(_canonical_bytes(seed_material)).hexdigest()[:16], 16)
+    seed_material_digest = "sha256:" + hashlib.sha256(_canonical_bytes(seed_material)).hexdigest()
     for replicate in range(replicates):
         rng = np.random.default_rng(base_seed + replicate)
         chosen = rng.integers(0, len(groups), size=len(groups))
@@ -355,6 +361,12 @@ def bootstrap_factors(
         "seed_policy": "sha256(source manifest, factor receipt digests, replicate index)",
         "interval": "deterministic 5th/50th/95th percentile of loading cosine to full-source fit",
         "parent_adjustment": "Theil-Sen-start Huber IRLS with missing-aware paired cells",
+        "numpy_version": np.__version__,
+        "lower_quantile": LOWER_QUANTILE,
+        "upper_quantile": UPPER_QUANTILE,
+        "min_successful_replicates": MIN_SUCCESSFUL_REPLICATES,
+        "min_cosine_support": MIN_COSINE_SUPPORT,
+        "max_replicates": MAX_BOOTSTRAPS,
         "raw_values_emitted": False,
         "resample_indices_emitted": False,
     }
@@ -363,6 +375,8 @@ def bootstrap_factors(
         "algorithm_profile": profile,
         "algorithm_profile_digest": "sha256:" + hashlib.sha256(_canonical_bytes(profile)).hexdigest(),
         "source_manifest_digest": manifest_digest,
+        "source_complex_catalog_digest": source.content_digest,
+        "seed_material_digest": seed_material_digest,
         "factor_receipts": {
             "complex": _digest_file(complex_receipt_path),
             "pathway": _digest_file(pathway_receipt_path),

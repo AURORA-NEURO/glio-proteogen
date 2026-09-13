@@ -354,7 +354,7 @@ it into a negative observation or discarding an otherwise supported factor.
 
 The locked 64-replicate run produced intervals for 27/28 complexes and 5/6
 pathways in the protein modality, and 23/28 complexes and 5/6 pathways in the
-phosphosite modality. The receipt is 9.1 KiB and binds the source manifest,
+phosphosite modality. The receipt is 9.4 KiB and binds the source manifest,
 both fitted-factor receipts, source-file digests, profile constants, and the
 replicate count. Case labels, raw matrix values, and resample indices are never
 emitted. These are source-cohort parameter-sensitivity intervals only; they do

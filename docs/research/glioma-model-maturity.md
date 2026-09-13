@@ -1478,7 +1478,7 @@ inventory. See
    intervals for 27/28 complexes and 5/6 pathways in protein space, plus 23/28
    complexes and 5/6 pathways in protein-adjusted phosphosite space. Sparse
    site failures abstain per replicate and never become negative evidence; the
-   9.1 KiB receipt contains only aggregate intervals and immutable source/factor
+   9.4 KiB receipt contains only aggregate intervals and immutable source/factor
    digests, not labels, values, or resample indices. These intervals quantify
    source-cohort parameter sensitivity and do not satisfy the still-pending
    nested held-out uncertainty gate. The
