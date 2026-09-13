@@ -68,6 +68,38 @@ function compositionRequest(sampleId: string): Record<string, unknown> {
   };
 }
 
+function compositionResult(sampleId: string): Record<string, unknown> {
+  return {
+    result_id: "composition.result",
+    profile_id: "gbm-rna-composition/0.1.0",
+    profile_digest: DIGEST,
+    request_digest: DIGEST,
+    result_digest: DIGEST,
+    sample_id: sampleId,
+    feature_ids: ["EGFR", "PTPRC"],
+    support: "limited",
+    known_weights: [{ reference_id: "myeloid", rna_weight: 0.6, rank: 1 }],
+    unknown_gene_mass: [0.1, 0.1],
+    fitted_probabilities: [0.6, 0.4],
+    unknown_mass: 0.2,
+    unknown_mass_lower_bound: null,
+    unknown_mass_upper_bound: null,
+    bootstrap_replicates_used: 0,
+    weight_intervals: [],
+    objective: 1.2,
+    initial_objective: 2.0,
+    iterations: 4,
+    kkt_residual: 0.0001,
+    signature_condition_number: 2.5,
+    objective_trace: [2.0, 1.2],
+    trace_digest: DIGEST,
+    ood: null,
+    abstention_reason: null,
+    source_digests: [DIGEST],
+    limitations: ["synthetic composition child"],
+  };
+}
+
 function profile(): Record<string, unknown> {
   return {
     profile_id: GBM_MICROENVIRONMENT_GRAPH_PROFILE_ID,
@@ -151,6 +183,11 @@ describe("GBM microenvironment graph UI contract", () => {
       ...request,
       composition_request: compositionRequest("other-sample"),
     }).join("\n")).toContain("composition_request.sample_id");
+    expect(microenvironmentGraphRequestStats({ profile_id: GBM_MICROENVIRONMENT_GRAPH_PROFILE_ID, sample_id: "sample-1" })).toEqual({ observations: 0, active: 0, programs: 14 });
+    expect(validateMicroenvironmentGraphRequest({
+      ...request,
+      composition_request: 42,
+    }).join("\n")).toContain("composition_request must be an object");
   });
 
   it("rejects a mismatched nested sample and fails closed on profile policy", () => {
@@ -224,5 +261,54 @@ describe("GBM microenvironment graph UI contract", () => {
       message: "bridge replay matches",
     };
     expect(validateMicroenvironmentGraphVerification(verification, result, request, bridgeProfile)).toEqual([]);
+  });
+
+  it("preserves and validates the nested composition receipt and its abstention bindings", () => {
+    const request = {
+      profile_id: GBM_MICROENVIRONMENT_GRAPH_PROFILE_ID,
+      sample_id: "sample-1",
+      source_request: sourceRequest(),
+      composition_request: compositionRequest("sample-1"),
+    };
+    const bridgeProfile = { ...profile(), graph_profile_digest: algorithmProfile.profile_digest };
+    const result = {
+      profile_id: GBM_MICROENVIRONMENT_GRAPH_PROFILE_ID,
+      profile_digest: bridgeProfile.profile_digest,
+      request_digest: DIGEST,
+      result_digest: DIGEST,
+      sample_id: "sample-1",
+      source_result: neftelAnalysisResult,
+      graph_request: demoRequest,
+      graph_result: { ...analysisResult, profile_digest: algorithmProfile.profile_digest },
+      composition_result: compositionResult("sample-1"),
+      limitations: ["synthetic bridge evidence"],
+      research_use_only: true,
+      non_prescriptive: true,
+    };
+    expect(validateMicroenvironmentGraphResult(result, request, bridgeProfile)).toEqual([]);
+    expect(normalizeMicroenvironmentGraphResult(result).compositionResult?.sample_id).toBe("sample-1");
+    expect(validateMicroenvironmentGraphResult({ ...result, composition_result: null }, request, bridgeProfile).join("\n")).toContain("composition_result is required");
+    expect(validateMicroenvironmentGraphResult({ ...result, composition_result: compositionResult("sample-1") }, undefined, bridgeProfile).join("\n")).toContain("requires request.composition_request");
+    expect(validateMicroenvironmentGraphResult({ ...result, composition_result: 7 }, request, bridgeProfile).join("\n")).toContain("must be an object");
+    expect(validateMicroenvironmentGraphResult({ ...result, composition_result: { ...compositionResult("sample-1"), profile_digest: `sha256:${"b".repeat(64)}` } }, request, bridgeProfile).join("\n")).toContain("does not match profile.composition_source_profile_digest");
+  });
+
+  it("fails closed when a verified replay omits a nested composition match", () => {
+    const request = { profile_id: GBM_MICROENVIRONMENT_GRAPH_PROFILE_ID, sample_id: "sample-1", source_request: sourceRequest() };
+    const result = { sample_id: "sample-1", profile_digest: DIGEST };
+    const verification = {
+      verified: true,
+      request_digest_match: true,
+      source_replay_match: true,
+      axis_replay_match: true,
+      composition_replay_match: false,
+      graph_replay_match: true,
+      result_digest_match: true,
+      semantic_match: true,
+      recomputed_request_digest: DIGEST,
+      recomputed_result_digest: DIGEST,
+      message: "nested composition replay mismatch",
+    };
+    expect(validateMicroenvironmentGraphVerification(verification, result, request, profile()).join("\n")).toContain("requires every replay check");
   });
 });
