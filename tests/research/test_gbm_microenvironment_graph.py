@@ -69,6 +69,15 @@ def test_profile_binds_both_child_engines() -> None:
     )
     assert profile.missing_families_are_not_negative is True
     assert profile.cell_fraction_claim_permitted is False
+    assert profile.composition_source_engine == "gbm-rna-composition/0.1.0"
+    assert profile.composition_source_profile_digest.startswith("sha256:")
+    assert (
+        profile.composition_projection_policy
+        == "rna_composition_centered_log_ratio_to_all_channels_v1"
+    )
+    assert profile.composition_standard_error_floor == 0.25
+    assert profile.composition_standard_error_cap == 20.0
+    assert profile.composition_quality_weight == 0.75
 
 
 def test_profile_declares_lower_weight_molecular_context_edges() -> None:
@@ -105,16 +114,13 @@ def test_synthetic_bridge_projects_supported_mes_and_opc_evidence() -> None:
     }
     assert source_by_family["mesenchymal_like"].location is not None
     assert source_by_family["oligodendrocyte_progenitor_like"].location is not None
-    graph_by_node = {
-        str(item.observation_id): item for item in result.graph_request.observations
-    }
+    graph_by_node = {str(item.observation_id): item for item in result.graph_request.observations}
     assert (
         graph_by_node["observation.gbm_microenvironment.mesenchymal"].state
         is EvidenceState.OBSERVED
     )
     assert (
-        graph_by_node["observation.gbm_microenvironment.opc_like"].state
-        is EvidenceState.OBSERVED
+        graph_by_node["observation.gbm_microenvironment.opc_like"].state is EvidenceState.OBSERVED
     )
     assert (
         graph_by_node["observation.gbm_microenvironment.mesenchymal.rank"].state
@@ -126,21 +132,34 @@ def test_synthetic_bridge_projects_supported_mes_and_opc_evidence() -> None:
     )
     node_by_id = {str(item.node_id): item for item in result.graph_result.node_states}
     assert (
-        node_by_id["pathway.gbm_microenvironment.mesenchymal"].classification.value
-        == "activated"
+        node_by_id["pathway.gbm_microenvironment.mesenchymal"].classification.value == "activated"
     )
-    assert (
-        node_by_id["pathway.gbm_microenvironment.opc_like"].classification.value
-        == "suppressed"
-    )
+    assert node_by_id["pathway.gbm_microenvironment.opc_like"].classification.value == "suppressed"
     assert result.axis_result is not None
+    assert result.composition_result is not None
+    assert result.composition_result.support == "limited"
+    composition_observations = {
+        str(item.observation_id): item
+        for item in result.graph_request.observations
+        if ".composition." in str(item.observation_id)
+    }
+    assert set(composition_observations) == {
+        "observation.gbm_microenvironment.composition.myeloid",
+        "observation.gbm_microenvironment.composition.t_cell",
+        "observation.gbm_microenvironment.composition.endothelial",
+    }
+    assert all(
+        item.modality is EvidenceModality.TRANSCRIPTOMICS
+        and item.standard_error is not None
+        and 0.25 <= item.standard_error <= 20.0
+        for item in composition_observations.values()
+    )
     assert (
         graph_by_node["observation.gbm_microenvironment.astrocyte_like"].state
         is EvidenceState.OBSERVED
     )
     assert (
-        graph_by_node["observation.gbm_microenvironment.cell_cycle"].state
-        is EvidenceState.OBSERVED
+        graph_by_node["observation.gbm_microenvironment.cell_cycle"].state is EvidenceState.OBSERVED
     )
     axis_ids = {str(item.signature_id) for item in result.axis_result.signatures}
     assert {"WINTER_HYPOXIA_UP", "VERHAAK_GLIOBLASTOMA_MESENCHYMAL"}.issubset(axis_ids)
@@ -159,8 +178,7 @@ def test_synthetic_bridge_projects_supported_mes_and_opc_evidence() -> None:
         "observation.gbm_microenvironment.axis.egfr_targets",
     }
     assert all(
-        observation.standard_error is not None
-        and observation.standard_error >= 0.35
+        observation.standard_error is not None and observation.standard_error >= 0.35
         for observation in axis_observations.values()
     )
     assert all(
@@ -182,9 +200,7 @@ def test_present_but_abstained_source_families_remain_unsupported() -> None:
     source = synthetic_demo_request()
     request = MicroenvironmentGraphRequest(sample_id=source.sample_id, source_request=source)
     result = analyze_microenvironment_graph(request)
-    graph_by_node = {
-        str(item.observation_id): item for item in result.graph_request.observations
-    }
+    graph_by_node = {str(item.observation_id): item for item in result.graph_request.observations}
     assert (
         graph_by_node["observation.gbm_microenvironment.mesenchymal"].state
         is EvidenceState.UNSUPPORTED
@@ -194,6 +210,45 @@ def test_present_but_abstained_source_families_remain_unsupported() -> None:
         is EvidenceState.UNSUPPORTED
     )
     assert graph_by_node["observation.gbm_microenvironment.mesenchymal"].standardized_effect is None
+
+
+def test_abstained_composition_is_unsupported_not_negative() -> None:
+    request = synthetic_microenvironment_graph_request()
+    assert request.composition_request is not None
+    composition_request = request.composition_request.model_copy(update={"max_iterations": 1})
+    request = request.model_copy(update={"composition_request": composition_request})
+    result = analyze_microenvironment_graph(request)
+    assert result.composition_result is not None
+    assert result.composition_result.support == "abstained"
+    projected = {
+        str(item.observation_id): item
+        for item in result.graph_request.observations
+        if ".composition." in str(item.observation_id)
+    }
+    assert set(projected) == {
+        "observation.gbm_microenvironment.composition.myeloid",
+        "observation.gbm_microenvironment.composition.t_cell",
+        "observation.gbm_microenvironment.composition.endothelial",
+    }
+    assert all(item.state is EvidenceState.UNSUPPORTED for item in projected.values())
+    assert all(item.standardized_effect is None for item in projected.values())
+
+
+def test_unmapped_composition_reference_is_retained_but_not_projected() -> None:
+    request = synthetic_microenvironment_graph_request()
+    assert request.composition_request is not None
+    references = tuple(
+        item.model_copy(update={"reference_id": f"custom_{index}"})
+        for index, item in enumerate(request.composition_request.references)
+    )
+    composition_request = request.composition_request.model_copy(update={"references": references})
+    request = request.model_copy(update={"composition_request": composition_request})
+    result = analyze_microenvironment_graph(request)
+    assert result.composition_result is not None
+    assert result.graph_request.observations
+    assert not any(
+        ".composition." in str(item.observation_id) for item in result.graph_request.observations
+    )
 
 
 def test_neural_progenitor_family_projects_directly_to_neural_node() -> None:
@@ -223,9 +278,7 @@ def test_neural_progenitor_family_projects_directly_to_neural_node() -> None:
         source_request=source.model_copy(update={"observations": observations}),
     )
     result = analyze_microenvironment_graph(request)
-    projected = {
-        str(item.observation_id): item for item in result.graph_request.observations
-    }
+    projected = {str(item.observation_id): item for item in result.graph_request.observations}
     assert projected["observation.gbm_microenvironment.neural"].state is EvidenceState.OBSERVED
     assert projected["observation.gbm_microenvironment.neural.rank"].state is EvidenceState.OBSERVED
     neural_node = next(
@@ -322,8 +375,7 @@ def test_molecular_axis_evidence_reaches_context_nodes_through_signed_edges() ->
     assert mesenchymal.support.value != "abstained"
     assert hypoxia.support.value != "abstained"
     assert any(
-        driver.driver_id == "edge.gbm_microenvironment.7"
-        for driver in mesenchymal.top_drivers
+        driver.driver_id == "edge.gbm_microenvironment.7" for driver in mesenchymal.top_drivers
     )
 
 
@@ -352,7 +404,18 @@ def test_replay_rejects_axis_presence_mismatch() -> None:
     assert replay.verified is False
 
 
-@pytest.mark.parametrize("forged_field", ["profile", "source", "graph", "axis"])
+def test_replay_rejects_composition_presence_mismatch() -> None:
+    request = synthetic_microenvironment_graph_request()
+    result = analyze_microenvironment_graph(request)
+    forged_request = request.model_copy(update={"composition_request": None})
+    replay = verify_microenvironment_graph_replay(
+        MicroenvironmentGraphReplayRequest(request=forged_request, result=result)
+    )
+    assert replay.composition_replay_match is False
+    assert replay.verified is False
+
+
+@pytest.mark.parametrize("forged_field", ["profile", "source", "graph", "axis", "composition"])
 def test_receipt_rejects_forged_profile_bindings(forged_field: str) -> None:
     result = analyze_microenvironment_graph(synthetic_microenvironment_graph_request())
     forged_digest = sha256_digest(f"forged-{forged_field}")
@@ -364,9 +427,15 @@ def test_receipt_rejects_forged_profile_bindings(forged_field: str) -> None:
     elif forged_field == "graph":
         forged_graph = result.graph_result.model_copy(update={"profile_digest": forged_digest})
         forged = result.model_copy(update={"graph_result": forged_graph})
-    else:
+    elif forged_field == "axis":
         assert result.axis_result is not None
         forged_axis = result.axis_result.model_copy(update={"profile_digest": forged_digest})
         forged = result.model_copy(update={"axis_result": forged_axis})
+    else:
+        assert result.composition_result is not None
+        forged_composition = result.composition_result.model_copy(
+            update={"profile_digest": forged_digest}
+        )
+        forged = result.model_copy(update={"composition_result": forged_composition})
     with pytest.raises(ValueError, match="profile digest does not match"):
         forged.receipt_is_closed()

@@ -68,10 +68,20 @@ other.
 
 The source, optional axis, and graph receipts are nested in the bridge result
 and replayed independently. The profile binds all child profile digests and
-both projection policies. The synthetic demo adds disjoint MES, OPC, and
+all projection policies. An optional `gbm-rna-composition/0.1.0` child request
+executes the count-native Dirichlet--multinomial adaptive-unknown simplex
+solver. Only caller references named `myeloid`, `t_cell`, or `endothelial` are
+projected into the graph. Their simplex weights become centered log-ratios
+against every fitted channel (including unknown mass), with a concentration /
+depth delta-method uncertainty, a profile-bound floor/cap, and
+`transcriptomics` modality provenance. This is compositional relative evidence,
+not a histologic fraction; unrecognized references remain in the child receipt
+and abstained fits become explicit `unsupported` observations. The synthetic
+demo includes this RNA child alongside the Neftel and axis fixtures. It adds
+disjoint MES, OPC, and
 NPC1/NPC2 markers to the AC-like Neftel fixture and includes the versioned
-synthetic GBM axis fixture so the graph surface demonstrates all seven source
-signatures alongside cross-modal secondary evidence; those values are
+synthetic GBM axis and RNA-mixture fixtures so the graph surface demonstrates
+all seven source signatures alongside cross-modal secondary evidence; those values are
 synthetic and contain no patient data.
 
 HTTP operations are mounted under

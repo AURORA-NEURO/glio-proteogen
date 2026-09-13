@@ -11,6 +11,7 @@ families remain missing and never become negative observations.
 
 from __future__ import annotations
 
+import math
 from functools import lru_cache
 from typing import Final, Literal, Self
 
@@ -30,6 +31,14 @@ from glio_proteogen.research.gbm_proteomic_axes import (
 )
 from glio_proteogen.research.gbm_proteomic_axes import (
     synthetic_demo_request as gbm_axes_demo_request,
+)
+from glio_proteogen.research.gbmap_deconvolution import (
+    GbmMixtureRequest,
+    GbmMixtureResult,
+    analyze_gbm_mixture,
+    mixture_profile,
+    synthetic_gbm_mixture_request,
+    verify_gbm_mixture_replay,
 )
 from glio_proteogen.research.neftel_protein_programs import (
     MethodEstimate,
@@ -147,6 +156,16 @@ _AXIS_MAP: Final = (
 _AUXILIARY_STANDARD_ERROR_FLOOR: Final = 0.35
 _SOURCE_LOCATION_STANDARD_ERROR_FLOOR: Final = 0.05
 _SOURCE_RANK_STANDARD_ERROR_FLOOR: Final = 0.10
+_COMPOSITION_STANDARD_ERROR_FLOOR: Final = 0.25
+_COMPOSITION_STANDARD_ERROR_CAP: Final = 20.0
+_COMPOSITION_QUALITY_WEIGHT: Final = 0.75
+_COMPOSITION_EPSILON: Final = 1e-6
+_COMPOSITION_PROJECTION_POLICY: Final = "rna_composition_centered_log_ratio_to_all_channels_v1"
+_COMPOSITION_GRAPH_REFERENCE_MAP: Final = (
+    ("myeloid", "myeloid"),
+    ("t_cell", "t_cell"),
+    ("endothelial", "endothelial"),
+)
 
 
 class MicroenvironmentGraphProfile(FrozenModel):
@@ -159,16 +178,14 @@ class MicroenvironmentGraphProfile(FrozenModel):
         "neftel-bulk-protein-programs/1.0.0"
     )
     graph_engine: Literal["glio-ecgi/1.0.0"] = "glio-ecgi/1.0.0"
-    auxiliary_source_engine: Literal["gbm-proteomic-axes/1.0.0"] = (
-        "gbm-proteomic-axes/1.0.0"
-    )
+    auxiliary_source_engine: Literal["gbm-proteomic-axes/1.0.0"] = "gbm-proteomic-axes/1.0.0"
     auxiliary_source_profile_digest: Sha256Digest
+    composition_source_engine: Literal["gbm-rna-composition/0.1.0"] = "gbm-rna-composition/0.1.0"
+    composition_source_profile_digest: Sha256Digest
     source_profile_digest: Sha256Digest
     graph_profile_digest: Sha256Digest
     topology_digest: Sha256Digest
-    projection_policy: Literal[
-        "bulk_program_location_and_rank_to_signed_gbm_state_graph_v3"
-    ] = (
+    projection_policy: Literal["bulk_program_location_and_rank_to_signed_gbm_state_graph_v3"] = (
         "bulk_program_location_and_rank_to_signed_gbm_state_graph_v3"
     )
     auxiliary_projection_policy: Literal[
@@ -194,6 +211,30 @@ class MicroenvironmentGraphProfile(FrozenModel):
     source_location_quality_limited: float = Field(default=0.5, ge=0.0, le=1.0)
     source_rank_quality_supported: float = Field(default=0.85, ge=0.0, le=1.0)
     source_rank_quality_limited: float = Field(default=0.40, ge=0.0, le=1.0)
+    composition_projection_policy: Literal[
+        "rna_composition_centered_log_ratio_to_all_channels_v1"
+    ] = _COMPOSITION_PROJECTION_POLICY
+    composition_standard_error_floor: float = Field(
+        default=_COMPOSITION_STANDARD_ERROR_FLOOR,
+        ge=_COMPOSITION_STANDARD_ERROR_FLOOR,
+        le=_COMPOSITION_STANDARD_ERROR_FLOOR,
+    )
+    composition_standard_error_cap: float = Field(
+        default=_COMPOSITION_STANDARD_ERROR_CAP,
+        ge=_COMPOSITION_STANDARD_ERROR_CAP,
+        le=_COMPOSITION_STANDARD_ERROR_CAP,
+    )
+    composition_quality_weight: float = Field(
+        default=_COMPOSITION_QUALITY_WEIGHT,
+        ge=_COMPOSITION_QUALITY_WEIGHT,
+        le=_COMPOSITION_QUALITY_WEIGHT,
+    )
+    composition_graph_reference_map: tuple[
+        tuple[
+            Literal["myeloid", "t_cell", "endothelial"], Literal["myeloid", "t_cell", "endothelial"]
+        ],
+        ...,
+    ] = _COMPOSITION_GRAPH_REFERENCE_MAP
     supported_source_families: tuple[
         Literal[
             "mesenchymal_like",
@@ -229,6 +270,7 @@ class MicroenvironmentGraphRequest(FrozenModel):
     sample_id: Identifier
     source_request: ProteinProgramRequest
     axis_request: GbmProteomicAxesRequest | None = None
+    composition_request: GbmMixtureRequest | None = None
 
     @model_validator(mode="after")
     def sample_id_matches_source(self) -> Self:
@@ -236,6 +278,11 @@ class MicroenvironmentGraphRequest(FrozenModel):
             raise ValueError("sample_id must match the nested Neftel source request")
         if self.axis_request is not None and self.sample_id != self.axis_request.sample_id:
             raise ValueError("sample_id must match the nested GBM axes request")
+        if (
+            self.composition_request is not None
+            and self.sample_id != self.composition_request.sample_id
+        ):
+            raise ValueError("sample_id must match the nested GBM composition request")
         return self
 
     @property
@@ -253,6 +300,7 @@ class MicroenvironmentGraphResult(FrozenModel):
     sample_id: Identifier
     source_result: ProteinProgramResult
     axis_result: GbmProteomicAxesResult | None = None
+    composition_result: GbmMixtureResult | None = None
     graph_request: ProteogenomicStateRequest
     graph_result: ProteogenomicStateResult
     limitations: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=12)
@@ -273,10 +321,23 @@ class MicroenvironmentGraphResult(FrozenModel):
             and self.axis_result.profile_digest != profile.auxiliary_source_profile_digest
         ):
             raise ValueError("axis result profile digest does not match the bridge profile")
-        if self.sample_id != self.source_result.sample_id or self.sample_id != self.graph_result.sample_id:
+        if (
+            self.composition_result is not None
+            and self.composition_result.profile_digest != profile.composition_source_profile_digest
+        ):
+            raise ValueError("composition result profile digest does not match the bridge profile")
+        if (
+            self.sample_id != self.source_result.sample_id
+            or self.sample_id != self.graph_result.sample_id
+        ):
             raise ValueError("all bridge receipts must use one sample identifier")
         if self.axis_result is not None and self.axis_result.sample_id != self.sample_id:
             raise ValueError("axis result must use the bridge sample identifier")
+        if (
+            self.composition_result is not None
+            and self.composition_result.sample_id != self.sample_id
+        ):
+            raise ValueError("composition result must use the bridge sample identifier")
         if self.graph_request.request_digest != self.graph_result.request_digest:
             raise ValueError("graph request and graph result digests do not match")
         if self.result_digest != result_payload_digest(self):
@@ -294,6 +355,7 @@ class MicroenvironmentGraphReplayResult(FrozenModel):
     request_digest_match: bool
     source_replay_match: bool
     axis_replay_match: bool
+    composition_replay_match: bool
     graph_replay_match: bool
     result_digest_match: bool
     semantic_match: bool
@@ -313,6 +375,11 @@ def canonical_request_digest(request: MicroenvironmentGraphRequest) -> Sha256Dig
                 if request.axis_request is None
                 else request.axis_request.model_dump(mode="json")
             ),
+            "composition_request": (
+                None
+                if request.composition_request is None
+                else request.composition_request.model_dump(mode="json")
+            ),
         }
     )
 
@@ -324,7 +391,11 @@ def result_payload_digest(result: MicroenvironmentGraphResult) -> Sha256Digest:
 
 
 def _profile_digest(profile: MicroenvironmentGraphProfile | dict[str, object]) -> Sha256Digest:
-    payload = profile.model_dump(mode="json") if isinstance(profile, MicroenvironmentGraphProfile) else dict(profile)
+    payload = (
+        profile.model_dump(mode="json")
+        if isinstance(profile, MicroenvironmentGraphProfile)
+        else dict(profile)
+    )
     payload.pop("profile_digest", None)
     return sha256_digest(payload)
 
@@ -342,6 +413,8 @@ def microenvironment_graph_profile() -> MicroenvironmentGraphProfile:
         "graph_engine": "glio-ecgi/1.0.0",
         "auxiliary_source_engine": "gbm-proteomic-axes/1.0.0",
         "auxiliary_source_profile_digest": axes_profile.profile_digest,
+        "composition_source_engine": "gbm-rna-composition/0.1.0",
+        "composition_source_profile_digest": mixture_profile().profile_digest,
         "source_profile_digest": source.profile_digest,
         "graph_profile_digest": graph.profile_digest,
         "topology_digest": _bridge_topology_digest(),
@@ -355,6 +428,11 @@ def microenvironment_graph_profile() -> MicroenvironmentGraphProfile:
         "source_location_quality_limited": 0.5,
         "source_rank_quality_supported": 0.85,
         "source_rank_quality_limited": 0.40,
+        "composition_projection_policy": _COMPOSITION_PROJECTION_POLICY,
+        "composition_standard_error_floor": _COMPOSITION_STANDARD_ERROR_FLOOR,
+        "composition_standard_error_cap": _COMPOSITION_STANDARD_ERROR_CAP,
+        "composition_quality_weight": _COMPOSITION_QUALITY_WEIGHT,
+        "composition_graph_reference_map": _COMPOSITION_GRAPH_REFERENCE_MAP,
         "supported_source_families": tuple(item[0] for item in _PROGRAM_MAP),
         "missing_families_are_not_negative": True,
         "cell_fraction_claim_permitted": False,
@@ -369,6 +447,8 @@ def microenvironment_graph_profile() -> MicroenvironmentGraphProfile:
         graph_engine="glio-ecgi/1.0.0",
         auxiliary_source_engine="gbm-proteomic-axes/1.0.0",
         auxiliary_source_profile_digest=axes_profile.profile_digest,
+        composition_source_engine="gbm-rna-composition/0.1.0",
+        composition_source_profile_digest=mixture_profile().profile_digest,
         source_profile_digest=source.profile_digest,
         graph_profile_digest=graph.profile_digest,
         topology_digest=_bridge_topology_digest(),
@@ -382,6 +462,11 @@ def microenvironment_graph_profile() -> MicroenvironmentGraphProfile:
         source_location_quality_limited=0.5,
         source_rank_quality_supported=0.85,
         source_rank_quality_limited=0.40,
+        composition_projection_policy=_COMPOSITION_PROJECTION_POLICY,
+        composition_standard_error_floor=_COMPOSITION_STANDARD_ERROR_FLOOR,
+        composition_standard_error_cap=_COMPOSITION_STANDARD_ERROR_CAP,
+        composition_quality_weight=_COMPOSITION_QUALITY_WEIGHT,
+        composition_graph_reference_map=_COMPOSITION_GRAPH_REFERENCE_MAP,
         supported_source_families=(
             "mesenchymal_like",
             "oligodendrocyte_progenitor_like",
@@ -492,11 +577,7 @@ def _source_method_observation(
 ) -> EvidenceObservation | None:
     """Project one complete Neftel method estimate without inventing support."""
 
-    if (
-        estimate.score is None
-        or estimate.lower_bound is None
-        or estimate.upper_bound is None
-    ):
+    if estimate.score is None or estimate.lower_bound is None or estimate.upper_bound is None:
         return None
     standard_error_floor = (
         _SOURCE_LOCATION_STANDARD_ERROR_FLOOR
@@ -547,10 +628,82 @@ def _unsupported_observation(
     )
 
 
+def _composition_observations(
+    request: GbmMixtureRequest,
+    result: GbmMixtureResult,
+) -> tuple[EvidenceObservation, ...]:
+    """Project caller-owned RNA composition with an explicit CLR transform.
+
+    A simplex weight is compositional, not an additive expression effect.  The
+    bridge therefore uses a centered log-ratio against *all* fitted channels
+    (known references plus the unexplained channel), preserving the sign of a
+    lineage's relative enrichment without calling it a cell fraction.  The
+    delta-method uncertainty is inflated by the request's concentration and a
+    profile-bound floor; if the mixture solver abstains, the lineage remains
+    explicitly unsupported rather than becoming negative evidence.
+    """
+
+    profile = microenvironment_graph_profile()
+    reference_to_graph: dict[str, str] = {
+        str(reference_id): str(graph_program)
+        for reference_id, graph_program in profile.composition_graph_reference_map
+    }
+    requested = {item.reference_id for item in request.references}
+    mapped = tuple(item for item in result.known_weights if item.reference_id in reference_to_graph)
+    if result.support != "limited":
+        return tuple(
+            _unsupported_observation(
+                f"observation.gbm_microenvironment.composition.{reference_to_graph[reference_id]}",
+                _node_id(reference_to_graph[reference_id]),
+                result.result_digest,
+                modality=EvidenceModality.TRANSCRIPTOMICS,
+            )
+            for reference_id in reference_to_graph
+            if reference_id in requested
+        )
+    if not mapped or result.unknown_mass is None:
+        return ()
+    all_weights = [
+        max(float(item.rna_weight), _COMPOSITION_EPSILON) for item in result.known_weights
+    ]
+    all_weights.append(max(float(result.unknown_mass), _COMPOSITION_EPSILON))
+    centered_log_mean = math.fsum(math.log(value) for value in all_weights) / len(all_weights)
+    effective_depth = max(
+        1.0,
+        float(sum(request.counts)) + float(request.concentration),
+    )
+    observations: list[EvidenceObservation] = []
+    for item in mapped:
+        probability = max(float(item.rna_weight), _COMPOSITION_EPSILON)
+        clr_effect = math.log(probability) - centered_log_mean
+        delta_variance = max(
+            0.0,
+            (1.0 - min(probability, 1.0 - _COMPOSITION_EPSILON)) / (effective_depth * probability),
+        )
+        graph_program = reference_to_graph[item.reference_id]
+        observations.append(
+            EvidenceObservation(
+                observation_id=(f"observation.gbm_microenvironment.composition.{graph_program}"),
+                node_id=_node_id(graph_program),
+                modality=EvidenceModality.TRANSCRIPTOMICS,
+                state=EvidenceState.OBSERVED,
+                standardized_effect=clr_effect,
+                standard_error=max(
+                    profile.composition_standard_error_floor,
+                    min(profile.composition_standard_error_cap, math.sqrt(delta_variance)),
+                ),
+                quality_weight=_COMPOSITION_QUALITY_WEIGHT,
+                provenance_digest=result.result_digest,
+            )
+        )
+    return tuple(observations)
+
+
 def _graph_request(
     request: MicroenvironmentGraphRequest,
     source: ProteinProgramResult,
     axes: GbmProteomicAxesResult | None,
+    composition: GbmMixtureResult | None = None,
 ) -> ProteogenomicStateRequest:
     nodes = _graph_nodes()
     edges = _graph_edges()
@@ -596,7 +749,10 @@ def _graph_request(
                         source.result_digest,
                     )
                 )
-            if evidence.location.support.value != "abstained" or evidence.rank_enrichment.support.value != "abstained":
+            if (
+                evidence.location.support.value != "abstained"
+                or evidence.rank_enrichment.support.value != "abstained"
+            ):
                 observations.append(
                     EvidenceObservation(
                         observation_id=f"observation.gbm_microenvironment.{graph_program}",
@@ -674,6 +830,8 @@ def _graph_request(
                     provenance_digest=axes.result_digest,
                 )
             )
+    if composition is not None and request.composition_request is not None:
+        observations.extend(_composition_observations(request.composition_request, composition))
     graph_request = ProteogenomicStateRequest(
         sample_id=request.sample_id,
         nodes=nodes,
@@ -685,17 +843,22 @@ def _graph_request(
     return graph_request.model_copy(update={"topology_provenance": _topology_provenance()})
 
 
-def analyze_microenvironment_graph(request: MicroenvironmentGraphRequest) -> MicroenvironmentGraphResult:
-    """Fit source-locked Neftel evidence, then propagate it through ECGI."""
+def analyze_microenvironment_graph(
+    request: MicroenvironmentGraphRequest,
+) -> MicroenvironmentGraphResult:
+    """Fit source-locked protein/RNA evidence, then propagate it through ECGI."""
 
     request = MicroenvironmentGraphRequest.model_validate(request, strict=True)
     source = analyze_neftel_protein_programs(request.source_request)
     axes = (
-        None
-        if request.axis_request is None
-        else analyze_gbm_proteomic_axes(request.axis_request)
+        None if request.axis_request is None else analyze_gbm_proteomic_axes(request.axis_request)
     )
-    graph_request = _graph_request(request, source, axes)
+    composition = (
+        None
+        if request.composition_request is None
+        else analyze_gbm_mixture(request.composition_request)
+    )
+    graph_request = _graph_request(request, source, axes, composition)
     graph_result = analyze_proteogenomic_state(graph_request)
     profile = microenvironment_graph_profile()
     draft = MicroenvironmentGraphResult.model_construct(
@@ -705,6 +868,7 @@ def analyze_microenvironment_graph(request: MicroenvironmentGraphRequest) -> Mic
         sample_id=request.sample_id,
         source_result=source,
         axis_result=axes,
+        composition_result=composition,
         graph_request=graph_request,
         graph_result=graph_result,
         limitations=(
@@ -713,6 +877,9 @@ def analyze_microenvironment_graph(request: MicroenvironmentGraphRequest) -> Mic
             "Location and competitive-rank source estimates are retained as separate observations with profile-bound floors and quality weights; they are not silently averaged before ECGI.",
             "Published GBM proteomic-axis scores are independent external-modality observations for seven GBM molecular-program nodes; they never override Neftel evidence.",
             "External published-axis observations use a profile-bound 0.35 standard-error floor to cover cross-engine scale and calibration uncertainty; their narrow bootstrap width is not treated as full uncertainty.",
+            "Optional caller-owned RNA composition is projected only for myeloid, T-cell, and endothelial references using a centered log-ratio across all fitted channels; weights are not histologic fractions.",
+            "Composition uncertainty uses a concentration/depth delta-method estimate with a profile-bound floor and is kept as transcriptomic modality evidence.",
+            "Unrecognized composition references remain in the child receipt but are not forced into the graph topology.",
             "The signed graph describes research associations and does not establish causality, prognosis, or treatment response.",
             "All outputs are research-use-only and non-prescriptive.",
         ),
@@ -742,6 +909,14 @@ def verify_microenvironment_graph_replay(
                 result=provided.axis_result,
             )
         ).semantic_match
+    composition_replay_match = (
+        request.composition_request is None and provided.composition_result is None
+    )
+    if request.composition_request is not None and provided.composition_result is not None:
+        composition_replay_match = verify_gbm_mixture_replay(
+            request.composition_request,
+            provided.composition_result,
+        )
     graph_replay = verify_proteogenomic_replay(
         EcgiReplayVerificationRequest(
             request=provided.graph_request,
@@ -749,14 +924,25 @@ def verify_microenvironment_graph_replay(
         )
     )
     request_match = provided.request_digest == request.request_digest == recomputed.request_digest
-    result_match = provided.result_digest == result_payload_digest(provided) == recomputed.result_digest
+    result_match = (
+        provided.result_digest == result_payload_digest(provided) == recomputed.result_digest
+    )
     semantic_match = provided.model_dump(mode="json") == recomputed.model_dump(mode="json")
-    verified = request_match and source_replay.semantic_match and axis_replay_match and graph_replay.semantic_match and result_match and semantic_match
+    verified = (
+        request_match
+        and source_replay.semantic_match
+        and axis_replay_match
+        and composition_replay_match
+        and graph_replay.semantic_match
+        and result_match
+        and semantic_match
+    )
     return MicroenvironmentGraphReplayResult(
         verified=verified,
         request_digest_match=request_match,
         source_replay_match=source_replay.semantic_match,
         axis_replay_match=axis_replay_match,
+        composition_replay_match=composition_replay_match,
         graph_replay_match=graph_replay.semantic_match,
         result_digest_match=result_match,
         semantic_match=semantic_match,
@@ -816,68 +1002,76 @@ def synthetic_microenvironment_graph_request() -> MicroenvironmentGraphRequest:
         for marker in catalog.programs[program_id]
         if marker.protein_eligible and marker.normalized_symbol not in occupied_symbols
     )[:12]
-    bridge_observations = tuple(
-        ProteinProgramObservation(
-            observation_id=f"demo.bridge.mes.{index:03d}",
-            gene_symbol=symbol,
-            state=ProteinEvidenceState.OBSERVED,
-            standardized_effect=round(0.95 - index * 0.02, 6),
-            standard_error=0.25,
-            quality_weight=0.92,
-            provenance_digest=_BRIDGE_DEMO_SOURCE_DIGEST,
+    bridge_observations = (
+        tuple(
+            ProteinProgramObservation(
+                observation_id=f"demo.bridge.mes.{index:03d}",
+                gene_symbol=symbol,
+                state=ProteinEvidenceState.OBSERVED,
+                standardized_effect=round(0.95 - index * 0.02, 6),
+                standard_error=0.25,
+                quality_weight=0.92,
+                provenance_digest=_BRIDGE_DEMO_SOURCE_DIGEST,
+            )
+            for index, symbol in enumerate(mes_markers, start=1)
         )
-        for index, symbol in enumerate(mes_markers, start=1)
-    ) + tuple(
-        ProteinProgramObservation(
-            observation_id=f"demo.bridge.opc.{index:03d}",
-            gene_symbol=symbol,
-            state=ProteinEvidenceState.OBSERVED,
-            standardized_effect=round(-0.70 + index * 0.015, 6),
-            standard_error=0.28,
-            quality_weight=0.90,
-            provenance_digest=_BRIDGE_DEMO_SOURCE_DIGEST,
+        + tuple(
+            ProteinProgramObservation(
+                observation_id=f"demo.bridge.opc.{index:03d}",
+                gene_symbol=symbol,
+                state=ProteinEvidenceState.OBSERVED,
+                standardized_effect=round(-0.70 + index * 0.015, 6),
+                standard_error=0.28,
+                quality_weight=0.90,
+                provenance_digest=_BRIDGE_DEMO_SOURCE_DIGEST,
+            )
+            for index, symbol in enumerate(opc_markers, start=1)
         )
-        for index, symbol in enumerate(opc_markers, start=1)
-    ) + tuple(
-        ProteinProgramObservation(
-            observation_id=f"demo.bridge.neural.{index:03d}",
-            gene_symbol=symbol,
-            state=ProteinEvidenceState.OBSERVED,
-            standardized_effect=round(0.80 - index * 0.018, 6),
-            standard_error=0.27,
-            quality_weight=0.91,
-            provenance_digest=_BRIDGE_DEMO_SOURCE_DIGEST,
+        + tuple(
+            ProteinProgramObservation(
+                observation_id=f"demo.bridge.neural.{index:03d}",
+                gene_symbol=symbol,
+                state=ProteinEvidenceState.OBSERVED,
+                standardized_effect=round(0.80 - index * 0.018, 6),
+                standard_error=0.27,
+                quality_weight=0.91,
+                provenance_digest=_BRIDGE_DEMO_SOURCE_DIGEST,
+            )
+            for index, symbol in enumerate(neural_markers, start=1)
         )
-        for index, symbol in enumerate(neural_markers, start=1)
-    ) + tuple(
-        ProteinProgramObservation(
-            observation_id=f"demo.bridge.astrocyte.{index:03d}",
-            gene_symbol=symbol,
-            state=ProteinEvidenceState.OBSERVED,
-            standardized_effect=round(0.55 - index * 0.015, 6),
-            standard_error=0.29,
-            quality_weight=0.88,
-            provenance_digest=_BRIDGE_DEMO_SOURCE_DIGEST,
+        + tuple(
+            ProteinProgramObservation(
+                observation_id=f"demo.bridge.astrocyte.{index:03d}",
+                gene_symbol=symbol,
+                state=ProteinEvidenceState.OBSERVED,
+                standardized_effect=round(0.55 - index * 0.015, 6),
+                standard_error=0.29,
+                quality_weight=0.88,
+                provenance_digest=_BRIDGE_DEMO_SOURCE_DIGEST,
+            )
+            for index, symbol in enumerate(astrocyte_markers, start=1)
         )
-        for index, symbol in enumerate(astrocyte_markers, start=1)
-    ) + tuple(
-        ProteinProgramObservation(
-            observation_id=f"demo.bridge.cell_cycle.{index:03d}",
-            gene_symbol=symbol,
-            state=ProteinEvidenceState.OBSERVED,
-            standardized_effect=round(0.72 - index * 0.017, 6),
-            standard_error=0.26,
-            quality_weight=0.90,
-            provenance_digest=_BRIDGE_DEMO_SOURCE_DIGEST,
+        + tuple(
+            ProteinProgramObservation(
+                observation_id=f"demo.bridge.cell_cycle.{index:03d}",
+                gene_symbol=symbol,
+                state=ProteinEvidenceState.OBSERVED,
+                standardized_effect=round(0.72 - index * 0.017, 6),
+                standard_error=0.26,
+                quality_weight=0.90,
+                provenance_digest=_BRIDGE_DEMO_SOURCE_DIGEST,
+            )
+            for index, symbol in enumerate(cell_cycle_markers, start=1)
         )
-        for index, symbol in enumerate(cell_cycle_markers, start=1)
     )
     source = source.model_copy(update={"observations": source.observations + bridge_observations})
     axes = gbm_axes_demo_request().model_copy(update={"sample_id": source.sample_id})
+    composition = synthetic_gbm_mixture_request().model_copy(update={"sample_id": source.sample_id})
     return MicroenvironmentGraphRequest(
         sample_id=source.sample_id,
         source_request=source,
         axis_request=axes,
+        composition_request=composition,
     )
 
 
