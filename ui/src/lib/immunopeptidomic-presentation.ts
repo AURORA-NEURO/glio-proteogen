@@ -114,6 +114,15 @@ export function validatePresentationProfile(profile: JsonObject): string[] {
   return errors;
 }
 
+/** Bind the admitted caller-owned HLA model profile to the response headers. */
+export function validatePresentationProfileHeaders(headers: HeaderReader, profile: JsonObject): string[] {
+  const errors: string[] = [];
+  if (headers.get("X-GLIO-Profile-Digest") !== profile.profile_digest) {
+    errors.push("X-GLIO-Profile-Digest response header does not match the presentation profile.");
+  }
+  return errors;
+}
+
 export function validatePresentationRequest(request: JsonObject): string[] {
   const errors: string[] = [];
   exactFields(request, REQUEST_FIELDS, "request", errors);
@@ -137,9 +146,22 @@ export function validatePresentationRequest(request: JsonObject): string[] {
   return errors;
 }
 
-export function validatePresentationDemo(request: JsonObject, profile: JsonObject | null): string[] {
+export function validatePresentationDemo(
+  request: JsonObject,
+  profile: JsonObject | null,
+  headers?: HeaderReader,
+): string[] {
   const errors = validatePresentationRequest(request);
   if (profile && request.profile_id !== profile.profile_id) errors.push("demo.profile_id does not match the admitted presentation profile.");
+  if (headers) {
+    if (profile && headers.get("X-GLIO-Profile-Digest") !== profile.profile_digest) {
+      errors.push("X-GLIO-Profile-Digest demo header does not match the presentation profile.");
+    }
+    const requestDigest = headers.get("X-GLIO-Request-Digest");
+    if (typeof requestDigest !== "string" || !DIGEST.test(requestDigest)) {
+      errors.push("X-GLIO-Request-Digest demo header must be a lowercase sha256 digest.");
+    }
+  }
   return errors;
 }
 
