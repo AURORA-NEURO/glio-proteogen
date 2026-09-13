@@ -117,6 +117,44 @@ describe("GBM RNA composition UI contract", () => {
     expect(validateGbmMixtureResult({ ...intervalResult, unknown_mass_lower_bound: 1.1, unknown_mass_upper_bound: 1.2 }, request, profile).length).toBeGreaterThan(0);
   });
 
+  it("admits and normalizes model-derived driver and reference sensitivity receipts", () => {
+    const explained = {
+      ...result,
+      feature_drivers: [{
+        feature_id: "EGFR",
+        observed_fraction: 0.8,
+        fitted_fraction: 0.8,
+        unknown_fraction: 0.05,
+        signed_residual: 0,
+        pearson_residual: 0,
+        dominant_reference_id: "malignant_gbm",
+        dominant_reference_fraction: 1,
+      }],
+      reference_ablations: [{
+        reference_id: "malignant_gbm",
+        full_weight: 0.9,
+        full_unknown_mass: 0.1,
+        support: "estimated",
+        remaining_known_mass: 0.9,
+        unknown_mass_without_reference: 0.1,
+        unknown_mass_delta: 0,
+        reason: null,
+      }],
+    };
+    expect(validateGbmMixtureResult(explained, request, profile)).toEqual([]);
+    expect(normalizeGbmMixtureResult(explained).featureDrivers[0]).toMatchObject({
+      id: "EGFR", dominantReference: "malignant_gbm", pearson: 0,
+    });
+    expect(normalizeGbmMixtureResult(explained).referenceAblations[0]).toMatchObject({
+      id: "malignant_gbm", support: "estimated", unknownMassDelta: 0,
+    });
+    expect(validateGbmMixtureResult({ ...explained, feature_drivers: [null] }, request, profile)).toContain("result.feature_drivers[0] must be an object.");
+    expect(validateGbmMixtureResult({ ...explained, feature_drivers: [{ ...explained.feature_drivers[0], feature_id: "other" }] }, request, profile).join("\n")).toContain("must reference result.feature_ids.");
+    expect(validateGbmMixtureResult({ ...explained, reference_ablations: [null] }, request, profile)).toContain("result.reference_ablations[0] must be an object.");
+    expect(validateGbmMixtureResult({ ...explained, reference_ablations: [{ ...explained.reference_ablations[0], reference_id: null, support: "invalid" }] }, request, profile).length).toBeGreaterThan(1);
+    expect(normalizeGbmMixtureResult({ ...explained, feature_drivers: [null], reference_ablations: [null] }).featureDrivers).toHaveLength(0);
+  });
+
   it("rejects duplicate axes, malformed signatures, and unsupported receipts", () => {
     expect(validateGbmMixtureRequest({ ...request, feature_ids: ["EGFR", "EGFR"] }).length).toBeGreaterThan(0);
     expect(validateGbmMixtureRequest({ ...request, references: [{ reference_id: "malignant_gbm", signature: [1] }] }).length).toBeGreaterThan(0);
