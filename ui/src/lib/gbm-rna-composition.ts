@@ -16,17 +16,21 @@ const PROFILE_FIELDS = new Set([
   "profile_id", "algorithm_id", "algorithm_version", "numpy_version", "execution_scope",
   "output_semantics", "histologic_fraction_claim_permitted", "clinical_use_permitted",
   "solver", "max_features", "max_lineages", "max_iterations", "kkt_tolerance",
-  "l1_step_tolerance", "relative_objective_tolerance", "profile_digest",
+  "l1_step_tolerance", "relative_objective_tolerance", "bootstrap_sampling_policy",
+  "bootstrap_lower_quantile", "bootstrap_upper_quantile", "max_bootstrap_replicates",
+  "bootstrap_max_iterations", "bootstrap_kkt_tolerance", "bootstrap_l1_step_tolerance",
+  "bootstrap_relative_objective_tolerance", "profile_digest",
 ]);
 const REQUEST_FIELDS = new Set([
   "profile_id", "sample_id", "feature_ids", "counts", "references", "unknown_background",
   "concentration", "lambda_mass", "lambda_shape", "initial_unknown_mass", "max_iterations",
-  "source_digests", "provenance_note",
+  "bootstrap_replicates", "source_digests", "provenance_note",
 ]);
 const RESULT_FIELDS = new Set([
   "result_id", "profile_id", "profile_digest", "request_digest", "result_digest", "sample_id",
   "feature_ids", "support", "known_weights", "unknown_gene_mass", "fitted_probabilities",
-  "unknown_mass", "objective", "initial_objective", "iterations", "kkt_residual",
+  "unknown_mass", "unknown_mass_lower_bound", "unknown_mass_upper_bound", "bootstrap_replicates_used",
+  "weight_intervals", "objective", "initial_objective", "iterations", "kkt_residual",
   "signature_condition_number", "objective_trace", "trace_digest", "ood", "abstention_reason",
   "source_digests", "limitations",
 ]);
@@ -71,7 +75,10 @@ export function validateGbmMixtureProfile(profile: JsonObject): string[] {
   if (profile.numpy_version !== "2.5.2" || profile.execution_scope !== "caller_supplied_reference_only" || profile.output_semantics !== "rna_mixture_weights_with_unknown_mass") errors.push("profile must bind NumPy 2.5.2 and caller-supplied RNA mixture semantics.");
   if (profile.histologic_fraction_claim_permitted !== false || profile.clinical_use_permitted !== false) errors.push("profile must forbid histologic-fraction and clinical claims.");
   if (profile.solver !== "dirichlet_multinomial_adaptive_unknown_simplex" || profile.max_features !== 512 || profile.max_lineages !== 32 || profile.max_iterations !== 500) errors.push("profile solver or limits are invalid.");
+  if (profile.bootstrap_sampling_policy !== "fitted_dirichlet_multinomial_posterior_predictive_v1" || profile.max_bootstrap_replicates !== 256 || profile.bootstrap_max_iterations !== 2000) errors.push("profile bootstrap policy or limits are invalid.");
   for (const field of ["kkt_tolerance", "l1_step_tolerance", "relative_objective_tolerance"]) finite(profile[field], `profile.${field}`, errors, 0);
+  if (profile.bootstrap_lower_quantile !== 0.05 || profile.bootstrap_upper_quantile !== 0.95) errors.push("profile bootstrap quantiles must be fixed at 0.05 and 0.95.");
+  if (profile.bootstrap_kkt_tolerance !== 0.001 || profile.bootstrap_l1_step_tolerance !== 1e-8 || profile.bootstrap_relative_objective_tolerance !== 1e-10) errors.push("profile bootstrap solver tolerances are invalid.");
   digest(profile.profile_digest, "profile.profile_digest", errors);
   return errors;
 }
@@ -118,6 +125,7 @@ export function validateGbmMixtureRequest(request: JsonObject): string[] {
   if (typeof request.concentration === "number" && request.concentration <= 0) errors.push("request.concentration must be strictly positive.");
   if (typeof request.initial_unknown_mass === "number" && request.initial_unknown_mass >= 1) errors.push("request.initial_unknown_mass must be below one.");
   if (!Number.isInteger(request.max_iterations) || typeof request.max_iterations !== "number" || request.max_iterations < 1 || request.max_iterations > 500) errors.push("request.max_iterations must be an integer from 1 to 500.");
+  if (!Number.isInteger(request.bootstrap_replicates) || typeof request.bootstrap_replicates !== "number" || request.bootstrap_replicates < 0 || request.bootstrap_replicates > 256 || (request.bootstrap_replicates > 0 && request.bootstrap_replicates < 8)) errors.push("request.bootstrap_replicates must be zero or an integer from 8 through 256.");
   const sources = arrayAt(request, ["source_digests"]);
   if (sources.length < 1 || sources.length > 32 || sources.some((value) => typeof value !== "string" || !DIGEST.test(value))) errors.push("request.source_digests must contain lowercase sha256 digests.");
   if (typeof request.provenance_note !== "string" || request.provenance_note.trim() === "") errors.push("request.provenance_note must be non-empty text.");
@@ -149,6 +157,35 @@ export function validateGbmMixtureResult(result: JsonObject, request: JsonObject
     if (features.length !== arrayAt(result, ["unknown_gene_mass"]).length || features.length !== arrayAt(result, ["fitted_probabilities"]).length) errors.push("limited composition vectors must share one feature axis.");
     finite(result.unknown_mass, "result.unknown_mass", errors, 0);
     if (typeof result.unknown_mass === "number" && result.unknown_mass > 1) errors.push("result.unknown_mass must be <= 1.");
+    const bootstrap = result.bootstrap_replicates_used;
+    const intervals = arrayAt(result, ["weight_intervals"]);
+    if (!Number.isInteger(bootstrap) || typeof bootstrap !== "number" || bootstrap < 0 || bootstrap > 256) errors.push("result.bootstrap_replicates_used must be an integer from 0 through 256.");
+    if (bootstrap === 0 && intervals.length) errors.push("result.weight_intervals require bootstrap replicates.");
+    if (typeof bootstrap === "number" && bootstrap > 0) {
+      if (bootstrap < 8) errors.push("result.bootstrap_replicates_used must be at least eight when intervals are present.");
+      if (intervals.length !== weights.length) errors.push("result.weight_intervals must cover every known lineage.");
+      intervals.forEach((value, index) => {
+        if (!isJsonObject(value)) { errors.push(`result.weight_intervals[${index}] must be an object.`); return; }
+        const id = value.reference_id;
+        identifier(id, `result.weight_intervals[${index}].reference_id`, errors);
+        const lower = value.lower_bound;
+        const upper = value.upper_bound;
+        finite(lower, `result.weight_intervals[${index}].lower_bound`, errors, 0);
+        finite(upper, `result.weight_intervals[${index}].upper_bound`, errors, 0);
+        if (typeof lower === "number" && lower > 1) errors.push(`result.weight_intervals[${index}].lower_bound must be <= 1.`);
+        if (typeof upper === "number" && upper > 1) errors.push(`result.weight_intervals[${index}].upper_bound must be <= 1.`);
+        if (typeof lower === "number" && typeof upper === "number" && lower > upper) errors.push(`result.weight_intervals[${index}] bounds must be ordered.`);
+        const weight = isJsonObject(weights[index]) ? weights[index].rna_weight : null;
+        if (id !== (isJsonObject(weights[index]) ? weights[index].reference_id : undefined)) errors.push(`result.weight_intervals[${index}] must follow ranked lineage order.`);
+        if (typeof weight === "number" && typeof lower === "number" && typeof upper === "number" && (weight < lower || weight > upper)) errors.push(`result.weight_intervals[${index}] must contain its fitted weight.`);
+      });
+      finite(result.unknown_mass_lower_bound, "result.unknown_mass_lower_bound", errors, 0);
+      finite(result.unknown_mass_upper_bound, "result.unknown_mass_upper_bound", errors, 0);
+      if (typeof result.unknown_mass_lower_bound === "number" && typeof result.unknown_mass_upper_bound === "number" && result.unknown_mass_lower_bound > result.unknown_mass_upper_bound) errors.push("result unknown-mass interval bounds must be ordered.");
+      if (typeof result.unknown_mass_lower_bound === "number" && result.unknown_mass_lower_bound > 1) errors.push("result.unknown_mass_lower_bound must be <= 1.");
+      if (typeof result.unknown_mass_upper_bound === "number" && result.unknown_mass_upper_bound > 1) errors.push("result.unknown_mass_upper_bound must be <= 1.");
+      if (typeof result.unknown_mass === "number" && typeof result.unknown_mass_lower_bound === "number" && typeof result.unknown_mass_upper_bound === "number" && (result.unknown_mass < result.unknown_mass_lower_bound || result.unknown_mass > result.unknown_mass_upper_bound)) errors.push("result unknown-mass interval must contain unknown_mass.");
+    }
   }
   return errors;
 }
@@ -176,10 +213,15 @@ export function gbmRnaCompositionRequestStats(request: JsonObject): { features: 
 }
 
 export type GbmMixtureWeight = { id: string; weight: number | null; rank: number | null };
+export type GbmMixtureWeightInterval = { id: string; lower: number | null; upper: number | null };
 export type GbmMixtureEvidence = {
   support: string;
   weights: GbmMixtureWeight[];
+  weightIntervals: GbmMixtureWeightInterval[];
   unknownMass: number | null;
+  unknownMassLower: number | null;
+  unknownMassUpper: number | null;
+  bootstrapReplicates: number;
   objective: number | null;
   initialObjective: number | null;
   iterations: number | null;
@@ -196,7 +238,11 @@ export function normalizeGbmMixtureResult(result: JsonObject): GbmMixtureEvidenc
   return {
     support: textAt(result, ["support"], "abstained"),
     weights: arrayAt(result, ["known_weights"]).flatMap((value) => isJsonObject(value) ? [{ id: textAt(value, ["reference_id"], "unknown"), weight: numberAt(value, ["rna_weight"]), rank: numberAt(value, ["rank"]) }] : []),
+    weightIntervals: arrayAt(result, ["weight_intervals"]).flatMap((value) => isJsonObject(value) ? [{ id: textAt(value, ["reference_id"], "unknown"), lower: numberAt(value, ["lower_bound"]), upper: numberAt(value, ["upper_bound"]) }] : []),
     unknownMass: numberAt(result, ["unknown_mass"]),
+    unknownMassLower: numberAt(result, ["unknown_mass_lower_bound"]),
+    unknownMassUpper: numberAt(result, ["unknown_mass_upper_bound"]),
+    bootstrapReplicates: numberAt(result, ["bootstrap_replicates_used"]) ?? 0,
     objective: numberAt(result, ["objective"]),
     initialObjective: numberAt(result, ["initial_objective"]),
     iterations: numberAt(result, ["iterations"]),

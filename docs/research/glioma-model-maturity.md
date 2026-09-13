@@ -407,6 +407,15 @@ source-digest receipts are rendered from backend results. The lane never
 relabels mixture weights as GBmap or histologic cell fractions and does not
 bundle a fitted GBmap artifact or patient data.
 
+The runtime also supports an explicit count-uncertainty mode: 8–256
+request-digest-seeded Dirichlet--multinomial posterior-predictive count draws
+are refit through the same simplex optimizer and filtered by finite monotone
+traces plus KKT closure. Ranked 5–95% intervals are emitted for each caller
+reference and the unknown RNA channel, with the point estimate guaranteed to
+remain inside its quantized interval. This is fitted sampling uncertainty only;
+it does not stand in for histologic, donor, batch, or external calibration
+uncertainty.
+
 ## Completed M06-04 coupled glioma abundance lane
 
 The additive M06-04 runtime now includes the locked

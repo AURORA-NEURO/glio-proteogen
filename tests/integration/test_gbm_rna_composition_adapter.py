@@ -13,6 +13,8 @@ from starlette.status import (
 
 from glio_proteogen.adapters import gbm_rna_composition as adapter
 
+BOOTSTRAP_REPLICATES = 8
+
 
 def _app() -> FastAPI:
     app = FastAPI()
@@ -41,6 +43,26 @@ def test_demo_analyze_verify_lifecycle_and_headers() -> None:
     assert analysis.headers["x-glio-result-digest"] == analysis.json()["result_digest"]
     assert verification.status_code == HTTP_200_OK
     assert verification.json()["verified"] is True
+
+
+def test_analyze_exposes_deterministic_count_native_intervals() -> None:
+    with TestClient(_app()) as client:
+        demo = client.get(f"{adapter.MIXTURE_ROUTE_PREFIX}/demo").json()
+        demo["bootstrap_replicates"] = BOOTSTRAP_REPLICATES
+        analysis = client.post(
+            f"{adapter.MIXTURE_ROUTE_PREFIX}/analyze",
+            json=demo,
+        )
+
+    assert analysis.status_code == HTTP_200_OK
+    payload = analysis.json()
+    assert payload["bootstrap_replicates_used"] == BOOTSTRAP_REPLICATES
+    assert len(payload["weight_intervals"]) == len(payload["known_weights"])
+    assert (
+        payload["unknown_mass_lower_bound"]
+        <= payload["unknown_mass"]
+        <= payload["unknown_mass_upper_bound"]
+    )
 
 
 def test_openapi_contains_all_operations_and_nested_replay_schema() -> None:

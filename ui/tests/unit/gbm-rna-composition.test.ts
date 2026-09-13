@@ -26,6 +26,7 @@ const request = {
   lambda_shape: 0.03,
   initial_unknown_mass: 0.05,
   max_iterations: 500,
+  bootstrap_replicates: 0,
   source_digests: [digest],
   provenance_note: "caller supplied marker signatures",
 };
@@ -45,6 +46,14 @@ const profile = {
   kkt_tolerance: 0.00001,
   l1_step_tolerance: 0.00001,
   relative_objective_tolerance: 1e-9,
+  bootstrap_sampling_policy: "fitted_dirichlet_multinomial_posterior_predictive_v1",
+  bootstrap_lower_quantile: 0.05,
+  bootstrap_upper_quantile: 0.95,
+  max_bootstrap_replicates: 256,
+  bootstrap_max_iterations: 2000,
+  bootstrap_kkt_tolerance: 0.001,
+  bootstrap_l1_step_tolerance: 1e-8,
+  bootstrap_relative_objective_tolerance: 1e-10,
   profile_digest: digest,
 };
 const result = {
@@ -57,9 +66,13 @@ const result = {
   feature_ids: ["EGFR", "SOX2"],
   support: "limited",
   known_weights: [{ reference_id: "malignant_gbm", rna_weight: 0.9, rank: 1 }],
+  weight_intervals: [],
   unknown_gene_mass: [0.05, 0.05],
   fitted_probabilities: [0.8, 0.2],
   unknown_mass: 0.1,
+  unknown_mass_lower_bound: null,
+  unknown_mass_upper_bound: null,
+  bootstrap_replicates_used: 0,
   objective: 1,
   initial_objective: 2,
   iterations: 10,
@@ -90,6 +103,13 @@ describe("GBM RNA composition UI contract", () => {
   it("normalizes fitted weights, diagnostics, and unknown channel", () => {
     expect(normalizeGbmMixtureResult(result)).toMatchObject({ support: "limited", unknownMass: 0.1, objective: 1, trace: [2, 1], conditionNumber: 2 });
     expect(normalizeGbmMixtureResult(result).weights[0]).toMatchObject({ id: "malignant_gbm", weight: 0.9, rank: 1 });
+    expect(normalizeGbmMixtureResult({ ...result, bootstrap_replicates_used: 8, weight_intervals: [{ reference_id: "malignant_gbm", lower_bound: 0.7, upper_bound: 0.98 }], unknown_mass_lower_bound: 0.08, unknown_mass_upper_bound: 0.14 })).toMatchObject({ bootstrapReplicates: 8, unknownMassLower: 0.08, unknownMassUpper: 0.14, weightIntervals: [{ id: "malignant_gbm", lower: 0.7, upper: 0.98 }] });
+    const intervalResult = { ...result, bootstrap_replicates_used: 8, weight_intervals: [{ reference_id: "malignant_gbm", lower_bound: 0.7, upper_bound: 0.98 }], unknown_mass_lower_bound: 0.08, unknown_mass_upper_bound: 0.14 };
+    expect(validateGbmMixtureResult(intervalResult, request, profile)).toEqual([]);
+    expect(validateGbmMixtureResult({ ...intervalResult, weight_intervals: [null] }, request, profile)).toContain("result.weight_intervals[0] must be an object.");
+    expect(validateGbmMixtureResult({ ...intervalResult, weight_intervals: [{ reference_id: "other", lower_bound: 1.1, upper_bound: 0.4 }] }, request, profile).length).toBeGreaterThan(2);
+    expect(validateGbmMixtureResult({ ...intervalResult, known_weights: [null], weight_intervals: [{ reference_id: "malignant_gbm", lower_bound: 0.95, upper_bound: 0.98 }] }, request, profile).length).toBeGreaterThan(0);
+    expect(validateGbmMixtureResult({ ...intervalResult, unknown_mass_lower_bound: 1.1, unknown_mass_upper_bound: 1.2 }, request, profile).length).toBeGreaterThan(0);
   });
 
   it("rejects duplicate axes, malformed signatures, and unsupported receipts", () => {
@@ -126,6 +146,8 @@ describe("GBM RNA composition UI contract", () => {
     expect(validateGbmMixtureRequest({ ...request, counts: [0, 0], unknown_background: [0.4, 0.4], references: [{ reference_id: "x", signature: [0.8, 0.8] }] }).length).toBeGreaterThan(0);
     expect(validateGbmMixtureRequest({ ...request, concentration: 0, unknown_background: [0, 1], references: [{ reference_id: "x", signature: [0, 1] }] }).length).toBeGreaterThan(0);
     expect(validateGbmMixtureRequest({ ...request, references: [] }).length).toBeGreaterThan(0);
+    expect(validateGbmMixtureRequest({ ...request, bootstrap_replicates: 7 })).toContain("request.bootstrap_replicates must be zero or an integer from 8 through 256.");
+    expect(validateGbmMixtureResult({ ...result, bootstrap_replicates_used: 8, weight_intervals: [], unknown_mass_lower_bound: 0.2, unknown_mass_upper_bound: 0.1 }, request, profile)).toContain("result.weight_intervals must cover every known lineage.");
     expect(validateGbmMixtureResult({ ...result, support: "limited", known_weights: [], unknown_gene_mass: [], fitted_probabilities: [], unknown_mass: 2 }, request, profile).length).toBeGreaterThan(0);
     expect(validateGbmMixtureResult({ ...result, support: "abstained", feature_ids: ["EGFR"], unknown_gene_mass: [], fitted_probabilities: [] }, request, profile).length).toBe(0);
     expect(normalizeGbmMixtureResult({ ...result, known_weights: [null], ood: null, objective_trace: [null] }).weights).toHaveLength(0);

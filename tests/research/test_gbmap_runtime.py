@@ -32,6 +32,30 @@ def test_synthetic_gbm_mixture_is_real_count_native_fit_and_replays() -> None:
     assert verify_gbm_mixture_replay(request, result)
 
 
+def test_count_native_bootstrap_emits_ranked_weight_intervals_and_replays() -> None:
+    request = synthetic_gbm_mixture_request().model_copy(update={"bootstrap_replicates": 8})
+    result = analyze_gbm_mixture(request)
+
+    assert result.bootstrap_replicates_used == 8
+    assert len(result.weight_intervals) == len(result.known_weights)
+    assert tuple(item.reference_id for item in result.weight_intervals) == tuple(
+        item.reference_id for item in result.known_weights
+    )
+    assert result.unknown_mass_lower_bound is not None
+    assert result.unknown_mass_upper_bound is not None
+    assert result.unknown_mass_lower_bound <= result.unknown_mass <= result.unknown_mass_upper_bound
+    for weight, interval in zip(result.known_weights, result.weight_intervals, strict=True):
+        assert interval.lower_bound <= weight.rna_weight <= interval.upper_bound
+    assert verify_gbm_mixture_replay(request, result)
+
+
+def test_bootstrap_replicates_use_an_eight_draw_minimum() -> None:
+    payload = synthetic_gbm_mixture_request().model_dump(mode="python")
+    payload["bootstrap_replicates"] = 7
+    with pytest.raises(ValueError, match="at least eight"):
+        GbmMixtureRequest.model_validate(payload, strict=True)
+
+
 def test_input_order_is_canonicalized_without_changing_the_fit() -> None:
     original = synthetic_gbm_mixture_request()
     permutation = (7, 2, 5, 0, 6, 4, 1, 3)
@@ -64,6 +88,10 @@ def test_profile_binds_constants_and_forbids_histologic_claims() -> None:
     assert profile.output_semantics == "rna_mixture_weights_with_unknown_mass"
     assert profile.histologic_fraction_claim_permitted is False
     assert profile.clinical_use_permitted is False
+    assert profile.bootstrap_sampling_policy == (
+        "fitted_dirichlet_multinomial_posterior_predictive_v1"
+    )
+    assert profile.max_bootstrap_replicates == 256
     with pytest.raises(ValueError, match="profile digest"):
         GbmMixtureProfile(profile_digest="sha256:" + "0" * 64)
 

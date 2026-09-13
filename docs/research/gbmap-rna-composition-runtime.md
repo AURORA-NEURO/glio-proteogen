@@ -14,6 +14,19 @@ Pearson residual, and Aitchison residual. Non-identifiable signatures,
 non-finite values, zero-depth counts, or a non-convergent trace produce an
 abstained result without a negative composition finding.
 
+Callers may request 8–256 deterministic posterior-predictive perturbations.
+Each perturbation samples a Dirichlet composition around the fitted simplex,
+draws a multinomial count vector at the observed sequencing depth, and reruns
+the same count-native solver with stricter closure tolerances. The request
+digest seeds NumPy's generator, accepted draws must have finite monotone
+objective traces and bounded KKT residuals, and the result reports 5th/95th
+percentile intervals for every ranked lineage plus the unknown channel. The
+point estimate is expanded into its interval when necessary so replay receipts
+remain coherent. Fewer than eight accepted draws abstain from interval output
+rather than manufacturing uncertainty. These intervals represent sampling
+uncertainty under the fitted model only; they are not histologic, donor, batch,
+or external calibration uncertainty.
+
 This runtime is intentionally caller-owned and source-independent. It does not
 open the approximately 9 GB GBmap H5AD, ship a fitted artifact, infer donor or
 patient identity, or calibrate a population threshold. The known weights are
