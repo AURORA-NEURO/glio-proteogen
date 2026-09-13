@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from typing import TYPE_CHECKING, cast
 
@@ -137,7 +138,6 @@ def test_bootstrap_receipt_replay_reports_digest_and_semantic_checks(
     expected = {
         "schema_version": bootstrap.MODEL_ID,
         "algorithm_profile": {"numpy_version": "2.5.2", "replicates": 8},
-        "algorithm_profile_digest": "sha256:profile",
         "source_manifest_digest": "sha256:manifest",
         "source_complex_catalog_digest": "sha256:catalog",
         "seed_material_digest": "sha256:seed",
@@ -149,6 +149,9 @@ def test_bootstrap_receipt_replay_reports_digest_and_semantic_checks(
         "pathways": [],
         "limitations": [],
     }
+    expected["algorithm_profile_digest"] = "sha256:" + hashlib.sha256(
+        bootstrap._canonical_bytes(expected["algorithm_profile"])
+    ).hexdigest()
     expected["receipt_digest"] = bootstrap._receipt_digest(expected)
     monkeypatch.setattr(bootstrap, "bootstrap_factors", lambda *_args, **_kwargs: expected)
     receipt = tmp_path / "receipt.json"
@@ -164,6 +167,7 @@ def test_bootstrap_receipt_replay_reports_digest_and_semantic_checks(
     assert verified["verified"] is True
     checks = cast("dict[str, bool]", verified["checks"])
     assert checks["receipt_digest"] is True
+    assert checks["algorithm_profile_digest_self"] is True
     assert checks["semantic_equal"] is True
     assert verified["request_digest"] == "sha256:seed"
 

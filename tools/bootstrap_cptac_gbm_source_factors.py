@@ -467,6 +467,14 @@ def verify_bootstrap_receipt(
 
     provided_digest = provided.get("receipt_digest")
     expected_digest = cast("str", expected["receipt_digest"])
+    provided_profile = provided.get("algorithm_profile")
+    provided_profile_digest = provided.get("algorithm_profile_digest")
+    profile_digest_self_check = (
+        isinstance(provided_profile, dict)
+        and isinstance(provided_profile_digest, str)
+        and provided_profile_digest
+        == "sha256:" + hashlib.sha256(_canonical_bytes(provided_profile)).hexdigest()
+    )
     checks: dict[str, bool] = {
         "schema_version": provided.get("schema_version") == expected.get("schema_version"),
         "source_manifest_digest": provided.get("source_manifest_digest")
@@ -478,6 +486,7 @@ def verify_bootstrap_receipt(
         "algorithm_profile": provided.get("algorithm_profile") == expected.get("algorithm_profile"),
         "algorithm_profile_digest": provided.get("algorithm_profile_digest")
         == expected.get("algorithm_profile_digest"),
+        "algorithm_profile_digest_self": profile_digest_self_check,
         "seed_material_digest": provided.get("seed_material_digest")
         == expected.get("seed_material_digest"),
         "receipt_digest": isinstance(provided_digest, str)
