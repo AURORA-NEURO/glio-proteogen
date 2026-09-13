@@ -1459,7 +1459,10 @@ inventory. See
    with source protein factors plus atomic protein-adjusted phosphosite factors:
    23 of 28 complexes have both modalities with at least two parent genes, and
    five abstain for explicit support reasons. The aggregate receipt carries
-   loadings and trace digests only, not sample values or scores. The
+   loadings and trace digests only, not sample values or scores. A root-level
+   pathway factor stage now fits five of the six Reactome roots represented by
+   those bindings with the same two modalities; one root abstains for its
+   eight-row phosphosite support gate. The
    numerical lane remains design-only and admission-blocked pending
    processing/uncertainty semantics, topology projection, licensing, and
    evaluation; it must learn edge-family reliability

@@ -293,6 +293,18 @@ vectors. This creates a real multimodal topology coordinate while preserving
 the claim ceiling: it is source-cohort concordance, not complex assembly,
 pathway activity, occupancy, kinase activity, or causal regulation.
 
+The pathway follow-on `tools/fit_cptac_gbm_pathway_factors.py` now aggregates
+the same exact complex bindings by their directly annotated Reactome root and
+fits root-level protein and adjusted-phosphosite factors. It does not infer
+transitive membership: only genes present in the selected complex bindings are
+eligible. Five of the six roots represented by the admitted 28-complex panel
+fit both modalities; `R-HSA-8953897` abstains because its two eligible source
+phosphosite rows fail the eight-row gate. The 145 KiB private receipt records
+root IDs, direct complex IDs, aggregate loadings, support, and profile digests;
+it explicitly records that the six-root panel is not the ten-root design target
+and that a factor is a concordance coordinate, not pathway activation, flux,
+direction, or causality.
+
 ## Model family and bounded graph semantics
 
 The only admissible family is a missing-aware robust confirmatory set-factor
