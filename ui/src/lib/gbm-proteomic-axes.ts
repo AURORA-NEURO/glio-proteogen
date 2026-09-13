@@ -56,6 +56,7 @@ export type GbmSignatureContrast = {
   lower: number | null;
   upper: number | null;
   replicates: number;
+  signConsensus: number | null;
   direction: "numerator_higher" | "denominator_higher" | "balanced" | "indeterminate" | "not_estimable";
   abstentionReason: string;
   raw: JsonObject;
@@ -268,6 +269,7 @@ export function normalizeGbmContrasts(result: JsonObject): GbmSignatureContrast[
       lower: numberAt(value, ["lower_bound"]),
       upper: numberAt(value, ["upper_bound"]),
       replicates: numberAt(value, ["bootstrap_replicates_used"]) ?? 0,
+      signConsensus: numberAt(value, ["bootstrap_sign_consensus"]),
       direction: direction as GbmSignatureContrast["direction"],
       abstentionReason: textAt(value, ["abstention_reason"]),
       raw: value,

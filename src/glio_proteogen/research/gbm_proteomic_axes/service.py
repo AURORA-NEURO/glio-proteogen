@@ -327,12 +327,17 @@ def _contrast_rows(
         )
         lower: float | None = None
         upper: float | None = None
+        sign_consensus: float | None = None
         replicates = 0
         if draws:
             lower_value, upper_value = np.quantile(np.asarray(draws, dtype=np.float64), [0.05, 0.95])
             lower = min(round(float(lower_value), 6), score)
             upper = max(round(float(upper_value), 6), score)
             replicates = len(draws)
+            draw_array = np.asarray(draws, dtype=np.float64)
+            positive_fraction = float(np.mean(draw_array >= 0.0))
+            negative_fraction = float(np.mean(draw_array <= 0.0))
+            sign_consensus = round(max(positive_fraction, negative_fraction), 6)
         if lower is None or upper is None:
             direction: Literal[
                 "numerator_higher",
@@ -359,6 +364,7 @@ def _contrast_rows(
                 lower_bound=lower,
                 upper_bound=upper,
                 bootstrap_replicates_used=replicates,
+                bootstrap_sign_consensus=sign_consensus,
                 direction=direction,
             )
         )

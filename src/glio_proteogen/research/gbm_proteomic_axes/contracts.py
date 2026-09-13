@@ -292,6 +292,7 @@ class GbmSignatureContrast(FrozenModel):
     lower_bound: float | None = None
     upper_bound: float | None = None
     bootstrap_replicates_used: int = Field(ge=0, le=MAX_BOOTSTRAPS)
+    bootstrap_sign_consensus: float | None = Field(default=None, ge=0.0, le=1.0)
     direction: Literal[
         "numerator_higher",
         "denominator_higher",
@@ -308,7 +309,7 @@ class GbmSignatureContrast(FrozenModel):
         score = self.contrast_score
         interval = (self.lower_bound, self.upper_bound)
         if self.support is GbmSignatureSupport.ABSTAINED:
-            if any(item is not None for item in (score, *interval)):
+            if any(item is not None for item in (score, *interval, self.bootstrap_sign_consensus)):
                 raise ValueError("abstained contrasts cannot carry numeric values")
             if self.bootstrap_replicates_used != 0:
                 raise ValueError("abstained contrasts cannot carry bootstrap values")
@@ -321,11 +322,15 @@ class GbmSignatureContrast(FrozenModel):
             raise ValueError("contrast interval bounds must be supplied together")
         if self.bootstrap_replicates_used == 0 and any(item is not None for item in interval):
             raise ValueError("contrast intervals require bootstrap replicates")
+        if self.bootstrap_replicates_used == 0 and self.bootstrap_sign_consensus is not None:
+            raise ValueError("sign consensus requires bootstrap replicates")
         if self.bootstrap_replicates_used > 0:
             lower = cast("float", self.lower_bound)
             upper = cast("float", self.upper_bound)
             if not lower <= score <= upper:
                 raise ValueError("contrast interval must contain its point estimate")
+            if self.bootstrap_sign_consensus is None:
+                raise ValueError("bootstrap contrasts require sign consensus")
         if self.abstention_reason is not None:
             raise ValueError("estimated contrasts cannot carry an abstention reason")
         if self.direction == "numerator_higher" and self.lower_bound is not None and self.lower_bound <= 0.0:

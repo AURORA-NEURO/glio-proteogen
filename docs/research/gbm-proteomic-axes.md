@@ -77,7 +77,10 @@ same log2 LFQ bootstrap draws as the parent scores, preserving their covariance 
 assuming two independent model errors. A direction is labeled only when the interval is
 strictly positive, strictly negative, or wholly inside the profile’s ±0.25 balance band;
 otherwise it remains indeterminate. These are bulk-proteomic heterogeneity coordinates, not
-subtype calls.
+subtype calls. Each bootstrapped contrast also reports an empirical sign-consensus probability
+from its shared draws; this is descriptive uncertainty evidence and does not turn a crossing
+interval into a directional claim. With zero bootstrap replicates, interval and sign-consensus
+fields are withheld.
 
 Fewer than 32 observed model features forces abstention. At least 32 but less than 50% of the
 3,025-feature universe is labeled `limited`; at least 50% is labeled `supported`. These are

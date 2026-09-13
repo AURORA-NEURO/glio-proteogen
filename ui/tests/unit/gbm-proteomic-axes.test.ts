@@ -130,6 +130,7 @@ describe("GBM proteomic-axis result normalization", () => {
           lower_bound: 0.1,
           upper_bound: 0.5,
           bootstrap_replicates_used: 64,
+          bootstrap_sign_consensus: 0.9375,
           direction: "numerator_higher",
         },
         { contrast_id: "ignored", support: "unknown" },
@@ -143,6 +144,7 @@ describe("GBM proteomic-axis result normalization", () => {
       upper: 0.5,
       direction: "numerator_higher",
       replicates: 64,
+      signConsensus: 0.9375,
     });
   });
 

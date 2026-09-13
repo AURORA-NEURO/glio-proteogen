@@ -16,6 +16,7 @@ from glio_proteogen.research.gbm_proteomic_axes import (
     GbmProteinMeasurement,
     GbmProteomicAxesRequest,
     GbmReplayVerificationRequest,
+    GbmSignatureContrast,
     GbmSignatureSupport,
     UnverifiedGbmProteomicAxesResult,
     algorithm_profile,
@@ -193,6 +194,12 @@ def test_relative_axis_contrasts_reuse_bootstrap_draws_and_replay_exactly() -> N
     assert len(result.contrasts) == 4
     assert all(item.contrast_score is not None for item in result.contrasts)
     assert all(item.bootstrap_replicates_used == 8 for item in result.contrasts)
+    assert all(item.bootstrap_sign_consensus is not None for item in result.contrasts)
+    assert all(
+        0.5 <= item.bootstrap_sign_consensus <= 1.0
+        for item in result.contrasts
+        if item.bootstrap_sign_consensus is not None
+    )
     assert all(
         item.lower_bound is not None
         and item.upper_bound is not None
@@ -224,6 +231,7 @@ def test_relative_axis_contrasts_follow_selected_signature_support() -> None:
     assert contrast.contrast_score is not None
     assert contrast.bootstrap_replicates_used == 0
     assert contrast.lower_bound is None and contrast.upper_bound is None
+    assert contrast.bootstrap_sign_consensus is None
     assert contrast.direction == "indeterminate"
 
 
@@ -329,6 +337,50 @@ def test_relative_axis_contrast_abstains_when_one_parent_is_below_coverage_floor
     assert contrast.direction == "not_estimable"
     assert contrast.contrast_score is None
     assert contrast.abstention_reason is not None
+
+
+def test_contrast_sign_consensus_contract_is_bound_to_bootstrap_support() -> None:
+    valid = GbmSignatureContrast(
+        contrast_id="axis-a-axis-b",
+        numerator_signature_id="axis-a",
+        denominator_signature_id="axis-b",
+        support=GbmSignatureSupport.SUPPORTED,
+        contrast_score=0.4,
+        lower_bound=0.2,
+        upper_bound=0.6,
+        bootstrap_replicates_used=8,
+        bootstrap_sign_consensus=0.875,
+        direction="numerator_higher",
+    )
+    assert valid.bootstrap_sign_consensus == 0.875
+    with pytest.raises(ValidationError, match="sign consensus"):
+        GbmSignatureContrast(
+            **valid.model_dump(exclude_none=False, mode="python")
+            | {"bootstrap_sign_consensus": None}
+        )
+    with pytest.raises(ValidationError, match="requires bootstrap"):
+        GbmSignatureContrast(
+            **valid.model_dump(exclude_none=False, mode="python")
+            | {
+                "bootstrap_replicates_used": 0,
+                "lower_bound": None,
+                "upper_bound": None,
+            }
+        )
+    with pytest.raises(ValidationError, match="numeric values"):
+        GbmSignatureContrast(
+            **valid.model_dump(exclude_none=False, mode="python")
+            | {
+                "support": GbmSignatureSupport.ABSTAINED,
+                "contrast_score": None,
+                "lower_bound": None,
+                "upper_bound": None,
+                "bootstrap_replicates_used": 0,
+                "bootstrap_sign_consensus": 0.875,
+                "direction": "not_estimable",
+                "abstention_reason": "insufficient support",
+            }
+        )
 
 
 def test_all_inactive_evidence_abstains_without_fabricating_normalization() -> None:

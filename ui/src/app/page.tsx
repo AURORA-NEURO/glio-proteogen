@@ -1166,13 +1166,14 @@ function GbmContrastTable({ contrasts }: { contrasts: GbmSignatureContrast[] }) 
       </div>
       <p className="panel-note">Each contrast is formed from the same LFQ perturbation draws as its parent signatures, so the interval retains their shared measurement covariance.</p>
       <div className="state-table-wrap"><table className="state-table">
-        <thead><tr><th>Contrast</th><th>Score</th><th>90% interval</th><th>Direction</th><th>Support</th></tr></thead>
+        <thead><tr><th>Contrast</th><th>Score</th><th>90% interval</th><th>Direction</th><th>Sign consensus</th><th>Support</th></tr></thead>
         <tbody>{contrasts.map((contrast) => (
           <tr key={contrast.id} data-contrast-id={contrast.id}>
             <td><b>{contrast.numerator} − {contrast.denominator}</b><small>{contrast.id}</small></td>
             <td className="mono-cell">{formatSigned(contrast.score, 4)}</td>
             <td className="mono-cell">{contrast.lower === null || contrast.upper === null ? "not estimated" : `[${formatNumber(contrast.lower, 4)}, ${formatNumber(contrast.upper, 4)}]`}</td>
             <td><span className="evidence-state">{contrast.direction.replaceAll("_", " ")}</span></td>
+            <td className="mono-cell">{contrast.signConsensus === null ? "not estimated" : `${formatNumber(contrast.signConsensus * 100, 1)}%`}<small>bootstrap sign agreement</small></td>
             <td><span className={`support-badge ${contrast.support}`}>{contrast.support}</span>{contrast.abstentionReason && <small className="warning-copy">{contrast.abstentionReason}</small>}</td>
           </tr>
         ))}</tbody>
