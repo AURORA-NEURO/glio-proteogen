@@ -28,6 +28,7 @@ MAX_REQUEST_BYTES = 2 * 1_024 * 1_024
 MAX_RESULT_BYTES = 1 * 1_024 * 1_024
 MAX_REPLAY_BYTES = 4 * 1_024 * 1_024
 MAX_TOP_DRIVERS = 10
+MAX_CONTRASTS = 4
 MAX_JSON_SAFE_INTEGER = 2**53 - 1
 
 MIN_OBSERVED_MODEL_FEATURES = 32
@@ -274,6 +275,70 @@ class GbmSignatureEstimate(FrozenModel):
         return self
 
 
+class GbmSignatureContrast(FrozenModel):
+    """A paired, uncertainty-aware contrast between two published GBM axes.
+
+    Contrasts are computed from the same perturbed LFQ draws as their parent
+    signatures, preserving covariance instead of treating two model scores as
+    independent measurements.  They are relative bulk-proteomic coordinates,
+    never subtype or clinical calls.
+    """
+
+    contrast_id: Identifier
+    numerator_signature_id: Identifier
+    denominator_signature_id: Identifier
+    support: GbmSignatureSupport
+    contrast_score: float | None = None
+    lower_bound: float | None = None
+    upper_bound: float | None = None
+    bootstrap_replicates_used: int = Field(ge=0, le=MAX_BOOTSTRAPS)
+    direction: Literal[
+        "numerator_higher",
+        "denominator_higher",
+        "balanced",
+        "indeterminate",
+        "not_estimable",
+    ]
+    abstention_reason: NonEmptyStr | None = None
+
+    @model_validator(mode="after")
+    def contrast_shape_is_coherent(self) -> Self:
+        if self.numerator_signature_id == self.denominator_signature_id:
+            raise ValueError("a signature contrast requires two distinct axes")
+        score = self.contrast_score
+        interval = (self.lower_bound, self.upper_bound)
+        if self.support is GbmSignatureSupport.ABSTAINED:
+            if any(item is not None for item in (score, *interval)):
+                raise ValueError("abstained contrasts cannot carry numeric values")
+            if self.bootstrap_replicates_used != 0:
+                raise ValueError("abstained contrasts cannot carry bootstrap values")
+            if self.direction != "not_estimable" or self.abstention_reason is None:
+                raise ValueError("abstained contrasts require a not-estimable reason")
+            return self
+        if score is None:
+            raise ValueError("supported contrasts require a point estimate")
+        if (self.lower_bound is None) != (self.upper_bound is None):
+            raise ValueError("contrast interval bounds must be supplied together")
+        if self.bootstrap_replicates_used == 0 and any(item is not None for item in interval):
+            raise ValueError("contrast intervals require bootstrap replicates")
+        if self.bootstrap_replicates_used > 0:
+            lower = cast("float", self.lower_bound)
+            upper = cast("float", self.upper_bound)
+            if not lower <= score <= upper:
+                raise ValueError("contrast interval must contain its point estimate")
+        if self.abstention_reason is not None:
+            raise ValueError("estimated contrasts cannot carry an abstention reason")
+        if self.direction == "numerator_higher" and self.lower_bound is not None and self.lower_bound <= 0.0:
+            raise ValueError("numerator-higher direction requires a positive interval")
+        if self.direction == "denominator_higher" and self.upper_bound is not None and self.upper_bound >= 0.0:
+            raise ValueError("denominator-higher direction requires a negative interval")
+        if self.direction == "balanced" and self.lower_bound is not None and (
+            self.lower_bound < -0.25 or self.upper_bound is None or self.upper_bound > 0.25
+        ):
+            raise ValueError("balanced direction requires an interval inside the balance band")
+        return self
+
+
 class GbmProteomicAxesProvenance(FrozenModel):
     engine: Literal["gbm-proteomic-axes/1.0.0"] = "gbm-proteomic-axes/1.0.0"
     profile_digest: Sha256Digest
@@ -303,6 +368,7 @@ class GbmProteomicAxesResult(FrozenModel):
     signatures: tuple[GbmSignatureEstimate, ...] = Field(
         min_length=1, max_length=MAX_SIGNATURES
     )
+    contrasts: tuple[GbmSignatureContrast, ...] = Field(default=(), max_length=MAX_CONTRASTS)
     provenance: GbmProteomicAxesProvenance
     limitations: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=16)
     research_use_only: Literal[True] = True
@@ -337,6 +403,7 @@ class UnverifiedGbmProteomicAxesResult(FrozenModel):
     signatures: tuple[GbmSignatureEstimate, ...] = Field(
         min_length=1, max_length=MAX_SIGNATURES
     )
+    contrasts: tuple[GbmSignatureContrast, ...] = Field(default=(), max_length=MAX_CONTRASTS)
     provenance: GbmProteomicAxesProvenance
     limitations: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=16)
     research_use_only: Literal[True] = True
@@ -372,6 +439,20 @@ class GbmProteomicAxesConstants(FrozenModel):
     minimum_observed_model_features: Literal[32] = 32
     supported_coverage_fraction: float = Field(default=0.5, ge=0.0, le=1.0)
     bootstrap_sampling_policy: Literal["observed_lfq_log2_normal_v1"]
+    relative_axis_contrasts: tuple[
+        Literal[
+            "SWEET_KRAS_TARGETS_UP-HALLMARK_MYC_TARGETS_V1",
+            "WINTER_HYPOXIA_UP-VERHAAK_GLIOBLASTOMA_MESENCHYMAL",
+            "VERHAAK_GLIOBLASTOMA_PRONEURAL-VERHAAK_GLIOBLASTOMA_MESENCHYMAL",
+            "EGFR_UP.V1_UP-VERHAAK_GLIOBLASTOMA_MESENCHYMAL",
+        ],
+        ...,
+    ] = (
+        "SWEET_KRAS_TARGETS_UP-HALLMARK_MYC_TARGETS_V1",
+        "WINTER_HYPOXIA_UP-VERHAAK_GLIOBLASTOMA_MESENCHYMAL",
+        "VERHAAK_GLIOBLASTOMA_PRONEURAL-VERHAAK_GLIOBLASTOMA_MESENCHYMAL",
+        "EGFR_UP.V1_UP-VERHAAK_GLIOBLASTOMA_MESENCHYMAL",
+    )
     bootstrap_interval_lower_quantile: float = Field(default=0.05, ge=0.0, lt=0.5)
     bootstrap_interval_upper_quantile: float = Field(default=0.95, gt=0.5, le=1.0)
     bootstrap_log2_minimum: Literal[-30] = -30
@@ -431,6 +512,7 @@ __all__ = [
     "ALGORITHM_ID",
     "ALGORITHM_VERSION",
     "MAX_BOOTSTRAPS",
+    "MAX_CONTRASTS",
     "MAX_JSON_SAFE_INTEGER",
     "MAX_MEASUREMENTS",
     "MAX_REPLAY_BYTES",
@@ -456,6 +538,7 @@ __all__ = [
     "GbmProteomicAxesResult",
     "GbmReplayVerificationRequest",
     "GbmReplayVerificationResult",
+    "GbmSignatureContrast",
     "GbmSignatureEstimate",
     "GbmSignatureProfile",
     "GbmSignatureSupport",

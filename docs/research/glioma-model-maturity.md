@@ -17,7 +17,11 @@ separate algorithms and receipts, not scientifically independent evidence:
   and ablations;
 - `gbm-proteomic-axes/1.0.0`: an exact runtime port of seven published GBM
   protein-abundance XGBoost ensembles, locked to the author implementation and
-  all 28 supplied output oracles; and
+  all 28 supplied output oracles. The runtime additionally emits four
+  profile-pinned relative-axis contrasts from shared measurement-error bootstrap
+  draws (KRAS↔MYC, hypoxia↔mesenchymal, proneural↔mesenchymal, and
+  EGFR↔mesenchymal), preserving score covariance and abstaining when either
+  parent axis lacks support; and
 - `gbm-rna-tumor-purity/1.0.0`: an exact NumPy runtime port of the published
   5,829→32→16→1 GBMPurity bulk-RNA model, with fail-closed source conversion,
   the published 80% gene-overlap gate, source-parity preprocessing, output

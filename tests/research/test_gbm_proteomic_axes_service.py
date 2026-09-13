@@ -186,6 +186,47 @@ def test_service_matches_published_oracle_without_zero_measurement_coercion() ->
         )
 
 
+def test_relative_axis_contrasts_reuse_bootstrap_draws_and_replay_exactly() -> None:
+    request = synthetic_demo_request().model_copy(update={"bootstrap_replicates": 8})
+    result = analyze_gbm_proteomic_axes(request)
+
+    assert len(result.contrasts) == 4
+    assert all(item.contrast_score is not None for item in result.contrasts)
+    assert all(item.bootstrap_replicates_used == 8 for item in result.contrasts)
+    assert all(
+        item.lower_bound is not None
+        and item.upper_bound is not None
+        and item.lower_bound <= item.contrast_score <= item.upper_bound
+        for item in result.contrasts
+    )
+    assert all(item.direction != "not_estimable" for item in result.contrasts)
+
+    replay = verify_gbm_proteomic_axes_replay(
+        GbmReplayVerificationRequest(request=request, result=result)
+    )
+    assert replay.verified is True
+
+
+def test_relative_axis_contrasts_follow_selected_signature_support() -> None:
+    request = synthetic_demo_request().model_copy(
+        update={
+            "signature_ids": (
+                "EGFR_UP.V1_UP",
+                "VERHAAK_GLIOBLASTOMA_MESENCHYMAL",
+            ),
+            "bootstrap_replicates": 0,
+        }
+    )
+    result = analyze_gbm_proteomic_axes(request)
+    assert len(result.contrasts) == 1
+    contrast = result.contrasts[0]
+    assert contrast.contrast_id == "EGFR_UP.V1_UP-VERHAAK_GLIOBLASTOMA_MESENCHYMAL"
+    assert contrast.contrast_score is not None
+    assert contrast.bootstrap_replicates_used == 0
+    assert contrast.lower_bound is None and contrast.upper_bound is None
+    assert contrast.direction == "indeterminate"
+
+
 def test_non_model_positive_protein_changes_normalization_exactly_like_upstream() -> None:
     request = _oracle_request(non_model=1.0)
     result = analyze_gbm_proteomic_axes(request)
@@ -264,6 +305,30 @@ def test_low_coverage_abstains_and_left_censor_never_becomes_negative() -> None:
     assert result.evidence.absent_feature_semantics == (
         "published_zero_fill_not_biological_absence"
     )
+
+
+def test_relative_axis_contrast_abstains_when_one_parent_is_below_coverage_floor() -> None:
+    request = GbmProteomicAxesRequest(
+        sample_id="low.contrast.coverage",
+        measurements=(
+            _measurement("EGFR", GbmProteinEvidenceState.OBSERVED, intensity=2_000_000.0),
+            _measurement(
+                "CA9",
+                GbmProteinEvidenceState.LEFT_CENSORED,
+                upper_limit=100_000.0,
+            ),
+        ),
+        signature_ids=(
+            "EGFR_UP.V1_UP",
+            "VERHAAK_GLIOBLASTOMA_MESENCHYMAL",
+        ),
+        bootstrap_replicates=0,
+    )
+    contrast = analyze_gbm_proteomic_axes(request).contrasts[0]
+    assert contrast.support is GbmSignatureSupport.ABSTAINED
+    assert contrast.direction == "not_estimable"
+    assert contrast.contrast_score is None
+    assert contrast.abstention_reason is not None
 
 
 def test_all_inactive_evidence_abstains_without_fabricating_normalization() -> None:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Mapping
-from typing import cast
+from typing import Literal, cast
 
 import numpy as np
 
@@ -30,6 +30,7 @@ from .contracts import (
     GbmProteomicAxesResult,
     GbmReplayVerificationRequest,
     GbmReplayVerificationResult,
+    GbmSignatureContrast,
     GbmSignatureEstimate,
     GbmSignatureSupport,
 )
@@ -44,6 +45,14 @@ _LIMITATIONS = (
     "Coverage labels and the 32-feature abstention floor are repository safety policies, not validated biological or clinical thresholds.",
     "Bootstrap intervals propagate caller-supplied log2 measurement error only; they do not cover sampling, model-form, cohort-shift, or biological uncertainty.",
     "The source study and bundled demo concern glioblastoma research; results must not be generalized to other glioma entities without independent validation.",
+    "Relative axis contrasts reuse the same perturbed LFQ draws to preserve score covariance; they are bulk-proteomic heterogeneity coordinates, not subtype calls or clinical classifications.",
+)
+
+_CONTRAST_PAIRS: tuple[tuple[str, str], ...] = (
+    ("SWEET_KRAS_TARGETS_UP", "HALLMARK_MYC_TARGETS_V1"),
+    ("WINTER_HYPOXIA_UP", "VERHAAK_GLIOBLASTOMA_MESENCHYMAL"),
+    ("VERHAAK_GLIOBLASTOMA_PRONEURAL", "VERHAAK_GLIOBLASTOMA_MESENCHYMAL"),
+    ("EGFR_UP.V1_UP", "VERHAAK_GLIOBLASTOMA_MESENCHYMAL"),
 )
 
 
@@ -264,6 +273,98 @@ def _signature_rows(
     return tuple(rows)
 
 
+def _contrast_rows(
+    signatures: tuple[GbmSignatureEstimate, ...],
+    bootstrap: Mapping[str, tuple[float, ...]],
+) -> tuple[GbmSignatureContrast, ...]:
+    """Compute covariance-preserving relative coordinates for selected axes."""
+
+    by_id = {item.signature_id: item for item in signatures}
+    rows: list[GbmSignatureContrast] = []
+    for numerator_id, denominator_id in _CONTRAST_PAIRS:
+        numerator = by_id.get(numerator_id)
+        denominator = by_id.get(denominator_id)
+        if numerator is None or denominator is None:
+            continue
+        contrast_id = f"{numerator_id}-{denominator_id}"
+        if (
+            numerator.support is GbmSignatureSupport.ABSTAINED
+            or denominator.support is GbmSignatureSupport.ABSTAINED
+            or numerator.published_score is None
+            or denominator.published_score is None
+        ):
+            rows.append(
+                GbmSignatureContrast(
+                    contrast_id=contrast_id,
+                    numerator_signature_id=numerator_id,
+                    denominator_signature_id=denominator_id,
+                    support=GbmSignatureSupport.ABSTAINED,
+                    bootstrap_replicates_used=0,
+                    direction="not_estimable",
+                    abstention_reason=(
+                        "Both parent signatures require supported bulk-proteomic coverage "
+                        "before a relative axis contrast can be estimated."
+                    ),
+                )
+            )
+            continue
+        score = float(numerator.published_score - denominator.published_score)
+        parent_support = (
+            GbmSignatureSupport.SUPPORTED
+            if numerator.support is GbmSignatureSupport.SUPPORTED
+            and denominator.support is GbmSignatureSupport.SUPPORTED
+            else GbmSignatureSupport.LIMITED
+        )
+        numerator_draws = bootstrap.get(numerator_id)
+        denominator_draws = bootstrap.get(denominator_id)
+        draws = (
+            tuple(left - right for left, right in zip(numerator_draws, denominator_draws, strict=True))
+            if numerator_draws is not None
+            and denominator_draws is not None
+            and len(numerator_draws) == len(denominator_draws)
+            and numerator_draws
+            else None
+        )
+        lower: float | None = None
+        upper: float | None = None
+        replicates = 0
+        if draws:
+            lower_value, upper_value = np.quantile(np.asarray(draws, dtype=np.float64), [0.05, 0.95])
+            lower = min(round(float(lower_value), 6), score)
+            upper = max(round(float(upper_value), 6), score)
+            replicates = len(draws)
+        if lower is None or upper is None:
+            direction: Literal[
+                "numerator_higher",
+                "denominator_higher",
+                "balanced",
+                "indeterminate",
+                "not_estimable",
+            ] = "indeterminate"
+        elif lower > 0.0:
+            direction = "numerator_higher"
+        elif upper < 0.0:
+            direction = "denominator_higher"
+        elif lower >= -0.25 and upper <= 0.25:
+            direction = "balanced"
+        else:
+            direction = "indeterminate"
+        rows.append(
+            GbmSignatureContrast(
+                contrast_id=contrast_id,
+                numerator_signature_id=numerator_id,
+                denominator_signature_id=denominator_id,
+                support=parent_support,
+                contrast_score=score,
+                lower_bound=lower,
+                upper_bound=upper,
+                bootstrap_replicates_used=replicates,
+                direction=direction,
+            )
+        )
+    return tuple(rows)
+
+
 def analyze_gbm_proteomic_axes(
     request: GbmProteomicAxesRequest,
     *,
@@ -290,6 +391,7 @@ def analyze_gbm_proteomic_axes(
         else {}
     )
     signatures = _signature_rows(request, point, selected, bootstrap)
+    contrasts = _contrast_rows(signatures, bootstrap)
     normalization = GbmNormalizationSummary(
         geometric_mean=None if point is None else float(point.geometric_mean),
         normalization_factor=None if point is None else float(point.normalization_factor),
@@ -321,6 +423,7 @@ def analyze_gbm_proteomic_axes(
         "normalization": normalization,
         "evidence": evidence,
         "signatures": signatures,
+        "contrasts": contrasts,
         "provenance": provenance,
         "limitations": _LIMITATIONS,
         "research_use_only": True,

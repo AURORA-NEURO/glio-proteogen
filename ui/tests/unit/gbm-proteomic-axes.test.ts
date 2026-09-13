@@ -4,6 +4,7 @@ import {
   GBM_PROFILE_ID,
   GBM_SIGNATURE_IDS,
   gbmRequestStats,
+  normalizeGbmContrasts,
   normalizeGbmSignatures,
   validateGbmRequest,
 } from "../../src/lib/gbm-proteomic-axes";
@@ -117,6 +118,34 @@ describe("GBM proteomic-axis request helpers", () => {
 });
 
 describe("GBM proteomic-axis result normalization", () => {
+  it("normalizes covariance-preserving relative axis contrasts", () => {
+    const contrasts = normalizeGbmContrasts({
+      contrasts: [
+        {
+          contrast_id: "EGFR_UP.V1_UP-VERHAAK_GLIOBLASTOMA_MESENCHYMAL",
+          numerator_signature_id: "EGFR_UP.V1_UP",
+          denominator_signature_id: "VERHAAK_GLIOBLASTOMA_MESENCHYMAL",
+          support: "supported",
+          contrast_score: 0.3,
+          lower_bound: 0.1,
+          upper_bound: 0.5,
+          bootstrap_replicates_used: 64,
+          direction: "numerator_higher",
+        },
+        { contrast_id: "ignored", support: "unknown" },
+      ],
+    });
+    expect(contrasts).toHaveLength(1);
+    expect(contrasts[0]).toMatchObject({
+      id: "EGFR_UP.V1_UP-VERHAAK_GLIOBLASTOMA_MESENCHYMAL",
+      score: 0.3,
+      lower: 0.1,
+      upper: 0.5,
+      direction: "numerator_higher",
+      replicates: 64,
+    });
+  });
+
   it("normalizes supported, limited, and abstained signatures with typed drivers", () => {
     const signatures = normalizeGbmSignatures({
       signatures: [

@@ -47,8 +47,10 @@ import {
 import {
   GBM_PROFILE_ID,
   gbmRequestStats,
+  normalizeGbmContrasts,
   normalizeGbmSignatures,
   validateGbmRequest,
+  type GbmSignatureContrast,
   type GbmSignature,
 } from "@/lib/gbm-proteomic-axes";
 import {
@@ -1154,6 +1156,31 @@ function GbmSignatureTable({ signatures }: { signatures: GbmSignature[] }) {
   );
 }
 
+function GbmContrastTable({ contrasts }: { contrasts: GbmSignatureContrast[] }) {
+  if (contrasts.length === 0) return null;
+  return (
+    <section className="result-panel state-panel">
+      <div className="panel-title-row">
+        <div><p className="eyebrow">GBM HETEROGENEITY COORDINATES</p><h3>Covariance-preserving axis contrasts</h3></div>
+        <span className="boundary-chip">relative bulk scores · not subtype calls</span>
+      </div>
+      <p className="panel-note">Each contrast is formed from the same LFQ perturbation draws as its parent signatures, so the interval retains their shared measurement covariance.</p>
+      <div className="state-table-wrap"><table className="state-table">
+        <thead><tr><th>Contrast</th><th>Score</th><th>90% interval</th><th>Direction</th><th>Support</th></tr></thead>
+        <tbody>{contrasts.map((contrast) => (
+          <tr key={contrast.id} data-contrast-id={contrast.id}>
+            <td><b>{contrast.numerator} − {contrast.denominator}</b><small>{contrast.id}</small></td>
+            <td className="mono-cell">{formatSigned(contrast.score, 4)}</td>
+            <td className="mono-cell">{contrast.lower === null || contrast.upper === null ? "not estimated" : `[${formatNumber(contrast.lower, 4)}, ${formatNumber(contrast.upper, 4)}]`}</td>
+            <td><span className="evidence-state">{contrast.direction.replaceAll("_", " ")}</span></td>
+            <td><span className={`support-badge ${contrast.support}`}>{contrast.support}</span>{contrast.abstentionReason && <small className="warning-copy">{contrast.abstentionReason}</small>}</td>
+          </tr>
+        ))}</tbody>
+      </table></div>
+    </section>
+  );
+}
+
 function GbmDriverPanels({ signatures }: { signatures: GbmSignature[] }) {
   return (
     <section className="result-panel">
@@ -1587,6 +1614,7 @@ export default function ResearchWorkbench() {
   }, [microenvironment.graphResult, mode, result, states]);
   const stateGroups = useMemo(() => Object.fromEntries(KIND_ORDER.map((kind) => [kind, states.filter((state) => state.kind === kind)])) as Record<StateKind, NormalizedState[]>, [states]);
   const gbmSignatures = useMemo(() => mode === "gbm-proteomic-axes" && result ? normalizeGbmSignatures(result) : [], [mode, result]);
+  const gbmContrasts = useMemo(() => mode === "gbm-proteomic-axes" && result ? normalizeGbmContrasts(result) : [], [mode, result]);
   const neftelPrograms = useMemo(() => mode === "neftel-programs" && result ? normalizeNeftelPrograms(result) : [], [mode, result]);
   const masterKinases = useMemo(() => mode === "gbm-master-kinases" && result ? normalizeMasterKinases(result) : [], [mode, result]);
   const masterKinaseSubtypes = useMemo(() => mode === "gbm-master-kinases" && result ? normalizeMasterKinaseSubtypes(result) : [], [mode, result]);
@@ -2552,6 +2580,7 @@ export default function ResearchWorkbench() {
                 <article><span>BOOTSTRAP</span><b>{gbmSignatures.reduce((maximum, signature) => Math.max(maximum, signature.bootstrapReplicates), 0)}</b><small>measurement-error perturbations</small></article>
               </div>
               <GbmSignatureTable signatures={gbmSignatures} />
+              <GbmContrastTable contrasts={gbmContrasts} />
               <GbmDriverPanels signatures={gbmSignatures} />
             </div>
           )}
@@ -2752,6 +2781,7 @@ export default function ResearchWorkbench() {
                   </tr>)}
                 </tbody></table></div>
               </section>
+              <GbmContrastTable contrasts={gbmContrasts} />
               <section className="mechanism-grid">
                 <JsonPanel title="LFQ normalization" eyebrow="PUBLISHED PREPROCESSING" value={gbmNormalization ? safeJson(gbmNormalization) : null} empty="No normalization summary was returned." />
                 <JsonPanel title="Evidence summary" eyebrow="EXPLICIT ABSENCE SEMANTICS" value={gbmEvidence ? safeJson(gbmEvidence) : null} empty="No evidence summary was returned." />

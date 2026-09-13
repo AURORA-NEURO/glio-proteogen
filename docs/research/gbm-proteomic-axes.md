@@ -70,6 +70,15 @@ four-decimal score. It also groups selected stump-path leaves by feature for an 
 decomposition. Those values are tree-path contributions—not SHAP values, causal effects, or
 independent biological importance.
 
+When both members of one of the four profile-pinned axis pairs are selected, the result also
+reports a relative contrast (KRAS-like minus MYC-like, hypoxia minus mesenchymal, proneural
+minus mesenchymal, or EGFR-up minus mesenchymal). Contrast intervals are calculated from the
+same log2 LFQ bootstrap draws as the parent scores, preserving their covariance rather than
+assuming two independent model errors. A direction is labeled only when the interval is
+strictly positive, strictly negative, or wholly inside the profile’s ±0.25 balance band;
+otherwise it remains indeterminate. These are bulk-proteomic heterogeneity coordinates, not
+subtype calls.
+
 Fewer than 32 observed model features forces abstention. At least 32 but less than 50% of the
 3,025-feature universe is labeled `limited`; at least 50% is labeled `supported`. These are
 repository safety policies bound into the profile, not biologically validated cutoffs. The raw

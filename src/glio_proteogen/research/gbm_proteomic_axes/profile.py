@@ -42,6 +42,12 @@ CONSTANTS = GbmProteomicAxesConstants(
     missing_feature_interpretation="not_biological_absence",
     left_censored_point_policy="excluded_from_point_prediction",
     bootstrap_sampling_policy="observed_lfq_log2_normal_v1",
+    relative_axis_contrasts=(
+        "SWEET_KRAS_TARGETS_UP-HALLMARK_MYC_TARGETS_V1",
+        "WINTER_HYPOXIA_UP-VERHAAK_GLIOBLASTOMA_MESENCHYMAL",
+        "VERHAAK_GLIOBLASTOMA_PRONEURAL-VERHAAK_GLIOBLASTOMA_MESENCHYMAL",
+        "EGFR_UP.V1_UP-VERHAAK_GLIOBLASTOMA_MESENCHYMAL",
+    ),
 )
 LIMITS = GbmProteomicAxesLimits()
 

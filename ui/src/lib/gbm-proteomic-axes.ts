@@ -47,6 +47,20 @@ export type GbmSignature = {
   raw: JsonObject;
 };
 
+export type GbmSignatureContrast = {
+  id: string;
+  numerator: string;
+  denominator: string;
+  support: GbmSignatureSupport;
+  score: number | null;
+  lower: number | null;
+  upper: number | null;
+  replicates: number;
+  direction: "numerator_higher" | "denominator_higher" | "balanced" | "indeterminate" | "not_estimable";
+  abstentionReason: string;
+  raw: JsonObject;
+};
+
 export type GbmRequestStats = {
   measurements: number;
   observed: number;
@@ -235,5 +249,28 @@ export function normalizeGbmSignatures(result: JsonObject): GbmSignature[] {
       }),
       raw: value,
     } satisfies GbmSignature];
+  });
+}
+
+export function normalizeGbmContrasts(result: JsonObject): GbmSignatureContrast[] {
+  return arrayAt(result, ["contrasts"]).flatMap((value) => {
+    if (!isJsonObject(value)) return [];
+    const support = textAt(value, ["support"]);
+    if (support !== "supported" && support !== "limited" && support !== "abstained") return [];
+    const direction = textAt(value, ["direction"], "indeterminate");
+    if (!["numerator_higher", "denominator_higher", "balanced", "indeterminate", "not_estimable"].includes(direction)) return [];
+    return [{
+      id: textAt(value, ["contrast_id"], "unnamed-contrast"),
+      numerator: textAt(value, ["numerator_signature_id"], "—"),
+      denominator: textAt(value, ["denominator_signature_id"], "—"),
+      support,
+      score: numberAt(value, ["contrast_score"]),
+      lower: numberAt(value, ["lower_bound"]),
+      upper: numberAt(value, ["upper_bound"]),
+      replicates: numberAt(value, ["bootstrap_replicates_used"]) ?? 0,
+      direction: direction as GbmSignatureContrast["direction"],
+      abstentionReason: textAt(value, ["abstention_reason"]),
+      raw: value,
+    } satisfies GbmSignatureContrast];
   });
 }
