@@ -21,6 +21,9 @@ from glio_proteogen.contracts.m10_05 import (
     M1005_M1004_RESULT_MEDIA_TYPE,
     ConstraintHardness,
     ConstraintKind,
+    FeatureObservation,
+    FeatureObservationState,
+    GliomaConstraintProgram,
     IntegrateProteinRnaConstraintsRequest,
     MechanismConstraint,
     MechanismConstraintSet,
@@ -115,8 +118,9 @@ def build_request(
     hard_expression: str = "always_true",
     soft_expression: str = "always_true",
     unknown_controls: bool = False,
+    measured: bool = False,
 ) -> IntegrateProteinRnaConstraintsRequest:
-    """Build a deterministic request with caller-declared opaque artifacts."""
+    """Build a deterministic request with optional measured feature evidence."""
 
     constraint_evidence = EvidenceReference(
         reference=_artifact("constraint-evidence", "a"),
@@ -161,6 +165,16 @@ def build_request(
         constraint_set=constraint_set,
         advanced_estimator_result=_artifact("m1004.result", "9", M1005_M1004_RESULT_MEDIA_TYPE),
         feature_artifacts=(_artifact("feature.pathway", "b", "application/vnd.opaque+json"),),
+        feature_observations=(
+            FeatureObservation(
+                feature_id="feature.pathway",
+                state=FeatureObservationState.OBSERVED,
+                value=0.8,
+                standard_error=0.1,
+            ),
+        )
+        if measured
+        else (),
     )
 
 
@@ -182,6 +196,61 @@ def evaluate() -> dict[str, object]:
                 and integrated.human_review_required
             ),
             detail="soft conflict is quantified without overriding a hard constraint",
+        )
+    )
+    measured = service.execute(
+        build_request(
+            hard_expression="feature.pathway >= 0.5",
+            soft_expression="feature.pathway <= 1.0",
+            measured=True,
+        )
+    )
+    checks.append(
+        _check(
+            "measured_feature_constraints_are_integrated",
+            passed=(
+                measured.status.value == "integrated"
+                and all(item.outcome.value == "satisfied" for item in measured.evaluations)
+                and measured.estimates[0].score == 1.0
+            ),
+            detail="numeric feature evidence is evaluated with assay-error-scaled residuals",
+        )
+    )
+    typed = service.execute(
+        build_request(
+            hard_expression="feature.pathway >= 0.5",
+            soft_expression="feature.pathway <= 1.0",
+            measured=True,
+        ).model_copy(
+            update={
+                "feature_observations": (
+                    FeatureObservation(
+                        feature_id="feature.pathway",
+                        state=FeatureObservationState.OBSERVED,
+                        value=0.8,
+                        standard_error=0.1,
+                        program=GliomaConstraintProgram.RTK_PI3K_AKT_MTOR,
+                    ),
+                ),
+                "bootstrap_replicates": 16,
+            }
+        )
+    )
+    checks.append(
+        _check(
+            "typed_glioma_program_graph_is_replayable",
+            passed=(
+                typed.status.value == "integrated"
+                and typed.typed_model
+                and len(typed.program_states) == 1
+                and typed.solver_iterations is not None
+                and typed.solver_objective is not None
+                and service.verify(typed).result_digest == typed.result_digest
+            ),
+            detail=(
+                "annotated feature evidence drives a signed glioma program fit with "
+                "deterministic replay"
+            ),
         )
     )
     replay = service.verify(integrated)

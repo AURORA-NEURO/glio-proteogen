@@ -11,14 +11,14 @@ _SMOKE_ITERATIONS = 3
 
 def test_locked_evaluator_matrix_passes() -> None:
     report = run_matrix()
-    assert report["module"] == "M24-07"
+    assert report["module_id"] == "GLIO-PROTEOGEN-M24-07"
+    assert report["passed"] is True
     assert report["scenario_count"] == _SCENARIO_COUNT
     assert all(
         value is True
         for key, value in report["scenarios"].items()
-        if key != "supported_result_digest"
     )
-    assert str(report["scenarios"]["supported_result_digest"]).startswith("sha256:")
+    assert str(report["supported_result_digest"]).startswith("sha256:")
     assert report["scenarios"]["semantic_replay_rejected"] is True
 
 

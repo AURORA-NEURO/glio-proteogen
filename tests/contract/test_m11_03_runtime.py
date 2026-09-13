@@ -7,12 +7,15 @@ from datetime import UTC, datetime
 import pytest
 
 from glio_proteogen.contracts.m11_03 import (
+    M1103_GLIOMA_MODEL_FAMILY,
     M1103_M1102_INPUT_MEDIA_TYPE,
     ConstructVariantPeptideMechanisticFeaturesRequest,
     MechanisticFeature,
     MechanisticFeatureConfiguration,
     MechanisticFeatureKind,
     MechanisticFeatureLineage,
+    MechanisticRelation,
+    MechanisticRelationKind,
     MechanisticValueKind,
     canonical_request_digest,
 )
@@ -29,6 +32,9 @@ from glio_proteogen.kernel.models import (
 )
 from glio_proteogen.modules.c11_protein_native_subtype import (
     m11_03_mechanistic_feature_constructor as m1103,
+)
+from glio_proteogen.modules.c11_protein_native_subtype.m11_03_mechanistic_feature_constructor import (  # noqa: E501
+    engine as engine_module,
 )
 
 _UNCERTAINTY_DIMENSIONS = (
@@ -160,6 +166,165 @@ def test_supported_runtime_constructs_feature_object_and_seals_replay() -> None:
     assert len(result.uncertainty.model_dump()) >= len(_UNCERTAINTY_DIMENSIONS)
     assert m1103.verify_m1103_replay(result, request)
     assert result.request_digest == canonical_request_digest(request)
+
+
+def test_typed_glioma_feature_graph_projects_state_and_bootstrap_interval() -> None:
+    request = _request()
+    pathway = request.declared_features[0]
+    egfr = pathway.model_copy(
+        update={
+            "feature_id": "protein.egfr",
+            "kind": MechanisticFeatureKind.STATE,
+            "scalar_value": 1.2,
+            "lineage": pathway.lineage.model_copy(
+                update={
+                    "feature_id": "protein.egfr",
+                    "claim": "Caller-declared EGFR abundance.",
+                }
+            ),
+        }
+    )
+    typed_request = request.model_copy(
+        update={
+            "configuration": request.configuration.model_copy(
+                update={
+                    "model_family": M1103_GLIOMA_MODEL_FAMILY,
+                    "bootstrap_replicates": 16,
+                }
+            ),
+            "declared_features": (pathway, egfr),
+            "declared_relations": (
+                MechanisticRelation(
+                    relation_id="relation.egfr.pathway",
+                    source_feature_id="protein.egfr",
+                    target_feature_id="pathway.activity",
+                    kind=MechanisticRelationKind.ACTIVATES,
+                    weight=0.8,
+                ),
+            ),
+        }
+    )
+    result = m1103.construct_variant_peptide_mechanistic_features(typed_request)
+    assert result.status.value == "constructed"
+    assert result.typed_model is True
+    assert result.model_profile == M1103_GLIOMA_MODEL_FAMILY
+    assert result.solver_iterations is not None
+    assert result.solver_objective is not None
+    assert result.feature_object is not None
+    feature_ids = {feature.feature_id for feature in result.feature_object.features}
+    assert {"feature.glioma.signed_state", "feature.glioma.state_interval"} <= feature_ids
+    interval = next(
+        feature
+        for feature in result.feature_object.features
+        if feature.feature_id == "feature.glioma.state_interval"
+    )
+    assert interval.lower_bound is not None
+    assert interval.upper_bound is not None
+    assert interval.lower_bound <= interval.upper_bound
+    assert m1103.verify_m1103_replay(result, typed_request)
+
+
+def test_typed_solver_backtracks_objective_increase(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    request = _request()
+    pathway = request.declared_features[0]
+    egfr = pathway.model_copy(
+        update={
+            "feature_id": "protein.egfr",
+            "kind": MechanisticFeatureKind.STATE,
+            "scalar_value": 1.2,
+            "lineage": pathway.lineage.model_copy(
+                update={
+                    "feature_id": "protein.egfr",
+                    "claim": "Caller-declared EGFR abundance.",
+                }
+            ),
+        }
+    )
+    relation = MechanisticRelation(
+        relation_id="relation.egfr.pathway",
+        source_feature_id="protein.egfr",
+        target_feature_id="pathway.activity",
+        kind=MechanisticRelationKind.ACTIVATES,
+        weight=0.8,
+    )
+    baseline = engine_module._fit_glioma((pathway, egfr), (relation,))
+    assert baseline is not None
+    assert baseline.converged
+    original = engine_module._glioma_objective
+    calls = 0
+    first_candidate_call = 2
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == first_candidate_call else value
+
+    monkeypatch.setattr(engine_module, "_glioma_objective", objective)
+    fit = engine_module._fit_glioma((pathway, egfr), (relation,))
+    assert fit is not None
+    assert fit.converged
+    assert calls > first_candidate_call
+    assert fit.objective <= baseline.objective + engine_module._M1103_OBJECTIVE_TOLERANCE
+
+
+def test_typed_glioma_graph_abstains_without_relation_support() -> None:
+    request = _request()
+    second = request.declared_features[0].model_copy(
+        update={
+            "feature_id": "protein.egfr",
+            "lineage": request.declared_features[0].lineage.model_copy(
+                update={"feature_id": "protein.egfr"}
+            ),
+        }
+    )
+    typed_request = request.model_copy(
+        update={
+            "configuration": request.configuration.model_copy(
+                update={"model_family": M1103_GLIOMA_MODEL_FAMILY}
+            ),
+            "declared_features": (request.declared_features[0], second),
+        }
+    )
+    result = m1103.construct_variant_peptide_mechanistic_features(typed_request)
+    assert result.status.value == "abstained"
+    assert result.feature_object is None
+    assert "signed relation" in (result.abstention_reason or "")
+
+
+def test_typed_glioma_graph_abstains_for_unweighted_relation() -> None:
+    request = _request()
+    pathway = request.declared_features[0]
+    egfr = pathway.model_copy(
+        update={
+            "feature_id": "protein.egfr",
+            "kind": MechanisticFeatureKind.STATE,
+            "scalar_value": 1.2,
+            "lineage": pathway.lineage.model_copy(
+                update={"feature_id": "protein.egfr", "claim": "Caller-declared EGFR."}
+            ),
+        }
+    )
+    typed_request = request.model_copy(
+        update={
+            "configuration": request.configuration.model_copy(
+                update={"model_family": M1103_GLIOMA_MODEL_FAMILY}
+            ),
+            "declared_features": (pathway, egfr),
+            "declared_relations": (
+                MechanisticRelation(
+                    relation_id="relation.egfr.pathway.unweighted",
+                    source_feature_id="protein.egfr",
+                    target_feature_id="pathway.activity",
+                    kind=MechanisticRelationKind.ACTIVATES,
+                ),
+            ),
+        }
+    )
+    result = m1103.construct_variant_peptide_mechanistic_features(typed_request)
+    assert result.status.value == "abstained"
+    assert result.feature_object is None
+    assert "signed relation" in (result.abstention_reason or "")
 
 
 @pytest.mark.parametrize(

@@ -1,0 +1,2719 @@
+{
+  "analysis": {
+    "algorithm_id": "migliozzi-gbm-functional-proteotype",
+    "algorithm_version": "1.0.0",
+    "axis_evidence": [
+      {
+        "ablations": [
+          {
+            "ablated_estimate": null,
+            "baseline_estimate": null,
+            "classification_after_ablation": "not_estimable",
+            "estimate_delta": null,
+            "kind": "source_rank_quartile",
+            "proteins_removed": 25,
+            "reason": "Fewer than the exploratory minimum active signature proteins remain.",
+            "support_after_ablation": "abstained",
+            "target": "source_rank_quartile:1"
+          },
+          {
+            "ablated_estimate": null,
+            "baseline_estimate": null,
+            "classification_after_ablation": "not_estimable",
+            "estimate_delta": null,
+            "kind": "evidence_state",
+            "proteins_removed": 24,
+            "reason": "Fewer than the exploratory minimum active signature proteins remain.",
+            "support_after_ablation": "abstained",
+            "target": "evidence_state:observed"
+          },
+          {
+            "ablated_estimate": 1.240308,
+            "baseline_estimate": 1.234514,
+            "classification_after_ablation": "indeterminate",
+            "estimate_delta": 0.005794,
+            "kind": "evidence_state",
+            "proteins_removed": 1,
+            "reason": null,
+            "support_after_ablation": "supported",
+            "target": "evidence_state:left_censored"
+          },
+          {
+            "ablated_estimate": 1.240308,
+            "baseline_estimate": 1.234514,
+            "classification_after_ablation": "indeterminate",
+            "estimate_delta": 0.005794,
+            "kind": "top_driver",
+            "proteins_removed": 1,
+            "reason": null,
+            "support_after_ablation": "supported",
+            "target": "top_driver:PTPN6"
+          },
+          {
+            "ablated_estimate": 1.23377,
+            "baseline_estimate": 1.234514,
+            "classification_after_ablation": "indeterminate",
+            "estimate_delta": -0.000744,
+            "kind": "top_driver",
+            "proteins_removed": 1,
+            "reason": null,
+            "support_after_ablation": "supported",
+            "target": "top_driver:ARHGAP30"
+          },
+          {
+            "ablated_estimate": 1.233804,
+            "baseline_estimate": 1.234514,
+            "classification_after_ablation": "indeterminate",
+            "estimate_delta": -0.00071,
+            "kind": "top_driver",
+            "proteins_removed": 1,
+            "reason": null,
+            "support_after_ablation": "supported",
+            "target": "top_driver:CAPZA1"
+          },
+          {
+            "ablated_estimate": 1.233894,
+            "baseline_estimate": 1.234514,
+            "classification_after_ablation": "indeterminate",
+            "estimate_delta": -0.00062,
+            "kind": "top_driver",
+            "proteins_removed": 1,
+            "reason": null,
+            "support_after_ablation": "supported",
+            "target": "top_driver:PIK3AP1"
+          },
+          {
+            "ablated_estimate": 1.233967,
+            "baseline_estimate": 1.234514,
+            "classification_after_ablation": "indeterminate",
+            "estimate_delta": -0.000547,
+            "kind": "top_driver",
+            "proteins_removed": 1,
+            "reason": null,
+            "support_after_ablation": "supported",
+            "target": "top_driver:SYK"
+          },
+          {
+            "ablated_estimate": 1.235033,
+            "baseline_estimate": 1.234514,
+            "classification_after_ablation": "indeterminate",
+            "estimate_delta": 0.000519,
+            "kind": "top_driver",
+            "proteins_removed": 1,
+            "reason": null,
+            "support_after_ablation": "supported",
+            "target": "top_driver:TRAF3IP3"
+          },
+          {
+            "ablated_estimate": 1.234017,
+            "baseline_estimate": 1.234514,
+            "classification_after_ablation": "indeterminate",
+            "estimate_delta": -0.000497,
+            "kind": "top_driver",
+            "proteins_removed": 1,
+            "reason": null,
+            "support_after_ablation": "supported",
+            "target": "top_driver:ARPC1B"
+          },
+          {
+            "ablated_estimate": 1.234037,
+            "baseline_estimate": 1.234514,
+            "classification_after_ablation": "indeterminate",
+            "estimate_delta": -0.000477,
+            "kind": "top_driver",
+            "proteins_removed": 1,
+            "reason": null,
+            "support_after_ablation": "supported",
+            "target": "top_driver:TYMP"
+          }
+        ],
+        "abstention_reasons": [],
+        "axis": "GPM",
+        "classification": "source_aligned",
+        "discordance": 0.078058,
+        "effective_sample_size": 24.738049,
+        "estimate_semantics": "bulk_protein_source_axis_concordance",
+        "evidence_counts": {
+          "active_signature_fraction": 0.16666666666666666,
+          "declared_signature_proteins": 27,
+          "left_censored_signature_proteins": 1,
+          "missing_signature_proteins": 1,
+          "observed_background_proteins": 72,
+          "observed_signature_proteins": 24,
+          "source_signature_proteins": 150,
+          "unreported_signature_proteins": 123,
+          "unsupported_signature_proteins": 1
+        },
+        "latent": {
+          "bootstrap_replicates_used": 64,
+          "estimate": 1.234514,
+          "lower_bound": 1.157687,
+          "nominal_coverage": 0.9,
+          "upper_bound": 1.326768
+        },
+        "rank": {
+          "complement_observed_count": 72,
+          "empirical_p_value": 0.003891,
+          "null_standard_deviation": 0.135116,
+          "permutation_replicates_used": 256,
+          "q_value": 0.007782,
+          "rank_biserial": 1.0,
+          "signature_observed_count": 24,
+          "tie_correction": 1.0,
+          "u_statistic": 1728.0
+        },
+        "source_cohort_pathway_context": [
+          {
+            "axis": "GPM",
+            "interpretation": "source_cohort_pathway_context_only",
+            "pathway_name": "GO_CYTOSOLIC_PART",
+            "sample_inference_status": "not_evaluated",
+            "source_logit_nes": 1.497341,
+            "source_p_value": 3.17987956073897e-29,
+            "source_q_value": 4.34985593705225e-27,
+            "source_rank": 1
+          },
+          {
+            "axis": "GPM",
+            "interpretation": "source_cohort_pathway_context_only",
+            "pathway_name": "GO_ENDOPLASMIC_RETICULUM_LUMEN",
+            "sample_inference_status": "not_evaluated",
+            "source_logit_nes": 1.837445,
+            "source_p_value": 1.49018555933436e-28,
+            "source_q_value": 1.84736441058732e-26,
+            "source_rank": 2
+          },
+          {
+            "axis": "GPM",
+            "interpretation": "source_cohort_pathway_context_only",
+            "pathway_name": "GO_TRANSLATIONAL_INITIATION",
+            "sample_inference_status": "not_evaluated",
+            "source_logit_nes": 1.726446,
+            "source_p_value": 2.47473265014943e-27,
+            "source_q_value": 2.80493269232651e-25,
+            "source_rank": 3
+          },
+          {
+            "axis": "GPM",
+            "interpretation": "source_cohort_pathway_context_only",
+            "pathway_name": "GO_BLOOD_MICROPARTICLE",
+            "sample_inference_status": "not_evaluated",
+            "source_logit_nes": 1.981997,
+            "source_p_value": 5.52268077890004e-25,
+            "source_q_value": 5.34353040241377e-23,
+            "source_rank": 4
+          },
+          {
+            "axis": "GPM",
+            "interpretation": "source_cohort_pathway_context_only",
+            "pathway_name": "HALLMARK_INTERFERON_GAMMA_RESPONSE",
+            "sample_inference_status": "not_evaluated",
+            "source_logit_nes": 1.570012,
+            "source_p_value": 1.32251310923701e-24,
+            "source_q_value": 1.22009523356819e-22,
+            "source_rank": 5
+          },
+          {
+            "axis": "GPM",
+            "interpretation": "source_cohort_pathway_context_only",
+            "pathway_name": "GO_CYTOSOLIC_RIBOSOME",
+            "sample_inference_status": "not_evaluated",
+            "source_logit_nes": 1.872225,
+            "source_p_value": 2.86738432808124e-23,
+            "source_q_value": 2.27498272589966e-21,
+            "source_rank": 6
+          },
+          {
+            "axis": "GPM",
+            "interpretation": "source_cohort_pathway_context_only",
+            "pathway_name": "GO_PROTEIN_LOCALIZATION_TO_ENDOPLASMIC_RETICULUM",
+            "sample_inference_status": "not_evaluated",
+            "source_logit_nes": 1.709735,
+            "source_p_value": 9.1261084736226e-23,
+            "source_q_value": 6.46487005622515e-21,
+            "source_rank": 7
+          },
+          {
+            "axis": "GPM",
+            "interpretation": "source_cohort_pathway_context_only",
+            "pathway_name": "HALLMARK_ALLOGRAFT_REJECTION",
+            "sample_inference_status": "not_evaluated",
+            "source_logit_nes": 1.60139,
+            "source_p_value": 1.79800838744763e-20,
+            "source_q_value": 9.90652676806215e-19,
+            "source_rank": 8
+          }
+        ],
+        "stability": 1.0,
+        "support": "supported",
+        "top_drivers": [
+          {
+            "absolute_contribution": 1.555586,
+            "axis": "GPM",
+            "evidence_state": "left_censored",
+            "gene_symbol": "PTPN6",
+            "observation_id": "demo.GPM.left_censored",
+            "reliability_weight": 4.324324,
+            "signed_contribution": -1.555586,
+            "source_loading": 1.12304,
+            "source_mww_score": 3.594008,
+            "source_protein_label": "SHP-1",
+            "source_rank": 25,
+            "source_rank_quartile": 1,
+            "standardized_effect": 1.05,
+            "value_role": "left_censored_upper_limit"
+          },
+          {
+            "absolute_contribution": 0.195999,
+            "axis": "GPM",
+            "evidence_state": "observed",
+            "gene_symbol": "ARHGAP30",
+            "observation_id": "demo.GPM.008",
+            "reliability_weight": 6.74237,
+            "signed_contribution": 0.195999,
+            "source_loading": 1.197076,
+            "source_mww_score": 3.830942,
+            "source_protein_label": "ARHGAP30",
+            "source_rank": 8,
+            "source_rank_quartile": 1,
+            "standardized_effect": 1.486,
+            "value_role": "observed_point"
+          },
+          {
+            "absolute_contribution": 0.188269,
+            "axis": "GPM",
+            "evidence_state": "observed",
+            "gene_symbol": "CAPZA1",
+            "observation_id": "demo.GPM.006",
+            "reliability_weight": 5.761067,
+            "signed_contribution": 0.188269,
+            "source_loading": 1.20779,
+            "source_mww_score": 3.865229,
+            "source_protein_label": "CAPZA1",
+            "source_rank": 6,
+            "source_rank_quartile": 1,
+            "standardized_effect": 1.502,
+            "value_role": "observed_point"
+          },
+          {
+            "absolute_contribution": 0.164864,
+            "axis": "GPM",
+            "evidence_state": "observed",
+            "gene_symbol": "PIK3AP1",
+            "observation_id": "demo.GPM.007",
+            "reliability_weight": 5.334082,
+            "signed_contribution": 0.164864,
+            "source_loading": 1.202405,
+            "source_mww_score": 3.847997,
+            "source_protein_label": "BCAP",
+            "source_rank": 7,
+            "source_rank_quartile": 1,
+            "standardized_effect": 1.494,
+            "value_role": "observed_point"
+          },
+          {
+            "absolute_contribution": 0.145217,
+            "axis": "GPM",
+            "evidence_state": "observed",
+            "gene_symbol": "SYK",
+            "observation_id": "demo.GPM.010",
+            "reliability_weight": 5.761067,
+            "signed_contribution": 0.145217,
+            "source_loading": 1.186579,
+            "source_mww_score": 3.797348,
+            "source_protein_label": "Syk",
+            "source_rank": 10,
+            "source_rank_quartile": 1,
+            "standardized_effect": 1.47,
+            "value_role": "observed_point"
+          },
+          {
+            "absolute_contribution": 0.137063,
+            "axis": "GPM",
+            "evidence_state": "observed",
+            "gene_symbol": "TRAF3IP3",
+            "observation_id": "demo.GPM.024",
+            "reliability_weight": 6.74237,
+            "signed_contribution": -0.137063,
+            "source_loading": 1.127665,
+            "source_mww_score": 3.608809,
+            "source_protein_label": "TRAF3IP3",
+            "source_rank": 24,
+            "source_rank_quartile": 1,
+            "standardized_effect": 1.358,
+            "value_role": "observed_point"
+          },
+          {
+            "absolute_contribution": 0.130621,
+            "axis": "GPM",
+            "evidence_state": "observed",
+            "gene_symbol": "ARPC1B",
+            "observation_id": "demo.GPM.004",
+            "reliability_weight": 6.74237,
+            "signed_contribution": 0.130621,
+            "source_loading": 1.229909,
+            "source_mww_score": 3.936014,
+            "source_protein_label": "ARPC1B",
+            "source_rank": 4,
+            "source_rank_quartile": 1,
+            "standardized_effect": 1.518,
+            "value_role": "observed_point"
+          },
+          {
+            "absolute_contribution": 0.12619,
+            "axis": "GPM",
+            "evidence_state": "observed",
+            "gene_symbol": "TYMP",
+            "observation_id": "demo.GPM.002",
+            "reliability_weight": 5.761067,
+            "signed_contribution": 0.12619,
+            "source_loading": 1.241335,
+            "source_mww_score": 3.972582,
+            "source_protein_label": "ECGF1",
+            "source_rank": 2,
+            "source_rank_quartile": 1,
+            "standardized_effect": 1.534,
+            "value_role": "observed_point"
+          }
+        ]
+      },
+      {
+        "ablations": [
+          {
+            "ablated_estimate": null,
+            "baseline_estimate": null,
+            "classification_after_ablation": "not_estimable",
+            "estimate_delta": null,
+            "kind": "source_rank_quartile",
+            "proteins_removed": 25,
+            "reason": "Fewer than the exploratory minimum active signature proteins remain.",
+            "support_after_ablation": "abstained",
+            "target": "source_rank_quartile:1"
+          },
+          {
+            "ablated_estimate": null,
+            "baseline_estimate": null,
+            "classification_after_ablation": "not_estimable",
+            "estimate_delta": null,
+            "kind": "evidence_state",
+            "proteins_removed": 24,
+            "reason": "Fewer than the exploratory minimum active signature proteins remain.",
+            "support_after_ablation": "abstained",
+            "target": "evidence_state:observed"
+          },
+          {
+            "ablated_estimate": 0.452984,
+            "baseline_estimate": 0.447289,
+            "classification_after_ablation": "indeterminate",
+            "estimate_delta": 0.005695,
+            "kind": "evidence_state",
+            "proteins_removed": 1,
+            "reason": null,
+            "support_after_ablation": "supported",
+            "target": "evidence_state:left_censored"
+          },
+          {
+            "ablated_estimate": 0.452984,
+            "baseline_estimate": 0.447289,
+            "classification_after_ablation": "indeterminate",
+            "estimate_delta": 0.005695,
+            "kind": "top_driver",
+            "proteins_removed": 1,
+            "reason": null,
+            "support_after_ablation": "supported",
+            "target": "top_driver:ARHGEF37"
+          },
+          {
+            "ablated_estimate": 0.450217,
+            "baseline_estimate": 0.447289,
+            "classification_after_ablation": "indeterminate",
+            "estimate_delta": 0.002928,
+            "kind": "top_driver",
+            "proteins_removed": 1,
+            "reason": null,
+            "support_after_ablation": "supported",
+            "target": "top_driver:PNPO"
+          },
+          {
+            "ablated_estimate": 0.446007,
+            "baseline_estimate": 0.447289,
+            "classification_after_ablation": "indeterminate",
+            "estimate_delta": -0.001282,
+            "kind": "top_driver",
+            "proteins_removed": 1,
+            "reason": null,
+            "support_after_ablation": "supported",
+            "target": "top_driver:ARPIN"
+          },
+          {
+            "ablated_estimate": 0.446047,
+            "baseline_estimate": 0.447289,
+            "classification_after_ablation": "indeterminate",
+            "estimate_delta": -0.001242,
+            "kind": "top_driver",
+            "proteins_removed": 1,
+            "reason": null,
+            "support_after_ablation": "supported",
+            "target": "top_driver:GSTT1"
+          },
+          {
+            "ablated_estimate": 0.446131,
+            "baseline_estimate": 0.447289,
+            "classification_after_ablation": "indeterminate",
+            "estimate_delta": -0.001158,
+            "kind": "top_driver",
+            "proteins_removed": 1,
+            "reason": null,
+            "support_after_ablation": "supported",
+            "target": "top_driver:C16orf58"
+          },
+          {
+            "ablated_estimate": 0.44623,
+            "baseline_estimate": 0.447289,
+            "classification_after_ablation": "indeterminate",
+            "estimate_delta": -0.001059,
+            "kind": "top_driver",
+            "proteins_removed": 1,
+            "reason": null,
+            "support_after_ablation": "supported",
+            "target": "top_driver:ERLIN2"
+          },
+          {
+            "ablated_estimate": 0.446243,
+            "baseline_estimate": 0.447289,
+            "classification_after_ablation": "indeterminate",
+            "estimate_delta": -0.001046,
+            "kind": "top_driver",
+            "proteins_removed": 1,
+            "reason": null,
+            "support_after_ablation": "supported",
+            "target": "top_driver:HYKK"
+          },
+          {
+            "ablated_estimate": 0.446307,
+            "baseline_estimate": 0.447289,
+            "classification_after_ablation": "indeterminate",
+            "estimate_delta": -0.000982,
+            "kind": "top_driver",
+            "proteins_removed": 1,
+            "reason": null,
+            "support_after_ablation": "supported",
+            "target": "top_driver:SMARCAL1"
+          }
+        ],
+        "abstention_reasons": [],
+        "axis": "MTC",
+        "classification": "source_aligned",
+        "discordance": 0.043168,
+        "effective_sample_size": 24.738049,
+        "estimate_semantics": "bulk_protein_source_axis_concordance",
+        "evidence_counts": {
+          "active_signature_fraction": 0.16666666666666666,
+          "declared_signature_proteins": 27,
+          "left_censored_signature_proteins": 1,
+          "missing_signature_proteins": 1,
+          "observed_background_proteins": 72,
+          "observed_signature_proteins": 24,
+          "source_signature_proteins": 150,
+          "unreported_signature_proteins": 123,
+          "unsupported_signature_proteins": 1
+        },
+        "latent": {
+          "bootstrap_replicates_used": 64,
+          "estimate": 0.447289,
+          "lower_bound": 0.366851,
+          "nominal_coverage": 0.9,
+          "upper_bound": 0.523856
+        },
+        "rank": {
+          "complement_observed_count": 72,
+          "empirical_p_value": 0.023346,
+          "null_standard_deviation": 0.137454,
+          "permutation_replicates_used": 256,
+          "q_value": 0.023346,
+          "rank_biserial": 0.333333,
+          "signature_observed_count": 24,
+          "tie_correction": 1.0,
+          "u_statistic": 1152.0
+        },
+        "source_cohort_pathway_context": [
+          {
+            "axis": "MTC",
+            "interpretation": "source_cohort_pathway_context_only",
+            "pathway_name": "GO_MITOCHONDRIAL_TRANSLATION",
+            "sample_inference_status": "not_evaluated",
+            "source_logit_nes": 1.33651,
+            "source_p_value": 5.01916799073671e-14,
+            "source_q_value": 3.90412537632403e-12,
+            "source_rank": 1
+          },
+          {
+            "axis": "MTC",
+            "interpretation": "source_cohort_pathway_context_only",
+            "pathway_name": "GO_TRANSLATIONAL_TERMINATION",
+            "sample_inference_status": "not_evaluated",
+            "source_logit_nes": 1.428784,
+            "source_p_value": 8.88344919359491e-14,
+            "source_q_value": 6.40738962745291e-12,
+            "source_rank": 2
+          },
+          {
+            "axis": "MTC",
+            "interpretation": "source_cohort_pathway_context_only",
+            "pathway_name": "GO_LIPID_OXIDATION",
+            "sample_inference_status": "not_evaluated",
+            "source_logit_nes": 1.659337,
+            "source_p_value": 8.62686310357333e-12,
+            "source_q_value": 4.33199568757917e-10,
+            "source_rank": 3
+          },
+          {
+            "axis": "MTC",
+            "interpretation": "source_cohort_pathway_context_only",
+            "pathway_name": "GO_TRNA_METABOLIC_PROCESS",
+            "sample_inference_status": "not_evaluated",
+            "source_logit_nes": 0.937825,
+            "source_p_value": 1.80389380368276e-11,
+            "source_q_value": 8.41887849318766e-10,
+            "source_rank": 4
+          },
+          {
+            "axis": "MTC",
+            "interpretation": "source_cohort_pathway_context_only",
+            "pathway_name": "GO_BLOOD_MICROPARTICLE",
+            "sample_inference_status": "not_evaluated",
+            "source_logit_nes": 1.166508,
+            "source_p_value": 3.04050382423533e-11,
+            "source_q_value": 1.35211140908596e-09,
+            "source_rank": 5
+          },
+          {
+            "axis": "MTC",
+            "interpretation": "source_cohort_pathway_context_only",
+            "pathway_name": "GO_ORGANIC_ACID_CATABOLIC_PROCESS",
+            "sample_inference_status": "not_evaluated",
+            "source_logit_nes": 0.904698,
+            "source_p_value": 3.10164200218862e-11,
+            "source_q_value": 1.35211140908596e-09,
+            "source_rank": 6
+          },
+          {
+            "axis": "MTC",
+            "interpretation": "source_cohort_pathway_context_only",
+            "pathway_name": "GO_TRANSLATIONAL_ELONGATION",
+            "sample_inference_status": "not_evaluated",
+            "source_logit_nes": 1.139632,
+            "source_p_value": 6.22124232207713e-11,
+            "source_q_value": 2.54429570017319e-09,
+            "source_rank": 7
+          },
+          {
+            "axis": "MTC",
+            "interpretation": "source_cohort_pathway_context_only",
+            "pathway_name": "GO_RNA_MODIFICATION",
+            "sample_inference_status": "not_evaluated",
+            "source_logit_nes": 1.148514,
+            "source_p_value": 3.17791524090096e-10,
+            "source_q_value": 1.18931978874095e-08,
+            "source_rank": 8
+          }
+        ],
+        "stability": 1.0,
+        "support": "supported",
+        "top_drivers": [
+          {
+            "absolute_contribution": 1.676037,
+            "axis": "MTC",
+            "evidence_state": "left_censored",
+            "gene_symbol": "ARHGEF37",
+            "observation_id": "demo.MTC.left_censored",
+            "reliability_weight": 4.324324,
+            "signed_contribution": -1.676037,
+            "source_loading": 1.134868,
+            "source_mww_score": 1.930997,
+            "source_protein_label": "ARHGEF37",
+            "source_rank": 25,
+            "source_rank_quartile": 1,
+            "standardized_effect": 0.15,
+            "value_role": "left_censored_upper_limit"
+          },
+          {
+            "absolute_contribution": 0.821193,
+            "axis": "MTC",
+            "evidence_state": "observed",
+            "gene_symbol": "PNPO",
+            "observation_id": "demo.MTC.001",
+            "reliability_weight": 6.229508,
+            "signed_contribution": -0.821193,
+            "source_loading": 1.649913,
+            "source_mww_score": 2.807355,
+            "source_protein_label": "PNPO",
+            "source_rank": 1,
+            "source_rank_quartile": 1,
+            "standardized_effect": 0.642,
+            "value_role": "observed_point"
+          },
+          {
+            "absolute_contribution": 0.368963,
+            "axis": "MTC",
+            "evidence_state": "observed",
+            "gene_symbol": "ARPIN",
+            "observation_id": "demo.MTC.008",
+            "reliability_weight": 6.74237,
+            "signed_contribution": 0.368963,
+            "source_loading": 1.248063,
+            "source_mww_score": 2.123599,
+            "source_protein_label": "ARPIN",
+            "source_rank": 8,
+            "source_rank_quartile": 1,
+            "standardized_effect": 0.586,
+            "value_role": "observed_point"
+          },
+          {
+            "absolute_contribution": 0.359147,
+            "axis": "MTC",
+            "evidence_state": "observed",
+            "gene_symbol": "GSTT1",
+            "observation_id": "demo.MTC.009",
+            "reliability_weight": 6.229508,
+            "signed_contribution": 0.359147,
+            "source_loading": 1.222795,
+            "source_mww_score": 2.080607,
+            "source_protein_label": "GSTT1",
+            "source_rank": 9,
+            "source_rank_quartile": 1,
+            "standardized_effect": 0.578,
+            "value_role": "observed_point"
+          },
+          {
+            "absolute_contribution": 0.336509,
+            "axis": "MTC",
+            "evidence_state": "observed",
+            "gene_symbol": "C16orf58",
+            "observation_id": "demo.MTC.007",
+            "reliability_weight": 5.334082,
+            "signed_contribution": 0.336509,
+            "source_loading": 1.251254,
+            "source_mww_score": 2.12903,
+            "source_protein_label": "RUSF1",
+            "source_rank": 7,
+            "source_rank_quartile": 1,
+            "standardized_effect": 0.594,
+            "value_role": "observed_point"
+          },
+          {
+            "absolute_contribution": 0.304527,
+            "axis": "MTC",
+            "evidence_state": "observed",
+            "gene_symbol": "ERLIN2",
+            "observation_id": "demo.MTC.005",
+            "reliability_weight": 6.229508,
+            "signed_contribution": 0.304527,
+            "source_loading": 1.316745,
+            "source_mww_score": 2.240464,
+            "source_protein_label": "SPFH2",
+            "source_rank": 5,
+            "source_rank_quartile": 1,
+            "standardized_effect": 0.61,
+            "value_role": "observed_point"
+          },
+          {
+            "absolute_contribution": 0.298885,
+            "axis": "MTC",
+            "evidence_state": "observed",
+            "gene_symbol": "HYKK",
+            "observation_id": "demo.MTC.004",
+            "reliability_weight": 6.74237,
+            "signed_contribution": 0.298885,
+            "source_loading": 1.343885,
+            "source_mww_score": 2.286643,
+            "source_protein_label": "HYKK",
+            "source_rank": 4,
+            "source_rank_quartile": 1,
+            "standardized_effect": 0.618,
+            "value_role": "observed_point"
+          },
+          {
+            "absolute_contribution": 0.284902,
+            "axis": "MTC",
+            "evidence_state": "observed",
+            "gene_symbol": "SMARCAL1",
+            "observation_id": "demo.MTC.010",
+            "reliability_weight": 5.761067,
+            "signed_contribution": 0.284902,
+            "source_loading": 1.21967,
+            "source_mww_score": 2.075288,
+            "source_protein_label": "SMARCAL1",
+            "source_rank": 10,
+            "source_rank_quartile": 1,
+            "standardized_effect": 0.57,
+            "value_role": "observed_point"
+          }
+        ]
+      },
+      {
+        "ablations": [
+          {
+            "ablated_estimate": null,
+            "baseline_estimate": null,
+            "classification_after_ablation": "not_estimable",
+            "estimate_delta": null,
+            "kind": "source_rank_quartile",
+            "proteins_removed": 25,
+            "reason": "Fewer than the exploratory minimum active signature proteins remain.",
+            "support_after_ablation": "abstained",
+            "target": "source_rank_quartile:1"
+          },
+          {
+            "ablated_estimate": null,
+            "baseline_estimate": null,
+            "classification_after_ablation": "not_estimable",
+            "estimate_delta": null,
+            "kind": "evidence_state",
+            "proteins_removed": 24,
+            "reason": "Fewer than the exploratory minimum active signature proteins remain.",
+            "support_after_ablation": "abstained",
+            "target": "evidence_state:observed"
+          },
+          {
+            "ablated_estimate": -0.480542,
+            "baseline_estimate": -0.484608,
+            "classification_after_ablation": "indeterminate",
+            "estimate_delta": 0.004066,
+            "kind": "evidence_state",
+            "proteins_removed": 1,
+            "reason": null,
+            "support_after_ablation": "supported",
+            "target": "evidence_state:left_censored"
+          },
+          {
+            "ablated_estimate": -0.480542,
+            "baseline_estimate": -0.484608,
+            "classification_after_ablation": "indeterminate",
+            "estimate_delta": 0.004066,
+            "kind": "top_driver",
+            "proteins_removed": 1,
+            "reason": null,
+            "support_after_ablation": "supported",
+            "target": "top_driver:GLS"
+          },
+          {
+            "ablated_estimate": -0.486887,
+            "baseline_estimate": -0.484608,
+            "classification_after_ablation": "indeterminate",
+            "estimate_delta": -0.002279,
+            "kind": "top_driver",
+            "proteins_removed": 1,
+            "reason": null,
+            "support_after_ablation": "supported",
+            "target": "top_driver:RGS7"
+          },
+          {
+            "ablated_estimate": -0.486256,
+            "baseline_estimate": -0.484608,
+            "classification_after_ablation": "indeterminate",
+            "estimate_delta": -0.001648,
+            "kind": "top_driver",
+            "proteins_removed": 1,
+            "reason": null,
+            "support_after_ablation": "supported",
+            "target": "top_driver:SLC32A1"
+          },
+          {
+            "ablated_estimate": -0.486216,
+            "baseline_estimate": -0.484608,
+            "classification_after_ablation": "indeterminate",
+            "estimate_delta": -0.001608,
+            "kind": "top_driver",
+            "proteins_removed": 1,
+            "reason": null,
+            "support_after_ablation": "supported",
+            "target": "top_driver:SV2A"
+          },
+          {
+            "ablated_estimate": -0.486218,
+            "baseline_estimate": -0.484608,
+            "classification_after_ablation": "indeterminate",
+            "estimate_delta": -0.00161,
+            "kind": "top_driver",
+            "proteins_removed": 1,
+            "reason": null,
+            "support_after_ablation": "supported",
+            "target": "top_driver:PHF24"
+          },
+          {
+            "ablated_estimate": -0.486115,
+            "baseline_estimate": -0.484608,
+            "classification_after_ablation": "indeterminate",
+            "estimate_delta": -0.001507,
+            "kind": "top_driver",
+            "proteins_removed": 1,
+            "reason": null,
+            "support_after_ablation": "supported",
+            "target": "top_driver:ERC2"
+          },
+          {
+            "ablated_estimate": -0.483434,
+            "baseline_estimate": -0.484608,
+            "classification_after_ablation": "indeterminate",
+            "estimate_delta": 0.001174,
+            "kind": "top_driver",
+            "proteins_removed": 1,
+            "reason": null,
+            "support_after_ablation": "supported",
+            "target": "top_driver:GPR158"
+          },
+          {
+            "ablated_estimate": -0.483522,
+            "baseline_estimate": -0.484608,
+            "classification_after_ablation": "indeterminate",
+            "estimate_delta": 0.001086,
+            "kind": "top_driver",
+            "proteins_removed": 1,
+            "reason": null,
+            "support_after_ablation": "supported",
+            "target": "top_driver:RPH3A"
+          }
+        ],
+        "abstention_reasons": [],
+        "axis": "NEU",
+        "classification": "source_opposed",
+        "discordance": 0.058297,
+        "effective_sample_size": 24.738049,
+        "estimate_semantics": "bulk_protein_source_axis_concordance",
+        "evidence_counts": {
+          "active_signature_fraction": 0.16666666666666666,
+          "declared_signature_proteins": 27,
+          "left_censored_signature_proteins": 1,
+          "missing_signature_proteins": 1,
+          "observed_background_proteins": 72,
+          "observed_signature_proteins": 24,
+          "source_signature_proteins": 150,
+          "unreported_signature_proteins": 123,
+          "unsupported_signature_proteins": 1
+        },
+        "latent": {
+          "bootstrap_replicates_used": 64,
+          "estimate": -0.484608,
+          "lower_bound": -0.578409,
+          "nominal_coverage": 0.9,
+          "upper_bound": -0.39914
+        },
+        "rank": {
+          "complement_observed_count": 72,
+          "empirical_p_value": 0.023346,
+          "null_standard_deviation": 0.144151,
+          "permutation_replicates_used": 256,
+          "q_value": 0.023346,
+          "rank_biserial": -0.333333,
+          "signature_observed_count": 24,
+          "tie_correction": 1.0,
+          "u_statistic": 576.0
+        },
+        "source_cohort_pathway_context": [
+          {
+            "axis": "NEU",
+            "interpretation": "source_cohort_pathway_context_only",
+            "pathway_name": "GO_EXCITATORY_SYNAPSE",
+            "sample_inference_status": "not_evaluated",
+            "source_logit_nes": 1.949663,
+            "source_p_value": 1.40853766973858e-40,
+            "source_q_value": 8.46616505432267e-39,
+            "source_rank": 1
+          },
+          {
+            "axis": "NEU",
+            "interpretation": "source_cohort_pathway_context_only",
+            "pathway_name": "Oxidative_phosphorylation",
+            "sample_inference_status": "not_evaluated",
+            "source_logit_nes": 2.923265,
+            "source_p_value": 6.6271890198033e-40,
+            "source_q_value": 3.8101534552985e-38,
+            "source_rank": 2
+          },
+          {
+            "axis": "NEU",
+            "interpretation": "source_cohort_pathway_context_only",
+            "pathway_name": "GO_NEUROTRANSMITTER_TRANSPORT",
+            "sample_inference_status": "not_evaluated",
+            "source_logit_nes": 2.724514,
+            "source_p_value": 2.19808103870313e-38,
+            "source_q_value": 1.10377056715637e-36,
+            "source_rank": 3
+          },
+          {
+            "axis": "NEU",
+            "interpretation": "source_cohort_pathway_context_only",
+            "pathway_name": "GO_AXON_PART",
+            "sample_inference_status": "not_evaluated",
+            "source_logit_nes": 1.860625,
+            "source_p_value": 1.03614367590562e-37,
+            "source_q_value": 4.95226742447905e-36,
+            "source_rank": 4
+          },
+          {
+            "axis": "NEU",
+            "interpretation": "source_cohort_pathway_context_only",
+            "pathway_name": "HALLMARK_OXIDATIVE_PHOSPHORYLATION",
+            "sample_inference_status": "not_evaluated",
+            "source_logit_nes": 1.813738,
+            "source_p_value": 2.66703954856016e-37,
+            "source_q_value": 1.23024952199281e-35,
+            "source_rank": 5
+          },
+          {
+            "axis": "NEU",
+            "interpretation": "source_cohort_pathway_context_only",
+            "pathway_name": "GO_POSTSYNAPTIC_MEMBRANE",
+            "sample_inference_status": "not_evaluated",
+            "source_logit_nes": 2.083423,
+            "source_p_value": 8.53807322895233e-37,
+            "source_q_value": 3.84892460218794e-35,
+            "source_rank": 6
+          },
+          {
+            "axis": "NEU",
+            "interpretation": "source_cohort_pathway_context_only",
+            "pathway_name": "GO_REGULATION_OF_NEUROTRANSMITTER_LEVELS",
+            "sample_inference_status": "not_evaluated",
+            "source_logit_nes": 2.208904,
+            "source_p_value": 1.20386985526032e-36,
+            "source_q_value": 5.30639079535298e-35,
+            "source_rank": 7
+          },
+          {
+            "axis": "NEU",
+            "interpretation": "source_cohort_pathway_context_only",
+            "pathway_name": "GO_REGULATION_OF_SYNAPSE_STRUCTURE_OR_ACTIVITY",
+            "sample_inference_status": "not_evaluated",
+            "source_logit_nes": 1.676025,
+            "source_p_value": 4.10209844757395e-33,
+            "source_q_value": 1.61119054866593e-31,
+            "source_rank": 8
+          }
+        ],
+        "stability": 1.0,
+        "support": "supported",
+        "top_drivers": [
+          {
+            "absolute_contribution": 0.999512,
+            "axis": "NEU",
+            "evidence_state": "left_censored",
+            "gene_symbol": "GLS",
+            "observation_id": "demo.NEU.left_censored",
+            "reliability_weight": 4.324324,
+            "signed_contribution": -0.999512,
+            "source_loading": 1.067741,
+            "source_mww_score": 3.148692,
+            "source_protein_label": "glutaminase",
+            "source_rank": 25,
+            "source_rank_quartile": 1,
+            "standardized_effect": -0.75,
+            "value_role": "left_censored_upper_limit"
+          },
+          {
+            "absolute_contribution": 0.551282,
+            "axis": "NEU",
+            "evidence_state": "observed",
+            "gene_symbol": "RGS7",
+            "observation_id": "demo.NEU.024",
+            "reliability_weight": 6.74237,
+            "signed_contribution": 0.551282,
+            "source_loading": 1.069628,
+            "source_mww_score": 3.154256,
+            "source_protein_label": "RGS7",
+            "source_rank": 24,
+            "source_rank_quartile": 1,
+            "standardized_effect": -0.458,
+            "value_role": "observed_point"
+          },
+          {
+            "absolute_contribution": 0.402393,
+            "axis": "NEU",
+            "evidence_state": "observed",
+            "gene_symbol": "SLC32A1",
+            "observation_id": "demo.NEU.023",
+            "reliability_weight": 5.334082,
+            "signed_contribution": 0.402393,
+            "source_loading": 1.073419,
+            "source_mww_score": 3.165434,
+            "source_protein_label": "SLC32A1",
+            "source_rank": 23,
+            "source_rank_quartile": 1,
+            "standardized_effect": -0.466,
+            "value_role": "observed_point"
+          },
+          {
+            "absolute_contribution": 0.391531,
+            "axis": "NEU",
+            "evidence_state": "observed",
+            "gene_symbol": "SV2A",
+            "observation_id": "demo.NEU.022",
+            "reliability_weight": 5.761067,
+            "signed_contribution": 0.391531,
+            "source_loading": 1.075323,
+            "source_mww_score": 3.171049,
+            "source_protein_label": "SV2A",
+            "source_rank": 22,
+            "source_rank_quartile": 1,
+            "standardized_effect": -0.474,
+            "value_role": "observed_point"
+          },
+          {
+            "absolute_contribution": 0.390515,
+            "axis": "NEU",
+            "evidence_state": "observed",
+            "gene_symbol": "PHF24",
+            "observation_id": "demo.NEU.021",
+            "reliability_weight": 6.229508,
+            "signed_contribution": 0.390515,
+            "source_loading": 1.081071,
+            "source_mww_score": 3.188001,
+            "source_protein_label": "PHF24",
+            "source_rank": 21,
+            "source_rank_quartile": 1,
+            "standardized_effect": -0.482,
+            "value_role": "observed_point"
+          },
+          {
+            "absolute_contribution": 0.364354,
+            "axis": "NEU",
+            "evidence_state": "observed",
+            "gene_symbol": "ERC2",
+            "observation_id": "demo.NEU.020",
+            "reliability_weight": 6.74237,
+            "signed_contribution": 0.364354,
+            "source_loading": 1.081071,
+            "source_mww_score": 3.188001,
+            "source_protein_label": "ERC2",
+            "source_rank": 20,
+            "source_rank_quartile": 1,
+            "standardized_effect": -0.49,
+            "value_role": "observed_point"
+          },
+          {
+            "absolute_contribution": 0.282974,
+            "axis": "NEU",
+            "evidence_state": "observed",
+            "gene_symbol": "GPR158",
+            "observation_id": "demo.NEU.004",
+            "reliability_weight": 6.74237,
+            "signed_contribution": -0.282974,
+            "source_loading": 1.167899,
+            "source_mww_score": 3.444049,
+            "source_protein_label": "GPR158",
+            "source_rank": 4,
+            "source_rank_quartile": 1,
+            "standardized_effect": -0.618,
+            "value_role": "observed_point"
+          },
+          {
+            "absolute_contribution": 0.264007,
+            "axis": "NEU",
+            "evidence_state": "observed",
+            "gene_symbol": "RPH3A",
+            "observation_id": "demo.NEU.006",
+            "reliability_weight": 5.761067,
+            "signed_contribution": -0.264007,
+            "source_loading": 1.124979,
+            "source_mww_score": 3.317482,
+            "source_protein_label": "rabphilin 3A",
+            "source_rank": 6,
+            "source_rank_quartile": 1,
+            "standardized_effect": -0.602,
+            "value_role": "observed_point"
+          }
+        ]
+      },
+      {
+        "ablations": [
+          {
+            "ablated_estimate": null,
+            "baseline_estimate": null,
+            "classification_after_ablation": "not_estimable",
+            "estimate_delta": null,
+            "kind": "source_rank_quartile",
+            "proteins_removed": 25,
+            "reason": "Fewer than the exploratory minimum active signature proteins remain.",
+            "support_after_ablation": "abstained",
+            "target": "source_rank_quartile:1"
+          },
+          {
+            "ablated_estimate": null,
+            "baseline_estimate": null,
+            "classification_after_ablation": "not_estimable",
+            "estimate_delta": null,
+            "kind": "evidence_state",
+            "proteins_removed": 24,
+            "reason": "Fewer than the exploratory minimum active signature proteins remain.",
+            "support_after_ablation": "abstained",
+            "target": "evidence_state:observed"
+          },
+          {
+            "ablated_estimate": -1.191642,
+            "baseline_estimate": -1.197195,
+            "classification_after_ablation": "indeterminate",
+            "estimate_delta": 0.005553,
+            "kind": "evidence_state",
+            "proteins_removed": 1,
+            "reason": null,
+            "support_after_ablation": "supported",
+            "target": "evidence_state:left_censored"
+          },
+          {
+            "ablated_estimate": -1.191642,
+            "baseline_estimate": -1.197195,
+            "classification_after_ablation": "indeterminate",
+            "estimate_delta": 0.005553,
+            "kind": "top_driver",
+            "proteins_removed": 1,
+            "reason": null,
+            "support_after_ablation": "supported",
+            "target": "top_driver:SUGP2"
+          },
+          {
+            "ablated_estimate": -1.202803,
+            "baseline_estimate": -1.197195,
+            "classification_after_ablation": "indeterminate",
+            "estimate_delta": -0.005608,
+            "kind": "top_driver",
+            "proteins_removed": 1,
+            "reason": null,
+            "support_after_ablation": "supported",
+            "target": "top_driver:ZNF219"
+          },
+          {
+            "ablated_estimate": -1.201339,
+            "baseline_estimate": -1.197195,
+            "classification_after_ablation": "indeterminate",
+            "estimate_delta": -0.004144,
+            "kind": "top_driver",
+            "proteins_removed": 1,
+            "reason": null,
+            "support_after_ablation": "supported",
+            "target": "top_driver:SAMD1"
+          },
+          {
+            "ablated_estimate": -1.19628,
+            "baseline_estimate": -1.197195,
+            "classification_after_ablation": "indeterminate",
+            "estimate_delta": 0.000915,
+            "kind": "top_driver",
+            "proteins_removed": 1,
+            "reason": null,
+            "support_after_ablation": "supported",
+            "target": "top_driver:MBD3"
+          },
+          {
+            "ablated_estimate": -1.196447,
+            "baseline_estimate": -1.197195,
+            "classification_after_ablation": "indeterminate",
+            "estimate_delta": 0.000748,
+            "kind": "top_driver",
+            "proteins_removed": 1,
+            "reason": null,
+            "support_after_ablation": "supported",
+            "target": "top_driver:SMARCA4"
+          },
+          {
+            "ablated_estimate": -1.197908,
+            "baseline_estimate": -1.197195,
+            "classification_after_ablation": "indeterminate",
+            "estimate_delta": -0.000713,
+            "kind": "top_driver",
+            "proteins_removed": 1,
+            "reason": null,
+            "support_after_ablation": "supported",
+            "target": "top_driver:SPIN3"
+          },
+          {
+            "ablated_estimate": -1.196592,
+            "baseline_estimate": -1.197195,
+            "classification_after_ablation": "indeterminate",
+            "estimate_delta": 0.000603,
+            "kind": "top_driver",
+            "proteins_removed": 1,
+            "reason": null,
+            "support_after_ablation": "supported",
+            "target": "top_driver:MTA1"
+          },
+          {
+            "ablated_estimate": -1.197687,
+            "baseline_estimate": -1.197195,
+            "classification_after_ablation": "indeterminate",
+            "estimate_delta": -0.000492,
+            "kind": "top_driver",
+            "proteins_removed": 1,
+            "reason": null,
+            "support_after_ablation": "supported",
+            "target": "top_driver:CBX8"
+          }
+        ],
+        "abstention_reasons": [],
+        "axis": "PPR",
+        "classification": "source_opposed",
+        "discordance": 0.083601,
+        "effective_sample_size": 24.738049,
+        "estimate_semantics": "bulk_protein_source_axis_concordance",
+        "evidence_counts": {
+          "active_signature_fraction": 0.16666666666666666,
+          "declared_signature_proteins": 27,
+          "left_censored_signature_proteins": 1,
+          "missing_signature_proteins": 1,
+          "observed_background_proteins": 72,
+          "observed_signature_proteins": 24,
+          "source_signature_proteins": 150,
+          "unreported_signature_proteins": 123,
+          "unsupported_signature_proteins": 1
+        },
+        "latent": {
+          "bootstrap_replicates_used": 64,
+          "estimate": -1.197195,
+          "lower_bound": -1.27189,
+          "nominal_coverage": 0.9,
+          "upper_bound": -1.114279
+        },
+        "rank": {
+          "complement_observed_count": 72,
+          "empirical_p_value": 0.003891,
+          "null_standard_deviation": 0.124032,
+          "permutation_replicates_used": 256,
+          "q_value": 0.007782,
+          "rank_biserial": -1.0,
+          "signature_observed_count": 24,
+          "tie_correction": 1.0,
+          "u_statistic": 0.0
+        },
+        "source_cohort_pathway_context": [
+          {
+            "axis": "PPR",
+            "interpretation": "source_cohort_pathway_context_only",
+            "pathway_name": "GO_SPLICEOSOMAL_COMPLEX",
+            "sample_inference_status": "not_evaluated",
+            "source_logit_nes": 2.805089,
+            "source_p_value": 1.68501324431658e-56,
+            "source_q_value": 3.03838524554722e-54,
+            "source_rank": 1
+          },
+          {
+            "axis": "PPR",
+            "interpretation": "source_cohort_pathway_context_only",
+            "pathway_name": "HALLMARK_E2F_TARGETS",
+            "sample_inference_status": "not_evaluated",
+            "source_logit_nes": 2.524236,
+            "source_p_value": 8.70676651796646e-54,
+            "source_q_value": 1.50172794681621e-51,
+            "source_rank": 2
+          },
+          {
+            "axis": "PPR",
+            "interpretation": "source_cohort_pathway_context_only",
+            "pathway_name": "GO_NUCLEAR_SPECK",
+            "sample_inference_status": "not_evaluated",
+            "source_logit_nes": 2.302322,
+            "source_p_value": 3.06790611403551e-46,
+            "source_q_value": 3.04259588859472e-44,
+            "source_rank": 3
+          },
+          {
+            "axis": "PPR",
+            "interpretation": "source_cohort_pathway_context_only",
+            "pathway_name": "GO_DNA_REPLICATION",
+            "sample_inference_status": "not_evaluated",
+            "source_logit_nes": 2.229167,
+            "source_p_value": 7.60216214697087e-41,
+            "source_q_value": 6.15464841572111e-39,
+            "source_rank": 4
+          },
+          {
+            "axis": "PPR",
+            "interpretation": "source_cohort_pathway_context_only",
+            "pathway_name": "HALLMARK_G2M_CHECKPOINT",
+            "sample_inference_status": "not_evaluated",
+            "source_logit_nes": 1.992862,
+            "source_p_value": 1.6844567942614e-35,
+            "source_q_value": 1.19325716122053e-33,
+            "source_rank": 5
+          },
+          {
+            "axis": "PPR",
+            "interpretation": "source_cohort_pathway_context_only",
+            "pathway_name": "GO_RNA_LOCALIZATION",
+            "sample_inference_status": "not_evaluated",
+            "source_logit_nes": 1.781259,
+            "source_p_value": 1.76067129588148e-32,
+            "source_q_value": 1.09134109855654e-30,
+            "source_rank": 6
+          },
+          {
+            "axis": "PPR",
+            "interpretation": "source_cohort_pathway_context_only",
+            "pathway_name": "GO_REGULATION_OF_MRNA_METABOLIC_PROCESS",
+            "sample_inference_status": "not_evaluated",
+            "source_logit_nes": 2.434931,
+            "source_p_value": 4.03120425950637e-32,
+            "source_q_value": 2.422998075373e-30,
+            "source_rank": 7
+          },
+          {
+            "axis": "PPR",
+            "interpretation": "source_cohort_pathway_context_only",
+            "pathway_name": "GO_RNA_3_END_PROCESSING",
+            "sample_inference_status": "not_evaluated",
+            "source_logit_nes": 2.664306,
+            "source_p_value": 5.91598222661834e-31,
+            "source_q_value": 3.4012610859413e-29,
+            "source_rank": 8
+          }
+        ],
+        "stability": 1.0,
+        "support": "supported",
+        "top_drivers": [
+          {
+            "absolute_contribution": 1.545638,
+            "axis": "PPR",
+            "evidence_state": "left_censored",
+            "gene_symbol": "SUGP2",
+            "observation_id": "demo.PPR.left_censored",
+            "reliability_weight": 4.324324,
+            "signed_contribution": -1.545638,
+            "source_loading": 1.091171,
+            "source_mww_score": 2.957772,
+            "source_protein_label": "SFRS14",
+            "source_rank": 25,
+            "source_rank_quartile": 1,
+            "standardized_effect": -1.65,
+            "value_role": "left_censored_upper_limit"
+          },
+          {
+            "absolute_contribution": 1.51212,
+            "axis": "PPR",
+            "evidence_state": "observed",
+            "gene_symbol": "ZNF219",
+            "observation_id": "demo.PPR.001",
+            "reliability_weight": 6.229508,
+            "signed_contribution": 1.51212,
+            "source_loading": 1.417596,
+            "source_mww_score": 3.842592,
+            "source_protein_label": "ZNF219",
+            "source_rank": 1,
+            "source_rank_quartile": 1,
+            "standardized_effect": -1.542,
+            "value_role": "observed_point"
+          },
+          {
+            "absolute_contribution": 1.124921,
+            "axis": "PPR",
+            "evidence_state": "observed",
+            "gene_symbol": "SAMD1",
+            "observation_id": "demo.PPR.002",
+            "reliability_weight": 5.761067,
+            "signed_contribution": 1.124921,
+            "source_loading": 1.385599,
+            "source_mww_score": 3.755859,
+            "source_protein_label": "SAMD1",
+            "source_rank": 2,
+            "source_rank_quartile": 1,
+            "standardized_effect": -1.534,
+            "value_role": "observed_point"
+          },
+          {
+            "absolute_contribution": 0.249354,
+            "axis": "PPR",
+            "evidence_state": "observed",
+            "gene_symbol": "MBD3",
+            "observation_id": "demo.PPR.008",
+            "reliability_weight": 6.74237,
+            "signed_contribution": -0.249354,
+            "source_loading": 1.202096,
+            "source_mww_score": 3.258449,
+            "source_protein_label": "MBD3",
+            "source_rank": 8,
+            "source_rank_quartile": 1,
+            "standardized_effect": -1.486,
+            "value_role": "observed_point"
+          },
+          {
+            "absolute_contribution": 0.204615,
+            "axis": "PPR",
+            "evidence_state": "observed",
+            "gene_symbol": "SMARCA4",
+            "observation_id": "demo.PPR.009",
+            "reliability_weight": 6.229508,
+            "signed_contribution": -0.204615,
+            "source_loading": 1.198215,
+            "source_mww_score": 3.247928,
+            "source_protein_label": "SMARCA4",
+            "source_rank": 9,
+            "source_rank_quartile": 1,
+            "standardized_effect": -1.478,
+            "value_role": "observed_point"
+          },
+          {
+            "absolute_contribution": 0.195534,
+            "axis": "PPR",
+            "evidence_state": "observed",
+            "gene_symbol": "SPIN3",
+            "observation_id": "demo.PPR.003",
+            "reliability_weight": 5.334082,
+            "signed_contribution": 0.195534,
+            "source_loading": 1.285033,
+            "source_mww_score": 3.483262,
+            "source_protein_label": "SPIN3",
+            "source_rank": 3,
+            "source_rank_quartile": 1,
+            "standardized_effect": -1.526,
+            "value_role": "observed_point"
+          },
+          {
+            "absolute_contribution": 0.16536,
+            "axis": "PPR",
+            "evidence_state": "observed",
+            "gene_symbol": "MTA1",
+            "observation_id": "demo.PPR.010",
+            "reliability_weight": 5.761067,
+            "signed_contribution": -0.16536,
+            "source_loading": 1.194356,
+            "source_mww_score": 3.237468,
+            "source_protein_label": "MTA1",
+            "source_rank": 10,
+            "source_rank_quartile": 1,
+            "standardized_effect": -1.47,
+            "value_role": "observed_point"
+          },
+          {
+            "absolute_contribution": 0.133489,
+            "axis": "PPR",
+            "evidence_state": "observed",
+            "gene_symbol": "CBX8",
+            "observation_id": "demo.PPR.004",
+            "reliability_weight": 6.74237,
+            "signed_contribution": 0.133489,
+            "source_loading": 1.26757,
+            "source_mww_score": 3.435925,
+            "source_protein_label": "CBX8",
+            "source_rank": 4,
+            "source_rank_quartile": 1,
+            "standardized_effect": -1.518,
+            "value_role": "observed_point"
+          }
+        ]
+      }
+    ],
+    "clinical_subtype_inference": false,
+    "effect_reference_id": "synthetic.bulk-reference.v1",
+    "emits_subtype_classification": false,
+    "limitations": [
+      "Outputs quantify bulk-protein concordance with four source-selected CPTAC GBM proteotype signatures; they are not clinical subtype assignments.",
+      "The four latent coordinates are relative, equality-constrained research axes and must not be interpreted as probabilities or cell fractions.",
+      "Table 2e pathways are published cohort context only; pathway activity is not evaluated for the submitted sample because member-level pathway topology was not admitted.",
+      "Observed effects are caller-standardized contrasts against the declared reference and are not absolute protein activation measurements.",
+      "Left-censored evidence is retained as a one-sided upper bound; missing and unsupported evidence is ignored and never converted to a negative observation.",
+      "Bootstrap intervals perturb caller-supplied standard errors independently and do not model batch effects, peptide covariance, tumor purity, or external calibration.",
+      "Competitive rank evidence is an independent four-axis comparison against a deterministic source-rank-stratified permutation null, not a diagnostic test.",
+      "Exact replay is scoped to the pinned Python 3.12.13, NumPy 2.5.2, and container runtime; cross-platform BLAS/LAPACK bit parity is not claimed.",
+      "This deterministic result is research-use-only, non-prescriptive, and must not guide diagnosis, prognosis, treatment, or automated clinical action."
+    ],
+    "non_prescriptive": true,
+    "output_semantics": "bulk_gbm_functional_proteotype_evidence",
+    "profile_digest": "sha256:7edf675d4e134ebf0a8450e5dbc1467517d494536ec14c8faf8089c2aa580404",
+    "profile_id": "migliozzi-gbm-functional-proteotype/1.0.0",
+    "provenance": {
+      "bootstrap_replicates_used": 64,
+      "bootstrap_seed": 1547911904054592,
+      "catalog_artifact_digest": "sha256:67dd0d660fcd88a4aa309dd398e3d5b9fec8c018bea1cad88158463edf6d8d6d",
+      "catalog_content_digest": "sha256:1d4099b6d04bf3ea85ea268e551464b5aba220a081b6dffd69282bbb28cafb8b",
+      "computational_digest": "sha256:9af574332a1ec6653655d89b716c5d210abc21f065889144fce64514ba9f423f",
+      "engine": "migliozzi-gbm-functional-proteotype/1.0.0",
+      "engine_source_digest": "sha256:f481261888385719ee7dfd0a627804afb35db285c8d7db6d9dff49c5c21b8d06",
+      "numpy_version": "2.5.2",
+      "observation_source_digests": [
+        "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df"
+      ],
+      "pathway_catalog_digest": "sha256:f2674bb03ac9306b7a06b524e0b2dbbd0bfa20264b797863975fb62763c3f3b4",
+      "permutation_replicates_used": 256,
+      "permutation_seed": 6055686184913288,
+      "profile_digest": "sha256:7edf675d4e134ebf0a8450e5dbc1467517d494536ec14c8faf8089c2aa580404",
+      "request_digest": "sha256:93926e9c3095ebf21a5e47fb0dfc3d410209e285bc03408d96e2019e119cb7dc",
+      "signature_catalog_digest": "sha256:e9f9f6c0a19c6c44902ad6c85880ab1c702648e3f1bd0cc7002b7350dfa6585d",
+      "source_article_authors": "Migliozzi et al.",
+      "source_article_doi": "10.1038/s43018-022-00510-x",
+      "source_article_title": "Integrative multi-omics networks identify PKCδ and DNA-PK as master kinases of glioblastoma subtypes and guide targeted cancer therapy",
+      "source_license": "CC-BY-4.0",
+      "source_license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "source_transformation_notice": "Adapted aggregate projection: source-ranked functional-proteotype proteins and source cohort pathway context were extracted without patient or sample matrices. Source labels and numerical scores are retained without identifier normalization; downstream GLIO-PROTEOGEN methods are not source-author methods.",
+      "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/instance/9970878/bin/43018_2022_510_MOESM2_ESM.xlsx",
+      "source_workbook_digest": "sha256:865a2db1ec99dcf047d6ff56b313a21607b840e5239bb9184739f6f6f217fb88"
+    },
+    "request_digest": "sha256:93926e9c3095ebf21a5e47fb0dfc3d410209e285bc03408d96e2019e119cb7dc",
+    "research_use_only": true,
+    "result_digest": "sha256:07defe22e8346c3f27a5f2751ce4660bae7af3d41b38c216f4de8a4f8110eb71",
+    "sample_id": "synthetic-migliozzi-functional-proteotype-v1",
+    "solver": {
+      "axis_coordinates": [
+        {
+          "axis": "GPM",
+          "estimate": 1.234514
+        },
+        {
+          "axis": "MTC",
+          "estimate": 0.447289
+        },
+        {
+          "axis": "NEU",
+          "estimate": -0.484608
+        },
+        {
+          "axis": "PPR",
+          "estimate": -1.197195
+        }
+      ],
+      "converged": true,
+      "final_gradient_norm": 0.0,
+      "final_objective": 1.169623,
+      "initial_objective": 230.60174,
+      "intercept": -0.016091,
+      "iterations": 3,
+      "maximum_coordinate_change": 0.0,
+      "objective_trace": [
+        {
+          "accepted": true,
+          "accepted_objective": 1.184954,
+          "baseline_objective": 230.60174,
+          "candidate_objective": 1.184954,
+          "damping": 1.0,
+          "iteration": 1
+        },
+        {
+          "accepted": true,
+          "accepted_objective": 1.169623,
+          "baseline_objective": 1.184954,
+          "candidate_objective": 1.169623,
+          "damping": 1.0,
+          "iteration": 2
+        },
+        {
+          "accepted": true,
+          "accepted_objective": 1.169623,
+          "baseline_objective": 1.169623,
+          "candidate_objective": 1.169623,
+          "damping": 1.0,
+          "iteration": 3
+        }
+      ],
+      "objective_trace_digest": "sha256:b38e53cfdd205b2c2cf85d5afd135c9edcac90044869d1005ed6d35b34870558",
+      "sum_to_zero_residual": -1.1102230246251565e-16,
+      "termination": "converged"
+    },
+    "source_cohort_pathway_inference": false
+  },
+  "demo": {
+    "bootstrap_replicates": 64,
+    "effect_reference_id": "synthetic.bulk-reference.v1",
+    "effect_scale": "standardized_log2_abundance_contrast",
+    "observations": [
+      {
+        "gene_symbol": "CSTA",
+        "observation_id": "demo.GPM.001",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.3,
+        "standardized_effect": 1.542,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "TYMP",
+        "observation_id": "demo.GPM.002",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.32,
+        "standardized_effect": 1.534,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "THEMIS2",
+        "observation_id": "demo.GPM.003",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.34,
+        "standardized_effect": 1.526,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "ARPC1B",
+        "observation_id": "demo.GPM.004",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.28,
+        "standardized_effect": 1.518,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "PFN1",
+        "observation_id": "demo.GPM.005",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.3,
+        "standardized_effect": 1.51,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "CAPZA1",
+        "observation_id": "demo.GPM.006",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.32,
+        "standardized_effect": 1.502,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "PIK3AP1",
+        "observation_id": "demo.GPM.007",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.34,
+        "standardized_effect": 1.494,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "ARHGAP30",
+        "observation_id": "demo.GPM.008",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.28,
+        "standardized_effect": 1.486,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "PIK3CG",
+        "observation_id": "demo.GPM.009",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.3,
+        "standardized_effect": 1.478,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "SYK",
+        "observation_id": "demo.GPM.010",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.32,
+        "standardized_effect": 1.47,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "IFI30",
+        "observation_id": "demo.GPM.011",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.34,
+        "standardized_effect": 1.462,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "ST14",
+        "observation_id": "demo.GPM.012",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.28,
+        "standardized_effect": 1.454,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "LCP1",
+        "observation_id": "demo.GPM.013",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.3,
+        "standardized_effect": 1.446,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "CAPZB",
+        "observation_id": "demo.GPM.014",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.32,
+        "standardized_effect": 1.438,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "MYO1F",
+        "observation_id": "demo.GPM.015",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.34,
+        "standardized_effect": 1.43,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "FMNL1",
+        "observation_id": "demo.GPM.016",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.28,
+        "standardized_effect": 1.422,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "PARVG",
+        "observation_id": "demo.GPM.017",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.3,
+        "standardized_effect": 1.414,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "WAS",
+        "observation_id": "demo.GPM.018",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.32,
+        "standardized_effect": 1.406,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "DOCK8",
+        "observation_id": "demo.GPM.019",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.34,
+        "standardized_effect": 1.398,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "TNIP2",
+        "observation_id": "demo.GPM.020",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.28,
+        "standardized_effect": 1.39,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "TNFAIP8L2",
+        "observation_id": "demo.GPM.021",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.3,
+        "standardized_effect": 1.382,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "MYO1G",
+        "observation_id": "demo.GPM.022",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.32,
+        "standardized_effect": 1.374,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "RIPK3",
+        "observation_id": "demo.GPM.023",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.34,
+        "standardized_effect": 1.366,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "TRAF3IP3",
+        "observation_id": "demo.GPM.024",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.28,
+        "standardized_effect": 1.358,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "PTPN6",
+        "observation_id": "demo.GPM.left_censored",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.8,
+        "standard_error": 0.35,
+        "standardized_effect": 1.05,
+        "state": "left_censored"
+      },
+      {
+        "gene_symbol": "CD300A",
+        "observation_id": "demo.GPM.missing",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.0,
+        "standard_error": null,
+        "standardized_effect": null,
+        "state": "missing"
+      },
+      {
+        "gene_symbol": "APOBR",
+        "observation_id": "demo.GPM.unsupported",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.0,
+        "standard_error": null,
+        "standardized_effect": null,
+        "state": "unsupported"
+      },
+      {
+        "gene_symbol": "PNPO",
+        "observation_id": "demo.MTC.001",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.3,
+        "standardized_effect": 0.642,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "UFSP2",
+        "observation_id": "demo.MTC.002",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.32,
+        "standardized_effect": 0.634,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "PHKA1",
+        "observation_id": "demo.MTC.003",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.34,
+        "standardized_effect": 0.626,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "HYKK",
+        "observation_id": "demo.MTC.004",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.28,
+        "standardized_effect": 0.618,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "ERLIN2",
+        "observation_id": "demo.MTC.005",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.3,
+        "standardized_effect": 0.61,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "TMEM205",
+        "observation_id": "demo.MTC.006",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.32,
+        "standardized_effect": 0.602,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "C16orf58",
+        "observation_id": "demo.MTC.007",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.34,
+        "standardized_effect": 0.594,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "ARPIN",
+        "observation_id": "demo.MTC.008",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.28,
+        "standardized_effect": 0.586,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "GSTT1",
+        "observation_id": "demo.MTC.009",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.3,
+        "standardized_effect": 0.578,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "SMARCAL1",
+        "observation_id": "demo.MTC.010",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.32,
+        "standardized_effect": 0.57,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "MAN2C1",
+        "observation_id": "demo.MTC.011",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.34,
+        "standardized_effect": 0.562,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "MYH14",
+        "observation_id": "demo.MTC.012",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.28,
+        "standardized_effect": 0.554,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "GNPDA2",
+        "observation_id": "demo.MTC.013",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.3,
+        "standardized_effect": 0.546,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "TMEM135",
+        "observation_id": "demo.MTC.014",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.32,
+        "standardized_effect": 0.538,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "PDE4DIP",
+        "observation_id": "demo.MTC.015",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.34,
+        "standardized_effect": 0.53,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "ABHD11",
+        "observation_id": "demo.MTC.016",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.28,
+        "standardized_effect": 0.522,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "EPHX2",
+        "observation_id": "demo.MTC.017",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.3,
+        "standardized_effect": 0.514,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "MECP2",
+        "observation_id": "demo.MTC.018",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.32,
+        "standardized_effect": 0.506,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "INPP5B",
+        "observation_id": "demo.MTC.019",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.34,
+        "standardized_effect": 0.498,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "HEPH",
+        "observation_id": "demo.MTC.020",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.28,
+        "standardized_effect": 0.49,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "APRT",
+        "observation_id": "demo.MTC.021",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.3,
+        "standardized_effect": 0.482,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "CCPG1",
+        "observation_id": "demo.MTC.022",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.32,
+        "standardized_effect": 0.474,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "SNX8",
+        "observation_id": "demo.MTC.023",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.34,
+        "standardized_effect": 0.466,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "TSTA3",
+        "observation_id": "demo.MTC.024",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.28,
+        "standardized_effect": 0.458,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "ARHGEF37",
+        "observation_id": "demo.MTC.left_censored",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.8,
+        "standard_error": 0.35,
+        "standardized_effect": 0.15,
+        "state": "left_censored"
+      },
+      {
+        "gene_symbol": "BDH2",
+        "observation_id": "demo.MTC.missing",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.0,
+        "standard_error": null,
+        "standardized_effect": null,
+        "state": "missing"
+      },
+      {
+        "gene_symbol": "OGFOD2",
+        "observation_id": "demo.MTC.unsupported",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.0,
+        "standard_error": null,
+        "standardized_effect": null,
+        "state": "unsupported"
+      },
+      {
+        "gene_symbol": "CRHBP",
+        "observation_id": "demo.NEU.001",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.3,
+        "standardized_effect": -0.642,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "GRM7",
+        "observation_id": "demo.NEU.002",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.32,
+        "standardized_effect": -0.634,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "MAP6",
+        "observation_id": "demo.NEU.003",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.34,
+        "standardized_effect": -0.626,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "GPR158",
+        "observation_id": "demo.NEU.004",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.28,
+        "standardized_effect": -0.618,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "NRXN3",
+        "observation_id": "demo.NEU.005",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.3,
+        "standardized_effect": -0.61,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "RPH3A",
+        "observation_id": "demo.NEU.006",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.32,
+        "standardized_effect": -0.602,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "KCNMA1",
+        "observation_id": "demo.NEU.007",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.34,
+        "standardized_effect": -0.594,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "SYP",
+        "observation_id": "demo.NEU.008",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.28,
+        "standardized_effect": -0.586,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "GAD1",
+        "observation_id": "demo.NEU.009",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.3,
+        "standardized_effect": -0.578,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "LRFN5",
+        "observation_id": "demo.NEU.010",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.32,
+        "standardized_effect": -0.57,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "SLC12A5",
+        "observation_id": "demo.NEU.011",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.34,
+        "standardized_effect": -0.562,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "GAD2",
+        "observation_id": "demo.NEU.012",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.28,
+        "standardized_effect": -0.554,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "CACNA2D2",
+        "observation_id": "demo.NEU.013",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.3,
+        "standardized_effect": -0.546,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "SST",
+        "observation_id": "demo.NEU.014",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.32,
+        "standardized_effect": -0.538,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "SYT7",
+        "observation_id": "demo.NEU.015",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.34,
+        "standardized_effect": -0.53,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "CACNG8",
+        "observation_id": "demo.NEU.016",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.28,
+        "standardized_effect": -0.522,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "HOMER1",
+        "observation_id": "demo.NEU.017",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.3,
+        "standardized_effect": -0.514,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "ACTR3B",
+        "observation_id": "demo.NEU.018",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.32,
+        "standardized_effect": -0.506,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "ATP6V0A1",
+        "observation_id": "demo.NEU.019",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.34,
+        "standardized_effect": -0.498,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "ERC2",
+        "observation_id": "demo.NEU.020",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.28,
+        "standardized_effect": -0.49,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "PHF24",
+        "observation_id": "demo.NEU.021",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.3,
+        "standardized_effect": -0.482,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "SV2A",
+        "observation_id": "demo.NEU.022",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.32,
+        "standardized_effect": -0.474,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "SLC32A1",
+        "observation_id": "demo.NEU.023",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.34,
+        "standardized_effect": -0.466,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "RGS7",
+        "observation_id": "demo.NEU.024",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.28,
+        "standardized_effect": -0.458,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "GLS",
+        "observation_id": "demo.NEU.left_censored",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.8,
+        "standard_error": 0.35,
+        "standardized_effect": -0.75,
+        "state": "left_censored"
+      },
+      {
+        "gene_symbol": "ATP2B1",
+        "observation_id": "demo.NEU.missing",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.0,
+        "standard_error": null,
+        "standardized_effect": null,
+        "state": "missing"
+      },
+      {
+        "gene_symbol": "L1CAM",
+        "observation_id": "demo.NEU.unsupported",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.0,
+        "standard_error": null,
+        "standardized_effect": null,
+        "state": "unsupported"
+      },
+      {
+        "gene_symbol": "ZNF219",
+        "observation_id": "demo.PPR.001",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.3,
+        "standardized_effect": -1.542,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "SAMD1",
+        "observation_id": "demo.PPR.002",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.32,
+        "standardized_effect": -1.534,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "SPIN3",
+        "observation_id": "demo.PPR.003",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.34,
+        "standardized_effect": -1.526,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "CBX8",
+        "observation_id": "demo.PPR.004",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.28,
+        "standardized_effect": -1.518,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "PARP2",
+        "observation_id": "demo.PPR.005",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.3,
+        "standardized_effect": -1.51,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "KDM3B",
+        "observation_id": "demo.PPR.006",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.32,
+        "standardized_effect": -1.502,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "TCEA2",
+        "observation_id": "demo.PPR.007",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.34,
+        "standardized_effect": -1.494,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "MBD3",
+        "observation_id": "demo.PPR.008",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.28,
+        "standardized_effect": -1.486,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "SMARCA4",
+        "observation_id": "demo.PPR.009",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.3,
+        "standardized_effect": -1.478,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "MTA1",
+        "observation_id": "demo.PPR.010",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.32,
+        "standardized_effect": -1.47,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "CHAMP1",
+        "observation_id": "demo.PPR.011",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.34,
+        "standardized_effect": -1.462,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "NOVA1",
+        "observation_id": "demo.PPR.012",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.28,
+        "standardized_effect": -1.454,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "ZNF711",
+        "observation_id": "demo.PPR.013",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.3,
+        "standardized_effect": -1.446,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "CDK2AP1",
+        "observation_id": "demo.PPR.014",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.32,
+        "standardized_effect": -1.438,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "HNRNPR",
+        "observation_id": "demo.PPR.015",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.34,
+        "standardized_effect": -1.43,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "MAZ",
+        "observation_id": "demo.PPR.016",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.28,
+        "standardized_effect": -1.422,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "TCF3",
+        "observation_id": "demo.PPR.017",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.3,
+        "standardized_effect": -1.414,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "ZFR",
+        "observation_id": "demo.PPR.018",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.32,
+        "standardized_effect": -1.406,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "DNMT3A",
+        "observation_id": "demo.PPR.019",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.34,
+        "standardized_effect": -1.398,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "WIZ",
+        "observation_id": "demo.PPR.020",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.28,
+        "standardized_effect": -1.39,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "ZNF146",
+        "observation_id": "demo.PPR.021",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.3,
+        "standardized_effect": -1.382,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "PBRM1",
+        "observation_id": "demo.PPR.022",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.32,
+        "standardized_effect": -1.374,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "ZNF629",
+        "observation_id": "demo.PPR.023",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.34,
+        "standardized_effect": -1.366,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "C5orf24",
+        "observation_id": "demo.PPR.024",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.95,
+        "standard_error": 0.28,
+        "standardized_effect": -1.358,
+        "state": "observed"
+      },
+      {
+        "gene_symbol": "SUGP2",
+        "observation_id": "demo.PPR.left_censored",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.8,
+        "standard_error": 0.35,
+        "standardized_effect": -1.65,
+        "state": "left_censored"
+      },
+      {
+        "gene_symbol": "DDX17",
+        "observation_id": "demo.PPR.missing",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.0,
+        "standard_error": null,
+        "standardized_effect": null,
+        "state": "missing"
+      },
+      {
+        "gene_symbol": "EHMT2",
+        "observation_id": "demo.PPR.unsupported",
+        "provenance_digest": "sha256:54d8df1d8f93ef5d1fc8f276a0dde82bcdb8e855475de1e5a724cb0f3d11f8df",
+        "quality_weight": 0.0,
+        "standard_error": null,
+        "standardized_effect": null,
+        "state": "unsupported"
+      }
+    ],
+    "permutation_replicates": 256,
+    "profile_id": "migliozzi-gbm-functional-proteotype/1.0.0",
+    "sample_id": "synthetic-migliozzi-functional-proteotype-v1"
+  },
+  "profile": {
+    "algorithm_id": "migliozzi-gbm-functional-proteotype",
+    "algorithm_version": "1.0.0",
+    "axes": [
+      {
+        "axis": "GPM",
+        "pathway_count": 243,
+        "pathway_digest": "sha256:281a7cb5c62fa2580e3e6133677f982ef483f6beea2fa1510bfcac55b61309e9",
+        "signature_digest": "sha256:705b8adf92f48d59d99ba4c5def49dc74d7b9c5df57f9c7daecaa58d95a3e02e",
+        "signature_protein_count": 150
+      },
+      {
+        "axis": "MTC",
+        "pathway_count": 107,
+        "pathway_digest": "sha256:dda70e67de34e15c4d8770272b59a1537787e27d883a2e2a37a8e77ec1c8b897",
+        "signature_digest": "sha256:d89fb68636e765170aa948e0a2045a3c57f7576b9b15621d79d0a2d4def7b92b",
+        "signature_protein_count": 150
+      },
+      {
+        "axis": "NEU",
+        "pathway_count": 272,
+        "pathway_digest": "sha256:7ac20c06dde8b741aa88dbb38ea870d07745e3785d2781f1a564f0994e2ff5a9",
+        "signature_digest": "sha256:244b38ed1f5aa3ef6d5e9cd1b89b6cc9b77dd946ff3fbff9983c54d67913b8e7",
+        "signature_protein_count": 150
+      },
+      {
+        "axis": "PPR",
+        "pathway_count": 204,
+        "pathway_digest": "sha256:f3581864529af625dcb8fda74c862e1da225f243dc0222a89668770bfb310e6f",
+        "signature_digest": "sha256:0dc46e67b9c10da860c6cc93585298acca754eb0c2285bfc677e60e004bbce5c",
+        "signature_protein_count": 150
+      }
+    ],
+    "catalog_artifact_digest": "sha256:67dd0d660fcd88a4aa309dd398e3d5b9fec8c018bea1cad88158463edf6d8d6d",
+    "catalog_content_digest": "sha256:1d4099b6d04bf3ea85ea268e551464b5aba220a081b6dffd69282bbb28cafb8b",
+    "claim_ceiling": "bulk_tumor_protein_concordance_to_source_selected_cptac_gbm_signatures",
+    "constants": {
+      "ablation_policy": "quartile_state_and_top_driver_refit_v1",
+      "axis_classification_threshold": 0.25,
+      "axis_ridge_penalty": 0.0001,
+      "backtracking_factor": 0.5,
+      "bootstrap_policy": "request_digest_seeded_normal_limit_perturbation_v1",
+      "censoring_loss": "one_sided_upper_bound_huber_hinge_v1",
+      "coordinate_tolerance": 1e-08,
+      "damping_policy": "monotone_backtracking_v1",
+      "default_bootstrap_replicates": 64,
+      "default_permutation_replicates": 256,
+      "exploratory_minimum_active_proteins": 6,
+      "gradient_tolerance": 1e-07,
+      "huber_delta": 1.345,
+      "initial_damping": 1.0,
+      "intercept_ridge_penalty": 1e-06,
+      "interval_lower_quantile": 0.05,
+      "interval_upper_quantile": 0.95,
+      "loading_policy": "source_mww_median_normalized_axis_loading_v1",
+      "location_solver": "huber_irls_kkt_sum_to_zero_v1",
+      "maximum_backtracking_steps": 16,
+      "maximum_solver_iterations": 64,
+      "minimum_bootstrap_success_fraction": 0.8,
+      "minimum_damping": 3.0517578125e-05,
+      "minimum_interval_bootstrap_replicates": 16,
+      "minimum_rank_background_proteins": 20,
+      "minimum_rank_signature_proteins": 3,
+      "objective_increase_tolerance": 1e-12,
+      "pathway_context_limit": 8,
+      "quantization_decimals": 6,
+      "random_seed_bytes": 8,
+      "rank_estimator": "tie_corrected_mann_whitney_rank_biserial_v1",
+      "rank_null_policy": "source_rank_quartile_stratified_two_sided_bh_v1",
+      "rank_q_threshold": 0.1,
+      "standard_error_floor": 0.25,
+      "supported_minimum_active_fraction": 0.1,
+      "supported_minimum_active_proteins": 15,
+      "supported_minimum_effective_sample_size": 8.0,
+      "supported_minimum_observed_proteins": 10,
+      "top_driver_limit": 8
+    },
+    "demo_id": "synthetic-migliozzi-functional-proteotype-v1",
+    "demo_request_digest": "sha256:93926e9c3095ebf21a5e47fb0dfc3d410209e285bc03408d96e2019e119cb7dc",
+    "engine_source_digest": "sha256:f481261888385719ee7dfd0a627804afb35db285c8d7db6d9dff49c5c21b8d06",
+    "interpretation": "bulk_gbm_functional_proteotype_evidence_non_prescriptive",
+    "limits": {
+      "axis_count": 4,
+      "max_ablations_per_axis": 24,
+      "max_bootstrap_replicates": 256,
+      "max_observations": 4096,
+      "max_pathway_contexts_per_axis": 16,
+      "max_permutation_replicates": 2048,
+      "max_replay_bytes": 4194304,
+      "max_request_bytes": 2097152,
+      "max_result_bytes": 2097152,
+      "max_top_drivers_per_axis": 8,
+      "source_pathway_rows_total": 826,
+      "source_signature_proteins_per_axis": 150,
+      "source_signature_proteins_total": 600
+    },
+    "numpy_version": "2.5.2",
+    "pathway_catalog_digest": "sha256:f2674bb03ac9306b7a06b524e0b2dbbd0bfa20264b797863975fb62763c3f3b4",
+    "pathway_sheet_mapping": "Tab 15 - Supplementary Table 2e rows 5:end; GPM A:D; MTC F:I; NEU K:N; PPR P:S; headers Biological pathway|logitNES|pValue|qValue",
+    "profile_digest": "sha256:7edf675d4e134ebf0a8450e5dbc1467517d494536ec14c8faf8089c2aa580404",
+    "profile_id": "migliozzi-gbm-functional-proteotype/1.0.0",
+    "safety_class": "research_use_only",
+    "signature_catalog_digest": "sha256:e9f9f6c0a19c6c44902ad6c85880ab1c702648e3f1bd0cc7002b7350dfa6585d",
+    "signature_sheet_mapping": "Tab 14 - Supplementary Table 2d rows 5:154; GPM A:C; MTC E:G; NEU I:K; PPR M:O; headers Gene|Protein|MWW score",
+    "source_article_authors": "Migliozzi et al.",
+    "source_article_doi": "10.1038/s43018-022-00510-x",
+    "source_article_title": "Integrative multi-omics networks identify PKCδ and DNA-PK as master kinases of glioblastoma subtypes and guide targeted cancer therapy",
+    "source_license": "CC-BY-4.0",
+    "source_license_url": "https://creativecommons.org/licenses/by/4.0/",
+    "source_transformation_notice": "Adapted aggregate projection: source-ranked functional-proteotype proteins and source cohort pathway context were extracted without patient or sample matrices. Source labels and numerical scores are retained without identifier normalization; downstream GLIO-PROTEOGEN methods are not source-author methods.",
+    "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/instance/9970878/bin/43018_2022_510_MOESM2_ESM.xlsx",
+    "source_workbook_digest": "sha256:865a2db1ec99dcf047d6ff56b313a21607b840e5239bb9184739f6f6f217fb88"
+  },
+  "verification": {
+    "message": "Replay exactly matches the deterministic functional-proteotype receipt.",
+    "profile_digest_match": true,
+    "provided_result_digest": "sha256:07defe22e8346c3f27a5f2751ce4660bae7af3d41b38c216f4de8a4f8110eb71",
+    "provided_solver_trace_digest": "sha256:b38e53cfdd205b2c2cf85d5afd135c9edcac90044869d1005ed6d35b34870558",
+    "recomputed_request_digest": "sha256:93926e9c3095ebf21a5e47fb0dfc3d410209e285bc03408d96e2019e119cb7dc",
+    "recomputed_result_digest": "sha256:07defe22e8346c3f27a5f2751ce4660bae7af3d41b38c216f4de8a4f8110eb71",
+    "recomputed_solver_trace_digest": "sha256:b38e53cfdd205b2c2cf85d5afd135c9edcac90044869d1005ed6d35b34870558",
+    "request_digest_match": true,
+    "result_digest_match": true,
+    "semantic_match": true,
+    "solver_trace_match": true,
+    "verified": true
+  }
+}

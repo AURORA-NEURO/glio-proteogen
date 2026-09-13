@@ -35,7 +35,7 @@ class M0506Service:
         self,
         request: HarmonizePtmLocalizationAnalysisRequest,
     ) -> PtmLocalizationHarmonizationResult:
-        return self._engine.harmonize_validated(request)
+        return self._engine._harmonize_admitted(request)
 
     def execute(self, request: object) -> PtmLocalizationHarmonizationResult:
         return self._execute_validated(self.validate_request(request))

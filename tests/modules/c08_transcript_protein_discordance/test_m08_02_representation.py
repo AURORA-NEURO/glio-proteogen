@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from itertools import pairwise
 
 import pytest
 
@@ -12,6 +13,8 @@ from glio_proteogen.contracts.m08_02 import (
     ConstructTranscriptProteinRepresentationVerification,
     FeatureLineage,
     FeatureSpecification,
+    GliomaTranscriptProteinEvidenceState,
+    GliomaTranscriptProteinObservation,
     LeakageCheckStatus,
     RepresentationFeature,
     RepresentationPolicy,
@@ -162,6 +165,31 @@ def test_representation_is_deterministic_and_lineage_complete() -> None:
     assert first.canonical_bytes == second.canonical_bytes
 
 
+def test_observed_values_use_declared_scaling_transform() -> None:
+    request = _request()
+    spec = request.feature_specs[0].model_copy(update={"source_values": (1.0, 2.0)})
+    candidate = request.model_copy(
+        update={"feature_specs": (spec, request.feature_specs[1])}
+    )
+    built = m0802.M0802RepresentationEngine().construct(candidate)
+    assert built.result.status.value == "constructed"
+    assert built.result.features[0].values == (-1.0, 1.0)
+
+
+def test_observed_values_bind_the_declared_dimension_and_finiteness() -> None:
+    spec = _request().feature_specs[0]
+    with pytest.raises(ValueError, match="dimension"):
+        type(spec).model_validate(
+            spec.model_dump(mode="python") | {"source_values": (1.0,)},
+            strict=True,
+        )
+    with pytest.raises(ValueError, match="finite"):
+        type(spec).model_validate(
+            spec.model_dump(mode="python") | {"source_values": (float("nan"), 1.0)},
+            strict=True,
+        )
+
+
 def test_replay_accepts_canonical_and_rejects_tamper() -> None:
     engine = m0802.M0802RepresentationEngine()
     built = engine.construct(_request())
@@ -251,6 +279,202 @@ def test_built_result_rejects_digest_and_noncanonical_bytes() -> None:
         )
     with pytest.raises(m0802.RepresentationInputError, match="canonical"):
         m0802.BuiltRepresentation(built.result, built.canonical_bytes + b" ")
+
+
+def _typed_request(*, reverse: bool = False) -> ConstructTranscriptProteinRepresentationRequest:
+    request = _request()
+    observations = tuple(
+        GliomaTranscriptProteinObservation(
+            observation_id=f"observation.{feature_id}.{gene}",
+            feature_id=feature_id,
+            gene=gene,
+            evidence_state=GliomaTranscriptProteinEvidenceState.OBSERVED,
+            transcript_effect=transcript + offset,
+            protein_effect=protein + offset / 2.0,
+            transcript_standard_error=0.2,
+            protein_standard_error=0.2,
+            quality_weight=1.0,
+        )
+        for feature_id, transcript, protein in (
+            ("feature.abundance", 1.2, 0.3),
+            ("feature.residual", -0.6, -0.2),
+        )
+        for gene, offset in (
+            ("EGFR", 0.0),
+            ("MET", 0.05),
+            ("PDGFRA", 0.1),
+            ("PTEN", 0.15),
+        )
+    )
+    return request.model_copy(
+        update={"typed_observations": tuple(reversed(observations)) if reverse else observations}
+    )
+
+
+EXPECTED_TYPED_FEATURES = 2
+EXPECTED_TYPED_GENES_PER_FEATURE = 4
+FIRST_CANDIDATE_CALL = 2
+NEGATIVE_TRANSCRIPT_LIMIT = -0.4
+NEGATIVE_PROTEIN_LIMIT = -0.3
+ROBUST_CENTER_MAX = 0.5
+ARITHMETIC_MEAN_MIN = 1.0
+
+
+def test_typed_glioma_discordance_is_evidence_driven_and_replay_bound() -> None:
+    engine = m0802.M0802RepresentationEngine()
+    first = engine.construct(_typed_request())
+    repeat = engine.construct(_typed_request(reverse=True))
+
+    assert first.result.status.value == "constructed"
+    assert first.result.model_family == "glioma-transcript-protein-discordance-irls/1.0.0"
+    assert len(first.result.optimization_diagnostics) == EXPECTED_TYPED_FEATURES
+    assert all(
+        item.status.value == "converged"
+        for item in first.result.optimization_diagnostics
+    )
+    feature = first.result.features[0]
+    assert feature.evidence_count == EXPECTED_TYPED_GENES_PER_FEATURE
+    assert feature.lower_bound is not None
+    assert feature.upper_bound is not None
+    assert feature.lower_bound <= feature.values[0] <= feature.upper_bound
+    assert feature.top_drivers
+    assert feature.ablation_effects
+    assert first.canonical_bytes == repeat.canonical_bytes
+    assert engine.verify(first.result, first.canonical_bytes).verified
+
+
+def test_typed_pair_solver_backtracks_objective_increase(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    original = m0802.engine._typed_pair_objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == FIRST_CANDIDATE_CALL else value
+
+    monkeypatch.setattr(m0802.engine, "_typed_pair_objective", objective)
+    fitted = m0802.engine._fit_typed_pair(
+        _typed_request().typed_observations,
+        max_iterations=64,
+    )
+    assert fitted is not None
+    assert calls > FIRST_CANDIDATE_CALL
+    assert all(
+        after <= before + m0802.engine._TYPED_OBJECTIVE_TOLERANCE
+        for before, after in pairwise(fitted[5])
+    )
+
+
+def test_typed_missing_evidence_abstains_without_negative_finding() -> None:
+    request = _typed_request()
+    missing = request.typed_observations[0].model_copy(
+        update={
+            "evidence_state": GliomaTranscriptProteinEvidenceState.MISSING,
+            "transcript_effect": None,
+            "protein_effect": None,
+            "transcript_standard_error": None,
+            "protein_standard_error": None,
+            "quality_weight": 0.0,
+        }
+    )
+    request = request.model_copy(
+        update={"typed_observations": (missing, *request.typed_observations[1:])}
+    )
+    result = m0802.M0802RepresentationEngine().construct(request).result
+    assert result.status.value == "constructed"
+    assert result.features[0].evidence_count == EXPECTED_TYPED_GENES_PER_FEATURE - 1
+
+
+def test_typed_left_censored_evidence_is_preserved_one_sided() -> None:
+    request = _typed_request()
+    censored = request.typed_observations[0].model_copy(
+        update={
+            "evidence_state": GliomaTranscriptProteinEvidenceState.LEFT_CENSORED,
+            "transcript_effect": None,
+            "protein_effect": None,
+            "transcript_censoring_limit": -0.4,
+            "protein_censoring_limit": -0.3,
+        }
+    )
+    request = request.model_copy(
+        update={"typed_observations": (censored, *request.typed_observations[1:])}
+    )
+    result = m0802.M0802RepresentationEngine().construct(request).result
+    assert result.status.value == "constructed"
+    assert result.features[0].evidence_count == EXPECTED_TYPED_GENES_PER_FEATURE
+    assert result.features[0].lower_bound is not None
+    assert result.features[0].upper_bound is not None
+
+
+def test_typed_initial_state_uses_observed_center_and_censor_bound() -> None:
+    request = _typed_request()
+    censored = request.typed_observations[0].model_copy(
+        update={
+            "evidence_state": GliomaTranscriptProteinEvidenceState.LEFT_CENSORED,
+            "transcript_effect": None,
+            "protein_effect": None,
+            "transcript_censoring_limit": -0.4,
+            "protein_censoring_limit": -0.3,
+        }
+    )
+    items = (censored, *request.typed_observations[1:4])
+    transcript = m0802.engine._initial_typed_component_state(items, "transcript")
+    protein = m0802.engine._initial_typed_component_state(items, "protein")
+    assert transcript <= NEGATIVE_TRANSCRIPT_LIMIT
+    assert protein <= NEGATIVE_PROTEIN_LIMIT
+
+
+def test_typed_initial_component_center_downweights_failed_replicate() -> None:
+    terms = (
+        (0.2, 0.2, 1.0),
+        (0.3, 0.2, 1.0),
+        (4.0, 0.2, 1.0),
+    )
+
+    center = m0802.engine._robust_initial_component_center(terms)
+    arithmetic_mean = sum(term[0] for term in terms) / len(terms)
+
+    assert center < ROBUST_CENTER_MAX
+    assert arithmetic_mean > ARITHMETIC_MEAN_MIN
+    assert m0802.engine._initial_component_measurement_objective(center, terms) <= (
+        m0802.engine._initial_component_measurement_objective(arithmetic_mean, terms)
+    )
+
+
+def test_censor_only_initial_state_stays_neutral_when_limit_is_positive() -> None:
+    request = _typed_request()
+    censored = request.typed_observations[0].model_copy(
+        update={
+            "evidence_state": GliomaTranscriptProteinEvidenceState.LEFT_CENSORED,
+            "transcript_effect": None,
+            "protein_effect": None,
+            "transcript_censoring_limit": 0.4,
+            "protein_censoring_limit": 0.3,
+        }
+    )
+    assert m0802.engine._initial_typed_component_state(
+        (censored,), "transcript"
+    ) == pytest.approx(0.0)
+    assert m0802.engine._initial_typed_component_state(
+        (censored,), "protein"
+    ) == pytest.approx(0.0)
+
+
+def test_typed_duplicate_gene_and_unknown_feature_are_rejected() -> None:
+    request = _typed_request()
+    duplicate = request.typed_observations[0].model_copy(
+        update={"observation_id": "observation.duplicate"}
+    )
+    duplicate_payload = request.model_dump(mode="python")
+    duplicate_payload["typed_observations"] = (*request.typed_observations, duplicate)
+    with pytest.raises(ValueError, match="unique per feature"):
+        ConstructTranscriptProteinRepresentationRequest.model_validate(duplicate_payload)
+    unknown = request.typed_observations[0].model_copy(update={"feature_id": "feature.unknown"})
+    unknown_payload = request.model_dump(mode="python")
+    unknown_payload["typed_observations"] = (unknown, *request.typed_observations[1:])
+    with pytest.raises(ValueError, match="bind requested features"):
+        ConstructTranscriptProteinRepresentationRequest.model_validate(unknown_payload)
 
 
 def test_invalid_and_non_bytes_replay_fail_closed() -> None:

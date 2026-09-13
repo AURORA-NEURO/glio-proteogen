@@ -10,6 +10,7 @@ explicitly provisional.
 from __future__ import annotations
 
 from enum import StrEnum
+from math import isfinite
 from typing import Final, Literal
 
 from pydantic import Field, model_validator
@@ -55,8 +56,11 @@ M1005_MAX_CONSTRAINTS: Final = 512
 M1005_MAX_EVALUATIONS: Final = M1005_MAX_CONSTRAINTS
 M1005_MAX_ABLATIONS: Final = M1005_MAX_CONSTRAINTS
 M1005_MAX_EVIDENCE: Final = 64
+M1005_MAX_FEATURE_OBSERVATIONS: Final = M1005_MAX_FEATURES
 M1005_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M1005_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
+M1005_DEFAULT_BOOTSTRAP_REPLICATES: Final = 64
+M1005_MAX_BOOTSTRAP_REPLICATES: Final = 256
 _M1005_ABLATION_TOLERANCE: Final = 1e-12
 M1005_EVIDENCE_CLAIM: Final = (
     "Caller-declared M10-05 mechanism and constraint evidence; issuer authority "
@@ -109,6 +113,67 @@ class MechanismConstraint(FrozenModel):
             raise ValueError("soft constraints require an explicit weight")
         if len(self.feature_ids) != len(set(self.feature_ids)):
             raise ValueError("constraint feature ids must be unique")
+        return self
+
+
+class FeatureObservationState(StrEnum):
+    """Evidence state for one measured feature used by numeric constraints."""
+
+    OBSERVED = "observed"
+    LEFT_CENSORED = "left_censored"
+    MISSING = "missing"
+    UNSUPPORTED = "unsupported"
+
+
+class GliomaConstraintProgram(StrEnum):
+    """Glioma programs used by the research-only typed constraint lane."""
+
+    RTK_PI3K_AKT_MTOR = "RTK_PI3K_AKT_MTOR"
+    P53_CELL_CYCLE = "P53_CELL_CYCLE"
+    IDH_HIF1A = "IDH_HIF1A"
+    MESENCHYMAL_PROGRAM = "MESENCHYMAL_PROGRAM"
+    PROLIFERATION = "PROLIFERATION"
+
+
+class FeatureObservation(FrozenModel):
+    """Typed feature value with assay error and explicit missingness semantics."""
+
+    feature_id: Identifier
+    state: FeatureObservationState
+    value: float | None = None
+    standard_error: float | None = Field(default=None, gt=0.0)
+    quality_weight: float = Field(default=1.0, ge=0.0, le=1.0)
+    censoring_limit: float | None = None
+    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1005_MAX_EVIDENCE)
+    program: GliomaConstraintProgram | None = None
+    direction: Literal[-1, 1] = 1
+
+    @model_validator(mode="after")
+    def observation_shape_is_closed(self) -> FeatureObservation:
+        numeric = (self.value, self.standard_error, self.quality_weight, self.censoring_limit)
+        if any(number is not None and not isfinite(number) for number in numeric):
+            raise ValueError("feature observations must contain finite numbers")
+        if self.state is FeatureObservationState.OBSERVED:
+            if self.value is None or self.censoring_limit is not None:
+                raise ValueError("observed feature requires a value and no censoring limit")
+        elif self.state is FeatureObservationState.LEFT_CENSORED:
+            if self.value is not None or self.censoring_limit is None:
+                raise ValueError("left-censored feature requires only a censoring limit")
+        elif self.value is not None or self.censoring_limit is not None:
+            raise ValueError("missing or unsupported feature cannot carry a numeric value")
+        if any(item.role != "evidence" for item in self.evidence):
+            raise ValueError("feature observation evidence must use the evidence role")
+        if self.program is not None:
+            active = self.state in {
+                FeatureObservationState.OBSERVED,
+                FeatureObservationState.LEFT_CENSORED,
+            }
+            if active and (self.standard_error is None or self.quality_weight <= 0.0):
+                raise ValueError(
+                    "typed feature observation requires standard error and positive quality"
+                )
+            if not active and (self.standard_error is not None or self.quality_weight != 0.0):
+                raise ValueError("missing or unsupported typed observation cannot carry a value")
         return self
 
 
@@ -184,6 +249,14 @@ class IntegrateProteinRnaConstraintsRequest(FrozenModel):
     feature_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M1005_MAX_EVIDENCE
     )
+    feature_observations: tuple[FeatureObservation, ...] = Field(
+        default=(), max_length=M1005_MAX_FEATURE_OBSERVATIONS
+    )
+    bootstrap_replicates: int = Field(
+        default=M1005_DEFAULT_BOOTSTRAP_REPLICATES,
+        ge=16,
+        le=M1005_MAX_BOOTSTRAP_REPLICATES,
+    )
     supersedes_result_digest: Sha256Digest | None = None
 
     @model_validator(mode="after")
@@ -202,6 +275,34 @@ class IntegrateProteinRnaConstraintsRequest(FrozenModel):
         )
         if len(keys) != len(set(keys)):
             raise ValueError("input artifact references must be unique")
+        observation_ids = tuple(item.feature_id for item in self.feature_observations)
+        if len(observation_ids) != len(set(observation_ids)):
+            raise ValueError("feature observation ids must be unique")
+        return self
+
+
+class GliomaConstraintProgramState(FrozenModel):
+    """Signed, uncertainty-bearing state for one annotated glioma program."""
+
+    program: GliomaConstraintProgram
+    score: float
+    lower_bound: float
+    upper_bound: float
+    stability: float = Field(ge=0.0, le=1.0, allow_inf_nan=False)
+    discordance: float = Field(ge=0.0, le=1.0, allow_inf_nan=False)
+    evidence_count: int = Field(ge=1, le=M1005_MAX_FEATURE_OBSERVATIONS)
+    top_drivers: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=8)
+    ablation_effects: tuple[NonEmptyStr, ...] = Field(default=(), max_length=8)
+    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1005_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def state_is_closed(self) -> GliomaConstraintProgramState:
+        if not all(isfinite(value) for value in (self.score, self.lower_bound, self.upper_bound)):
+            raise ValueError("glioma constraint program state values must be finite")
+        if self.lower_bound > self.upper_bound or not (
+            self.lower_bound <= self.score <= self.upper_bound
+        ):
+            raise ValueError("glioma constraint program state bounds must contain score")
         return self
 
 
@@ -220,6 +321,10 @@ class ProteinRnaConstraintIntegrationResult(FrozenModel):
     estimates: tuple[ConstraintAwareEstimate, ...] = Field(
         default=(), max_length=M1005_MAX_FEATURES
     )
+    program_states: tuple[GliomaConstraintProgramState, ...] = Field(default=(), max_length=5)
+    typed_model: bool = False
+    solver_iterations: int | None = Field(default=None, ge=0, le=1000)
+    solver_objective: float | None = Field(default=None, ge=0.0, le=1e9, allow_inf_nan=False)
     evaluations: tuple[ConstraintEvaluation, ...] = Field(
         default=(), max_length=M1005_MAX_EVALUATIONS
     )
@@ -286,6 +391,7 @@ class ProteinRnaConstraintIntegrationResult(FrozenModel):
                 raise ValueError("integrated result requires estimates and no hard violation")
         elif (
             self.estimates
+            or self.program_states
             or self.abstention_reason is None
             or self.support_decision.status
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
@@ -412,17 +518,20 @@ def expected_provenance(
 
 __all__ = [
     "M1005_CONTRACT_VERSION",
+    "M1005_DEFAULT_BOOTSTRAP_REPLICATES",
     "M1005_EVIDENCE_CLAIM",
     "M1005_GATE",
     "M1005_M1002_RESULT_MEDIA_TYPE",
     "M1005_M1004_RESULT_MEDIA_TYPE",
     "M1005_MAX_ABLATIONS",
+    "M1005_MAX_BOOTSTRAP_REPLICATES",
     "M1005_MAX_CANONICAL_REQUEST_BYTES",
     "M1005_MAX_CANONICAL_RESULT_BYTES",
     "M1005_MAX_CONSTRAINTS",
     "M1005_MAX_EVALUATIONS",
     "M1005_MAX_EVIDENCE",
     "M1005_MAX_FEATURES",
+    "M1005_MAX_FEATURE_OBSERVATIONS",
     "M1005_MODULE_ID",
     "M1005_OPERATION",
     "M1005_OUTPUT_MEDIA_TYPE",
@@ -437,6 +546,10 @@ __all__ = [
     "ConstraintHardness",
     "ConstraintIntegrationStatus",
     "ConstraintKind",
+    "FeatureObservation",
+    "FeatureObservationState",
+    "GliomaConstraintProgram",
+    "GliomaConstraintProgramState",
     "IntegrateProteinRnaConstraintsRequest",
     "MechanismConstraint",
     "MechanismConstraintSet",

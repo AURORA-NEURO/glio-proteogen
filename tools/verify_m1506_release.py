@@ -12,6 +12,7 @@ from typing import Final, cast
 ROOT: Final = Path(__file__).parents[1]
 EVIDENCE: Final = ROOT / "release-evidence" / "m15_06"
 FIXTURE: Final = ROOT / "tests" / "fixtures" / "m15_06" / "scenarios.json"
+HISTORICAL_ARTIFACTS: Final = ROOT / "dist-m15-06"
 EXPECTED_FIXTURE_DIGEST: Final = (
     "sha256:88f5a39404d259a99102057c512b1acdd76d17f9da8833a0cde528948da400f9"
 )
@@ -95,7 +96,9 @@ def verify_release() -> dict[str, object]:
     for key in ("wheel", "sdist"):
         record = cast("dict[str, object]", package.get(key))
         _require(isinstance(record, dict), f"{key} package record missing")
-        path = ROOT / str(record["path"])
+        artifact_name = Path(str(record.get("path", ""))).name
+        _require(bool(artifact_name), f"{key} artifact filename missing")
+        path = HISTORICAL_ARTIFACTS / artifact_name
         _require(path.is_file(), f"{key} artifact missing")
         _require(path.stat().st_size == _as_int(record["bytes"]), f"{key} byte count mismatch")
         _require(_sha256(path) == record["sha256"], f"{key} digest mismatch")

@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 from evals.m02_03.run import ScenarioSubmission, build_representative_submission
 
+from benchmarks._module_validation import run_pytest_benchmark
 from glio_proteogen.contracts.m01_03 import RawInputDisposition
 from glio_proteogen.modules.c02_identification_qc.m02_03_raw_ingestion import (
     evaluate_identification_raw_ingestion,
@@ -54,3 +55,14 @@ def test_representative_six_role_batch_latency(benchmark: BenchmarkFixture) -> N
     statistics = benchmark_stats.stats
     assert statistics is not None
     assert statistics.mean <= MEAN_BUDGET_SECONDS
+
+
+def run_benchmark(iterations: int = 10) -> dict[str, object]:
+    """Run the locked representative six-role ingestion workload."""
+
+    return run_pytest_benchmark(
+        module_id="GLIO-PROTEOGEN-M02-03",
+        workload=test_representative_six_role_batch_latency,
+        iterations=iterations,
+        mean_budget_seconds=MEAN_BUDGET_SECONDS,
+    )

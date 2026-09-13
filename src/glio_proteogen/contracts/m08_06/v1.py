@@ -10,6 +10,7 @@ provisional.
 from __future__ import annotations
 
 from enum import StrEnum
+from math import isfinite
 from typing import Final, Literal
 
 from pydantic import Field, model_validator
@@ -49,11 +50,15 @@ M0806_OWNER: Final = "Quality engineering"
 M0806_SAFETY_CLASS: Final = "S2"
 M0806_GATE: Final = "G2"
 M0806_PROVISIONAL_ABI: Final = True
+M0806_GLIOMA_MODEL_FAMILY: Final = "glioma-uncertainty-decomposition-bootstrap/1.0.0"
 M0806_MAX_COMPONENTS: Final = 7
 M0806_MAX_EVIDENCE: Final = 64
 M0806_MAX_FINDINGS: Final = 64
 M0806_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M0806_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
+M0806_MAX_TYPED_OBSERVATIONS: Final = 512
+M0806_DEFAULT_BOOTSTRAP_REPLICATES: Final = 64
+M0806_MAX_BOOTSTRAP_REPLICATES: Final = 256
 M0806_NOMINAL_COVERAGE: Final = 0.9
 M0806_MIN_COVERAGE: Final = 0.85
 M0806_MAX_COVERAGE: Final = 0.95
@@ -71,6 +76,77 @@ class UncertaintyDimension(StrEnum):
     IDENTIFICATION = "identification"
     SUPPORT = "support"
     TRANSPORT = "transport"
+
+
+class TypedUncertaintyEvidenceState(StrEnum):
+    OBSERVED = "observed"
+    LEFT_CENSORED = "left_censored"
+    MISSING = "missing"
+    UNSUPPORTED = "unsupported"
+
+
+class GliomaUncertaintyProgram(StrEnum):
+    RTK_PI3K_AKT_MTOR = "RTK_PI3K_AKT_MTOR"
+    P53_CELL_CYCLE = "P53_CELL_CYCLE"
+    IDH_HIF1A = "IDH_HIF1A"
+    MESENCHYMAL_PROGRAM = "MESENCHYMAL_PROGRAM"
+    PROLIFERATION = "PROLIFERATION"
+
+
+class TypedUncertaintyObservation(FrozenModel):
+    """Measured glioma evidence used for research-only uncertainty decomposition."""
+
+    observation_id: Identifier
+    feature_id: Identifier
+    program: GliomaUncertaintyProgram
+    modality: Literal["transcript", "protein", "phosphosite", "copy_number"]
+    state: TypedUncertaintyEvidenceState = TypedUncertaintyEvidenceState.OBSERVED
+    effect: float | None = None
+    standard_error: float | None = Field(default=None, gt=0.0)
+    quality_weight: float = Field(default=1.0, ge=0.0, le=1.0)
+    censoring_limit: float | None = None
+    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0806_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def observation_shape_is_closed(self) -> TypedUncertaintyObservation:
+        for name, value in (
+            ("effect", self.effect),
+            ("standard_error", self.standard_error),
+            ("quality_weight", self.quality_weight),
+            ("censoring_limit", self.censoring_limit),
+        ):
+            if value is not None and not isfinite(value):
+                raise ValueError(f"{name} must be finite")
+        if self.state is TypedUncertaintyEvidenceState.OBSERVED:
+            if (
+                self.effect is None
+                or self.standard_error is None
+                or self.censoring_limit is not None
+            ):
+                raise ValueError("observed evidence requires effect and standard error")
+        elif self.state is TypedUncertaintyEvidenceState.LEFT_CENSORED:
+            if (
+                self.censoring_limit is None
+                or self.standard_error is None
+                or self.effect is not None
+            ):
+                raise ValueError("left-censored evidence requires a limit and standard error")
+        elif (
+            self.effect is not None
+            or self.standard_error is not None
+            or self.censoring_limit is not None
+        ):
+            raise ValueError("missing or unsupported evidence cannot carry numeric values")
+        if (
+            self.state
+            in {
+                TypedUncertaintyEvidenceState.MISSING,
+                TypedUncertaintyEvidenceState.UNSUPPORTED,
+            }
+            and self.quality_weight != 0.0
+        ):
+            raise ValueError("missing or unsupported evidence requires zero quality")
+        return self
 
 
 class SensitivityEnvelopeStatus(StrEnum):
@@ -195,6 +271,14 @@ class DecomposeTranscriptProteinUncertaintyRequest(FrozenModel):
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M0806_MAX_EVIDENCE
     )
+    typed_observations: tuple[TypedUncertaintyObservation, ...] = Field(
+        default=(), max_length=M0806_MAX_TYPED_OBSERVATIONS
+    )
+    bootstrap_replicates: int = Field(
+        default=M0806_DEFAULT_BOOTSTRAP_REPLICATES,
+        ge=16,
+        le=M0806_MAX_BOOTSTRAP_REPLICATES,
+    )
     supersedes_result_digest: Sha256Digest | None = None
 
     @model_validator(mode="after")
@@ -206,6 +290,9 @@ class DecomposeTranscriptProteinUncertaintyRequest(FrozenModel):
         artifact_ids = tuple(item.artifact_id for item in self.source_artifacts)
         if len(artifact_ids) != len(set(artifact_ids)):
             raise ValueError("source artifacts must not repeat artifact ids")
+        observation_ids = tuple(item.observation_id for item in self.typed_observations)
+        if len(observation_ids) != len(set(observation_ids)):
+            raise ValueError("typed uncertainty observation ids must be unique")
         return self
 
 
@@ -233,6 +320,8 @@ class TranscriptProteinUncertaintyDecompositionResult(FrozenModel):
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0806_MAX_EVIDENCE)
     limitations: tuple[Limitation, ...] = Field(min_length=1, max_length=32)
     human_review_required: bool = False
+    typed_model: bool = False
+    model_family: NonEmptyStr | None = None
 
     @model_validator(mode="after")
     def result_is_closed(self) -> TranscriptProteinUncertaintyDecompositionResult:
@@ -362,15 +451,19 @@ def expected_provenance(
 
 __all__ = [
     "M0806_CONTRACT_VERSION",
+    "M0806_DEFAULT_BOOTSTRAP_REPLICATES",
     "M0806_EVIDENCE_CLAIM",
     "M0806_GATE",
+    "M0806_GLIOMA_MODEL_FAMILY",
     "M0806_M0805_RESULT_MEDIA_TYPE",
+    "M0806_MAX_BOOTSTRAP_REPLICATES",
     "M0806_MAX_CANONICAL_REQUEST_BYTES",
     "M0806_MAX_CANONICAL_RESULT_BYTES",
     "M0806_MAX_COMPONENTS",
     "M0806_MAX_COVERAGE",
     "M0806_MAX_EVIDENCE",
     "M0806_MAX_FINDINGS",
+    "M0806_MAX_TYPED_OBSERVATIONS",
     "M0806_MIN_COVERAGE",
     "M0806_MODULE_ID",
     "M0806_NOMINAL_COVERAGE",
@@ -381,9 +474,12 @@ __all__ = [
     "M0806_PROVISIONAL_ABI",
     "M0806_SAFETY_CLASS",
     "DecomposeTranscriptProteinUncertaintyRequest",
+    "GliomaUncertaintyProgram",
     "SensitivityEnvelope",
     "SensitivityEnvelopeStatus",
     "TranscriptProteinUncertaintyDecompositionResult",
+    "TypedUncertaintyEvidenceState",
+    "TypedUncertaintyObservation",
     "UncertaintyComponent",
     "UncertaintyDecomposition",
     "UncertaintyDecompositionPolicy",

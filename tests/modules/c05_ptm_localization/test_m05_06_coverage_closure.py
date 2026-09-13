@@ -53,6 +53,9 @@ from glio_proteogen.modules.c05_ptm_localization.m05_06_harmonization import (
 from glio_proteogen.modules.c05_ptm_localization.m05_06_harmonization.engine import (
     M0506PtmLocalizationHarmonizationEngine,
     PtmLocalizationHarmonizationAuthorizationError,
+    _assert_engine_result_graph,
+    _close_engine_result,
+    _InvalidEngineResultError,
     _target_projection,
     _validate_json_request,
     artifact_harmonization_receipt,
@@ -252,6 +255,33 @@ def test_result_replay_rejects_self_digested_receipt_output_tamper(
 
     with pytest.raises(ValueError, match="receipt does not bind"):
         PtmLocalizationHarmonizationResult.model_validate(forged, strict=True)
+
+
+def test_trusted_engine_result_closure_retains_exact_graph_and_bindings(
+    clear_scenario: Any,
+) -> None:
+    result = M0506Service().execute(clear_scenario.request)
+    _assert_engine_result_graph(result)
+    payload = dict(object.__getattribute__(result, "__dict__"))
+
+    non_inference_payload = payload | {"infers_kinase_activity": True}
+    provisional = PtmLocalizationHarmonizationResult.model_construct(**non_inference_payload)
+    non_inference_payload["result_digest"] = result_payload_digest(provisional)
+    with pytest.raises(_InvalidEngineResultError):
+        _close_engine_result(non_inference_payload)
+
+    forged_receipt = result.receipt.model_copy(update={"analysis_digest": None})
+    object.__setattr__(forged_receipt, "receipt_digest", computation_receipt_digest(forged_receipt))
+    binding_payload = payload | {"receipt": forged_receipt}
+    provisional = PtmLocalizationHarmonizationResult.model_construct(**binding_payload)
+    binding_payload["result_digest"] = result_payload_digest(provisional)
+    with pytest.raises(ValueError, match="receipt does not bind"):
+        _close_engine_result(binding_payload)
+
+    malformed_request = result.request.model_copy(deep=True)
+    object.__getattribute__(malformed_request, "__dict__").pop("context")
+    with pytest.raises(_InvalidEngineResultError):
+        _close_engine_result(payload | {"request": malformed_request})
 
 
 def test_result_replay_rejects_forged_analysis_digest(

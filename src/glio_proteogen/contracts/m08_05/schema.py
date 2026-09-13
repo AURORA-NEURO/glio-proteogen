@@ -10,6 +10,7 @@ from glio_proteogen.contracts.m08_05.v1 import (
     M0805_BASELINE_MEDIA_TYPE,
     M0805_CONTRACT_VERSION,
     M0805_GATE,
+    M0805_GLIOMA_MODEL_FAMILY,
     M0805_MAX_CANONICAL_REQUEST_BYTES,
     M0805_MODULE_ID,
     M0805_OUTPUT_MEDIA_TYPE,
@@ -76,6 +77,8 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "hiddenPriorDominance": False,
         "outputMediaType": M0805_OUTPUT_MEDIA_TYPE,
         "baselineInputMediaType": M0805_BASELINE_MEDIA_TYPE,
+        "researchModelFamily": M0805_GLIOMA_MODEL_FAMILY,
+        "researchOnly": True,
     }
     if name == "request":
         schema["x-glio-contract"]["maxRequestBytes"] = M0805_MAX_CANONICAL_REQUEST_BYTES

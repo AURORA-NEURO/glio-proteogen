@@ -25,16 +25,38 @@ parent protein–RNA discordance claim in this provisional lane.
 ## Deterministic safety behavior
 
 All seven caller controls are preflighted before strict model validation. Any
-unresolved state fails closed. Until training, the preregistered objective,
-baseline comparison, calibration, and transport evidence are owner-locked, the
-runtime returns an explicit abstention with a `not_evaluable` optimization
-diagnostic, seven `not_estimable` uncertainty dimensions, evidence references,
-limitations, and required human review.
+unresolved state fails closed. Metadata-only requests retain the historical
+explicit abstention with a `not_evaluable` optimization diagnostic, seven
+`not_estimable` uncertainty dimensions, evidence references, limitations, and
+required human review. Requests that include bounded measured observations
+resolved to finite Normal priors now execute a deterministic robust Normal
+posterior fit: quality/error precision, Huber IRLS outlier resistance, damped
+updates, 95% posterior intervals, objective trace diagnostics, and exact replay.
+Unsupported prior families or unresolved observation IDs abstain rather than
+being silently coerced into a score.
 
 Requests and result payloads use canonical SHA-256 digests. Verification checks
 the request digest, result payload digest, and exact request replay. The plugin
 uses a sealed parse-once token. FastAPI and Typer share duplicate-key,
 non-finite-number, byte-limit, and sanitized-validation behavior.
+
+The opt-in optimizer `locked_glioma_proteotype_factor_irls_v1` adds a
+glioma-specific pathway-factor lane. It maps a locked GBM marker panel (EGFR,
+PDGFRA, PI3K/AKT/mTOR, TP53/cell-cycle, IDH/HIF1A, mesenchymal, and
+proliferation markers) to five latent programs and fits them jointly with
+Huber-IRLS coordinate descent. Signed RTK→proliferation, RTK↛p53/cell-cycle,
+IDH↛mesenchymal, and mesenchymal→proliferation edges are regularized alongside
+feature-specific Normal priors. The fit abstains unless at least four markers
+cover two programs, emits robust 90% intervals and convergence diagnostics,
+and never falls back to independent posteriors when topology support is
+insufficient. Its model family is `glioma-proteotype-factor-irls/1.0.0` and is
+research-only. HGNC-style compound symbols are canonicalized at the mapping
+boundary, so identifiers such as `MKI-67`, `MKI_67`, and `MKI67` resolve to the
+same proliferation marker without collapsing their surrounding namespace.
+Canonical `DNMT1` (not the common `DMT1` typo) is assigned to the IDH/HIF1A
+program, `CEBPB` is retained as the mesenchymal marker, and pleiotropic `NF1`
+is assigned to the mesenchymal program by an explicit priority rule rather
+than lexical tie-breaking.
 
 ## Evidence and release gates
 
@@ -42,4 +64,5 @@ The fixture manifest binds the exact dossier digest and line slice. Contract,
 runtime, API/CLI, adversarial, evaluator, benchmark, coverage, and package
 receipts are under `release-evidence/m10_04`. The provisional benchmark uses a
 2-second mean and 3-second p95 budget until the owner supplies a frozen
-performance contract. No posterior estimate is promoted by this lane.
+performance contract. Measured posteriors remain research-use-only and do not
+promote a parent clinical or treatment claim.

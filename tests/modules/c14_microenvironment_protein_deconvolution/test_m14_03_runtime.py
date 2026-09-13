@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Iterator, Mapping
 from datetime import UTC, datetime
+from itertools import pairwise
 from typing import Any
 
 import pytest
@@ -12,7 +14,9 @@ from pydantic import ValidationError
 from glio_proteogen.contracts.m14_03 import (
     M1403_M1402_INPUT_MEDIA_TYPE,
     ConstructProteinSubtypeMechanisticFeaturesRequest,
+    GliomaMicroenvironmentProgram,
     MechanisticConstructionStatus,
+    MechanisticEvidenceState,
     MechanisticFeature,
     MechanisticFeatureConfiguration,
     MechanisticFeatureKind,
@@ -39,10 +43,34 @@ from glio_proteogen.kernel.models import (
 from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
     m14_03_mechanistic_feature_constructor as m1403,
 )
+from glio_proteogen.modules.c14_microenvironment_protein_deconvolution.m14_03_mechanistic_feature_constructor import (  # noqa: E501
+    engine as engine_module,
+)
+from glio_proteogen.modules.c14_microenvironment_protein_deconvolution.m14_03_mechanistic_feature_constructor.engine import (  # noqa: E501
+    _initial_typed_values,
+    _TypedTerm,
+)
 
 _FEATURE_COUNT = 7
 _RELATION_COUNT = 6
 _CONTROL_COUNT = 7
+_TYPED_BOOTSTRAP_PROBABILITY = 0.9
+_FIRST_CANDIDATE_CALL = 2
+
+
+def _typed_request(
+    observations: list[dict[str, object]],
+    *,
+    bootstrap_replicates: int = 16,
+) -> ConstructProteinSubtypeMechanisticFeaturesRequest:
+    payload = _request().model_dump(mode="json")
+    configuration = dict(payload["configuration"])
+    configuration["bootstrap_replicates"] = bootstrap_replicates
+    payload["configuration"] = configuration
+    payload["typed_observations"] = observations
+    return ConstructProteinSubtypeMechanisticFeaturesRequest.model_validate_json(
+        json.dumps(payload), strict=True
+    )
 
 
 def _artifact(label: str, *, media_type: str = "application/json") -> ArtifactReference:
@@ -310,3 +338,279 @@ def test_replay_mismatch_is_detected_after_valid_digest_reconstruction() -> None
     altered = altered.model_copy(update={"result_digest": result_payload_digest(constructed)})
     with pytest.raises(m1403.M1403ReplayVerificationError):
         service.verify(altered)
+
+
+def test_typed_glioma_microenvironment_graph_constructs_intervals_and_signed_edges() -> None:
+    request = _typed_request(
+        [
+            {
+                "observation_id": "observation.m1403.hypoxia",
+                "program": GliomaMicroenvironmentProgram.HYPOXIA.value,
+                "evidence_state": MechanisticEvidenceState.OBSERVED.value,
+                "standardized_effect": 1.2,
+                "standard_error": 0.2,
+                "quality_weight": 0.9,
+                "evidence": [],
+            },
+            {
+                "observation_id": "observation.m1403.myeloid",
+                "program": GliomaMicroenvironmentProgram.MYELOID.value,
+                "evidence_state": MechanisticEvidenceState.OBSERVED.value,
+                "standardized_effect": 0.7,
+                "standard_error": 0.3,
+                "quality_weight": 0.8,
+                "evidence": [],
+            },
+            {
+                "observation_id": "observation.m1403.opc",
+                "program": GliomaMicroenvironmentProgram.OPC_LIKE.value,
+                "evidence_state": MechanisticEvidenceState.LEFT_CENSORED.value,
+                "standardized_effect": -0.4,
+                "standard_error": 0.25,
+                "quality_weight": 0.7,
+                "evidence": [],
+            },
+        ]
+    )
+    service = m1403.M1403Service()
+    result = service.construct(request)
+
+    assert result.status is MechanisticConstructionStatus.CONSTRUCTED
+    assert result.feature_object is not None
+    assert len(result.feature_object.features) == (
+        _FEATURE_COUNT + len(GliomaMicroenvironmentProgram)
+    )
+    typed = tuple(
+        feature
+        for feature in result.feature_object.features
+        if feature.value_kind is MechanisticValueKind.INTERVAL
+    )
+    assert len(typed) == len(GliomaMicroenvironmentProgram)
+    assert all(
+        feature.lower_bound is not None and feature.upper_bound is not None
+        for feature in typed
+    )
+    assert any(
+        relation.kind is MechanisticRelationKind.ACTIVATES
+        for relation in result.feature_object.relations
+    )
+    assert any(
+        relation.kind is MechanisticRelationKind.INHIBITS
+        for relation in result.feature_object.relations
+    )
+    assert any("trace_digest=" in diagnostic.message for diagnostic in result.diagnostics)
+    assert result.uncertainty.measurement.state.value == "estimated"
+    assert result.uncertainty.sampling.probability == _TYPED_BOOTSTRAP_PROBABILITY
+    assert any(
+        item.code == "typed_glioma_microenvironment_graph" for item in result.limitations
+    )
+    assert service.verify(result).model_dump(mode="json") == result.model_dump(mode="json")
+
+
+def test_typed_solver_backtracks_objective_increase(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    request = _typed_request(
+        [
+            {
+                "observation_id": "observation.m1403.backtrack",
+                "program": GliomaMicroenvironmentProgram.HYPOXIA.value,
+                "evidence_state": MechanisticEvidenceState.OBSERVED.value,
+                "standardized_effect": 1.0,
+                "standard_error": 0.2,
+                "quality_weight": 1.0,
+                "evidence": [],
+            }
+        ],
+        bootstrap_replicates=16,
+    )
+    terms = engine_module._typed_terms(request.typed_observations)
+    original = engine_module._typed_objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == _FIRST_CANDIDATE_CALL else value
+
+    monkeypatch.setattr(engine_module, "_typed_objective", objective)
+    fit = engine_module._fit_typed(terms)
+    assert fit.converged
+    assert calls > _FIRST_CANDIDATE_CALL
+    assert all(
+        after <= before + engine_module._OBJECTIVE_TOLERANCE
+        for before, after in pairwise(fit.objective_trace)
+    )
+
+
+def test_typed_initialization_keeps_left_censored_limits_feasible() -> None:
+    """Mechanistic starts use observed centers and feasible censor bounds."""
+
+    grouped = {
+        GliomaMicroenvironmentProgram.HYPOXIA: [
+            _TypedTerm(
+                observation_id="censored",
+                program=GliomaMicroenvironmentProgram.HYPOXIA,
+                state=MechanisticEvidenceState.LEFT_CENSORED,
+                effect=-0.3,
+                standard_error=0.2,
+                quality_weight=1.0,
+            )
+        ],
+        GliomaMicroenvironmentProgram.MYELOID: [
+            _TypedTerm(
+                observation_id="observed",
+                program=GliomaMicroenvironmentProgram.MYELOID,
+                state=MechanisticEvidenceState.OBSERVED,
+                effect=1.2,
+                standard_error=0.2,
+                quality_weight=1.0,
+            ),
+            _TypedTerm(
+                observation_id="limit",
+                program=GliomaMicroenvironmentProgram.MYELOID,
+                state=MechanisticEvidenceState.LEFT_CENSORED,
+                effect=0.4,
+                standard_error=0.2,
+                quality_weight=1.0,
+            ),
+        ],
+    }
+
+    values = _initial_typed_values(grouped)
+    order = list(GliomaMicroenvironmentProgram)
+    left_censor_limit = -0.3
+    mixed_censor_limit = 0.4
+    assert values[order.index(GliomaMicroenvironmentProgram.HYPOXIA)] == left_censor_limit
+    assert values[order.index(GliomaMicroenvironmentProgram.MYELOID)] == mixed_censor_limit
+
+
+def test_typed_initialization_downweights_failed_replicate() -> None:
+    """A single extreme phosphoproteomic replicate cannot seed the graph state."""
+
+    program = GliomaMicroenvironmentProgram.HYPOXIA
+    grouped = {
+        program: [
+            _TypedTerm(
+                observation_id="replicate-a",
+                program=program,
+                state=MechanisticEvidenceState.OBSERVED,
+                effect=0.8,
+                standard_error=0.1,
+                quality_weight=1.0,
+            ),
+            _TypedTerm(
+                observation_id="replicate-b",
+                program=program,
+                state=MechanisticEvidenceState.OBSERVED,
+                effect=0.9,
+                standard_error=0.1,
+                quality_weight=1.0,
+            ),
+            _TypedTerm(
+                observation_id="failed-batch",
+                program=program,
+                state=MechanisticEvidenceState.OBSERVED,
+                effect=8.0,
+                standard_error=0.1,
+                quality_weight=1.0,
+            ),
+        ]
+    }
+
+    values = _initial_typed_values(grouped)
+    center = values[list(GliomaMicroenvironmentProgram).index(program)]
+    low_replicate = 0.8
+    arithmetic_mean = (low_replicate + 0.9 + 8.0) / 3.0
+    assert low_replicate < center < 1.0
+    assert center < arithmetic_mean / 2.0
+
+
+def test_typed_missing_and_unsupported_evidence_abstain_without_negative_observations() -> None:
+    request = _typed_request(
+        [
+            {
+                "observation_id": "observation.m1403.missing",
+                "program": GliomaMicroenvironmentProgram.HYPOXIA.value,
+                "evidence_state": MechanisticEvidenceState.MISSING.value,
+                "quality_weight": 0.0,
+                "evidence": [],
+            },
+            {
+                "observation_id": "observation.m1403.unsupported",
+                "program": GliomaMicroenvironmentProgram.MYELOID.value,
+                "evidence_state": MechanisticEvidenceState.UNSUPPORTED.value,
+                "quality_weight": 0.0,
+                "evidence": [],
+            },
+        ]
+    )
+    result = m1403.M1403Service().construct(request)
+
+    assert result.status is MechanisticConstructionStatus.ABSTAINED
+    assert result.feature_object is None
+    assert "no supported observations" in " ".join(
+        diagnostic.message for diagnostic in result.diagnostics
+    )
+    assert "negative" not in result.diagnostics[0].message.lower()
+
+
+def test_typed_missing_values_are_excluded_when_supported_programs_remain() -> None:
+    request = _typed_request(
+        [
+            {
+                "observation_id": "observation.m1403.hypoxia",
+                "program": GliomaMicroenvironmentProgram.HYPOXIA.value,
+                "evidence_state": MechanisticEvidenceState.OBSERVED.value,
+                "standardized_effect": 0.8,
+                "standard_error": 0.25,
+                "quality_weight": 0.9,
+                "evidence": [],
+            },
+            {
+                "observation_id": "observation.m1403.missing",
+                "program": GliomaMicroenvironmentProgram.ANGIOGENIC.value,
+                "evidence_state": MechanisticEvidenceState.MISSING.value,
+                "quality_weight": 0.0,
+                "evidence": [],
+            },
+        ]
+    )
+    result = m1403.M1403Service().construct(request)
+
+    assert result.status is MechanisticConstructionStatus.CONSTRUCTED
+    assert result.feature_object is not None
+    assert len(result.feature_object.features) == (
+        _FEATURE_COUNT + len(GliomaMicroenvironmentProgram)
+    )
+
+
+def test_typed_observation_shape_and_bootstrap_bounds_are_closed() -> None:
+    with pytest.raises(ValidationError, match="active typed observation"):
+        _typed_request(
+            [
+                {
+                    "observation_id": "observation.m1403.invalid",
+                    "program": GliomaMicroenvironmentProgram.HYPOXIA.value,
+                    "evidence_state": MechanisticEvidenceState.OBSERVED.value,
+                    "standardized_effect": 1.0,
+                    "quality_weight": 1.0,
+                    "evidence": [],
+                }
+            ]
+        )
+    with pytest.raises(ValidationError):
+        _typed_request(
+            [
+                {
+                    "observation_id": "observation.m1403.invalid",
+                    "program": GliomaMicroenvironmentProgram.HYPOXIA.value,
+                    "evidence_state": MechanisticEvidenceState.MISSING.value,
+                    "standardized_effect": 1.0,
+                    "standard_error": 0.2,
+                    "quality_weight": 1.0,
+                    "evidence": [],
+                }
+            ]
+        )
+    with pytest.raises(ValidationError):
+        _typed_request([], bootstrap_replicates=8)

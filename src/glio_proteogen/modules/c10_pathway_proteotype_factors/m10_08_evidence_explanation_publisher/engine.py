@@ -5,11 +5,14 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Any, Final, cast
 
+import numpy as np
 from pydantic import BaseModel, ValidationError
 
 from glio_proteogen.contracts.m10_08 import (
     M1008_CONTRACT_VERSION,
     M1008_PARENT,
+    DiscordanceObservation,
+    DiscordanceSummary,
     EvidencePublicationStatus,
     ProteinRnaEvidenceBundle,
     ProteinRnaEvidencePublicationResult,
@@ -50,6 +53,10 @@ _REQUIRED_SOURCE_KINDS: Final[frozenset[str]] = frozenset(
         "upstream_protein_rna_discordance",
     }
 )
+_HUBER_K: Final = 1.5
+_IRLS_ITERATIONS: Final = 25
+_DISCORDANCE_Z_THRESHOLD: Final = 1.96
+_IRLS_TOLERANCE: Final = 1e-9
 
 
 class M1008AuthorizationError(PermissionError):
@@ -144,6 +151,7 @@ def _published_result(
     provenance: ProvenanceRecord,
 ) -> ProteinRnaEvidencePublicationResult:
     evidence = _evidence_index(request)
+    discordance_summary = _discordance_summary(request.discordance_observations)
     bundle_id = f"bundle.m1008.{request_digest.removeprefix('sha256:')}"
     bundle = ProteinRnaEvidenceBundle(
         bundle_id=bundle_id,
@@ -188,6 +196,7 @@ def _published_result(
             "A versioned, caller-attributed evidence bundle was structurally published for "
             "protein-RNA discordance; no upstream fact was mutated or scientifically inferred."
         ),
+        discordance_summary=discordance_summary,
         diagnostics=diagnostics,
         assumptions=tuple(item.assumption_id for item in request.assumptions),
         counter_evidence=tuple(item.counter_evidence_id for item in request.counter_evidence),
@@ -303,7 +312,67 @@ def _evidence_index(request: PublishProteinRnaEvidenceRequest) -> tuple[Evidence
     references = tuple(
         evidence for source in request.source_artifacts for evidence in source.evidence
     )
-    return tuple(dict.fromkeys(references))
+    observations = tuple(
+        evidence
+        for observation in request.discordance_observations
+        for evidence in observation.evidence
+    )
+    return tuple(dict.fromkeys(references + observations))
+
+
+def _weighted_median(values: np.ndarray, weights: np.ndarray) -> float:
+    order = np.argsort(values, kind="stable")
+    ordered_values = values[order]
+    ordered_weights = weights[order]
+    index = int(
+        np.searchsorted(
+            np.cumsum(ordered_weights),
+            0.5 * float(np.sum(ordered_weights)),
+            side="left",
+        )
+    )
+    return float(ordered_values[min(index, len(ordered_values) - 1)])
+
+
+def _discordance_summary(
+    observations: tuple[DiscordanceObservation, ...],
+) -> DiscordanceSummary | None:
+    if not observations:
+        return None
+    scores = np.asarray(
+        [
+            (item.protein_effect - item.rna_effect)
+            / np.sqrt(item.protein_standard_error**2 + item.rna_standard_error**2)
+            for item in observations
+        ],
+        dtype=np.float64,
+    )
+    weights = np.asarray([item.quality_weight for item in observations], dtype=np.float64)
+    location = _weighted_median(scores, weights)
+    for _ in range(_IRLS_ITERATIONS):
+        residual = scores - location
+        scale = 1.4826 * _weighted_median(np.abs(residual), weights) + 1e-6
+        influence = np.minimum(1.0, _HUBER_K * scale / np.maximum(np.abs(residual), 1e-12))
+        effective = weights * influence
+        candidate = float(np.sum(effective * scores) / np.sum(effective))
+        damped = 0.7 * candidate + 0.3 * location
+        if abs(damped - location) <= _IRLS_TOLERANCE:
+            location = damped
+            break
+        location = damped
+    scale = 1.4826 * _weighted_median(np.abs(scores - location), weights)
+    discordant = np.abs(scores) >= _DISCORDANCE_Z_THRESHOLD
+    ranked = sorted(
+        zip((item.feature_id for item in observations), np.abs(scores), strict=True),
+        key=lambda item: (-item[1], item[0]),
+    )
+    return DiscordanceSummary(
+        observation_count=len(observations),
+        robust_location=round(location, 8),
+        robust_scale=round(float(scale), 8),
+        discordant_fraction=round(float(np.mean(discordant)), 8),
+        top_features=tuple(feature for feature, _ in ranked[:8]),
+    )
 
 
 def _input_digests(request: PublishProteinRnaEvidenceRequest) -> tuple[str, ...]:

@@ -132,6 +132,27 @@ def test_m11_file_readers_do_not_call_path_read_bytes(
         pass
 
 
+def test_m1102_inline_values_are_not_platform_dependent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    inline = '  {"request_id":"inline"}'
+    non_path = "not-json-inline-data"
+
+    assert m1102._read_argument(non_path) == non_path.encode("utf-8")
+
+    def forbidden_path_probe(_path: Path) -> bool:
+        raise AssertionError
+
+    monkeypatch.setattr(Path, "is_file", forbidden_path_probe)
+    assert m1102._read_argument(inline) == inline.encode("utf-8")
+
+    def filename_too_long(_path: Path) -> bool:
+        raise OSError(36, "File name too long")
+
+    monkeypatch.setattr(Path, "is_file", filename_too_long)
+    assert m1102._read_argument(non_path) == non_path.encode("utf-8")
+
+
 @pytest.mark.parametrize(
     ("reader", "declared_limit"),
     [

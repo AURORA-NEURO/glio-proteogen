@@ -15,8 +15,12 @@ if __package__ in {None, ""}:
         sys.path.insert(0, str(_PROJECT_ROOT))
 
 from glio_proteogen.contracts.m08_06 import (
+    M0806_MAX_COMPONENTS,
     DecomposeTranscriptProteinUncertaintyRequest,
+    GliomaUncertaintyProgram,
     TranscriptProteinUncertaintyDecompositionResult,
+    TypedUncertaintyEvidenceState,
+    TypedUncertaintyObservation,
     UncertaintyDecompositionStatus,
     canonical_request_digest,
 )
@@ -46,6 +50,47 @@ def run_evaluation() -> dict[str, Any]:
     request = load_request()
     first = service.execute(request)
     second = service.execute(request)
+    typed = service.execute(
+        request.model_copy(
+            update={
+                "typed_observations": (
+                    TypedUncertaintyObservation(
+                        observation_id="obs.egfr.rna",
+                        feature_id="EGFR",
+                        program=GliomaUncertaintyProgram.RTK_PI3K_AKT_MTOR,
+                        modality="transcript",
+                        effect=0.8,
+                        standard_error=0.2,
+                    ),
+                    TypedUncertaintyObservation(
+                        observation_id="obs.egfr.protein",
+                        feature_id="EGFR",
+                        program=GliomaUncertaintyProgram.RTK_PI3K_AKT_MTOR,
+                        modality="protein",
+                        effect=1.1,
+                        standard_error=0.25,
+                    ),
+                    TypedUncertaintyObservation(
+                        observation_id="obs.cdk4.protein",
+                        feature_id="CDK4",
+                        program=GliomaUncertaintyProgram.P53_CELL_CYCLE,
+                        modality="protein",
+                        effect=0.5,
+                        standard_error=0.2,
+                    ),
+                    TypedUncertaintyObservation(
+                        observation_id="obs.tp53.site",
+                        feature_id="TP53",
+                        program=GliomaUncertaintyProgram.P53_CELL_CYCLE,
+                        modality="phosphosite",
+                        state=TypedUncertaintyEvidenceState.LEFT_CENSORED,
+                        standard_error=0.3,
+                        censoring_limit=0.0,
+                    ),
+                )
+            }
+        )
+    )
     cases: list[dict[str, Any]] = [
         {
             "id": "safe-abstention-with-explicit-seven-dimension-uncertainty",
@@ -80,6 +125,17 @@ def run_evaluation() -> dict[str, Any]:
                     "no_kinase_or_treatment_output",
                     "provisional_abi_pending_owner_confirmation",
                 }
+            ),
+        },
+        {
+            "id": "typed-glioma-bootstrap-decomposition",
+            "passed": (
+                typed.status is UncertaintyDecompositionStatus.DECOMPOSED
+                and typed.typed_model
+                and typed.decomposition is not None
+                and len(typed.decomposition.components) == M0806_MAX_COMPONENTS
+                and typed.sensitivity_envelope.status.value == "evaluated"
+                and M0806Service().verify(typed).result_digest == typed.result_digest
             ),
         },
     ]

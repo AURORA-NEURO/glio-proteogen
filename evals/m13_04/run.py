@@ -19,10 +19,14 @@ if __package__ in {None, ""}:
         sys.path.insert(0, str(_PROJECT_ROOT))
 
 from glio_proteogen.contracts.m13_04 import (
+    M1304_GLIOMA_MODEL_FAMILY,
     M1304_M1301_RESULT_MEDIA_TYPE,
     InferProteotypeMechanismRequest,
     MechanismInferenceConfiguration,
     MechanismInferenceStatus,
+    MechanismObservation,
+    MechanismRelation,
+    MechanismRelationKind,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
@@ -54,6 +58,7 @@ EXPECTED_CASE_IDS: Final = (
     "invalid_bounds_abstention",
     "replay_and_tamper",
     "authorization_gate",
+    "typed_glioma_graph",
 )
 
 
@@ -167,6 +172,45 @@ def build_scenario_request(
     )
 
 
+def build_typed_request() -> InferProteotypeMechanismRequest:
+    """Build a synthetic glioma request for the robust typed graph lane."""
+
+    request = build_scenario_request()
+    configuration = request.configuration.model_copy(
+        update={"model_family": M1304_GLIOMA_MODEL_FAMILY, "bootstrap_replicates": 16}
+    )
+    observations = (
+        MechanismObservation(
+            observation_id="obs.egfr",
+            mechanism_id="egfr",
+            label="EGFR RTK drive",
+            standardized_effect=0.8,
+            standard_error=0.2,
+        ),
+        MechanismObservation(
+            observation_id="obs.akt",
+            mechanism_id="akt",
+            label="AKT effector",
+            standardized_effect=0.7,
+            standard_error=0.25,
+        ),
+    )
+    relation = MechanismRelation(
+        relation_id="rel.egfr-akt",
+        source_mechanism_id="egfr",
+        target_mechanism_id="akt",
+        kind=MechanismRelationKind.ACTIVATES,
+        weight=0.8,
+    )
+    return request.model_copy(
+        update={
+            "configuration": configuration,
+            "typed_observations": observations,
+            "typed_relations": (relation,),
+        }
+    )
+
+
 def run_evaluator() -> dict[str, object]:
     fixture = json.loads(SCENARIO_PATH.read_text(encoding="utf-8"))
     case_ids = tuple(item["case_id"] for item in fixture["cases"])
@@ -228,6 +272,16 @@ def run_evaluator() -> dict[str, object]:
     except M1304MechanismAuthorizationError:
         denied = True
     checks.append(EvalCheck("authorization_gate", denied, "denied controls rejected"))
+    typed = engine.infer(build_typed_request())
+    checks.append(
+        EvalCheck(
+            "typed_glioma_graph",
+            typed.status is MechanismInferenceStatus.INFERRED
+            and typed.typed_model
+            and typed.solver_objective is not None,
+            typed.status.value,
+        )
+    )
     passed = sum(item.passed for item in checks)
     return {
         "module_id": MODULE_ID,

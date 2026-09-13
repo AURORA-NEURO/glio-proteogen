@@ -16,7 +16,10 @@ if __package__ in {None, ""}:
 from glio_proteogen.contracts.m13_03 import (
     M1303_M1302_INPUT_MEDIA_TYPE,
     ConstructProteotypeMechanisticFeaturesRequest,
+    MechanisticEntityKind,
+    MechanisticEvidenceState,
     MechanisticFeatureConfiguration,
+    MechanisticObservation,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
@@ -108,6 +111,68 @@ def build_request(
         upstream_result=_artifact("upstream", M1303_M1302_INPUT_MEDIA_TYPE),
         configuration=configuration,
         source_artifacts=(_artifact(source_label),),
+        observations=(
+            MechanisticObservation(
+                observation_id="observation.egfr",
+                entity_id="EGFR",
+                entity_kind=MechanisticEntityKind.PROTEIN,
+                state=MechanisticEvidenceState.OBSERVED,
+                standardized_effect=1.4,
+                standard_error=0.2,
+                quality_weight=0.95,
+                provenance_digest=_artifact("observation.egfr").digest,
+            ),
+            MechanisticObservation(
+                observation_id="observation.pten",
+                entity_id="PTEN",
+                entity_kind=MechanisticEntityKind.PROTEIN,
+                state=MechanisticEvidenceState.OBSERVED,
+                standardized_effect=-0.6,
+                standard_error=0.25,
+                quality_weight=0.9,
+                provenance_digest=_artifact("observation.pten").digest,
+            ),
+            MechanisticObservation(
+                observation_id="observation.tp53",
+                entity_id="TP53",
+                entity_kind=MechanisticEntityKind.PROTEIN,
+                state=MechanisticEvidenceState.OBSERVED,
+                standardized_effect=0.7,
+                standard_error=0.3,
+                quality_weight=0.85,
+                provenance_digest=_artifact("observation.tp53").digest,
+            ),
+            MechanisticObservation(
+                observation_id="observation.hif1a",
+                entity_id="HIF1A",
+                entity_kind=MechanisticEntityKind.PROTEIN,
+                state=MechanisticEvidenceState.OBSERVED,
+                standardized_effect=0.4,
+                standard_error=0.35,
+                quality_weight=0.8,
+                provenance_digest=_artifact("observation.hif1a").digest,
+            ),
+            MechanisticObservation(
+                observation_id="observation.olig2",
+                entity_id="OLIG2",
+                entity_kind=MechanisticEntityKind.PROTEIN,
+                state=MechanisticEvidenceState.OBSERVED,
+                standardized_effect=0.8,
+                standard_error=0.3,
+                quality_weight=0.85,
+                provenance_digest=_artifact("observation.olig2").digest,
+            ),
+            MechanisticObservation(
+                observation_id="observation.rb1",
+                entity_id="RB1",
+                entity_kind=MechanisticEntityKind.PROTEIN,
+                state=MechanisticEvidenceState.OBSERVED,
+                standardized_effect=-0.5,
+                standard_error=0.3,
+                quality_weight=0.8,
+                provenance_digest=_artifact("observation.rb1").digest,
+            ),
+        ),
     )
 
 

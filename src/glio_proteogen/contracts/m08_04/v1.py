@@ -54,6 +54,11 @@ M0804_MAX_CONSTRAINTS: Final = 128
 M0804_MAX_EVIDENCE: Final = 32
 M0804_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M0804_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
+M0804_MAX_TYPED_OBSERVATIONS: Final = 512
+M0804_MAX_TYPED_EFFECT: Final = 20.0
+M0804_DEFAULT_BOOTSTRAP_REPLICATES: Final = 64
+M0804_MAX_BOOTSTRAP_REPLICATES: Final = 256
+M0804_GLIOMA_MODEL_FAMILY: Final = "glioma-transcript-protein-discordance-program-irls/1.0.0"
 M0804_EVIDENCE_CLAIM: Final = (
     "Caller-declared M08-03 baseline and probabilistic-estimator evidence; "
     "issuer authority is not authenticated."
@@ -100,6 +105,21 @@ class ProbabilisticResultStatus(StrEnum):
     ABSTAINED = "abstained"
 
 
+class TypedDiscordanceEvidenceState(StrEnum):
+    OBSERVED = "observed"
+    LEFT_CENSORED = "left_censored"
+    MISSING = "missing"
+    UNSUPPORTED = "unsupported"
+
+
+class GliomaDiscordanceProgram(StrEnum):
+    RTK_PI3K_AKT_MTOR = "RTK_PI3K_AKT_MTOR"
+    P53_CELL_CYCLE = "P53_CELL_CYCLE"
+    IDH_HIF1A = "IDH_HIF1A"
+    MESENCHYMAL_PROGRAM = "MESENCHYMAL_PROGRAM"
+    PROLIFERATION = "PROLIFERATION"
+
+
 class ProbabilisticPrior(FrozenModel):
     prior_id: Identifier
     version: SemanticVersion
@@ -125,6 +145,76 @@ class ProbabilisticFeatureObservation(FrozenModel):
             raise ValueError("observed probabilistic feature requires a finite value")
         if self.state is not ProbabilisticFeatureState.OBSERVED and self.value is not None:
             raise ValueError("non-observed probabilistic feature cannot carry a value")
+        return self
+
+
+class TypedTranscriptProteinObservation(FrozenModel):
+    """Paired glioma effects for the opt-in, research-only M08-04 lane."""
+
+    observation_id: Identifier
+    feature_id: Identifier
+    gene: NonEmptyStr
+    program: GliomaDiscordanceProgram
+    state: TypedDiscordanceEvidenceState
+    transcript_effect: float | None = Field(
+        default=None, ge=-M0804_MAX_TYPED_EFFECT, le=M0804_MAX_TYPED_EFFECT
+    )
+    protein_effect: float | None = Field(
+        default=None, ge=-M0804_MAX_TYPED_EFFECT, le=M0804_MAX_TYPED_EFFECT
+    )
+    transcript_standard_error: float | None = Field(default=None, gt=0.0, le=M0804_MAX_TYPED_EFFECT)
+    protein_standard_error: float | None = Field(default=None, gt=0.0, le=M0804_MAX_TYPED_EFFECT)
+    protein_censor_limit: float | None = Field(
+        default=None, ge=-M0804_MAX_TYPED_EFFECT, le=M0804_MAX_TYPED_EFFECT
+    )
+    quality_weight: float = Field(default=1.0, ge=0.0, le=1.0)
+    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0804_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def paired_shape_is_closed(self) -> TypedTranscriptProteinObservation:
+        active = self.state in {
+            TypedDiscordanceEvidenceState.OBSERVED,
+            TypedDiscordanceEvidenceState.LEFT_CENSORED,
+        }
+        if active:
+            if (
+                self.transcript_effect is None
+                or self.transcript_standard_error is None
+                or self.protein_standard_error is None
+                or self.quality_weight <= 0.0
+            ):
+                raise ValueError(
+                    "active typed discordance requires transcript effect, errors, and quality"
+                )
+            if self.state is TypedDiscordanceEvidenceState.OBSERVED and self.protein_effect is None:
+                raise ValueError("observed typed discordance requires protein effect")
+            if self.state is TypedDiscordanceEvidenceState.LEFT_CENSORED and (
+                (self.protein_effect is None) == (self.protein_censor_limit is None)
+            ):
+                raise ValueError(
+                    "left-censored typed discordance requires exactly one protein value or limit"
+                )
+            if (
+                self.state is TypedDiscordanceEvidenceState.OBSERVED
+                and self.protein_censor_limit is not None
+            ):
+                raise ValueError("observed typed discordance cannot carry a censor limit")
+        elif (
+            any(
+                value is not None
+                for value in (
+                    self.transcript_effect,
+                    self.protein_effect,
+                    self.transcript_standard_error,
+                    self.protein_standard_error,
+                    self.protein_censor_limit,
+                )
+            )
+            or self.quality_weight != 0.0
+        ):
+            raise ValueError("missing or unsupported typed discordance cannot carry values")
+        if any(item.role != "evidence" for item in self.evidence):
+            raise ValueError("typed discordance evidence must use the evidence role")
         return self
 
 
@@ -231,6 +321,14 @@ class EstimateTranscriptProteinProbabilisticRequest(FrozenModel):
         default=(),
         max_length=M0804_MAX_FEATURES,
     )
+    typed_observations: tuple[TypedTranscriptProteinObservation, ...] = Field(
+        default=(), max_length=M0804_MAX_TYPED_OBSERVATIONS
+    )
+    bootstrap_replicates: int = Field(
+        default=M0804_DEFAULT_BOOTSTRAP_REPLICATES,
+        ge=16,
+        le=M0804_MAX_BOOTSTRAP_REPLICATES,
+    )
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1,
         max_length=M0804_MAX_EVIDENCE,
@@ -245,6 +343,14 @@ class EstimateTranscriptProteinProbabilisticRequest(FrozenModel):
             self.feature_observations
         ):
             raise ValueError("probabilistic feature ids must be unique")
+        if self.feature_observations and self.typed_observations:
+            raise ValueError("legacy and typed discordance observations cannot be mixed")
+        typed_ids = tuple(item.observation_id for item in self.typed_observations)
+        if len(typed_ids) != len(set(typed_ids)):
+            raise ValueError("typed discordance observation ids must be unique")
+        typed_features = tuple(item.feature_id for item in self.typed_observations)
+        if len(typed_features) != len(set(typed_features)):
+            raise ValueError("typed discordance feature ids must be unique")
         if len({item.artifact_id for item in self.source_artifacts}) != len(self.source_artifacts):
             raise ValueError("probabilistic source artifacts must be unique")
         return self
@@ -278,6 +384,8 @@ class EstimateTranscriptProteinProbabilisticResult(FrozenModel):
     provenance: ProvenanceRecord
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0804_MAX_EVIDENCE)
     limitations: tuple[Limitation, ...] = Field(min_length=1, max_length=32)
+    typed_model: bool = False
+    model_family: NonEmptyStr | None = None
 
     @model_validator(mode="after")
     def result_is_closed(self) -> EstimateTranscriptProteinProbabilisticResult:
@@ -409,6 +517,11 @@ def expected_provenance(
                 for feature in request.feature_observations
                 for evidence in feature.evidence
             ),
+            *(
+                evidence.reference.digest
+                for feature in request.typed_observations
+                for evidence in feature.evidence
+            ),
         ),
         configuration_digest=configuration_digest,
         consent_decision_id=refs.consent.decision_id,
@@ -422,8 +535,11 @@ def expected_provenance(
 __all__ = [
     "M0804_BASELINE_MEDIA_TYPE",
     "M0804_CONTRACT_VERSION",
+    "M0804_DEFAULT_BOOTSTRAP_REPLICATES",
     "M0804_EVIDENCE_CLAIM",
     "M0804_GATE",
+    "M0804_GLIOMA_MODEL_FAMILY",
+    "M0804_MAX_BOOTSTRAP_REPLICATES",
     "M0804_MAX_CANONICAL_REQUEST_BYTES",
     "M0804_MAX_CANONICAL_RESULT_BYTES",
     "M0804_MAX_CONSTRAINTS",
@@ -432,6 +548,8 @@ __all__ = [
     "M0804_MAX_EVIDENCE",
     "M0804_MAX_FEATURES",
     "M0804_MAX_PRIORS",
+    "M0804_MAX_TYPED_EFFECT",
+    "M0804_MAX_TYPED_OBSERVATIONS",
     "M0804_MODULE_ID",
     "M0804_OPERATION",
     "M0804_OUTPUT_MEDIA_TYPE",
@@ -442,6 +560,7 @@ __all__ = [
     "EstimateTranscriptProteinProbabilisticRequest",
     "EstimateTranscriptProteinProbabilisticResult",
     "EstimatorConstraint",
+    "GliomaDiscordanceProgram",
     "OptimizationDiagnostic",
     "OptimizationDiagnosticStatus",
     "PosteriorEstimate",
@@ -453,6 +572,8 @@ __all__ = [
     "ProbabilisticPrior",
     "ProbabilisticPriorKind",
     "ProbabilisticResultStatus",
+    "TypedDiscordanceEvidenceState",
+    "TypedTranscriptProteinObservation",
     "expected_provenance",
     "expected_uncertainty",
 ]

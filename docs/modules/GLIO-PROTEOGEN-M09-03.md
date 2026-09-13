@@ -1,10 +1,10 @@
 # GLIO-PROTEOGEN-M09-03 — mature baseline estimator
 
-M09-03 owns the mature baseline estimator beneath the `complex_activity` parent. The current
-implementation is a deterministic, transparent statistical baseline over immutable caller-declared
-references. It preserves the dossier's locked-preprocessing, tuning, uncertainty, diagnostics,
-safe-abstention, and human-review boundaries while the public ABI and estimator catalogue remain
-provisional.
+M09-03 owns the mature baseline estimator beneath the `complex_activity` parent. The compatibility
+implementation remains a deterministic, transparent baseline over immutable caller-declared
+references. An additive typed research lane now fits explicit glioma program effects while
+preserving the dossier's locked-preprocessing, tuning, uncertainty, diagnostics, safe-abstention,
+and human-review boundaries.
 
 ## Authority and ownership
 
@@ -27,14 +27,31 @@ failed or non-evaluable diagnostics. Canonical request and result digests bind e
 input content. The runtime performs consent, identity, configuration, provenance, quality, support,
 and intended-use preflight before any score is computed.
 
-Scores are deterministic SHA-256-derived fixture values. They are not a clinical or biological truth
-claim and do not dereference external artifacts. Missing, incomplete, unsupported, not-evaluable,
+When typed observations are absent, scores remain deterministic SHA-256-derived compatibility
+fixture values. They are not a clinical or biological truth claim and do not dereference external
+artifacts. Missing, incomplete, unsupported, not-evaluable,
 out-of-domain, calibration-unlocked, discrepancy, and conflict markers abstain. Abstention carries
 no estimate, explicit findings, seven non-estimable uncertainty dimensions, and a review-required
 support status; no unsupported evidence becomes a negative finding.
 
 The module never emits kinase activity (owned by KINOPHOS), generic all-omics fusion, treatment
 recommendation, identity/consent inference, protein-level subtype claims, or an upstream mutation.
+
+## Typed glioma research lane
+
+`glioma-complex-baseline-huber/1.0.0` accepts bounded standardized effects for five glioma
+programs (RTK/PI3K/AKT/mTOR, p53/DNA repair, IDH/HIF1A, hypoxia/angiogenesis, and cell cycle).
+Observed values are fitted with quality/standard-error weighted Huber IRLS coordinate descent,
+ridge stabilization, and signed program relations. Left-censored values contribute a smooth
+one-sided detection-limit loss; missing and unsupported states are excluded and never become
+negative evidence. A request-digest-seeded, program-stratified bootstrap supplies quantile
+intervals, stability, residual discordance, top feature drivers, and signed-relation ablation
+effects. The result records the objective trace digest and iteration/convergence gap for replay.
+
+The typed lane requires at least three supported observations across two programs and abstains
+when the deterministic bootstrap is not evaluable. It is an experimental standardized complex
+activity signal, not a biochemical assay, diagnosis, prognosis, kinase estimate, or treatment
+recommendation. The legacy opaque path remains available for compatibility.
 
 ## Interfaces and evidence
 
@@ -44,7 +61,7 @@ writing an abstention result. The plugin uses a parse-once weak validation token
 the issued token and an unchanged request digest.
 
 Evidence is authority-bound in `tests/fixtures/m09_03/scenarios.json` and the traceability CSV.
-`evals/m09_03/run.py` verifies estimated, unsupported, OOD, missing, replay, tamper, determinism,
+`evals/m09_03/run.py` verifies estimated, typed-glioma, unsupported, OOD, missing, replay, tamper,
 uncertainty, and ownership-boundary scenarios. `evals/m09_03/benchmark.py` measures ten public
 construction calls against provisional 2e9/3e9 ns mean/p95 budgets. Release records remain explicit
 that issuer authority, biological validation, calibration, transportability, reviewer sign-off,

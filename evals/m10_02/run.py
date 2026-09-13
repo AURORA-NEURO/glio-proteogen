@@ -16,7 +16,11 @@ if __package__ in {None, ""}:
         sys.path.insert(0, str(_PROJECT_ROOT))
 
 from glio_proteogen.contracts.m10_02 import (
+    M1002_GLIOMA_MODEL_FAMILY,
     ConstructProteinRnaRepresentationRequest,
+    GliomaProgram,
+    GliomaRepresentationEvidenceState,
+    GliomaRepresentationObservation,
     RepresentationConfiguration,
     RepresentationFeatureValueKind,
     RepresentationInputFeature,
@@ -124,20 +128,49 @@ def evaluate() -> dict[str, Any]:
     unsupported_operation = construct_protein_rna_representation(
         request(RepresentationMissingness.OBSERVED, "not-a-method")
     )
+    typed_request = request(RepresentationMissingness.OBSERVED).model_copy(
+        update={
+            "glioma_observations": (
+                GliomaRepresentationObservation(
+                    observation_id="obs.egfr",
+                    input_feature_id="protein.alpha",
+                    gene="EGFR",
+                    program=GliomaProgram.RTK_PI3K_AKT_MTOR,
+                    state=GliomaRepresentationEvidenceState.OBSERVED,
+                    transcript_effect=0.8,
+                    protein_effect=1.0,
+                    copy_number_effect=0.5,
+                    phosphosite_effect=1.1,
+                    protein_standard_error=0.2,
+                ),
+            ),
+            "bootstrap_replicates": 16,
+        }
+    )
+    typed = construct_protein_rna_representation(typed_request)
     replay = verify_result_replay(supported)
+    cases = {
+        "supported_constructed": supported.status.value == "constructed",
+        "unsupported_abstained": abstained.status.value == "abstained",
+        "unsupported_operation_abstained": unsupported_operation.status.value == "abstained",
+        "lineage_complete": bool(
+            supported.representation and supported.representation.lineage_complete
+        ),
+        "replay_verified": replay,
+        "parent_not_emitted": supported.emits_parent is False,
+        "typed_glioma_model": typed.model_family == M1002_GLIOMA_MODEL_FAMILY,
+        "typed_channels": bool(
+            typed.representation
+            and {feature.channel for feature in typed.representation.features}
+            == {"translation_index", "protein_discordance", "dosage_residual"}
+        ),
+    }
     return {
         "module": "GLIO-PROTEOGEN-M10-02",
         "contract_version": "0.1.0-provisional",
-        "cases": {
-            "supported_constructed": supported.status.value == "constructed",
-            "unsupported_abstained": abstained.status.value == "abstained",
-            "unsupported_operation_abstained": unsupported_operation.status.value == "abstained",
-            "lineage_complete": bool(
-                supported.representation and supported.representation.lineage_complete
-            ),
-            "replay_verified": replay,
-            "parent_not_emitted": supported.emits_parent is False,
-        },
+        "passed": all(cases.values()),
+        "checks": cases,
+        "cases": cases,
     }
 
 

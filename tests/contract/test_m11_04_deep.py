@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import json
+from itertools import pairwise
 from pathlib import Path
 
 import pytest
@@ -22,6 +23,10 @@ from glio_proteogen.contracts.m11_04 import (
     MechanismEstimate,
     MechanismEstimateKind,
     MechanismInferenceStatus,
+    MechanismObservation,
+    MechanismObservationState,
+    MechanismRelation,
+    MechanismRelationKind,
     VariantPeptideMechanismInferenceResult,
     contract_json_schema,
     contract_json_schemas,
@@ -29,6 +34,7 @@ from glio_proteogen.contracts.m11_04 import (
     result_payload_digest,
 )
 from glio_proteogen.contracts.m11_04.canonical import normalized_request
+from glio_proteogen.contracts.m11_04.v1 import M1104_GLIOMA_MODEL_FAMILY
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.modules.c11_protein_native_subtype.m11_04_network_state_mechanism_inference import (
     M1104MechanismAuthorizationError,
@@ -115,6 +121,224 @@ def test_posterior_result_has_counter_evidence_and_provenance() -> None:
     assert result.provenance.module_id == "GLIO-PROTEOGEN-M11-04"
     assert result.parent_target == "variant_peptide"
     assert result.emits_parent is False
+
+
+def test_typed_glioma_graph_fits_signed_evidence_and_replays() -> None:
+    base = build_scenario_request()
+    request = base.model_copy(
+        update={
+            "configuration": base.configuration.model_copy(
+                update={
+                    "model_family": M1104_GLIOMA_MODEL_FAMILY,
+                    "bootstrap_replicates": 16,
+                }
+            ),
+            "typed_observations": (
+                MechanismObservation(
+                    observation_id="obs.egfr",
+                    mechanism_id="egfr",
+                    label="EGFR signaling",
+                    standardized_effect=1.4,
+                    standard_error=0.2,
+                    quality_weight=0.95,
+                ),
+                MechanismObservation(
+                    observation_id="obs.pten",
+                    mechanism_id="pten",
+                    label="PTEN brake",
+                    standardized_effect=-0.8,
+                    standard_error=0.25,
+                    quality_weight=0.9,
+                ),
+                MechanismObservation(
+                    observation_id="obs.censored",
+                    mechanism_id="akt",
+                    label="AKT",
+                    standardized_effect=0.4,
+                    standard_error=0.4,
+                    state=MechanismObservationState.LEFT_CENSORED,
+                ),
+                MechanismObservation(
+                    observation_id="obs.missing",
+                    mechanism_id="unmeasured",
+                    label="Unmeasured",
+                    state=MechanismObservationState.MISSING,
+                ),
+                MechanismObservation(
+                    observation_id="obs.unsupported",
+                    mechanism_id="unsupported",
+                    label="Unsupported",
+                    state=MechanismObservationState.UNSUPPORTED,
+                ),
+            ),
+            "typed_relations": (
+                MechanismRelation(
+                    relation_id="rel.egfr-pten",
+                    source_mechanism_id="egfr",
+                    target_mechanism_id="pten",
+                    kind=MechanismRelationKind.INHIBITS,
+                    weight=0.7,
+                ),
+            ),
+        }
+    )
+    engine = M1104MechanismEngine()
+    result = engine.infer(request)
+    assert result.status is MechanismInferenceStatus.INFERRED
+    assert result.typed_model is True
+    assert result.model_profile == M1104_GLIOMA_MODEL_FAMILY
+    assert result.solver_iterations > 0
+    assert result.solver_objective is not None
+    assert {estimate.mechanism_id for estimate in result.estimates} == {"akt", "egfr", "pten"}
+    assert (
+        next(item for item in result.estimates if item.mechanism_id == "egfr").posterior_probability
+        > 0.5
+    )
+    assert engine.verify(result) == result
+
+
+def test_typed_mechanism_solver_backtracks_objective_increase(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    base = build_scenario_request()
+    request = base.model_copy(
+        update={
+            "configuration": base.configuration.model_copy(
+                update={
+                    "model_family": M1104_GLIOMA_MODEL_FAMILY,
+                    "bootstrap_replicates": 8,
+                }
+            ),
+            "typed_observations": (
+                MechanismObservation(
+                    observation_id="obs.egfr",
+                    mechanism_id="egfr",
+                    label="EGFR signaling",
+                    standardized_effect=1.1,
+                    standard_error=0.2,
+                    quality_weight=0.95,
+                ),
+                MechanismObservation(
+                    observation_id="obs.pten",
+                    mechanism_id="pten",
+                    label="PTEN brake",
+                    standardized_effect=-0.7,
+                    standard_error=0.25,
+                    quality_weight=0.9,
+                ),
+            ),
+            "typed_relations": (
+                MechanismRelation(
+                    relation_id="rel.egfr-pten",
+                    source_mechanism_id="egfr",
+                    target_mechanism_id="pten",
+                    kind=MechanismRelationKind.INHIBITS,
+                    weight=0.7,
+                ),
+            ),
+        }
+    )
+    original = engine_module._typed_objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == 2 else value
+
+    monkeypatch.setattr(engine_module, "_typed_objective", objective)
+    fit = engine_module._fit_typed(request)
+    assert fit is not None
+    assert fit.converged
+    assert calls > 2
+    assert all(
+        after <= before + engine_module._M1104_OBJECTIVE_TOLERANCE
+        for before, after in pairwise(fit.trace)
+    )
+
+
+def test_typed_initialization_keeps_left_censored_limits_feasible() -> None:
+    """Mechanism starts use observed centers and feasible censor bounds."""
+
+    observations = (
+        (0, 1.2, 0.2, 1.0, MechanismObservationState.OBSERVED),
+        (0, 0.4, 0.2, 1.0, MechanismObservationState.LEFT_CENSORED),
+        (1, -0.3, 0.2, 1.0, MechanismObservationState.LEFT_CENSORED),
+    )
+
+    values = engine_module._initial_typed_values(observations, 2)
+    assert values == [0.4, -0.3]
+
+
+def test_typed_initialization_downweights_failed_variant_replicate() -> None:
+    """Repeated variant-mechanism observations use a robust Huber center."""
+
+    terms = tuple(
+        (0, target, 0.2, 1.0, MechanismObservationState.OBSERVED)
+        for target in (0.2, 0.25, 0.3, 4.0)
+    )
+    center = engine_module._robust_initial_center(terms)
+    arithmetic_mean = sum(term[1] for term in terms) / len(terms)
+    assert center < 0.5
+    assert arithmetic_mean > 1.0
+    assert engine_module._initial_measurement_objective(center, terms) <= (
+        engine_module._initial_measurement_objective(arithmetic_mean, terms)
+    )
+
+
+def test_typed_request_order_is_canonical_and_insufficient_graph_abstains() -> None:
+    base = build_scenario_request()
+    config = base.configuration.model_copy(
+        update={"model_family": M1104_GLIOMA_MODEL_FAMILY, "bootstrap_replicates": 16}
+    )
+    observations = (
+        MechanismObservation(
+            observation_id="obs.a",
+            mechanism_id="a",
+            label="A",
+            standardized_effect=0.6,
+            standard_error=0.2,
+        ),
+        MechanismObservation(
+            observation_id="obs.b",
+            mechanism_id="b",
+            label="B",
+            standardized_effect=0.4,
+            standard_error=0.2,
+        ),
+    )
+    relation = MechanismRelation(
+        relation_id="rel.a-b",
+        source_mechanism_id="a",
+        target_mechanism_id="b",
+        kind=MechanismRelationKind.COUPLES,
+        weight=0.5,
+    )
+    request = base.model_copy(
+        update={
+            "configuration": config,
+            "typed_observations": observations,
+            "typed_relations": (relation,),
+        }
+    )
+    reversed_request = request.model_copy(
+        update={"typed_observations": tuple(reversed(observations)), "typed_relations": (relation,)}
+    )
+    engine = M1104MechanismEngine()
+    first = engine.infer(request)
+    second = engine.infer(reversed_request)
+    assert first.request_digest == second.request_digest
+    assert first.estimates == second.estimates
+    insufficient = base.model_copy(
+        update={
+            "configuration": config,
+            "typed_observations": (observations[0],),
+            "typed_relations": (),
+        }
+    )
+    result = engine.infer(insufficient)
+    assert result.status is MechanismInferenceStatus.ABSTAINED
+    assert result.typed_model is False
+    assert "requires two supported" in (result.abstention_reason or "")
 
 
 def test_request_and_result_closure_reject_forged_payloads() -> None:
@@ -276,7 +500,7 @@ def test_service_validation_and_evaluator() -> None:
     assert service.execute(request).status is MechanismInferenceStatus.INFERRED
     report = run_evaluator()
     assert report["passed"] is True
-    assert report["declared_cases"] == 7
+    assert report["declared_cases"] == 8
 
 
 def test_http_schema_infer_verify_and_sanitized_errors() -> None:

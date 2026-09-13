@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 from evals.m02_07.run import build_representative_request
 
+from benchmarks._module_validation import run_pytest_benchmark
 from glio_proteogen.contracts.m02_07 import (
     M0207_MAX_ENVELOPES,
     DimensionSupportDecision,
@@ -59,3 +60,14 @@ def test_representative_public_identification_support_router_latency(
     statistics = benchmark_stats.stats
     assert statistics is not None
     assert statistics.mean <= MEAN_BUDGET_SECONDS
+
+
+def run_benchmark(iterations: int = 10) -> dict[str, object]:
+    """Run the locked representative identification support-routing workload."""
+
+    return run_pytest_benchmark(
+        module_id="GLIO-PROTEOGEN-M02-07",
+        workload=test_representative_public_identification_support_router_latency,
+        iterations=iterations,
+        mean_budget_seconds=MEAN_BUDGET_SECONDS,
+    )

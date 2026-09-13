@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 from evals.m03_01.run import build_scenario_request
 
+from benchmarks._module_validation import run_pytest_benchmark
 from glio_proteogen.contracts.m03_01 import (
     M0301_HANDOFF_ROLE_COUNT,
     ProtocolConformanceDisposition,
@@ -56,3 +57,14 @@ def test_representative_public_protocol_conformance_latency(
     statistics = benchmark_stats.stats
     assert statistics is not None
     assert statistics.mean <= MEAN_BUDGET_SECONDS
+
+
+def run_benchmark(iterations: int = 10) -> dict[str, object]:
+    """Run the locked representative protein-inference protocol workload."""
+
+    return run_pytest_benchmark(
+        module_id="GLIO-PROTEOGEN-M03-01",
+        workload=test_representative_public_protocol_conformance_latency,
+        iterations=iterations,
+        mean_budget_seconds=MEAN_BUDGET_SECONDS,
+    )

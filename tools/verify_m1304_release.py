@@ -17,7 +17,7 @@ MODULE_ID: Final = "GLIO-PROTEOGEN-M13-04"
 ROOT: Final = Path(__file__).parents[1]
 EVIDENCE: Final = ROOT / "release-evidence" / "m13_04"
 FIXTURE: Final = ROOT / "tests" / "fixtures" / "m13_04" / "scenarios.json"
-FIXTURE_DIGEST: Final = "sha256:e0de6a97289dbaf9c5b4ce31b036701cecc1073bd3d6d272cd1cf4cd48f897b8"
+FIXTURE_DIGEST: Final = "sha256:289e78de04dc8a6e514cddbd629c2aef5ba5f50625f528371feca28c3141795a"
 CASE_IDS: Final = (
     "posterior_inference",
     "state_inference",
@@ -26,6 +26,7 @@ CASE_IDS: Final = (
     "invalid_bounds_abstention",
     "replay_and_tamper",
     "authorization_gate",
+    "typed_glioma_graph",
 )
 
 
@@ -52,9 +53,9 @@ def _verify_evaluation(value: dict[str, Any]) -> None:
     if actual_ids != CASE_IDS or tuple(value.get("case_ids", ())) != CASE_IDS:
         raise M1304ReleaseVerificationError("evaluation case IDs mismatch")
     if not (
-        value.get("declared_cases") == 7
-        and value.get("executed_cases") == 7
-        and value.get("passed_cases") == 7
+        value.get("declared_cases") == 8
+        and value.get("executed_cases") == 8
+        and value.get("passed_cases") == 8
         and value.get("passed") is True
     ):
         raise M1304ReleaseVerificationError("evaluation is not a complete pass")

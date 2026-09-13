@@ -5,7 +5,9 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime, timedelta
+from itertools import pairwise
 
 import pytest
 from fastapi.testclient import TestClient
@@ -20,6 +22,8 @@ from glio_proteogen.contracts.m12_05 import (
     ChangePointStatus,
     EvolutionModelConfiguration,
     EvolutionModelFamily,
+    GliomaTrajectoryProgram,
+    LongitudinalEvidenceState,
     ModelBiomarkerPanelLongitudinalEvolutionRequest,
     TimePointObservation,
     TrajectoryDimension,
@@ -168,6 +172,191 @@ def _request(
         observations=observations,
         source_artifacts=(_artifact("source"),),
     )
+
+
+def _typed_request(
+    objective: str = "stable",
+    *,
+    effects: tuple[float | None, ...] = (0.8, 1.0, 1.3),
+    states: tuple[str, ...] | None = None,
+    programs: tuple[GliomaTrajectoryProgram, ...] | None = None,
+) -> ModelBiomarkerPanelLongitudinalEvolutionRequest:
+    """Build a reviewable typed glioma time series on top of the ABI fixture."""
+
+    payload = _request(objective).model_dump(mode="json")
+    evidence_states = states or (LongitudinalEvidenceState.OBSERVED.value,) * len(effects)
+    selected_programs = programs or tuple(GliomaTrajectoryProgram)
+    for index, observation in enumerate(payload["observations"]):
+        effect = effects[index]
+        observation["program"] = selected_programs[index % len(selected_programs)].value
+        observation["evidence_state"] = evidence_states[index]
+        if effect is None:
+            observation.pop("standardized_effect", None)
+            observation.pop("standard_error", None)
+            observation["quality_weight"] = 0.0
+        else:
+            observation["standardized_effect"] = effect
+            observation["standard_error"] = 0.2
+            observation["quality_weight"] = 0.9
+    return ModelBiomarkerPanelLongitudinalEvolutionRequest.model_validate_json(
+        json.dumps(payload), strict=True
+    )
+
+
+def test_typed_glioma_temporal_fit_emits_intervals_drivers_and_replays() -> None:
+    request = _typed_request()
+    engine = M1205LongitudinalEngine()
+    result = engine.infer(request)
+    assert result.status is TrajectoryStatus.MODELED
+    assert all(state.standardized_state is not None for state in result.trajectory)
+    intervals = [
+        (state.lower_bound, state.upper_bound)
+        for state in result.trajectory
+        if state.lower_bound is not None and state.upper_bound is not None
+    ]
+    assert len(intervals) == 3
+    assert all(lower <= upper for lower, upper in intervals)
+    assert all(state.evidence_count == 1 for state in result.trajectory)
+    assert all(state.top_drivers for state in result.trajectory)
+    diagnostic = next(
+        item for item in result.diagnostics if item.diagnostic_id == "diagnostic.typed-glioma-temporal-fit"
+    )
+    assert diagnostic.solver_iterations is not None
+    assert diagnostic.objective_trace_digest is not None
+    assert engine.verify(result).model_dump(mode="json") == result.model_dump(mode="json")
+
+
+def test_typed_missing_and_left_censored_evidence_is_not_negative() -> None:
+    result = M1205LongitudinalEngine().infer(
+        _typed_request(
+            effects=(0.9, None, 0.7),
+            states=(
+                LongitudinalEvidenceState.OBSERVED.value,
+                LongitudinalEvidenceState.MISSING.value,
+                LongitudinalEvidenceState.LEFT_CENSORED.value,
+            ),
+        )
+    )
+    assert result.status is TrajectoryStatus.MODELED
+    assert result.trajectory[1].evidence_count == 0
+    assert (result.trajectory[1].standardized_state or 0.0) > 0.0
+    assert all(state.label != "suppressed" for state in result.trajectory)
+
+
+def test_typed_initialization_respects_left_censor_bounds() -> None:
+    grouped = {
+        0: [
+            engine_module._TypedTerm(
+                sequence=0,
+                program=GliomaTrajectoryProgram.RTK_PI3K_AKT_MTOR,
+                state=LongitudinalEvidenceState.OBSERVED,
+                value=0.6,
+                standard_error=0.2,
+                quality_weight=1.0,
+            ),
+            engine_module._TypedTerm(
+                sequence=0,
+                program=GliomaTrajectoryProgram.RTK_PI3K_AKT_MTOR,
+                state=LongitudinalEvidenceState.LEFT_CENSORED,
+                value=0.2,
+                standard_error=0.2,
+                quality_weight=1.0,
+            ),
+        ],
+        2: [
+            engine_module._TypedTerm(
+                sequence=2,
+                program=GliomaTrajectoryProgram.RTK_PI3K_AKT_MTOR,
+                state=LongitudinalEvidenceState.LEFT_CENSORED,
+                value=-0.3,
+                standard_error=0.2,
+                quality_weight=1.0,
+            ),
+        ],
+    }
+    values = engine_module._initial_temporal_values(grouped, 3)
+    assert values.tolist() == pytest.approx([0.2, -0.05, -0.3])
+
+
+def test_typed_initialization_downweights_failed_longitudinal_replicate() -> None:
+    """Repeated observations at one timepoint use a robust Huber center."""
+
+    terms = tuple(
+        engine_module._TypedTerm(
+            sequence=0,
+            program=GliomaTrajectoryProgram.RTK_PI3K_AKT_MTOR,
+            state=LongitudinalEvidenceState.OBSERVED,
+            value=value,
+            standard_error=0.2,
+            quality_weight=1.0,
+        )
+        for value in (0.2, 0.25, 0.3, 4.0)
+    )
+    center = engine_module._robust_initial_center(terms)
+    arithmetic_mean = sum(term.value for term in terms) / len(terms)
+    assert center < 0.5
+    assert arithmetic_mean > 1.0
+    assert engine_module._initial_measurement_objective(center, terms) <= (
+        engine_module._initial_measurement_objective(arithmetic_mean, terms)
+    )
+
+
+def test_temporal_fit_backtracks_non_monotone_sweep(monkeypatch: pytest.MonkeyPatch) -> None:
+    request = _typed_request()
+    terms = engine_module._typed_terms(request.observations)
+    original = engine_module._temporal_objective
+    calls = 0
+
+    def objective(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == 2 else value
+
+    monkeypatch.setattr(engine_module, "_temporal_objective", objective)
+    fit = engine_module._fit_temporal(terms, (0, 1, 2))
+
+    assert fit.objective_trace
+    assert calls > 2
+    assert all(
+        after <= before + engine_module._OBJECTIVE_TOLERANCE
+        for before, after in pairwise(fit.objective_trace)
+    )
+
+
+def test_typed_change_point_and_insufficient_support_are_explicit() -> None:
+    detected = M1205LongitudinalEngine().infer(
+        _typed_request(
+            "change_point:2:early:late",
+            effects=(0.0, 0.0, 2.0),
+            programs=(GliomaTrajectoryProgram.RTK_PI3K_AKT_MTOR,),
+        )
+    )
+    assert detected.status is TrajectoryStatus.MODELED
+    assert detected.change_points[0].status is ChangePointStatus.DETECTED
+    assert detected.change_points[0].effect_delta is not None
+    insufficient = M1205LongitudinalEngine().infer(
+        _typed_request(
+            effects=(1.0, None, None),
+            states=(
+                LongitudinalEvidenceState.OBSERVED.value,
+                LongitudinalEvidenceState.MISSING.value,
+                LongitudinalEvidenceState.UNSUPPORTED.value,
+            ),
+        )
+    )
+    assert insufficient.status is TrajectoryStatus.NOT_EVALUABLE
+    assert insufficient.trajectory == ()
+    assert "at least two" in (insufficient.abstention_reason or "")
+
+
+def test_typed_observation_shape_rejects_values_without_state() -> None:
+    payload = _request().model_dump(mode="json")
+    payload["observations"][0]["standardized_effect"] = 1.0
+    with pytest.raises(ValueError, match="evidence_state"):
+        ModelBiomarkerPanelLongitudinalEvolutionRequest.model_validate_json(
+            json.dumps(payload), strict=True
+        )
 
 
 def test_supported_trajectory_is_typed_ordered_and_replayable() -> None:

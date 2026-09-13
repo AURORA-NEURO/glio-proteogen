@@ -18,13 +18,17 @@ as a public ABI until the owner confirms those symbols.
 The provisional operation accepts opaque references to the M06-07 result and
 source artifacts plus explicit assumptions, counter-evidence, and ordered
 reconstruction steps. It validates all seven caller-declared controls before
-strict Pydantic validation. The engine emits a versioned result envelope with:
+strict Pydantic validation. When every assumption, counter-evidence record,
+and reconstruction step carries evidence, and the reconstruction steps form a
+digest-linked chain beginning at the M06-07 result, the engine emits a
+published, replayable evidence bundle. Incomplete declarations still abstain
+without a scientific value. Every result envelope carries:
 
 - content-addressed request and result digests;
 - source/evidence references, explicit limitations and seven-dimensional
   non-estimable uncertainty;
 - typed support status and an abstention reason when publication gates are not
-  owner-locked;
+  evidence-complete;
 - provenance records for configuration, identity/lineage, provenance, consent,
   quality, support, and intended use;
 - an explicit `human_review_required` flag.
@@ -50,9 +54,10 @@ remains provisional.
 
 ## Gates
 
-The locked evaluator covers safe abstention, transitive replay, tamper
-rejection, unresolved-control fail-closed behavior, explicit M06-07 binding,
-duplicate-key rejection, and prohibited parent emission. The benchmark times
-only `M0608Service.execute` and uses provisional 2 s mean / 3 s p95 budgets.
+The locked evaluator covers safe abstention, evidence-backed publication,
+transitive replay, tamper rejection, unresolved-control fail-closed behavior,
+explicit M06-07 binding, duplicate-key rejection, and prohibited parent
+emission. The benchmark times only `M0608Service.execute` and uses provisional
+2 s mean / 3 s p95 budgets.
 Release evidence includes fixtures, evaluator output, benchmark output,
 traceability, and package/install smoke results.

@@ -3,7 +3,7 @@
 from evals.m11_03.benchmark import run_benchmark
 from evals.m11_03.run import run_evaluator
 
-_CASE_COUNT = 7
+_CASE_COUNT = 8
 
 
 def test_evaluator_fixture_is_complete_and_benchmark_is_within_budget() -> None:

@@ -13,7 +13,7 @@ from zipfile import ZipFile
 MODULE_ID: Final = "GLIO-PROTEOGEN-M10-07"
 EXPECTED_SHA256: Final = "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
 EXPECTED_LINES: Final = [3540, 3583]
-EXPECTED_EVALUATION_CHECKS: Final = 10
+EXPECTED_EVALUATION_CHECKS: Final = 11
 
 
 def _archive_names(path: Path) -> list[str]:

@@ -14,6 +14,8 @@ if __package__ in {None, ""}:
         sys.path.insert(0, str(_PROJECT_ROOT))
 
 from glio_proteogen.contracts.m13_06.v1 import (
+    GliomaPerturbationProgram,
+    PerturbationEvidenceState,
     PerturbationKind,
     PerturbationPolicy,
     PerturbationScenario,
@@ -109,6 +111,10 @@ def _request(case: dict[str, Any]) -> SimulateProteotypePerturbationRequest:
         assumption="Synthetic fixture remains within the declared envelope.",
         source_artifact=source,
         evidence=(evidence,),
+        program=GliomaPerturbationProgram.RTK_PI3K_AKT_MTOR,
+        evidence_state=PerturbationEvidenceState.OBSERVED,
+        standard_error=0.1,
+        quality_weight=0.9,
     )
     configuration = SimulatorConfiguration(
         configuration_id="configuration.m1306.eval",
@@ -162,16 +168,10 @@ def main() -> int:
         "passed": all(bool(check["passed"]) for check in checks),
         "checks": checks,
     }
-    if args.json:
-        sys.stdout.write(canonical_json_bytes(payload).decode() + "\n")
-    else:
-        sys.stdout.write(
-            f"{payload['module_id']} cases={payload['executed']} passed={payload['passed']}\n"
-        )
-        for check in checks:
-            sys.stdout.write(
-                f"{check['id']}: {check['actual']} ({'PASS' if check['passed'] else 'FAIL'})\n"
-            )
+    # A fresh evaluator process always emits one strict JSON document.  Keep
+    # the historical flag accepted so existing automation remains valid.
+    del args
+    sys.stdout.write(canonical_json_bytes(payload).decode() + "\n")
     return 0 if payload["passed"] and payload["declared"] == payload["executed"] else 1
 
 

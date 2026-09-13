@@ -33,9 +33,17 @@ uncertainty dimensions, an abstained sensitivity envelope, calibration and
 sensitivity findings, evidence, limitations, and required human review.
 
 The evaluated envelope is structurally constrained to nominal 90% coverage and
-an observed 85–95% gate. Requests and results use canonical SHA-256 digests;
-verification replays the exact embedded request. FastAPI, Typer, and the plugin
-share strict duplicate-key/non-finite JSON handling and sanitized errors.
+an observed 85–95% gate. A complete request may now provide one typed
+`UncertaintyObservation` per dimension: normalized replicate instability scores,
+aligned calibration-hit indicators, quality weight, and evidence references.
+The research lane estimates each dimension with damped Huber IRLS, computes a
+64-draw request-digest-seeded bootstrap interval, and reports replicate count and
+stability. Coverage is bootstrapped independently; incomplete dimensions or a
+coverage result outside the gate still abstain. Missing evidence is never
+converted to a negative uncertainty finding. Requests and results use canonical
+SHA-256 digests; verification replays the exact embedded request. FastAPI, Typer,
+and the plugin share strict duplicate-key/non-finite JSON handling and sanitized
+errors.
 
 ## Release evidence
 

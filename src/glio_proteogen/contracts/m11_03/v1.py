@@ -53,6 +53,9 @@ M1103_MAX_DIAGNOSTICS: Final = 128
 M1103_MAX_FINDINGS: Final = 64
 M1103_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M1103_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
+M1103_DEFAULT_BOOTSTRAP_REPLICATES: Final = 64
+M1103_MAX_BOOTSTRAP_REPLICATES: Final = 256
+M1103_GLIOMA_MODEL_FAMILY: Final = "glioma-signed-mechanistic-graph/1.0.0"
 M1103_EVIDENCE_CLAIM: Final = (
     "Caller-declared M11-03 mechanistic feature evidence; issuer authority is not authenticated."
 )
@@ -190,6 +193,11 @@ class MechanisticFeatureConfiguration(FrozenModel):
     negative_control_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M1103_MAX_EVIDENCE
     )
+    bootstrap_replicates: int = Field(
+        default=M1103_DEFAULT_BOOTSTRAP_REPLICATES,
+        ge=16,
+        le=M1103_MAX_BOOTSTRAP_REPLICATES,
+    )
     locked: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1103_MAX_EVIDENCE)
 
@@ -299,6 +307,10 @@ class VariantPeptideMechanisticFeatureResult(FrozenModel):
     request: ConstructVariantPeptideMechanisticFeaturesRequest
     status: MechanisticConstructionStatus
     feature_object: MechanisticFeatureObject | None = None
+    typed_model: bool = False
+    model_profile: NonEmptyStr | None = None
+    solver_iterations: int | None = Field(default=None, ge=0, le=1000)
+    solver_objective: FiniteFloat | None = Field(default=None, ge=0.0)
     diagnostics: tuple[MechanisticFeatureDiagnostic, ...] = Field(
         min_length=1, max_length=M1103_MAX_DIAGNOSTICS
     )
@@ -340,9 +352,12 @@ class VariantPeptideMechanisticFeatureResult(FrozenModel):
 
 __all__ = [
     "M1103_CONTRACT_VERSION",
+    "M1103_DEFAULT_BOOTSTRAP_REPLICATES",
     "M1103_EVIDENCE_CLAIM",
     "M1103_GATE",
+    "M1103_GLIOMA_MODEL_FAMILY",
     "M1103_M1102_INPUT_MEDIA_TYPE",
+    "M1103_MAX_BOOTSTRAP_REPLICATES",
     "M1103_MAX_CANONICAL_REQUEST_BYTES",
     "M1103_MAX_CANONICAL_RESULT_BYTES",
     "M1103_MAX_DIAGNOSTICS",

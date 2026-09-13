@@ -10,6 +10,7 @@ scaffolding and is explicitly provisional.
 from __future__ import annotations
 
 from enum import StrEnum
+from math import isfinite
 from typing import Final, Literal
 
 from pydantic import Field, field_validator, model_validator
@@ -51,6 +52,11 @@ M0903_MAX_FINDINGS: Final = 64
 M0903_MAX_EVIDENCE: Final = 64
 M0903_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M0903_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
+M0903_MAX_TYPED_OBSERVATIONS: Final = 256
+M0903_MAX_TYPED_EFFECT: Final = 20.0
+M0903_DEFAULT_BOOTSTRAP_REPLICATES: Final = 64
+M0903_MAX_BOOTSTRAP_REPLICATES: Final = 256
+M0903_GLIOMA_MODEL_FAMILY: Final = "glioma-complex-baseline-huber/1.0.0"
 M0903_EVIDENCE_CLAIM: Final = (
     "Caller-declared M09-03 baseline evidence; issuer authority is not authenticated."
 )
@@ -83,6 +89,91 @@ class BaselineFindingCode(StrEnum):
     PROVISIONAL_ABI_PENDING_REVIEW = "provisional_abi_pending_review"
 
 
+class GliomaBaselineProgram(StrEnum):
+    """Glioma programs used by the typed baseline."""
+
+    RTK_PI3K_AKT_MTOR = "RTK_PI3K_AKT_MTOR"
+    P53_DNA_REPAIR = "P53_DNA_REPAIR"
+    IDH_HIF1A = "IDH_HIF1A"
+    HYPOXIA_ANGIOGENESIS = "HYPOXIA_ANGIOGENESIS"
+    CELL_CYCLE = "CELL_CYCLE"
+
+
+class GliomaBaselineEvidenceState(StrEnum):
+    """Measurement state; missing and unsupported are never negative evidence."""
+
+    OBSERVED = "observed"
+    LEFT_CENSORED = "left_censored"
+    MISSING = "missing"
+    UNSUPPORTED = "unsupported"
+
+
+class BaselineOptimizationStatus(StrEnum):
+    CONVERGED = "converged"
+    NOT_CONVERGED = "not_converged"
+    NOT_EVALUABLE = "not_evaluable"
+
+
+class GliomaBaselineObservation(FrozenModel):
+    """Explicit protein/member evidence for the additive glioma baseline."""
+
+    observation_id: Identifier
+    feature_id: Identifier
+    program: GliomaBaselineProgram | None = None
+    evidence_state: GliomaBaselineEvidenceState
+    standardized_effect: float | None = Field(
+        default=None, ge=-M0903_MAX_TYPED_EFFECT, le=M0903_MAX_TYPED_EFFECT
+    )
+    standard_error: float | None = Field(default=None, gt=0.0, le=M0903_MAX_TYPED_EFFECT)
+    quality_weight: float = Field(default=1.0, ge=0.0, le=1.0)
+    censoring_limit: float | None = Field(
+        default=None, ge=-M0903_MAX_TYPED_EFFECT, le=M0903_MAX_TYPED_EFFECT
+    )
+    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0903_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def typed_observation_shape_is_closed(self) -> GliomaBaselineObservation:
+        for name, value in (
+            ("standardized_effect", self.standardized_effect),
+            ("standard_error", self.standard_error),
+            ("quality_weight", self.quality_weight),
+            ("censoring_limit", self.censoring_limit),
+        ):
+            if value is not None and not isfinite(value):
+                raise ValueError(f"{name} must be finite")
+        if self.evidence_state is GliomaBaselineEvidenceState.OBSERVED:
+            if (
+                self.program is None
+                or self.standardized_effect is None
+                or self.standard_error is None
+                or self.censoring_limit is not None
+            ):
+                raise ValueError(
+                    "observed baseline evidence requires program, effect, and standard error"
+                )
+        elif self.evidence_state is GliomaBaselineEvidenceState.LEFT_CENSORED:
+            if (
+                self.program is None
+                or self.censoring_limit is None
+                or self.standard_error is None
+                or self.standardized_effect is not None
+            ):
+                raise ValueError(
+                    "left-censored baseline evidence requires program, limit, and standard error"
+                )
+        elif (
+            self.program is not None
+            or self.standardized_effect is not None
+            or self.standard_error is not None
+            or self.censoring_limit is not None
+            or self.quality_weight != 0.0
+        ):
+            raise ValueError("missing or unsupported baseline evidence cannot carry a value")
+        if any(item.role != "evidence" for item in self.evidence):
+            raise ValueError("typed baseline evidence must use the evidence role")
+        return self
+
+
 class BaselineDiagnostic(FrozenModel):
     diagnostic_id: Identifier
     status: BaselineDiagnosticStatus
@@ -97,6 +188,30 @@ class BaselineDiagnostic(FrozenModel):
         return value
 
 
+class BaselineOptimizationDiagnostic(FrozenModel):
+    """Replay-visible diagnostics for the typed glioma baseline fit."""
+
+    diagnostic_id: Identifier
+    status: BaselineOptimizationStatus
+    objective: NonEmptyStr
+    iteration_count: int = Field(ge=0)
+    objective_value: float | None = None
+    convergence_gap: float | None = Field(default=None, ge=0.0)
+    objective_trace_digest: Sha256Digest | None = None
+    model_family: NonEmptyStr | None = None
+    message: NonEmptyStr
+    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0903_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def diagnostic_shape_is_closed(self) -> BaselineOptimizationDiagnostic:
+        if self.status is BaselineOptimizationStatus.CONVERGED:
+            if self.objective_value is None or self.convergence_gap is None:
+                raise ValueError("converged diagnostic requires objective and convergence gap")
+        elif self.objective_value is not None and self.convergence_gap is None:
+            raise ValueError("objective value requires a convergence gap")
+        return self
+
+
 class BaselineRunConfiguration(FrozenModel):
     """Locked preprocessing, tuning, uncertainty and benchmark declarations."""
 
@@ -107,6 +222,12 @@ class BaselineRunConfiguration(FrozenModel):
     tuning_artifact: ArtifactReference
     uncertainty_artifact: ArtifactReference
     benchmark_artifact: ArtifactReference
+    max_iterations: int = Field(default=128, gt=0, le=10_000_000)
+    bootstrap_replicates: int = Field(
+        default=M0903_DEFAULT_BOOTSTRAP_REPLICATES,
+        ge=16,
+        le=M0903_MAX_BOOTSTRAP_REPLICATES,
+    )
     locked: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0903_MAX_EVIDENCE)
 
@@ -131,6 +252,14 @@ class ComplexActivityBaselineEstimate(FrozenModel):
 
     predicted_activity: NonEmptyStr
     score: float = Field(ge=0.0, le=1.0)
+    lower_bound: float | None = Field(default=None, ge=0.0, le=1.0)
+    upper_bound: float | None = Field(default=None, ge=0.0, le=1.0)
+    evidence_count: int = Field(default=0, ge=0, le=M0903_MAX_TYPED_OBSERVATIONS)
+    stability: float | None = Field(default=None, ge=0.0, le=1.0)
+    discordance: float | None = Field(default=None, ge=0.0, le=1.0)
+    top_drivers: tuple[NonEmptyStr, ...] = Field(default=(), max_length=8)
+    ablation_effects: tuple[NonEmptyStr, ...] = Field(default=(), max_length=8)
+    model_family: NonEmptyStr | None = None
     calibration_reference: ArtifactReference
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0903_MAX_EVIDENCE)
 
@@ -141,6 +270,16 @@ class ComplexActivityBaselineEstimate(FrozenModel):
         if any(marker in value.casefold() for marker in prohibited):
             raise ValueError("baseline estimate cannot emit prohibited ownership claims")
         return value
+
+    @model_validator(mode="after")
+    def interval_shape_is_closed(self) -> ComplexActivityBaselineEstimate:
+        lower = self.lower_bound
+        upper = self.upper_bound
+        if (lower is None) != (upper is None):
+            raise ValueError("baseline interval requires both bounds")
+        if lower is not None and upper is not None and not lower <= self.score <= upper:
+            raise ValueError("baseline interval must contain the score")
+        return self
 
 
 class EstimateComplexActivityBaselineRequest(FrozenModel):
@@ -154,6 +293,9 @@ class EstimateComplexActivityBaselineRequest(FrozenModel):
     configuration: BaselineRunConfiguration
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M0903_MAX_FEATURES
+    )
+    typed_observations: tuple[GliomaBaselineObservation, ...] = Field(
+        default=(), max_length=M0903_MAX_TYPED_OBSERVATIONS
     )
     supersedes_result_digest: Sha256Digest | None = None
 
@@ -172,6 +314,13 @@ class EstimateComplexActivityBaselineRequest(FrozenModel):
             for artifact in self.source_artifacts
         ):
             raise ValueError("representation handoff must not be duplicated as a source artifact")
+        if self.typed_observations:
+            observation_ids = tuple(item.observation_id for item in self.typed_observations)
+            if len(observation_ids) != len(set(observation_ids)):
+                raise ValueError("typed baseline observation identifiers must be unique")
+            feature_ids = tuple(item.feature_id for item in self.typed_observations)
+            if len(feature_ids) != len(set(feature_ids)):
+                raise ValueError("typed baseline feature identifiers must be unique")
         return self
 
 
@@ -191,6 +340,10 @@ class ComplexActivityBaselineResult(FrozenModel):
     diagnostics: tuple[BaselineDiagnostic, ...] = Field(
         min_length=1, max_length=M0903_MAX_DIAGNOSTICS
     )
+    optimization_diagnostics: tuple[BaselineOptimizationDiagnostic, ...] = Field(
+        default=(), max_length=M0903_MAX_DIAGNOSTICS
+    )
+    model_family: NonEmptyStr | None = None
     findings: tuple[BaselineFindingCode, ...] = Field(default=(), max_length=M0903_MAX_FINDINGS)
     abstention_reason: NonEmptyStr | None = None
     parent_target: Literal["complex_activity"] = M0903_PARENT
@@ -213,6 +366,9 @@ class ComplexActivityBaselineResult(FrozenModel):
         diagnostic_ids = tuple(item.diagnostic_id for item in self.diagnostics)
         if len(diagnostic_ids) != len(set(diagnostic_ids)):
             raise ValueError("baseline diagnostic ids must be unique")
+        optimization_ids = tuple(item.diagnostic_id for item in self.optimization_diagnostics)
+        if len(optimization_ids) != len(set(optimization_ids)):
+            raise ValueError("baseline optimization diagnostic ids must be unique")
         finding_set = set(self.findings)
         if self.status is BaselineEstimateStatus.ESTIMATED:
             if (
@@ -250,15 +406,20 @@ class ComplexActivityBaselineResult(FrozenModel):
 
 __all__ = [
     "M0903_CONTRACT_VERSION",
+    "M0903_DEFAULT_BOOTSTRAP_REPLICATES",
     "M0903_EVIDENCE_CLAIM",
     "M0903_GATE",
+    "M0903_GLIOMA_MODEL_FAMILY",
     "M0903_M0902_RESULT_MEDIA_TYPE",
+    "M0903_MAX_BOOTSTRAP_REPLICATES",
     "M0903_MAX_CANONICAL_REQUEST_BYTES",
     "M0903_MAX_CANONICAL_RESULT_BYTES",
     "M0903_MAX_DIAGNOSTICS",
     "M0903_MAX_EVIDENCE",
     "M0903_MAX_FEATURES",
     "M0903_MAX_FINDINGS",
+    "M0903_MAX_TYPED_EFFECT",
+    "M0903_MAX_TYPED_OBSERVATIONS",
     "M0903_MODULE_ID",
     "M0903_OPERATION",
     "M0903_OUTPUT_MEDIA_TYPE",
@@ -271,8 +432,13 @@ __all__ = [
     "BaselineEstimateStatus",
     "BaselineFindingCode",
     "BaselineMethod",
+    "BaselineOptimizationDiagnostic",
+    "BaselineOptimizationStatus",
     "BaselineRunConfiguration",
     "ComplexActivityBaselineEstimate",
     "ComplexActivityBaselineResult",
     "EstimateComplexActivityBaselineRequest",
+    "GliomaBaselineEvidenceState",
+    "GliomaBaselineObservation",
+    "GliomaBaselineProgram",
 ]

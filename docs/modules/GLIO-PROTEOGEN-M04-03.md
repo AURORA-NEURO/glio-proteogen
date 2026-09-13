@@ -127,9 +127,10 @@ interface, privacy, ordering, and replay boundaries. Declared and executed case 
 exactly.
 
 The representative benchmark prepares genuine M01-02, M04-01, and M04-02 results and four modest
-canonical documents outside measurement. After one untimed warm-up, it measures exactly 25
-public `ingest_proteoform_raw_inputs` calls. Mean latency must be at most 500 milliseconds and p95
-at most 750 milliseconds. The 8 MiB and 32 MiB capacity shapes belong to eval, not the
+canonical documents outside measurement. After one untimed warm-up, it measures exactly 100
+public `ingest_proteoform_raw_inputs` calls. Mean latency must be at most 625 milliseconds and p95
+at most 750 milliseconds. One hundred observations keep nearest-rank p95 from collapsing to the
+second-slowest call. The 8 MiB and 32 MiB capacity shapes belong to eval, not the
 representative benchmark. These limits are software regression tripwires, not scientific,
 biological, transportability, calibration, or clinical evidence.
 

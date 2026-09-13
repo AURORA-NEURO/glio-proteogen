@@ -51,6 +51,9 @@ M1306_MAX_FINDINGS: Final = 64
 M1306_MAX_ASSUMPTIONS: Final = 64
 M1306_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M1306_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
+M1306_MAX_EFFECT: Final = 20.0
+M1306_DEFAULT_BOOTSTRAP_REPLICATES: Final = 64
+M1306_MAX_BOOTSTRAP_REPLICATES: Final = 256
 _DELTA_TOLERANCE: Final = 1e-9
 
 
@@ -94,6 +97,25 @@ class PerturbationFindingCode(StrEnum):
     PROVISIONAL_ABI_PENDING_REVIEW = "provisional_abi_pending_review"
 
 
+class PerturbationEvidenceState(StrEnum):
+    """How a typed perturbation measurement contributes to the fit."""
+
+    OBSERVED = "observed"
+    LEFT_CENSORED = "left_censored"
+    MISSING = "missing"
+    UNSUPPORTED = "unsupported"
+
+
+class GliomaPerturbationProgram(StrEnum):
+    """Glioma programs used as coordinates in the perturbation graph."""
+
+    RTK_PI3K_AKT_MTOR = "RTK_PI3K_AKT_MTOR"
+    P53_CELL_CYCLE = "P53_CELL_CYCLE"
+    IDH_HIF1A = "IDH_HIF1A"
+    MESENCHYMAL_PROGRAM = "MESENCHYMAL_PROGRAM"
+    PROLIFERATION = "PROLIFERATION"
+
+
 class SimulatorConfiguration(FrozenModel):
     configuration_id: Identifier
     version: SemanticVersion
@@ -103,6 +125,11 @@ class SimulatorConfiguration(FrozenModel):
     locked: Literal[True] = True
     negative_controls_required: Literal[True] = True
     bounded_responses_required: Literal[True] = True
+    bootstrap_replicates: int = Field(
+        default=M1306_DEFAULT_BOOTSTRAP_REPLICATES,
+        ge=16,
+        le=M1306_MAX_BOOTSTRAP_REPLICATES,
+    )
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1306_MAX_EVIDENCE)
 
 
@@ -125,18 +152,44 @@ class PerturbationScenario(FrozenModel):
     scenario_id: Identifier
     kind: PerturbationKind
     parameter: NonEmptyStr
-    baseline_value: float
-    perturbed_value: float
+    baseline_value: float = Field(allow_inf_nan=False)
+    perturbed_value: float = Field(allow_inf_nan=False)
     unit: NonEmptyStr
     status: PerturbationStatus
     assumption: NonEmptyStr
     source_artifact: ArtifactReference
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1306_MAX_EVIDENCE)
+    program: GliomaPerturbationProgram | None = None
+    evidence_state: PerturbationEvidenceState | None = None
+    standard_error: float | None = Field(
+        default=None, gt=0.0, le=M1306_MAX_EFFECT, allow_inf_nan=False
+    )
+    quality_weight: float = Field(default=1.0, ge=0.0, le=1.0, allow_inf_nan=False)
 
     @model_validator(mode="after")
     def supported_scenario_is_evidenced(self) -> PerturbationScenario:
         if self.status is PerturbationStatus.SUPPORTED and not self.evidence:
             raise ValueError("supported perturbation requires evidence")
+        typed = (
+            self.evidence_state is not None
+            or self.program is not None
+            or self.standard_error is not None
+        )
+        if not typed:
+            return self
+        if self.evidence_state is None:
+            raise ValueError("typed perturbation requires evidence_state")
+        active = self.evidence_state in {
+            PerturbationEvidenceState.OBSERVED,
+            PerturbationEvidenceState.LEFT_CENSORED,
+        }
+        if active:
+            if self.program is None or self.standard_error is None or self.quality_weight <= 0.0:
+                raise ValueError(
+                    "observed perturbation requires program, standard error, and positive quality"
+                )
+        elif self.standard_error is not None or self.quality_weight != 0.0:
+            raise ValueError("missing or unsupported perturbation cannot carry a value")
         return self
 
 
@@ -151,6 +204,18 @@ class PerturbationResponse(FrozenModel):
     envelope_upper: float
     bounded: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1306_MAX_EVIDENCE)
+    standardized_effect: float | None = Field(
+        default=None, ge=-M1306_MAX_EFFECT, le=M1306_MAX_EFFECT, allow_inf_nan=False
+    )
+    lower_bound: float | None = Field(
+        default=None, ge=-M1306_MAX_EFFECT, le=M1306_MAX_EFFECT, allow_inf_nan=False
+    )
+    upper_bound: float | None = Field(
+        default=None, ge=-M1306_MAX_EFFECT, le=M1306_MAX_EFFECT, allow_inf_nan=False
+    )
+    stability: float | None = Field(default=None, ge=0.0, le=1.0, allow_inf_nan=False)
+    discordance: float | None = Field(default=None, ge=0.0, le=1.0, allow_inf_nan=False)
+    top_drivers: tuple[NonEmptyStr, ...] = Field(default=(), max_length=8)
 
     @model_validator(mode="after")
     def response_is_bounded_and_consistent(self) -> PerturbationResponse:
@@ -162,6 +227,16 @@ class PerturbationResponse(FrozenModel):
             raise ValueError("response delta must match baseline and perturbed values")
         if self.status is PerturbationResponseStatus.EVALUATED and not self.evidence:
             raise ValueError("evaluated perturbation response requires evidence")
+        bounds = (self.lower_bound, self.upper_bound)
+        if any(value is not None for value in bounds):
+            if (
+                self.standardized_effect is None
+                or self.lower_bound is None
+                or self.upper_bound is None
+            ):
+                raise ValueError("typed perturbation response requires a complete effect interval")
+            if self.lower_bound > self.upper_bound:
+                raise ValueError("typed perturbation effect interval must be ordered")
         return self
 
 
@@ -174,6 +249,11 @@ class SensitivitySurface(FrozenModel):
     assumptions: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=M1306_MAX_ASSUMPTIONS)
     negative_control_passed: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M1306_MAX_EVIDENCE)
+    typed_model: bool = False
+    solver_iterations: int | None = Field(default=None, ge=0, le=1000)
+    solver_objective: float | None = Field(default=None, ge=0.0, le=1e9)
+    solver_max_update: float | None = Field(default=None, ge=0.0, le=M1306_MAX_EFFECT)
+    objective_trace_digest: Sha256Digest | None = None
 
     @model_validator(mode="after")
     def response_scenario_ids_are_unique(self) -> SensitivitySurface:
@@ -269,11 +349,14 @@ class ProteotypePerturbationSensitivityResult(FrozenModel):
 
 __all__ = [
     "M1306_CONTRACT_VERSION",
+    "M1306_DEFAULT_BOOTSTRAP_REPLICATES",
     "M1306_GATE",
     "M1306_MAX_ASSUMPTIONS",
     "M1306_MAX_AXES",
+    "M1306_MAX_BOOTSTRAP_REPLICATES",
     "M1306_MAX_CANONICAL_REQUEST_BYTES",
     "M1306_MAX_CANONICAL_RESULT_BYTES",
+    "M1306_MAX_EFFECT",
     "M1306_MAX_EVIDENCE",
     "M1306_MAX_FINDINGS",
     "M1306_MAX_RESPONSES",
@@ -285,6 +368,8 @@ __all__ = [
     "M1306_PARENT",
     "M1306_PROVISIONAL_ABI",
     "M1306_SAFETY_CLASS",
+    "GliomaPerturbationProgram",
+    "PerturbationEvidenceState",
     "PerturbationFinding",
     "PerturbationFindingCode",
     "PerturbationKind",

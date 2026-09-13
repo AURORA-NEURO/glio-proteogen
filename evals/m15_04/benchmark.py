@@ -51,3 +51,9 @@ def measure(iterations: int = 10) -> dict[str, object]:
         "p95_budget_ns": P95_BUDGET_NS,
         "passed": mean_ns <= MEAN_BUDGET_NS and p95 <= P95_BUDGET_NS,
     }
+
+
+def run_benchmark(iterations: int = 10) -> dict[str, object]:
+    """Run the existing M15-04 benchmark through its canonical entrypoint."""
+
+    return measure(iterations)

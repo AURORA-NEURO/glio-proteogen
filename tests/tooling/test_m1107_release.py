@@ -16,8 +16,9 @@ def test_release_evidence_closes_without_artifacts() -> None:
     assert report["artifact_checks"] is False
 
 
+@pytest.mark.historical_artifact
 def test_release_evidence_verifies_built_artifacts() -> None:
-    output = Path(r"C:\Users\murar\AppData\Local\Temp\gpa-m1107-release-final4")
+    output = Path(__file__).parents[2] / "dist-m11-07"
     report = verify_release(
         wheel=output / "glio_proteogen-0.1.0-py3-none-any.whl",
         sdist=output / "glio_proteogen-0.1.0.tar.gz",

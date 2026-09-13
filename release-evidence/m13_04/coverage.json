@@ -6,12 +6,12 @@
     "glio_proteogen.adapters.m1304"
   ],
   "branch_enabled": true,
-  "statements": 476,
-  "covered_statements": 476,
-  "branches": 74,
-  "covered_branches": 74,
-  "coverage_percent": 100.0,
+  "statements": 679,
+  "covered_statements": 673,
+  "branches": 144,
+  "covered_branches": 138,
+  "coverage_percent": 98.54,
   "fail_under_percent": 95.0,
-  "focused_tests": 27,
+  "focused_tests": 31,
   "passed": true
 }

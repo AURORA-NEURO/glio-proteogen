@@ -18,6 +18,7 @@ from glio_proteogen.contracts.m10_06 import (
     UncertaintyDimension,
     UncertaintyFinding,
     UncertaintyFindingCode,
+    UncertaintyObservation,
     expected_provenance,
     expected_uncertainty,
 )
@@ -55,6 +56,102 @@ def test_runtime_abstention_contains_seven_uncertainties_and_sensitivity() -> No
     assert result.uncertainty.transport.state is EstimateState.NOT_ESTIMABLE
     assert len(result.provenance.control_decisions) == 7
     assert result.emits_parent is False
+
+
+def test_measured_replicates_produce_robust_intervals_and_supported_coverage() -> None:
+    result = M1006UncertaintyDecompositionService().execute(build_request(measured=True))
+    assert result.status is UncertaintyDecompositionStatus.DECOMPOSED
+    assert result.decomposition is not None
+    assert result.sensitivity_envelope.status is SensitivityEnvelopeStatus.EVALUATED
+    assert result.support_decision.status is SupportStatus.SUPPORTED
+    assert result.sensitivity_envelope.observed_coverage == 0.9
+    assert all(
+        component.estimate.state is EstimateState.ESTIMATED
+        and component.lower_bound is not None
+        and component.upper_bound is not None
+        and component.lower_bound <= component.estimate.probability <= component.upper_bound
+        and component.replicate_count == 10
+        and component.stability is not None
+        for component in result.decomposition.components
+    )
+    assert result.model_dump_json() == (
+        M1006UncertaintyDecompositionService().execute(build_request(measured=True)).model_dump_json()
+    )
+    assert (
+        M1006UncertaintyDecompositionService().verify(result).result_digest
+        == result.result_digest
+    )
+
+
+def test_measured_lane_abstains_when_coverage_is_outside_gate() -> None:
+    request = build_request(measured=True)
+    observations = tuple(
+        observation.model_copy(update={"coverage_hits": (True,) * len(observation.scores)})
+        for observation in request.uncertainty_observations
+    )
+    result = M1006UncertaintyDecompositionService().execute(
+        request.model_copy(update={"uncertainty_observations": observations})
+    )
+    assert result.status is UncertaintyDecompositionStatus.ABSTAINED
+    assert result.decomposition is None
+    assert result.sensitivity_envelope.status is SensitivityEnvelopeStatus.ABSTAINED
+    assert result.human_review_required is True
+
+
+def test_observation_contract_rejects_alignment_nonfinite_and_non_evidence() -> None:
+    request = build_request(measured=True)
+    observation = request.uncertainty_observations[0]
+    with pytest.raises(ValidationError, match="aligned"):
+        UncertaintyObservation(
+            observation_id="observation.bad.aligned",
+            dimension=observation.dimension,
+            scores=observation.scores,
+            coverage_hits=observation.coverage_hits[:-1],
+            quality_weight=observation.quality_weight,
+            evidence=observation.evidence,
+        )
+    with pytest.raises(ValidationError, match="finite"):
+        UncertaintyObservation(
+            observation_id="observation.bad.nan",
+            dimension=observation.dimension,
+            scores=(float("nan"), *observation.scores[1:]),
+            coverage_hits=observation.coverage_hits,
+            quality_weight=observation.quality_weight,
+            evidence=observation.evidence,
+        )
+    counter = observation.evidence[0].model_copy(update={"role": "counter_evidence"})
+    with pytest.raises(ValidationError, match="evidence role"):
+        UncertaintyObservation(
+            observation_id="observation.bad.role",
+            dimension=observation.dimension,
+            scores=observation.scores,
+            coverage_hits=observation.coverage_hits,
+            quality_weight=observation.quality_weight,
+            evidence=(counter,),
+        )
+
+
+def test_request_rejects_duplicate_measured_observation_ids_and_dimensions() -> None:
+    request = build_request(measured=True)
+    observations = list(request.uncertainty_observations)
+    duplicate_id = observations[1].model_copy(
+        update={"observation_id": observations[0].observation_id}
+    )
+    with pytest.raises(ValidationError, match="unique identifiers"):
+        type(request).model_validate(
+            request.model_dump(mode="python")
+            | {"uncertainty_observations": (observations[0], duplicate_id)},
+            strict=True,
+        )
+    duplicate_dimension = observations[1].model_copy(
+        update={"dimension": observations[0].dimension}
+    )
+    with pytest.raises(ValidationError, match="one observation"):
+        type(request).model_validate(
+            request.model_dump(mode="python")
+            | {"uncertainty_observations": (observations[0], duplicate_dimension)},
+            strict=True,
+        )
 
 
 def test_replay_and_tamper_verification_are_byte_stable() -> None:

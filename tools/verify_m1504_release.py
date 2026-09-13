@@ -15,8 +15,9 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
 MODULE_ID = "GLIO-PROTEOGEN-M15-04"
-FIXTURE_DIGEST = "sha256:ab3d8585b87675b2312c2e4ac6dfb9c2e0eab1f6c494559dbe97c14963f9aa1d"
+FIXTURE_DIGEST = "sha256:84a1e6bd1969c75a6f7e46e5770a0352b66c2b8e16c1ea99b587bf40beb6ab83"
 CASE_IDS = (
+    "typed_glioma_graph",
     "posterior_positive_control",
     "state_positive_control",
     "unsupported_abstention",

@@ -17,12 +17,15 @@ from glio_proteogen.contracts.m08_04 import (
     M0804_BASELINE_MEDIA_TYPE,
     EstimateTranscriptProteinProbabilisticRequest,
     EstimatorConstraint,
+    GliomaDiscordanceProgram,
     ProbabilisticEstimatorConfiguration,
     ProbabilisticEstimatorFamily,
     ProbabilisticFeatureObservation,
     ProbabilisticFeatureState,
     ProbabilisticPrior,
     ProbabilisticPriorKind,
+    TypedDiscordanceEvidenceState,
+    TypedTranscriptProteinObservation,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
@@ -155,6 +158,49 @@ def build_request(
     )
 
 
+def build_typed_request() -> EstimateTranscriptProteinProbabilisticRequest:
+    """Build the bounded synthetic glioma-program request for the research lane."""
+
+    observations = (
+        TypedTranscriptProteinObservation(
+            observation_id="obs.egfr",
+            feature_id="EGFR",
+            gene="EGFR",
+            program=GliomaDiscordanceProgram.RTK_PI3K_AKT_MTOR,
+            state=TypedDiscordanceEvidenceState.OBSERVED,
+            transcript_effect=0.4,
+            protein_effect=1.1,
+            transcript_standard_error=0.15,
+            protein_standard_error=0.2,
+        ),
+        TypedTranscriptProteinObservation(
+            observation_id="obs.cdk4",
+            feature_id="CDK4",
+            gene="CDK4",
+            program=GliomaDiscordanceProgram.PROLIFERATION,
+            state=TypedDiscordanceEvidenceState.OBSERVED,
+            transcript_effect=0.6,
+            protein_effect=1.0,
+            transcript_standard_error=0.15,
+            protein_standard_error=0.2,
+        ),
+        TypedTranscriptProteinObservation(
+            observation_id="obs.tp53",
+            feature_id="TP53",
+            gene="TP53",
+            program=GliomaDiscordanceProgram.P53_CELL_CYCLE,
+            state=TypedDiscordanceEvidenceState.LEFT_CENSORED,
+            transcript_effect=0.2,
+            protein_censor_limit=0.0,
+            transcript_standard_error=0.15,
+            protein_standard_error=0.2,
+        ),
+    )
+    return build_request().model_copy(
+        update={"feature_observations": (), "typed_observations": observations}
+    )
+
+
 def _scenario(name: str, request: EstimateTranscriptProteinProbabilisticRequest) -> dict[str, Any]:
     service = m0804_runtime.M0804Service()
     if name == "withheld-consent":
@@ -166,7 +212,7 @@ def _scenario(name: str, request: EstimateTranscriptProteinProbabilisticRequest)
     result = service.execute(request)
     expected = (
         "estimated"
-        if name.startswith("observed") or name.endswith("architecture")
+        if name.startswith(("observed", "typed")) or name.endswith("architecture")
         else "abstained"
     )
     return {
@@ -196,6 +242,7 @@ def evaluate_replay_and_tamper() -> dict[str, bool]:
 def evaluate() -> dict[str, Any]:
     scenarios = (
         _scenario("observed-learned", build_request()),
+        _scenario("typed-glioma-program-graph", build_typed_request()),
         _scenario(
             "mechanism-guided-architecture",
             build_request(family=ProbabilisticEstimatorFamily.MECHANISM_GUIDED),

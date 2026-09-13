@@ -5,12 +5,15 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from glio_proteogen.contracts.m08_03 import (
+    M0803_GLIOMA_MODEL_FAMILY,
     M0803_M0802_RESULT_MEDIA_TYPE,
     BaselineFeatureObservation,
     BaselineFeatureState,
     BaselineMethod,
     BaselineRunConfiguration,
     EstimateProteinSubtypeBaselineRequest,
+    GliomaProgram,
+    TypedBaselineObservation,
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
@@ -109,4 +112,44 @@ def request(
         configuration=configuration,
         features=features,
         source_artifacts=(artifact(source_name),),
+    )
+
+
+def typed_request() -> EstimateProteinSubtypeBaselineRequest:
+    """Synthetic glioma program evidence for the research baseline lane."""
+
+    candidate = request(values=(0.8, 0.4))
+    evidence = artifact("typed-program-evidence")
+    effects = {
+        GliomaProgram.RTK_PI3K_AKT_MTOR: 1.2,
+        GliomaProgram.P53_CELL_CYCLE: -0.8,
+        GliomaProgram.IDH_HIF1A: -0.5,
+        GliomaProgram.MESENCHYMAL: 0.4,
+        GliomaProgram.PROLIFERATION: 1.5,
+    }
+    observations = tuple(
+        TypedBaselineObservation(
+            observation_id=f"typed.{program.value}",
+            program=program,
+            standardized_effect=effect,
+            standard_error=0.2,
+            quality_weight=0.9,
+            evidence=(
+                EvidenceReference(
+                    reference=evidence,
+                    role="evidence",
+                    claim="synthetic glioma program effect",
+                ),
+            ),
+        )
+        for program, effect in effects.items()
+    )
+    configuration = candidate.configuration.model_copy(
+        update={
+            "model_family": M0803_GLIOMA_MODEL_FAMILY,
+            "bootstrap_replicates": 16,
+        }
+    )
+    return candidate.model_copy(
+        update={"configuration": configuration, "program_observations": observations}
     )

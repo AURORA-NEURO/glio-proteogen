@@ -1,11 +1,16 @@
 {
   "authority_lines": "3452-3495",
   "authority_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
-  "check_count": 8,
+  "check_count": 9,
   "checks": [
     {
       "detail": "soft conflict is quantified without overriding a hard constraint",
       "id": "soft_conflict_is_integrated_with_ablation",
+      "passed": true
+    },
+    {
+      "detail": "numeric feature evidence is evaluated with assay-error-scaled residuals",
+      "id": "measured_feature_constraints_are_integrated",
       "passed": true
     },
     {

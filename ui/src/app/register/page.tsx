@@ -38,7 +38,6 @@ export default function RegisterPage() {
       if (!response.ok) throw new Error(data.error ?? "Unable to continue.");
       setAccount(data.account ?? null);
       setPairing(data.pairing ?? null);
-      if (data.pairing) sessionStorage.setItem("glio_pending_pairing", JSON.stringify(data.pairing));
       setMessage(data.message ?? "Signed in. Generate a fresh console pairing when you are ready.");
       setPassword("");
     } catch (submitError) {

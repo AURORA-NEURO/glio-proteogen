@@ -10,8 +10,12 @@ import pytest
 
 from glio_proteogen.contracts.m08_06 import (
     M0806_M0805_RESULT_MEDIA_TYPE,
+    M0806_MAX_COMPONENTS,
     DecomposeTranscriptProteinUncertaintyRequest,
+    GliomaUncertaintyProgram,
     SensitivityEnvelopeStatus,
+    TypedUncertaintyEvidenceState,
+    TypedUncertaintyObservation,
     UncertaintyDecompositionStatus,
     canonical_request_digest,
     result_payload_digest,
@@ -36,6 +40,12 @@ from glio_proteogen.modules.c08_transcript_protein_discordance.m08_06_uncertaint
     M0806UncertaintyDecompositionEngine,
     decompose_transcript_protein_uncertainty,
 )
+from glio_proteogen.modules.c08_transcript_protein_discordance.m08_06_uncertainty_decomposition import (  # noqa: E501
+    engine as m0806_engine,
+)
+
+_ROBUST_CENTER_MAX = 0.5
+_ARITHMETIC_MEAN_MIN = 1.0
 
 
 def _artifact(
@@ -113,6 +123,128 @@ def test_engine_abstains_with_all_seven_explicit_uncertainty_dimensions() -> Non
     assert first.model_dump(mode="json") == second.model_dump(mode="json")
     assert first.request_digest == canonical_request_digest(first.request)
     assert first.result_digest == result_payload_digest(first)
+
+
+def test_typed_glioma_uncertainty_decomposition_is_bootstrapped_and_replayable() -> None:
+    request = _request().model_copy(
+        update={
+            "typed_observations": (
+                TypedUncertaintyObservation(
+                    observation_id="obs.egfr.rna",
+                    feature_id="EGFR",
+                    program=GliomaUncertaintyProgram.RTK_PI3K_AKT_MTOR,
+                    modality="transcript",
+                    effect=0.8,
+                    standard_error=0.2,
+                    quality_weight=0.95,
+                ),
+                TypedUncertaintyObservation(
+                    observation_id="obs.egfr.protein",
+                    feature_id="EGFR",
+                    program=GliomaUncertaintyProgram.RTK_PI3K_AKT_MTOR,
+                    modality="protein",
+                    effect=1.1,
+                    standard_error=0.25,
+                    quality_weight=0.9,
+                ),
+                TypedUncertaintyObservation(
+                    observation_id="obs.cdk4.protein",
+                    feature_id="CDK4",
+                    program=GliomaUncertaintyProgram.P53_CELL_CYCLE,
+                    modality="protein",
+                    effect=0.5,
+                    standard_error=0.2,
+                    quality_weight=0.85,
+                ),
+                TypedUncertaintyObservation(
+                    observation_id="obs.tp53.site",
+                    feature_id="TP53",
+                    program=GliomaUncertaintyProgram.P53_CELL_CYCLE,
+                    modality="phosphosite",
+                    state=TypedUncertaintyEvidenceState.LEFT_CENSORED,
+                    standard_error=0.3,
+                    censoring_limit=0.0,
+                    quality_weight=0.8,
+                ),
+            )
+        }
+    )
+    engine = M0806UncertaintyDecompositionEngine()
+    first = engine.decompose(request)
+    reordered = engine.decompose(
+        request.model_copy(
+            update={"typed_observations": tuple(reversed(request.typed_observations))}
+        )
+    )
+
+    assert first.status is UncertaintyDecompositionStatus.DECOMPOSED
+    assert first.typed_model is True
+    assert first.model_family == "glioma-uncertainty-decomposition-bootstrap/1.0.0"
+    assert first.decomposition is not None
+    assert len(first.decomposition.components) == M0806_MAX_COMPONENTS
+    assert first.sensitivity_envelope.status is SensitivityEnvelopeStatus.EVALUATED
+    assert first.uncertainty.measurement.state.value == "estimated"
+    assert engine.verify(first).model_dump(mode="json") == first.model_dump(mode="json")
+    assert reordered.model_dump(mode="json") == first.model_dump(mode="json")
+
+
+def test_typed_glioma_uncertainty_abstains_for_insufficient_supported_evidence() -> None:
+    request = _request().model_copy(
+        update={
+            "typed_observations": (
+                TypedUncertaintyObservation(
+                    observation_id="obs.missing",
+                    feature_id="EGFR",
+                    program=GliomaUncertaintyProgram.RTK_PI3K_AKT_MTOR,
+                    modality="protein",
+                    state=TypedUncertaintyEvidenceState.MISSING,
+                    quality_weight=0.0,
+                ),
+            )
+        }
+    )
+    result = M0806UncertaintyDecompositionEngine().decompose(request)
+
+    assert result.status is UncertaintyDecompositionStatus.ABSTAINED
+    assert result.typed_model is True
+    assert result.decomposition is None
+    assert result.sensitivity_envelope.status is SensitivityEnvelopeStatus.ABSTAINED
+
+
+def test_typed_censor_only_location_stays_neutral_without_pseudo_target() -> None:
+    censored = TypedUncertaintyObservation(
+        observation_id="obs.censored.only",
+        feature_id="EGFR",
+        program=GliomaUncertaintyProgram.RTK_PI3K_AKT_MTOR,
+        modality="protein",
+        state=TypedUncertaintyEvidenceState.LEFT_CENSORED,
+        standard_error=0.3,
+        censoring_limit=0.4,
+        quality_weight=0.8,
+    )
+
+    assert m0806_engine._typed_target(censored) == pytest.approx(0.4)
+    assert m0806_engine._typed_robust_location((censored,)) == pytest.approx(0.0)
+    assert m0806_engine._typed_robust_location(
+        (censored,), {censored.observation_id: -1.0}
+    ) == pytest.approx(-0.6)
+
+
+def test_typed_location_initialization_downweights_failed_uncertainty_replicate() -> None:
+    terms = (
+        (0.2, 0.2, 1.0),
+        (0.3, 0.2, 1.0),
+        (4.0, 0.2, 1.0),
+    )
+
+    center = m0806_engine._robust_initial_location_center(terms)
+    arithmetic_mean = sum(term[0] for term in terms) / len(terms)
+
+    assert center < _ROBUST_CENTER_MAX
+    assert arithmetic_mean > _ARITHMETIC_MEAN_MIN
+    assert m0806_engine._initial_location_objective(center, terms) <= (
+        m0806_engine._initial_location_objective(arithmetic_mean, terms)
+    )
 
 
 def test_service_verify_replays_and_tamper_fails() -> None:

@@ -37,6 +37,9 @@ from glio_proteogen.modules.c14_microenvironment.m14_02_context_subtype_stratifi
     M1402ReplayVerificationError,
     preflight_context_authorization,
 )
+from glio_proteogen.modules.c14_microenvironment.m14_02_context_subtype_stratifier import (
+    engine as m1402_engine,
+)
 
 _WHEN = datetime(2026, 1, 1, tzinfo=UTC)
 
@@ -169,6 +172,75 @@ def test_supported_context_profile_is_deterministic_and_replayable() -> None:
     assert result.emits_parent is False
     assert result.uncertainty.measurement.probability == 0.9
     assert M1402ContextStratifier().verify(result) == result
+
+
+def test_glioma_context_vocabulary_emits_evidence_bound_mechanisms() -> None:
+    request = _request()
+    labels = {
+        ContextDimension.SUBTYPE: "MES_like",
+        ContextDimension.BIOLOGICAL_CONTEXT: "hypoxic",
+        ContextDimension.TERRITORY: "infiltrative_edge",
+    }
+    observations = tuple(
+        item.model_copy(
+            update={
+                "normalized_value": labels.get(item.dimension, item.normalized_value),
+            }
+        )
+        for item in request.observations
+    )
+    result = M1402ContextStratifier().infer(
+        request.model_copy(update={"observations": observations})
+    )
+    mechanism_ids = tuple(item.mechanism_id for item in result.applicable_mechanisms)
+    assert mechanism_ids == tuple(sorted(mechanism_ids))
+    assert mechanism_ids == (
+        "mechanism.glioma.hypoxia-angiogenesis",
+        "mechanism.glioma.invasive-edge",
+        "mechanism.glioma.mesenchymal-inflammatory",
+    )
+    assert all(item.evidence for item in result.applicable_mechanisms)
+    assert all("Matched supported" in item.rationale for item in result.applicable_mechanisms)
+
+
+def test_unknown_glioma_label_remains_generic_and_is_not_fuzzy_matched() -> None:
+    request = _request()
+    observations = tuple(
+        item.model_copy(
+            update={
+                "normalized_value": "mesenchymal-ish"
+                if item.dimension is ContextDimension.SUBTYPE
+                else item.normalized_value,
+            }
+        )
+        for item in request.observations
+    )
+    result = M1402ContextStratifier().infer(
+        request.model_copy(update={"observations": observations})
+    )
+    assert tuple(item.mechanism_id for item in result.applicable_mechanisms) == (
+        "mechanism.curated_rule",
+    )
+    assert "no known GBM context label" in result.applicable_mechanisms[0].rationale
+
+
+def test_context_rule_engine_handles_missing_normalized_value_and_non_supported_status() -> None:
+    observation = (
+        _request()
+        .observations[1]
+        .model_copy(
+            update={
+                "dimension": ContextDimension.SUBTYPE,
+                "value": "MES-like",
+                "normalized_value": None,
+            }
+        )
+    )
+    limited = observation.model_copy(update={"status": ContextObservationStatus.LIMITED})
+    mechanisms = m1402_engine._domain_mechanisms((limited, observation))
+    assert tuple(item.mechanism_id for item in mechanisms) == (
+        "mechanism.glioma.mesenchymal-inflammatory",
+    )
 
 
 @pytest.mark.parametrize(

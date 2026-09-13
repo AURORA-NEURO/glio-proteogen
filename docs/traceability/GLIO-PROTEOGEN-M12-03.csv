@@ -7,3 +7,4 @@ GLIO-PROTEOGEN-M12-03,4084-4127,Clinical science,S2,G1,biomarker_panel,seven-dim
 GLIO-PROTEOGEN-M12-03,4084-4127,Clinical science,S2,G1,biomarker_panel,ownership boundary and prohibited outputs,plugin.py and docs,docs/evidence/M12-03.md,pass
 GLIO-PROTEOGEN-M12-03,4084-4127,Clinical science,S2,G1,biomarker_panel,replay and tamper closure,canonical.py and engine.py,tests/contract/test_m12_03_runtime.py,pass
 GLIO-PROTEOGEN-M12-03,4084-4127,Clinical science,S2,G1,biomarker_panel,locked package evidence,release verifier,release-evidence/m12_03/package.json,pass
+GLIO-PROTEOGEN-M12-03,research-additive,Clinical science,S2,G1,biomarker_panel,typed glioma signed constraint model,Huber-ridge coordinate descent and bootstrap projection,tests/contract/test_m12_03_runtime.py::test_typed_glioma_constraint_graph_fits_and_bootstraps,pass

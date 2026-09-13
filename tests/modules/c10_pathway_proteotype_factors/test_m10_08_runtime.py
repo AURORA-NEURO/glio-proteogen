@@ -3,8 +3,10 @@
 from datetime import UTC, datetime
 
 import pytest
+from pydantic import ValidationError
 
 from glio_proteogen.contracts.m10_08.v1 import (
+    DiscordanceObservation,
     EvidencePublicationStatus,
     PublisherAssumption,
     PublisherCounterEvidence,
@@ -159,6 +161,78 @@ def test_complete_publication_is_closed_and_replayable() -> None:
     assert result.model_dump(mode="json") == m1008_runtime.publish_protein_rna_evidence(
         _request()
     ).model_dump(mode="json")
+
+
+def test_measured_publication_emits_robust_glioma_discordance_summary() -> None:
+    evidence = EvidenceReference(
+        reference=_artifact("evidence.discordance"),
+        role="evidence",
+        claim="Paired synthetic glioma protein/RNA effect evidence.",
+    )
+    observations = tuple(
+        DiscordanceObservation(
+            observation_id=f"observation.{index}",
+            feature_id=f"EGFR.site.{index}",
+            protein_effect=0.45 + index * 0.05,
+            rna_effect=0.05 + index * 0.01,
+            protein_standard_error=0.1,
+            rna_standard_error=0.1,
+            quality_weight=0.9,
+            evidence=(evidence,),
+        )
+        for index in range(6)
+    )
+    result = m1008_runtime.publish_protein_rna_evidence(
+        _request().model_copy(update={"discordance_observations": observations})
+    )
+    assert result.status is EvidencePublicationStatus.PUBLISHED
+    assert result.explanation is not None
+    summary = result.explanation.discordance_summary
+    assert summary is not None
+    assert summary.observation_count == len(observations)
+    assert summary.robust_location > 0.0
+    assert summary.discordant_fraction == 1.0
+    assert summary.top_features[0] == "EGFR.site.5"
+    assert m1008_runtime.verify_publication_result(result)
+
+
+def test_measured_contract_rejects_too_few_or_duplicate_features() -> None:
+    request = _request()
+    evidence = EvidenceReference(
+        reference=_artifact("evidence.discordance.contract"),
+        role="evidence",
+        claim="Paired synthetic glioma effect evidence.",
+    )
+    observation = DiscordanceObservation(
+        observation_id="observation.one",
+        feature_id="EGFR.one",
+        protein_effect=0.2,
+        rna_effect=0.1,
+        protein_standard_error=0.1,
+        rna_standard_error=0.1,
+        quality_weight=1.0,
+        evidence=(evidence,),
+    )
+    with pytest.raises(ValidationError, match="at least three"):
+        type(request).model_validate(
+            request.model_dump(mode="python")
+            | {"discordance_observations": (observation,)},
+            strict=True,
+        )
+    duplicate = observation.model_copy(
+        update={"observation_id": "observation.two"}
+    )
+    third = observation.model_copy(
+        update={"observation_id": "observation.three"}
+    )
+    with pytest.raises(ValidationError, match="feature identifiers"):
+        type(request).model_validate(
+            request.model_dump(mode="python")
+            | {
+                "discordance_observations": (observation, duplicate, third),
+            },
+            strict=True,
+        )
 
 
 def test_incomplete_publication_abstains_without_bundle() -> None:

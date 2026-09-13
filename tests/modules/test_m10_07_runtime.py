@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from itertools import pairwise
 
 import pytest
 from pydantic import ValidationError
@@ -10,11 +11,16 @@ from pydantic import ValidationError
 from glio_proteogen.contracts.m10_07 import (
     CalibrateProteinRnaDiscordanceSelectivePredictionRequest,
     CalibrationConfiguration,
+    CalibrationEvidenceState,
     CalibrationFindingCode,
     CalibrationMethod,
+    CalibrationObservation,
     CalibrationScope,
     CalibrationStatus,
+    GliomaCalibrationProgram,
     PredictionSet,
+    TypedDiscordanceCalibrationObservation,
+    TypedDiscordanceQuery,
     contract_json_schemas,
 )
 from glio_proteogen.kernel.models import (
@@ -22,6 +28,7 @@ from glio_proteogen.kernel.models import (
     ConsentReference,
     ConsentState,
     ContextReferences,
+    EvidenceReference,
     ExecutionContext,
     IdentityLineageReference,
     IdentityLineageState,
@@ -36,11 +43,19 @@ from glio_proteogen.modules.c10_pathway_proteotype.m10_07_calibration_selective_
     M1007Service,
     M1007TokenError,
 )
+from glio_proteogen.modules.c10_pathway_proteotype.m10_07_calibration_selective_prediction import (
+    engine as m1007_engine,
+)
 
 _DIGEST = "sha256:" + ("a" * 64)
 _MEDIA = "application/vnd.glio-proteogen.fixture+json"
 _CONTROL_COUNT = 7
 _SCHEMA_COUNT = 7
+_CALIBRATION_SPLIT = 10
+_MIN_CONFIDENCE = 0.1
+_TYPED_OBSERVATION_COUNT = 20
+_SCORE_MIDPOINT = 0.5
+_FIRST_CANDIDATE_OBJECTIVE_CALL = 2
 
 
 def _artifact(name: str, media_type: str = _MEDIA) -> ArtifactReference:
@@ -121,6 +136,88 @@ def _request(
     )
 
 
+def _measured_request(
+    *, query_score: float = 0.62, observations: int = 20
+) -> CalibrateProteinRnaDiscordanceSelectivePredictionRequest:
+    request = _request()
+    evidence = EvidenceReference(
+        reference=_artifact("calibration-observations"),
+        role="evidence",
+        claim="Synthetic glioma calibration observation.",
+    )
+    records = tuple(
+        CalibrationObservation(
+            observation_id=f"observation.{index}",
+            score=round(0.1 + index * 0.04, 4),
+            observed_label=(
+                "discordant" if index >= _CALIBRATION_SPLIT else "concordant"
+            ),
+            subgroup="adult_glioma",
+            evidence=(evidence,),
+        )
+        for index in range(observations)
+    )
+    return request.model_copy(
+        update={
+            "calibration_observations": records,
+            "query_score": query_score,
+            "query_subgroup": "adult_glioma",
+        }
+    )
+
+
+def _typed_request() -> CalibrateProteinRnaDiscordanceSelectivePredictionRequest:
+    evidence = EvidenceReference(
+        reference=_artifact("typed-calibration-observations"),
+        role="evidence",
+        claim="Synthetic glioma paired protein/RNA calibration observation.",
+    )
+    observations = tuple(
+        TypedDiscordanceCalibrationObservation(
+            observation_id=f"typed-observation.{index:02d}",
+            feature_id=f"feature.{index:02d}",
+            program=(
+                GliomaCalibrationProgram.RTK_PI3K_AKT_MTOR
+                if index % 2 == 0
+                else GliomaCalibrationProgram.MESENCHYMAL_PROGRAM
+            ),
+            evidence_state=CalibrationEvidenceState.OBSERVED,
+            protein_effect=(index - 10) * 0.12,
+            rna_effect=-(index - 10) * 0.08,
+            protein_standard_error=0.12,
+            rna_standard_error=0.10,
+            quality_weight=0.85,
+            observed_label=(
+                "discordant" if index >= _CALIBRATION_SPLIT else "concordant"
+            ),
+            subgroup="adult_glioma",
+            evidence=(evidence,),
+        )
+        for index in range(_TYPED_OBSERVATION_COUNT)
+    )
+    query = TypedDiscordanceQuery(
+        feature_id="feature.query",
+        program=GliomaCalibrationProgram.RTK_PI3K_AKT_MTOR,
+        evidence_state=CalibrationEvidenceState.OBSERVED,
+        protein_effect=1.0,
+        rna_effect=-0.4,
+        protein_standard_error=0.12,
+        rna_standard_error=0.10,
+        quality_weight=0.9,
+        subgroup="adult_glioma",
+        evidence=(evidence,),
+    )
+    request = _request()
+    return type(request).model_validate(
+        request.model_dump(mode="python")
+        | {
+            "typed_calibration_observations": observations,
+            "typed_query": query,
+        },
+        strict=True,
+    )
+
+
 def test_supported_runtime_is_scoped_calibrated_and_replayable() -> None:
     service = M1007Service()
     first = service.execute(_request())
@@ -128,6 +225,7 @@ def test_supported_runtime_is_scoped_calibrated_and_replayable() -> None:
 
     assert first.result.status is CalibrationStatus.CALIBRATED
     assert first.result.estimate is not None
+    assert first.result.prediction_set is not None
     assert first.result.prediction_set == PredictionSet(
         labels=("discordant", "concordant"),
         nominal_coverage=0.9,
@@ -138,6 +236,190 @@ def test_supported_runtime_is_scoped_calibrated_and_replayable() -> None:
     assert first.canonical_bytes == second.canonical_bytes
     replay = service.verify(first.result, first.canonical_bytes)
     assert replay.verified is True
+
+
+def test_measured_runtime_uses_conformal_rank_enrichment() -> None:
+    built = M1007CalibrationEngine().execute(_measured_request())
+    assert built.result.status is CalibrationStatus.CALIBRATED
+    assert built.result.estimate is not None
+    assert built.result.estimate.predicted_discordance == "discordant"
+    assert built.result.estimate.calibrated_confidence >= _MIN_CONFIDENCE
+    assert built.result.prediction_set is not None
+    assert "discordant" in built.result.prediction_set.labels
+    assert any(
+        diagnostic.metric_name == "leave_one_out_coverage"
+        and diagnostic.metric_value is not None
+        for diagnostic in built.result.diagnostics
+    )
+    assert M1007CalibrationEngine().verify(built.result, built.canonical_bytes).verified is True
+
+
+def test_typed_glioma_calibration_fits_discordance_and_replays() -> None:
+    built = M1007CalibrationEngine().execute(_typed_request())
+    assert built.result.status is CalibrationStatus.CALIBRATED
+    assert built.result.estimate is not None
+    assert built.result.estimate.score > _SCORE_MIDPOINT
+    assert built.result.estimate.predicted_discordance == "discordant"
+    typed_diagnostic = next(
+        diagnostic
+        for diagnostic in built.result.diagnostics
+        if diagnostic.diagnostic_id == "diagnostic.typed_logistic"
+    )
+    assert typed_diagnostic.model_family == "glioma-discordance-selective-calibration/1.0.0"
+    assert typed_diagnostic.objective_trace_digest is not None
+    assert M1007CalibrationEngine().verify(built.result, built.canonical_bytes).verified is True
+
+
+def test_typed_calibration_uses_glioma_program_context() -> None:
+    request = _typed_request()
+    query = request.typed_query
+    assert query is not None
+    neutral_query = query.model_copy(update={"protein_effect": 0.0, "rna_effect": 0.0})
+    baseline = M1007CalibrationEngine().execute(
+        request.model_copy(update={"typed_query": neutral_query})
+    )
+    alternate_query = neutral_query.model_copy(
+        update={"program": GliomaCalibrationProgram.P53_CELL_CYCLE}
+    )
+    alternate = M1007CalibrationEngine().execute(
+        request.model_copy(update={"typed_query": alternate_query})
+    )
+    assert baseline.result.estimate is not None
+    assert alternate.result.estimate is not None
+    assert baseline.result.estimate.score != alternate.result.estimate.score
+
+
+def test_typed_calibration_excludes_missing_and_censored_values() -> None:
+    request = _typed_request()
+    evidence = request.typed_calibration_observations[0].evidence
+    censored = request.typed_calibration_observations[0].model_copy(
+        update={
+            "evidence_state": CalibrationEvidenceState.LEFT_CENSORED,
+            "observed_label": "discordant",
+        }
+    )
+    missing = TypedDiscordanceCalibrationObservation(
+        observation_id="typed-observation.missing",
+        feature_id="feature.missing",
+        evidence_state=CalibrationEvidenceState.MISSING,
+        quality_weight=0.0,
+        subgroup="adult_glioma",
+        evidence=evidence,
+    )
+    observations = (
+        censored,
+        *request.typed_calibration_observations[1:],
+        missing,
+    )
+    checked = type(request).model_validate(
+        request.model_dump(mode="python")
+        | {"typed_calibration_observations": observations},
+        strict=True,
+    )
+    built = M1007CalibrationEngine().execute(checked)
+    assert built.result.status is CalibrationStatus.CALIBRATED
+    assert built.result.estimate is not None
+    assert "typed_glioma_calibration_research_only" in {
+        item.code for item in built.result.limitations
+    }
+
+
+def test_typed_logistic_fit_backtracks_non_monotone_objective(monkeypatch) -> None:
+    request = _typed_request()
+    original = m1007_engine._typed_objective
+    calls = 0
+
+    def objective(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == _FIRST_CANDIDATE_OBJECTIVE_CALL else value
+
+    monkeypatch.setattr(m1007_engine, "_typed_objective", objective)
+    fitted = m1007_engine._typed_logistic_fit(request.typed_calibration_observations)
+
+    assert fitted is not None
+    assert calls > _FIRST_CANDIDATE_OBJECTIVE_CALL
+    trace = fitted[-1]
+    assert all(
+        after <= before + m1007_engine._TYPED_OBJECTIVE_TOLERANCE
+        for before, after in pairwise(trace)
+    )
+
+
+def test_measured_runtime_abstains_for_out_of_domain_query() -> None:
+    built = M1007CalibrationEngine().execute(_measured_request(query_score=0.99))
+    assert built.result.status is CalibrationStatus.ABSTAINED
+    assert CalibrationFindingCode.OOD_UNSUPPORTED in built.result.findings
+
+
+def test_measured_runtime_abstains_when_leave_one_out_coverage_is_outside_gate() -> None:
+    built = M1007CalibrationEngine().execute(
+        _measured_request(query_score=0.25, observations=8)
+    )
+    assert built.result.status is CalibrationStatus.ABSTAINED
+    assert CalibrationFindingCode.CALIBRATION_NOT_LOCKED in built.result.findings
+
+
+def test_measured_runtime_abstains_for_subgroup_disparity(monkeypatch) -> None:
+    request = _measured_request()
+    observations = tuple(
+        observation.model_copy(
+            update={
+                "subgroup": "adult_glioma" if index < _CALIBRATION_SPLIT else "recurrent_glioma",
+                "observed_label": (
+                    observation.observed_label
+                    if index < _CALIBRATION_SPLIT
+                    else "concordant"
+                ),
+            }
+        )
+        for index, observation in enumerate(request.calibration_observations)
+    )
+    monkeypatch.setattr(
+        "glio_proteogen.modules.c10_pathway_proteotype.m10_07_calibration_selective_prediction.engine._SUBGROUP_DISPARITY_LIMIT",
+        0.05,
+    )
+    built = M1007CalibrationEngine().execute(
+        request.model_copy(update={"calibration_observations": observations})
+    )
+    assert built.result.status is CalibrationStatus.ABSTAINED
+    assert CalibrationFindingCode.SUBGROUP_DISPARITY in built.result.findings
+
+
+def test_measured_contract_requires_a_query_and_calibration_minimum() -> None:
+    request = _request()
+    observation = CalibrationObservation(
+        observation_id="observation.one",
+        score=0.4,
+        observed_label="concordant",
+        subgroup="adult_glioma",
+        evidence=(
+            EvidenceReference(
+                reference=_artifact("calibration-one"),
+                role="evidence",
+                claim="Synthetic calibration observation.",
+            ),
+        ),
+    )
+    with pytest.raises(ValidationError, match="at least eight"):
+        type(request).model_validate(
+            request.model_dump(mode="python")
+            | {"calibration_observations": (observation,), "query_score": 0.4},
+            strict=True,
+        )
+    with pytest.raises(ValidationError, match="query subgroup"):
+        type(request).model_validate(
+            request.model_dump(mode="python")
+            | {
+                "calibration_observations": tuple(
+                    _measured_request().calibration_observations
+                ),
+                "query_score": 0.4,
+                "query_subgroup": None,
+            },
+            strict=True,
+        )
 
 
 def test_bound_replay_rejects_semantic_mutation() -> None:

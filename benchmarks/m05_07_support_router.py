@@ -11,6 +11,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from benchmarks._module_validation import run_pytest_benchmark
+
 _ROOT = Path(__file__).parents[1]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
@@ -77,3 +79,14 @@ def test_unsupported_public_router_latency(benchmark: BenchmarkFixture) -> None:
     statistics = benchmark_stats.stats
     assert statistics is not None
     assert statistics.mean <= MEAN_BUDGET_SECONDS
+
+
+def run_benchmark(iterations: int = 10) -> dict[str, object]:
+    """Run the locked supported PTM support-routing workload."""
+
+    return run_pytest_benchmark(
+        module_id="GLIO-PROTEOGEN-M05-07",
+        workload=test_supported_public_router_latency,
+        iterations=iterations,
+        mean_budget_seconds=MEAN_BUDGET_SECONDS,
+    )

@@ -55,6 +55,9 @@ M1404_MAX_EVIDENCE: Final = 64
 M1404_MAX_FINDINGS: Final = 64
 M1404_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M1404_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
+M1404_MAX_EFFECT: Final = 20.0
+M1404_DEFAULT_BOOTSTRAP_REPLICATES: Final = 64
+M1404_MAX_BOOTSTRAP_REPLICATES: Final = 256
 M1404_EVIDENCE_CLAIM: Final = (
     "Caller-declared M14-01 hypothesis and M14-04 mechanism-inference evidence; "
     "issuer authority is not authenticated."
@@ -78,12 +81,73 @@ class MechanismFindingCode(StrEnum):
     PROVISIONAL_ABI_PENDING_REVIEW = "provisional_abi_pending_review"
 
 
+class MechanismEvidenceState(StrEnum):
+    """Evidence state for typed glioma network observations."""
+
+    OBSERVED = "observed"
+    LEFT_CENSORED = "left_censored"
+    MISSING = "missing"
+    UNSUPPORTED = "unsupported"
+
+
+class GliomaMechanismProgram(StrEnum):
+    """Mechanistic coordinates used by the signed glioma network model."""
+
+    RTK_PI3K_AKT_MTOR = "RTK_PI3K_AKT_MTOR"
+    P53_CELL_CYCLE = "P53_CELL_CYCLE"
+    IDH_HIF1A = "IDH_HIF1A"
+    MESENCHYMAL_PROGRAM = "MESENCHYMAL_PROGRAM"
+    PROLIFERATION = "PROLIFERATION"
+
+
+class MechanismObservation(FrozenModel):
+    """Typed protein/PTM evidence mapped to one glioma mechanism coordinate."""
+
+    observation_id: Identifier
+    program: GliomaMechanismProgram
+    evidence_state: MechanismEvidenceState
+    standardized_effect: float | None = Field(
+        default=None, ge=-M1404_MAX_EFFECT, le=M1404_MAX_EFFECT, allow_inf_nan=False
+    )
+    standard_error: float | None = Field(
+        default=None, gt=0.0, le=M1404_MAX_EFFECT, allow_inf_nan=False
+    )
+    quality_weight: float = Field(default=1.0, ge=0.0, le=1.0, allow_inf_nan=False)
+    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1404_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def observation_shape_is_closed(self) -> MechanismObservation:
+        active = self.evidence_state in {
+            MechanismEvidenceState.OBSERVED,
+            MechanismEvidenceState.LEFT_CENSORED,
+        }
+        if active:
+            if (
+                self.standardized_effect is None
+                or self.standard_error is None
+                or self.quality_weight <= 0.0
+            ):
+                raise ValueError(
+                    "observed mechanism evidence requires effect, standard error, and quality"
+                )
+        elif self.standardized_effect is not None or self.standard_error is not None:
+            raise ValueError("missing or unsupported mechanism evidence cannot carry a value")
+        if active and not self.evidence:
+            raise ValueError("observed mechanism evidence requires provenance")
+        return self
+
+
 class MechanismInferenceConfiguration(FrozenModel):
     configuration_id: Identifier
     version: SemanticVersion
     method: NonEmptyStr
     model_reference: ArtifactReference
     calibration_reference: ArtifactReference
+    bootstrap_replicates: int = Field(
+        default=M1404_DEFAULT_BOOTSTRAP_REPLICATES,
+        ge=16,
+        le=M1404_MAX_BOOTSTRAP_REPLICATES,
+    )
     locked: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1404_MAX_EVIDENCE)
 
@@ -99,12 +163,27 @@ class MechanismEstimate(FrozenModel):
     lower_bound: float | None = Field(default=None, ge=0.0, le=1.0)
     upper_bound: float | None = Field(default=None, ge=0.0, le=1.0)
     state_value: NonEmptyStr | None = None
+    classification: Literal["active", "inactive", "stable"] | None = None
     assumptions: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=M1404_MAX_ASSUMPTIONS)
     alternatives: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=M1404_MAX_ALTERNATIVES)
     counter_evidence: tuple[EvidenceReference, ...] = Field(
         min_length=1, max_length=M1404_MAX_EVIDENCE
     )
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1404_MAX_EVIDENCE)
+    standardized_effect: float | None = Field(
+        default=None, ge=-M1404_MAX_EFFECT, le=M1404_MAX_EFFECT, allow_inf_nan=False
+    )
+    effect_lower_bound: float | None = Field(
+        default=None, ge=-M1404_MAX_EFFECT, le=M1404_MAX_EFFECT, allow_inf_nan=False
+    )
+    effect_upper_bound: float | None = Field(
+        default=None, ge=-M1404_MAX_EFFECT, le=M1404_MAX_EFFECT, allow_inf_nan=False
+    )
+    stability: float | None = Field(default=None, ge=0.0, le=1.0, allow_inf_nan=False)
+    discordance: float | None = Field(default=None, ge=0.0, le=1.0, allow_inf_nan=False)
+    evidence_count: int | None = Field(default=None, ge=0, le=M1404_MAX_EVIDENCE)
+    top_drivers: tuple[NonEmptyStr, ...] = Field(default=(), max_length=8)
+    ablation_effects: tuple[NonEmptyStr, ...] = Field(default=(), max_length=8)
 
     @model_validator(mode="after")
     def estimate_shape_is_closed(self) -> MechanismEstimate:
@@ -140,6 +219,9 @@ class InferProteinSubtypeMechanismRequest(FrozenModel):
     context: ExecutionContext
     hypothesis_registry_result: ArtifactReference
     configuration: MechanismInferenceConfiguration
+    observations: tuple[MechanismObservation, ...] = Field(
+        default=(), max_length=M1404_MAX_ESTIMATES
+    )
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M1404_MAX_EVIDENCE
     )
@@ -149,6 +231,9 @@ class InferProteinSubtypeMechanismRequest(FrozenModel):
     def request_is_bound(self) -> InferProteinSubtypeMechanismRequest:
         if self.hypothesis_registry_result.media_type != M1404_M1401_RESULT_MEDIA_TYPE:
             raise ValueError("mechanism request must bind the provisional M14-01 result")
+        ids = tuple(item.observation_id for item in self.observations)
+        if len(ids) != len(set(ids)):
+            raise ValueError("mechanism observation identifiers must be unique")
         return self
 
 
@@ -175,6 +260,13 @@ class ProteinSubtypeMechanismInferenceResult(FrozenModel):
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1404_MAX_EVIDENCE)
     limitations: tuple[Limitation, ...] = Field(min_length=1, max_length=32)
     human_review_required: bool = False
+    typed_model: bool = False
+    solver_iterations: int | None = Field(default=None, ge=0, le=1000)
+    solver_objective: float | None = Field(default=None, ge=0.0, le=1e9, allow_inf_nan=False)
+    solver_max_update: float | None = Field(
+        default=None, ge=0.0, le=M1404_MAX_EFFECT, allow_inf_nan=False
+    )
+    objective_trace_digest: Sha256Digest | None = None
 
     @model_validator(mode="after")
     def result_is_closed(self) -> ProteinSubtypeMechanismInferenceResult:
@@ -318,13 +410,16 @@ def expected_provenance(
 
 __all__ = [
     "M1404_CONTRACT_VERSION",
+    "M1404_DEFAULT_BOOTSTRAP_REPLICATES",
     "M1404_EVIDENCE_CLAIM",
     "M1404_GATE",
     "M1404_M1401_RESULT_MEDIA_TYPE",
     "M1404_MAX_ALTERNATIVES",
     "M1404_MAX_ASSUMPTIONS",
+    "M1404_MAX_BOOTSTRAP_REPLICATES",
     "M1404_MAX_CANONICAL_REQUEST_BYTES",
     "M1404_MAX_CANONICAL_RESULT_BYTES",
+    "M1404_MAX_EFFECT",
     "M1404_MAX_ESTIMATES",
     "M1404_MAX_EVIDENCE",
     "M1404_MAX_FINDINGS",
@@ -335,13 +430,16 @@ __all__ = [
     "M1404_PARENT",
     "M1404_PROVISIONAL_ABI",
     "M1404_SAFETY_CLASS",
+    "GliomaMechanismProgram",
     "InferProteinSubtypeMechanismRequest",
     "MechanismEstimate",
     "MechanismEstimateKind",
+    "MechanismEvidenceState",
     "MechanismFinding",
     "MechanismFindingCode",
     "MechanismInferenceConfiguration",
     "MechanismInferenceStatus",
+    "MechanismObservation",
     "ProteinSubtypeMechanismInferenceResult",
     "expected_provenance",
     "expected_uncertainty",

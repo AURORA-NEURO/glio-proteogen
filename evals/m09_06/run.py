@@ -13,7 +13,10 @@ if __package__ in {None, ""}:
     if str(_PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(_PROJECT_ROOT))
 
-from tests.modules.c09_complex_stoichiometry.test_m09_06_uncertainty import _request
+from tests.modules.c09_complex_stoichiometry.test_m09_06_uncertainty import (
+    _request,
+    _typed_request,
+)
 
 from glio_proteogen.contracts.m09_06 import SensitivityEnvelopeStatus
 from glio_proteogen.modules.c09_complex_stoichiometry import (
@@ -34,7 +37,12 @@ class EvaluationReport:
     uncalibrated_status: str
     seven_dimensions: int
     sensitivity_status: str
+    typed_status: str
+    typed_model: str
+    typed_interval_components: int
+    typed_bottleneck_probability: float | None
     replay_verified: bool
+    typed_replay_verified: bool
     tamper_rejected: bool
     deterministic: bool
     passed: bool
@@ -43,12 +51,17 @@ class EvaluationReport:
 def evaluate() -> EvaluationReport:
     service = M0906Service()
     supported = service.execute(_request())
+    typed = service.execute(_typed_request())
     repeat = service.execute(_request())
     unsupported = service.execute(_request(method="unsupported:foundation-model"))
     uncalibrated = service.execute(_request(method="uncalibrated-estimator"))
     replay = M0906UncertaintyDecompositionEngine.verify(
         supported.result,
         supported.canonical_bytes,
+    )
+    typed_replay = M0906UncertaintyDecompositionEngine.verify(
+        typed.result,
+        typed.canonical_bytes,
     )
     tampered = M0906UncertaintyDecompositionEngine.verify(
         supported.result,
@@ -59,6 +72,19 @@ def evaluate() -> EvaluationReport:
         if supported.result.decomposition is not None
         else 0
     )
+    typed_decomposition = typed.result.decomposition
+    typed_support = (
+        next(
+            (
+                component.estimate.probability
+                for component in typed_decomposition.components
+                if component.dimension.value == "support"
+            ),
+            None,
+        )
+        if typed_decomposition is not None
+        else None
+    )
     return EvaluationReport(
         module_id="GLIO-PROTEOGEN-M09-06",
         contract_version="0.1.0-provisional",
@@ -67,7 +93,14 @@ def evaluate() -> EvaluationReport:
         uncalibrated_status=uncalibrated.result.status.value,
         seven_dimensions=dimensions,
         sensitivity_status=supported.result.sensitivity_envelope.status.value,
+        typed_status=typed.result.status.value,
+        typed_model=(typed_decomposition.method if typed_decomposition is not None else ""),
+        typed_interval_components=(
+            len(typed_decomposition.components) if typed_decomposition is not None else 0
+        ),
+        typed_bottleneck_probability=typed_support,
         replay_verified=replay.verified,
+        typed_replay_verified=typed_replay.verified,
         tamper_rejected=not tampered.verified,
         deterministic=supported.canonical_bytes == repeat.canonical_bytes,
         passed=(
@@ -79,6 +112,10 @@ def evaluate() -> EvaluationReport:
             and replay.verified
             and not tampered.verified
             and supported.canonical_bytes == repeat.canonical_bytes
+            and typed.result.status.value == "decomposed"
+            and typed_decomposition is not None
+            and len(typed_decomposition.components) == _DIMENSION_COUNT
+            and typed_replay.verified
         ),
     )
 

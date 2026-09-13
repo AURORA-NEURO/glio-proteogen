@@ -15,7 +15,21 @@ from pydantic import BaseModel
 from glio_proteogen.kernel.models import Sha256Digest
 
 
-def _json_ready(value: Any) -> Any:
+def _json_ready(value: Any) -> Any:  # noqa: C901, PLR0912 - explicit closed type traversal.
+    value_type = type(value)
+    # Canonical payloads overwhelmingly contain exact JSON built-ins. Handle
+    # those before the abstract-container checks while retaining the existing
+    # fallback order for subclasses and custom protocol implementations.
+    if value is None or value_type in (str, int, bool):
+        return value
+    if value_type is float:
+        if not math.isfinite(value):
+            raise ValueError("canonical JSON forbids NaN and infinity")
+        return 0.0 if value == 0.0 else value
+    if value_type is dict:
+        return _json_ready_mapping(value)
+    if value_type in (list, tuple):
+        return [_json_ready(item) for item in value]
     if isinstance(value, BaseModel):
         return _json_ready(value.model_dump(mode="python", by_alias=True, exclude_none=False))
     if isinstance(value, Enum):

@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import json
+from itertools import pairwise
 from pathlib import Path
 from typing import cast
 
@@ -23,6 +24,8 @@ import glio_proteogen.modules.c14_microenvironment_protein_deconvolution.m14_06_
 from glio_proteogen.adapters.m1406 import app, m1406_app
 from glio_proteogen.contracts.m14_06 import (
     M1406_OUTPUT_MEDIA_TYPE,
+    GliomaPerturbationProgram,
+    PerturbationEvidenceState,
     PerturbationKind,
     PerturbationResponseStatus,
     PerturbationSpecification,
@@ -135,6 +138,174 @@ def test_response_bounds_require_counter_evidence_and_are_closed() -> None:
             response_value=0.1,
             assumptions=("assumption",),
         )
+
+
+def test_typed_glioma_program_solver_bootstrap_and_ablations() -> None:
+    typed = (
+        _perturbation("scenario.rtk").model_copy(
+            update={
+                "program": GliomaPerturbationProgram.RTK_PI3K_AKT_MTOR,
+                "evidence_state": PerturbationEvidenceState.OBSERVED,
+                "standard_error": 0.15,
+                "quality_weight": 0.9,
+            }
+        ),
+        _perturbation("scenario.p53", baseline="1.0", perturbed="0.7").model_copy(
+            update={
+                "program": GliomaPerturbationProgram.P53_CELL_CYCLE,
+                "evidence_state": PerturbationEvidenceState.OBSERVED,
+                "standard_error": 0.2,
+                "quality_weight": 0.8,
+            }
+        ),
+        _perturbation("scenario.idh", baseline="1.0", perturbed="1.1").model_copy(
+            update={
+                "program": GliomaPerturbationProgram.IDH_HIF1A,
+                "evidence_state": PerturbationEvidenceState.OBSERVED,
+                "standard_error": 0.25,
+                "quality_weight": 0.7,
+            }
+        ),
+    )
+    request = build_scenario_request(perturbations=typed).model_copy(
+        update={
+            "configuration": build_scenario_request().configuration.model_copy(
+                update={"bootstrap_replicates": 16}
+            )
+        }
+    )
+    engine = M1406SensitivityEngine()
+    result = engine.infer(request)
+    assert result.status is SensitivitySimulationStatus.SIMULATED
+    assert result.uncertainty.measurement.probability == 0.9
+    assert result.surface is not None
+    assert result.surface.typed_model is True
+    assert result.surface.solver_iterations is not None
+    assert result.surface.objective_trace_digest is not None
+    assert len(result.surface.responses) == 3
+    assert all(item.lower_bound is not None and item.upper_bound is not None for item in result.surface.responses)
+    assert all(item.top_drivers and item.ablation_effects for item in result.surface.responses)
+    assert all(
+        item.ablation_effects[0].startswith("measurement_ablation_delta=")
+        and item.ablation_effects[1].startswith("topology_ablation_delta=")
+        for item in result.surface.responses
+    )
+    assert engine.verify(result) == result
+
+
+def test_typed_solver_backtracks_objective_increase(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    request = build_scenario_request()
+    terms = engine_module._typed_terms(request.perturbations)
+    original = engine_module._typed_objective
+    calls = 0
+    first_candidate_call = 2
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == first_candidate_call else value
+
+    monkeypatch.setattr(engine_module, "_typed_objective", objective)
+    fit = engine_module._fit_typed(terms)
+    assert fit.converged
+    assert calls > first_candidate_call
+    assert all(
+        after <= before + engine_module._OBJECTIVE_TOLERANCE
+        for before, after in pairwise(fit.objective_trace)
+    )
+
+
+def test_typed_initialization_respects_left_censor_bounds() -> None:
+    grouped = {
+        GliomaPerturbationProgram.RTK_PI3K_AKT_MTOR: [
+            engine_module._TypedTerm(
+                scenario_id="scenario.observed",
+                program=GliomaPerturbationProgram.RTK_PI3K_AKT_MTOR,
+                state=PerturbationEvidenceState.OBSERVED,
+                delta=0.6,
+                standard_error=0.2,
+                quality_weight=1.0,
+            ),
+            engine_module._TypedTerm(
+                scenario_id="scenario.censored",
+                program=GliomaPerturbationProgram.RTK_PI3K_AKT_MTOR,
+                state=PerturbationEvidenceState.LEFT_CENSORED,
+                delta=0.2,
+                standard_error=0.2,
+                quality_weight=1.0,
+            ),
+        ],
+        GliomaPerturbationProgram.P53_CELL_CYCLE: [
+            engine_module._TypedTerm(
+                scenario_id="scenario.censored-only",
+                program=GliomaPerturbationProgram.P53_CELL_CYCLE,
+                state=PerturbationEvidenceState.LEFT_CENSORED,
+                delta=-0.3,
+                standard_error=0.2,
+                quality_weight=1.0,
+            ),
+        ],
+    }
+    initial = engine_module._initial_typed_values(grouped)
+    index = {program: position for position, program in enumerate(engine_module._PROGRAM_ORDER)}
+    assert initial[index[GliomaPerturbationProgram.RTK_PI3K_AKT_MTOR]] == 0.2
+    assert initial[index[GliomaPerturbationProgram.P53_CELL_CYCLE]] == -0.3
+
+
+def test_typed_initialization_downweights_failed_perturbation_replicate() -> None:
+    """A failed perturbation batch cannot seed a spurious program response."""
+
+    program = GliomaPerturbationProgram.RTK_PI3K_AKT_MTOR
+    grouped = {
+        program: [
+            engine_module._TypedTerm(
+                scenario_id="scenario.a",
+                program=program,
+                state=PerturbationEvidenceState.OBSERVED,
+                delta=0.2,
+                standard_error=0.1,
+                quality_weight=1.0,
+            ),
+            engine_module._TypedTerm(
+                scenario_id="scenario.b",
+                program=program,
+                state=PerturbationEvidenceState.OBSERVED,
+                delta=0.3,
+                standard_error=0.1,
+                quality_weight=1.0,
+            ),
+            engine_module._TypedTerm(
+                scenario_id="scenario.failed-batch",
+                program=program,
+                state=PerturbationEvidenceState.OBSERVED,
+                delta=8.0,
+                standard_error=0.1,
+                quality_weight=1.0,
+            ),
+        ]
+    }
+
+    initial = engine_module._initial_typed_values(grouped)
+    center = initial[list(engine_module._PROGRAM_ORDER).index(program)]
+    arithmetic_mean = (0.2 + 0.3 + 8.0) / 3.0
+    assert 0.2 < center < 0.4
+    assert center < arithmetic_mean / 2.0
+
+
+def test_typed_missing_or_unsupported_evidence_abstains_without_negative_conversion() -> None:
+    typed_missing = _perturbation("scenario.missing").model_copy(
+        update={
+            "program": GliomaPerturbationProgram.MESENCHYMAL_PROGRAM,
+            "evidence_state": PerturbationEvidenceState.MISSING,
+            "quality_weight": 0.0,
+        }
+    )
+    result = M1406SensitivityEngine().infer(build_scenario_request(perturbations=(typed_missing,)))
+    assert result.status is SensitivitySimulationStatus.ABSTAINED
+    assert result.surface is None
+    assert result.abstention_reason is not None
+    assert "excluded" in result.abstention_reason
 
 
 def test_uncertainty_is_explicit_on_supported_and_abstained_paths() -> None:

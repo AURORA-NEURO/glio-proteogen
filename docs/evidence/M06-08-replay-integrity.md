@@ -19,8 +19,10 @@ through the service with `replay=False`, plugin verification with the same
 flag, API tamper rejection, and CLI round-trip plus forged-result rejection.
 The evaluator records the new
 `self_rehashed_receipt_rejected_even_when_replay_disabled` check. No protein
-abundance, proteoform, identity, consent, kinase, all-omics, or treatment
-claim is emitted; abstention remains the only publication status.
+abundance interpretation, proteoform, identity, consent, kinase, all-omics, or
+treatment claim is emitted. An evidence-complete request may publish only a
+reconstruction-visible metadata bundle; incomplete evidence continues to
+abstain.
 
 Authority remains dossier SHA-256
 `0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181`, slice

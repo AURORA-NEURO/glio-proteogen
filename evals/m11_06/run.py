@@ -110,6 +110,8 @@ def _perturbation(case_id: str) -> PerturbationSpecification:
         baseline_value="1.0",
         perturbed_value=perturbed,
         rationale="Caller-declared perturbation for the locked M11-06 evaluator.",
+        baseline_measurements=(0.92, 1.00, 1.08),
+        perturbed_measurements=(1.10, 1.20, 1.27),
         alternative_prior=(
             _artifact(f"prior-{case_id}") if kind is PerturbationKind.ALTERNATIVE_PRIOR else None
         ),
@@ -132,7 +134,7 @@ def build_scenario_request(
         configuration=SensitivitySimulationConfiguration(
             configuration_id="config.synthetic.m1106",
             version="1.0.0",
-            model_family="deterministic-bounded-reference",
+            model_family="robust-replicate-finite-difference",
             reference_artifact=_artifact("configuration"),
             maximum_scenarios=8,
             negative_control_artifact=_artifact("negative-control") if negative_control else None,

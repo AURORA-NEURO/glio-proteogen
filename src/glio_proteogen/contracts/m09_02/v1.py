@@ -8,6 +8,7 @@ feature catalogue.  These symbols are provisional scaffolding pending review.
 from __future__ import annotations
 
 from enum import StrEnum
+from math import isfinite
 from typing import Final, Literal
 
 from pydantic import Field, field_validator, model_validator
@@ -50,6 +51,12 @@ M0902_MAX_EVIDENCE: Final = 64
 M0902_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M0902_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
 M0902_M0901_RESULT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m09-01+json"
+M0902_MAX_TYPED_OBSERVATIONS: Final = 512
+M0902_MAX_TYPED_EFFECT: Final = 20.0
+M0902_DEFAULT_BOOTSTRAP_REPLICATES: Final = 64
+M0902_MAX_BOOTSTRAP_REPLICATES: Final = 256
+M0902_MAX_DIAGNOSTICS: Final = 32
+M0902_GLIOMA_MODEL_FAMILY: Final = "glioma-complex-stoichiometric-irls/1.0.0"
 M0902_EVIDENCE_CLAIM: Final = (
     "Caller-declared complex-activity representation and feature-lineage evidence; "
     "issuer authority is not authenticated."
@@ -80,6 +87,108 @@ class LeakageCheckStatus(StrEnum):
 class RepresentationConstructionStatus(StrEnum):
     CONSTRUCTED = "constructed"
     ABSTAINED = "abstained"
+
+
+class GliomaComplexEvidenceState(StrEnum):
+    """Measurement state; missing and unsupported are never negative evidence."""
+
+    OBSERVED = "observed"
+    LEFT_CENSORED = "left_censored"
+    MISSING = "missing"
+    UNSUPPORTED = "unsupported"
+
+
+class ComplexOptimizationStatus(StrEnum):
+    CONVERGED = "converged"
+    NOT_CONVERGED = "not_converged"
+    NOT_EVALUABLE = "not_evaluable"
+
+
+class GliomaComplexObservation(FrozenModel):
+    """Explicit member-level evidence for a glioma protein complex."""
+
+    observation_id: Identifier
+    feature_id: Identifier
+    complex_id: Identifier
+    member_id: Identifier
+    stoichiometric_weight: float = Field(gt=0.0, le=100.0)
+    essential: bool = False
+    evidence_state: GliomaComplexEvidenceState
+    standardized_effect: float | None = Field(
+        default=None, ge=-M0902_MAX_TYPED_EFFECT, le=M0902_MAX_TYPED_EFFECT
+    )
+    standard_error: float | None = Field(default=None, gt=0.0, le=M0902_MAX_TYPED_EFFECT)
+    quality_weight: float = Field(default=1.0, ge=0.0, le=1.0)
+    censoring_limit: float | None = Field(
+        default=None, ge=-M0902_MAX_TYPED_EFFECT, le=M0902_MAX_TYPED_EFFECT
+    )
+    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0902_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def typed_observation_shape_is_closed(self) -> GliomaComplexObservation:
+        for name, value in (
+            ("stoichiometric_weight", self.stoichiometric_weight),
+            ("standardized_effect", self.standardized_effect),
+            ("standard_error", self.standard_error),
+            ("quality_weight", self.quality_weight),
+            ("censoring_limit", self.censoring_limit),
+        ):
+            if value is not None and not isfinite(value):
+                raise ValueError(f"{name} must be finite")
+        if self.evidence_state is GliomaComplexEvidenceState.OBSERVED:
+            if (
+                self.standardized_effect is None
+                or self.standard_error is None
+                or self.censoring_limit is not None
+                or self.quality_weight <= 0.0
+            ):
+                raise ValueError(
+                    "observed complex evidence requires effect, standard error, and quality"
+                )
+        elif self.evidence_state is GliomaComplexEvidenceState.LEFT_CENSORED:
+            if (
+                self.censoring_limit is None
+                or self.standard_error is None
+                or self.standardized_effect is not None
+                or self.quality_weight <= 0.0
+            ):
+                raise ValueError(
+                    "left-censored complex evidence requires limit, standard error, and quality"
+                )
+        elif (
+            self.standardized_effect is not None
+            or self.standard_error is not None
+            or self.censoring_limit is not None
+            or self.quality_weight != 0.0
+        ):
+            raise ValueError("missing or unsupported complex evidence cannot carry a value")
+        if any(item.role != "evidence" for item in self.evidence):
+            raise ValueError("typed complex evidence must use the evidence role")
+        return self
+
+
+class ComplexOptimizationDiagnostic(FrozenModel):
+    """Replay-visible diagnostics for a typed complex activity fit."""
+
+    diagnostic_id: Identifier
+    status: ComplexOptimizationStatus
+    objective: NonEmptyStr
+    iteration_count: int = Field(ge=0)
+    objective_value: float | None = None
+    convergence_gap: float | None = Field(default=None, ge=0.0)
+    objective_trace_digest: Sha256Digest | None = None
+    model_family: NonEmptyStr | None = None
+    message: NonEmptyStr
+    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0902_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def diagnostic_shape_is_closed(self) -> ComplexOptimizationDiagnostic:
+        if self.status is ComplexOptimizationStatus.CONVERGED:
+            if self.objective_value is None or self.convergence_gap is None:
+                raise ValueError("converged diagnostic requires objective and convergence gap")
+        elif self.objective_value is not None and self.convergence_gap is None:
+            raise ValueError("objective value requires a convergence gap")
+        return self
 
 
 class RepresentationTransformation(FrozenModel):
@@ -127,6 +236,7 @@ class FeatureSpecification(FrozenModel):
     value_kind: RepresentationValueKind
     unit: NonEmptyStr
     dimension: int = Field(ge=1, le=M0902_MAX_VALUES)
+    source_values: tuple[float, ...] = Field(default=(), max_length=M0902_MAX_VALUES)
     lineage: FeatureLineage
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0902_MAX_EVIDENCE)
 
@@ -134,6 +244,10 @@ class FeatureSpecification(FrozenModel):
     def specification_binds_lineage(self) -> FeatureSpecification:
         if self.lineage.feature_id != self.feature_id:
             raise ValueError("feature specification must bind its exact lineage feature id")
+        if self.source_values and len(self.source_values) != self.dimension:
+            raise ValueError("source values must match the declared feature dimension")
+        if any(not isfinite(value) for value in self.source_values):
+            raise ValueError("source values must be finite")
         return self
 
 
@@ -151,7 +265,10 @@ class RepresentationPolicy(FrozenModel):
 
     @field_validator("covariates")
     @classmethod
-    def covariates_are_unique(cls, values: tuple[NonEmptyStr, ...]) -> tuple[NonEmptyStr, ...]:
+    def covariates_are_unique(
+        cls, values: tuple[NonEmptyStr, ...]
+    ) -> tuple[NonEmptyStr, ...]:
+        _ = cls
         if len(values) != len(set(values)):
             raise ValueError("representation policy covariates must be unique")
         return tuple(sorted(values))
@@ -166,6 +283,18 @@ class RepresentationFeature(FrozenModel):
     values: tuple[float, ...] = Field(min_length=1, max_length=M0902_MAX_VALUES)
     mask: tuple[bool, ...] = Field(default=(), max_length=M0902_MAX_VALUES)
     lineage: FeatureLineage
+    evidence_count: int = Field(default=0, ge=0, le=M0902_MAX_TYPED_OBSERVATIONS)
+    stability: float | None = Field(default=None, ge=0.0, le=1.0)
+    discordance: float | None = Field(default=None, ge=0.0, le=1.0)
+    top_drivers: tuple[NonEmptyStr, ...] = Field(default=(), max_length=8)
+    ablation_effects: tuple[NonEmptyStr, ...] = Field(default=(), max_length=8)
+    lower_bound: float | None = Field(
+        default=None, ge=-M0902_MAX_TYPED_EFFECT, le=M0902_MAX_TYPED_EFFECT
+    )
+    upper_bound: float | None = Field(
+        default=None, ge=-M0902_MAX_TYPED_EFFECT, le=M0902_MAX_TYPED_EFFECT
+    )
+    model_family: NonEmptyStr | None = None
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0902_MAX_EVIDENCE)
 
     @model_validator(mode="after")
@@ -176,6 +305,17 @@ class RepresentationFeature(FrozenModel):
             raise ValueError("feature mask must be empty or match value length")
         if self.mask and not any(self.mask):
             raise ValueError("feature mask must retain at least one supported value")
+        if (self.lower_bound is None) != (self.upper_bound is None):
+            raise ValueError("feature interval requires both bounds")
+        if (
+            self.lower_bound is not None
+            and self.upper_bound is not None
+            and (
+                self.lower_bound > self.upper_bound
+                or not self.lower_bound <= self.values[0] <= self.upper_bound
+            )
+        ):
+            raise ValueError("feature interval must contain the first value")
         return self
 
 
@@ -208,6 +348,15 @@ class ConstructComplexActivityRepresentationRequest(FrozenModel):
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M0902_MAX_EVIDENCE
     )
+    typed_observations: tuple[GliomaComplexObservation, ...] = Field(
+        default=(), max_length=M0902_MAX_TYPED_OBSERVATIONS
+    )
+    max_iterations: int = Field(default=128, gt=0, le=10_000)
+    bootstrap_replicates: int = Field(
+        default=M0902_DEFAULT_BOOTSTRAP_REPLICATES,
+        ge=16,
+        le=M0902_MAX_BOOTSTRAP_REPLICATES,
+    )
     supersedes_result_digest: Sha256Digest | None = None
 
     @model_validator(mode="after")
@@ -228,6 +377,19 @@ class ConstructComplexActivityRepresentationRequest(FrozenModel):
         lineage_ids = tuple(item.feature_id for item in self.feature_specs)
         if any(item.lineage.feature_id not in lineage_ids for item in self.feature_specs):
             raise ValueError("every feature lineage must bind a requested feature")
+        if self.typed_observations:
+            observation_ids = tuple(item.observation_id for item in self.typed_observations)
+            if len(observation_ids) != len(set(observation_ids)):
+                raise ValueError("typed complex observation identifiers must be unique")
+            typed_feature_ids = {item.feature_id for item in self.feature_specs}
+            if any(item.feature_id not in typed_feature_ids for item in self.typed_observations):
+                raise ValueError("typed complex observations must bind requested features")
+            member_keys = tuple(
+                (item.feature_id, item.complex_id, item.member_id)
+                for item in self.typed_observations
+            )
+            if len(member_keys) != len(set(member_keys)):
+                raise ValueError("typed complex member evidence must be unique per member")
         return self
 
 
@@ -242,6 +404,10 @@ class ComplexActivityRepresentationResult(FrozenModel):
     request: ConstructComplexActivityRepresentationRequest
     status: RepresentationConstructionStatus
     features: tuple[RepresentationFeature, ...] = Field(default=(), max_length=M0902_MAX_FEATURES)
+    optimization_diagnostics: tuple[ComplexOptimizationDiagnostic, ...] = Field(
+        default=(), max_length=M0902_MAX_DIAGNOSTICS
+    )
+    model_family: NonEmptyStr | None = None
     leakage_checks: tuple[LeakageCheck, ...] = Field(
         default=(), max_length=M0902_MAX_LEAKAGE_CHECKS
     )
@@ -267,6 +433,9 @@ class ComplexActivityRepresentationResult(FrozenModel):
         check_ids = tuple(item.check_id for item in self.leakage_checks)
         if len(check_ids) != len(set(check_ids)):
             raise ValueError("result leakage check ids must be unique")
+        optimization_ids = tuple(item.diagnostic_id for item in self.optimization_diagnostics)
+        if len(optimization_ids) != len(set(optimization_ids)):
+            raise ValueError("result optimization diagnostic ids must be unique")
         leakage_statuses = {item.status for item in self.leakage_checks}
         if self.status is RepresentationConstructionStatus.CONSTRUCTED:
             if (
@@ -292,16 +461,22 @@ class ComplexActivityRepresentationResult(FrozenModel):
 
 __all__ = [
     "M0902_CONTRACT_VERSION",
+    "M0902_DEFAULT_BOOTSTRAP_REPLICATES",
     "M0902_EVIDENCE_CLAIM",
     "M0902_GATE",
+    "M0902_GLIOMA_MODEL_FAMILY",
     "M0902_M0901_RESULT_MEDIA_TYPE",
+    "M0902_MAX_BOOTSTRAP_REPLICATES",
     "M0902_MAX_CANONICAL_REQUEST_BYTES",
     "M0902_MAX_CANONICAL_RESULT_BYTES",
+    "M0902_MAX_DIAGNOSTICS",
     "M0902_MAX_EVIDENCE",
     "M0902_MAX_FEATURES",
     "M0902_MAX_LEAKAGE_CHECKS",
     "M0902_MAX_SOURCE_FIELDS",
     "M0902_MAX_TRANSFORMATIONS",
+    "M0902_MAX_TYPED_EFFECT",
+    "M0902_MAX_TYPED_OBSERVATIONS",
     "M0902_MAX_VALUES",
     "M0902_MODULE_ID",
     "M0902_OPERATION",
@@ -311,9 +486,13 @@ __all__ = [
     "M0902_PROVISIONAL_ABI",
     "M0902_SAFETY_CLASS",
     "ComplexActivityRepresentationResult",
+    "ComplexOptimizationDiagnostic",
+    "ComplexOptimizationStatus",
     "ConstructComplexActivityRepresentationRequest",
     "FeatureLineage",
     "FeatureSpecification",
+    "GliomaComplexEvidenceState",
+    "GliomaComplexObservation",
     "LeakageCheck",
     "LeakageCheckStatus",
     "RepresentationConstructionStatus",

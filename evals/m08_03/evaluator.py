@@ -11,7 +11,7 @@ from glio_proteogen.modules.c08_transcript_protein.m08_03_mature_baseline_estima
     M0803Service,
 )
 
-from .fixtures import request
+from .fixtures import request, typed_request
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,6 +64,7 @@ def scenarios() -> tuple[M0803Scenario, ...]:
             "estimated",
             _architecture_request(BaselineMethod.SELECTIVE_ENSEMBLE_COMPLEX_GRAPH),
         ),
+        M0803Scenario("typed-glioma-program-graph", "estimated", typed_request()),
     )
 
 

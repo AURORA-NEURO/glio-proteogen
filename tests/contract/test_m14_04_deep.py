@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import json
+from itertools import pairwise
 from pathlib import Path
 from typing import cast
 
@@ -19,10 +20,13 @@ import glio_proteogen.modules.c14_microenvironment_protein_deconvolution.m14_04_
 from glio_proteogen.adapters.m1404 import app, m1404_app
 from glio_proteogen.contracts.m14_04 import (
     M1404_OUTPUT_MEDIA_TYPE,
+    GliomaMechanismProgram,
     InferProteinSubtypeMechanismRequest,
     MechanismEstimate,
     MechanismEstimateKind,
+    MechanismEvidenceState,
     MechanismInferenceStatus,
+    MechanismObservation,
     ProteinSubtypeMechanismInferenceResult,
     contract_json_schema,
     contract_json_schemas,
@@ -126,6 +130,195 @@ def test_posterior_result_has_counter_evidence_and_provenance() -> None:
     assert result.provenance.module_id == "GLIO-PROTEOGEN-M14-04"
     assert result.parent_target == "protein_subtype"
     assert result.emits_parent is False
+
+
+def test_typed_glioma_network_solver_bootstrap_and_replay() -> None:
+    base = build_scenario_request()
+    evidence = base.configuration.evidence
+    observations = (
+        MechanismObservation(
+            observation_id="observation.rtk",
+            program=GliomaMechanismProgram.RTK_PI3K_AKT_MTOR,
+            evidence_state=MechanismEvidenceState.OBSERVED,
+            standardized_effect=0.9,
+            standard_error=0.15,
+            quality_weight=0.9,
+            evidence=evidence,
+        ),
+        MechanismObservation(
+            observation_id="observation.p53",
+            program=GliomaMechanismProgram.P53_CELL_CYCLE,
+            evidence_state=MechanismEvidenceState.OBSERVED,
+            standardized_effect=-0.6,
+            standard_error=0.2,
+            quality_weight=0.8,
+            evidence=evidence,
+        ),
+        MechanismObservation(
+            observation_id="observation.idh",
+            program=GliomaMechanismProgram.IDH_HIF1A,
+            evidence_state=MechanismEvidenceState.OBSERVED,
+            standardized_effect=0.25,
+            standard_error=0.25,
+            quality_weight=0.7,
+            evidence=evidence,
+        ),
+        MechanismObservation(
+            observation_id="observation.missing",
+            program=GliomaMechanismProgram.MESENCHYMAL_PROGRAM,
+            evidence_state=MechanismEvidenceState.MISSING,
+        ),
+    )
+    request = base.model_copy(
+        update={
+            "observations": observations,
+            "configuration": base.configuration.model_copy(update={"bootstrap_replicates": 16}),
+        }
+    )
+    engine = M1404MechanismEngine()
+    result = engine.infer(request)
+    assert result.status is MechanismInferenceStatus.INFERRED
+    assert result.typed_model is True
+    assert result.solver_iterations is not None
+    assert result.objective_trace_digest is not None
+    assert result.uncertainty.measurement.probability == 0.9
+    assert len(result.estimates) == len(GliomaMechanismProgram)
+    assert all(item.effect_lower_bound is not None for item in result.estimates)
+    assert all(item.evidence_count is not None for item in result.estimates)
+    assert all(item.top_drivers and item.ablation_effects for item in result.estimates)
+    assert all(
+        item.ablation_effects[0].startswith("measurement_ablation_delta=")
+        and item.ablation_effects[1].startswith("topology_ablation_delta=")
+        for item in result.estimates
+    )
+    assert result.estimates[0].classification in {"active", "inactive", "stable"}
+    assert engine.verify(result) == result
+
+
+def test_typed_network_solver_backtracks_objective_increase(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    terms = (
+        engine_module._TypedTerm(
+            observation_id="observation.rtk",
+            program=GliomaMechanismProgram.RTK_PI3K_AKT_MTOR,
+            state=MechanismEvidenceState.OBSERVED,
+            effect=1.1,
+            standard_error=0.2,
+            quality_weight=0.95,
+        ),
+        engine_module._TypedTerm(
+            observation_id="observation.p53",
+            program=GliomaMechanismProgram.P53_CELL_CYCLE,
+            state=MechanismEvidenceState.OBSERVED,
+            effect=-0.7,
+            standard_error=0.25,
+            quality_weight=0.9,
+        ),
+    )
+    original = engine_module._typed_objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == 2 else value
+
+    monkeypatch.setattr(engine_module, "_typed_objective", objective)
+    fit = engine_module._fit_typed(terms)
+    assert fit.converged
+    assert calls > 2
+    assert all(
+        after <= before + engine_module._OBJECTIVE_TOLERANCE
+        for before, after in pairwise(fit.objective_trace)
+    )
+
+
+def test_typed_initialization_keeps_left_censored_limits_feasible() -> None:
+    """Mechanism starts use observed centers and feasible censor bounds."""
+
+    terms = {
+        GliomaMechanismProgram.RTK_PI3K_AKT_MTOR: [
+            engine_module._TypedTerm(
+                observation_id="observed",
+                program=GliomaMechanismProgram.RTK_PI3K_AKT_MTOR,
+                state=MechanismEvidenceState.OBSERVED,
+                effect=1.2,
+                standard_error=0.2,
+                quality_weight=1.0,
+            ),
+            engine_module._TypedTerm(
+                observation_id="censored",
+                program=GliomaMechanismProgram.RTK_PI3K_AKT_MTOR,
+                state=MechanismEvidenceState.LEFT_CENSORED,
+                effect=0.4,
+                standard_error=0.2,
+                quality_weight=1.0,
+            ),
+        ],
+    }
+    values = engine_module._initial_typed_values(terms)
+    position = list(GliomaMechanismProgram).index(GliomaMechanismProgram.RTK_PI3K_AKT_MTOR)
+    assert values[position] == 0.4
+
+
+def test_typed_initialization_downweights_failed_mechanism_replicate() -> None:
+    """An extreme batch replicate cannot seed every downstream mechanism edge."""
+
+    program = GliomaMechanismProgram.RTK_PI3K_AKT_MTOR
+    terms = {
+        program: [
+            engine_module._TypedTerm(
+                observation_id="replicate-a",
+                program=program,
+                state=MechanismEvidenceState.OBSERVED,
+                effect=0.7,
+                standard_error=0.1,
+                quality_weight=1.0,
+            ),
+            engine_module._TypedTerm(
+                observation_id="replicate-b",
+                program=program,
+                state=MechanismEvidenceState.OBSERVED,
+                effect=0.8,
+                standard_error=0.1,
+                quality_weight=1.0,
+            ),
+            engine_module._TypedTerm(
+                observation_id="failed-batch",
+                program=program,
+                state=MechanismEvidenceState.OBSERVED,
+                effect=8.0,
+                standard_error=0.1,
+                quality_weight=1.0,
+            ),
+        ]
+    }
+
+    values = engine_module._initial_typed_values(terms)
+    center = values[list(GliomaMechanismProgram).index(program)]
+    arithmetic_mean = (0.7 + 0.8 + 8.0) / 3.0
+    assert 0.7 < center < 0.9
+    assert center < arithmetic_mean / 2.0
+
+
+def test_typed_network_all_missing_abstains_without_negative_state() -> None:
+    base = build_scenario_request()
+    request = base.model_copy(
+        update={
+            "observations": (
+                MechanismObservation(
+                    observation_id="observation.unsupported",
+                    program=GliomaMechanismProgram.RTK_PI3K_AKT_MTOR,
+                    evidence_state=MechanismEvidenceState.UNSUPPORTED,
+                ),
+            )
+        }
+    )
+    result = M1404MechanismEngine().infer(request)
+    assert result.status is MechanismInferenceStatus.ABSTAINED
+    assert not result.estimates
+    assert result.abstention_reason is not None
+    assert "observed" in result.abstention_reason
 
 
 def test_request_and_result_closure_reject_forged_payloads() -> None:

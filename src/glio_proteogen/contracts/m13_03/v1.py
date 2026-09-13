@@ -10,7 +10,7 @@ scaffolding pending owner confirmation.
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Final, Literal
+from typing import Final, Literal, Self
 
 from pydantic import Field, model_validator
 
@@ -52,6 +52,7 @@ M1303_GATE: Final = "G1"
 M1303_PROVISIONAL_ABI: Final = True
 M1303_MAX_FEATURES: Final = 2_048
 M1303_MAX_RELATIONS: Final = 4_096
+M1303_MAX_OBSERVATIONS: Final = 512
 M1303_MAX_TRANSFORMATIONS: Final = 512
 M1303_MAX_EVIDENCE: Final = 64
 M1303_MAX_DIAGNOSTICS: Final = 128
@@ -71,6 +72,54 @@ class MechanisticFeatureKind(StrEnum):
     KINETICS = "kinetics"
     SPATIAL = "spatial"
     REGULATORY = "regulatory"
+
+
+class MechanisticEntityKind(StrEnum):
+    """Typed entities accepted by the glioma mechanistic evidence model."""
+
+    PROTEIN = "protein"
+    PHOSPHOSITE = "phosphosite"
+    PATHWAY = "pathway"
+    COMPLEX = "complex"
+
+
+class MechanisticEvidenceState(StrEnum):
+    """Explicit measurement state; absence is never interpreted as a decrease."""
+
+    OBSERVED = "observed"
+    LEFT_CENSORED = "left_censored"
+    MISSING = "missing"
+    UNSUPPORTED = "unsupported"
+
+
+# The catalog is intentionally small and reviewable.  It is a glioma-domain
+# vocabulary, not a general gene namespace, and keeps this provisional lane
+# from silently accepting unresolved identifiers.
+M1303_GLIOMA_ENTITY_KINDS: Final[tuple[tuple[str, MechanisticEntityKind], ...]] = (
+    ("AKT1", MechanisticEntityKind.PROTEIN),
+    ("CDKN2A", MechanisticEntityKind.PROTEIN),
+    ("EGFR", MechanisticEntityKind.PROTEIN),
+    ("HIF1A", MechanisticEntityKind.PROTEIN),
+    ("IDH1", MechanisticEntityKind.PROTEIN),
+    ("MTOR", MechanisticEntityKind.PROTEIN),
+    ("NF1", MechanisticEntityKind.PROTEIN),
+    ("OLIG2", MechanisticEntityKind.PROTEIN),
+    ("PDGFRA", MechanisticEntityKind.PROTEIN),
+    ("PTEN", MechanisticEntityKind.PROTEIN),
+    ("RB1", MechanisticEntityKind.PROTEIN),
+    ("SOX2", MechanisticEntityKind.PROTEIN),
+    ("TP53", MechanisticEntityKind.PROTEIN),
+    ("AKT1_S473", MechanisticEntityKind.PHOSPHOSITE),
+    ("EGFR_Y1068", MechanisticEntityKind.PHOSPHOSITE),
+    ("RPS6_S235", MechanisticEntityKind.PHOSPHOSITE),
+    ("IDH_HIF1A", MechanisticEntityKind.PATHWAY),
+    ("MESENCHYMAL_PROGRAM", MechanisticEntityKind.PATHWAY),
+    ("P53_CELL_CYCLE", MechanisticEntityKind.PATHWAY),
+    ("PROLIFERATION", MechanisticEntityKind.PATHWAY),
+    ("RTK_PI3K_AKT_MTOR", MechanisticEntityKind.PATHWAY),
+    ("CDK4_RB", MechanisticEntityKind.COMPLEX),
+    ("MTORC1", MechanisticEntityKind.COMPLEX),
+)
 
 
 class MechanisticValueKind(StrEnum):
@@ -122,6 +171,35 @@ class MechanisticFeatureLineage(FrozenModel):
     )
     complete: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1303_MAX_EVIDENCE)
+
+
+class MechanisticObservation(FrozenModel):
+    """One typed proteomic/phosphoproteomic effect for the glioma model."""
+
+    observation_id: Identifier
+    entity_id: Identifier
+    entity_kind: MechanisticEntityKind
+    state: MechanisticEvidenceState
+    standardized_effect: float | None = Field(default=None, ge=-20.0, le=20.0)
+    standard_error: float | None = Field(default=None, gt=0.0, le=20.0)
+    quality_weight: float = Field(default=1.0, ge=0.0, le=1.0)
+    provenance_digest: Sha256Digest
+
+    @model_validator(mode="after")
+    def values_match_state(self) -> Self:
+        active = self.state in {
+            MechanisticEvidenceState.OBSERVED,
+            MechanisticEvidenceState.LEFT_CENSORED,
+        }
+        if active and (self.standardized_effect is None or self.standard_error is None):
+            raise ValueError("active mechanistic evidence requires effect and standard error")
+        if active and self.quality_weight <= 0.0:
+            raise ValueError("active mechanistic evidence requires positive quality")
+        if not active and (self.standardized_effect is not None or self.standard_error is not None):
+            raise ValueError("missing and unsupported evidence cannot carry numeric values")
+        if not active and self.quality_weight != 0.0:
+            raise ValueError("missing and unsupported evidence must have zero quality")
+        return self
 
 
 class MechanisticFeature(FrozenModel):
@@ -188,6 +266,7 @@ class MechanisticFeatureConfiguration(FrozenModel):
     negative_control_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M1303_MAX_EVIDENCE
     )
+    bootstrap_replicates: int = Field(default=64, ge=16, le=256)
     locked: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1303_MAX_EVIDENCE)
 
@@ -255,6 +334,9 @@ class ConstructProteotypeMechanisticFeaturesRequest(FrozenModel):
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M1303_MAX_EVIDENCE
     )
+    observations: tuple[MechanisticObservation, ...] = Field(
+        default=(), max_length=M1303_MAX_OBSERVATIONS
+    )
     supersedes_result_digest: Sha256Digest | None = None
 
     @model_validator(mode="after")
@@ -273,6 +355,21 @@ class ConstructProteotypeMechanisticFeaturesRequest(FrozenModel):
         )
         if any(item in config_keys for item in keys):
             raise ValueError("source artifacts cannot alias negative-control artifacts")
+        observation_ids = tuple(item.observation_id for item in self.observations)
+        if len(observation_ids) != len(set(observation_ids)):
+            raise ValueError("mechanistic observation ids must be unique")
+        entity_kinds = dict(M1303_GLIOMA_ENTITY_KINDS)
+        unresolved = sorted(
+            item.entity_id
+            for item in self.observations
+            if entity_kinds.get(item.entity_id) is not item.entity_kind
+        )
+        if unresolved:
+            preview = ", ".join(unresolved[:5])
+            raise ValueError(
+                "mechanistic observations contain unresolved glioma entities: "
+                f"{preview}"
+            )
         return self
 
 
@@ -369,8 +466,8 @@ def expected_uncertainty() -> UncertaintyProfile:
             rationale="Transport domain is not inferred from opaque artifacts.",
         ),
         sensitivity_notes=(
-            "Scores are deterministic digest-derived reference features; "
-            "no raw payload is traversed.",
+            "Typed effects are fitted with a signed glioma pathway graph and robust IRLS; "
+            "opaque artifacts are never traversed.",
         ),
     )
 
@@ -386,7 +483,22 @@ def expected_limitations() -> tuple[Limitation, ...]:
         Limitation(
             code="caller_declared_evidence",
             statement=(
-                "Source evidence is caller-declared and issuer authority is not authenticated."
+                "Source evidence is caller-declared and issuer authority is not authenticated; "
+                "typed effects are still required for numerical construction."
+            ),
+        ),
+        Limitation(
+            code="opaque_request_abstention",
+            statement=(
+                "Requests without typed glioma observations abstain rather than deriving "
+                "scores from artifact identifiers or digests."
+            ),
+        ),
+        Limitation(
+            code="no_kinetics_or_spatial",
+            statement=(
+                "Kinetics and spatial features remain explicitly not estimable without "
+                "corresponding time-series or spatial measurements."
             ),
         ),
         Limitation(
@@ -462,6 +574,7 @@ __all__ = [
     "M1303_CONTRACT_VERSION",
     "M1303_EVIDENCE_CLAIM",
     "M1303_GATE",
+    "M1303_GLIOMA_ENTITY_KINDS",
     "M1303_M1302_INPUT_MEDIA_TYPE",
     "M1303_MAX_CANONICAL_REQUEST_BYTES",
     "M1303_MAX_CANONICAL_RESULT_BYTES",
@@ -469,6 +582,7 @@ __all__ = [
     "M1303_MAX_EVIDENCE",
     "M1303_MAX_FEATURES",
     "M1303_MAX_FINDINGS",
+    "M1303_MAX_OBSERVATIONS",
     "M1303_MAX_RELATIONS",
     "M1303_MAX_TRANSFORMATIONS",
     "M1303_MODULE_ID",
@@ -481,6 +595,8 @@ __all__ = [
     "ConstructProteotypeMechanisticFeaturesRequest",
     "MechanisticConstructionStatus",
     "MechanisticDiagnosticStatus",
+    "MechanisticEntityKind",
+    "MechanisticEvidenceState",
     "MechanisticFeature",
     "MechanisticFeatureConfiguration",
     "MechanisticFeatureDiagnostic",
@@ -488,6 +604,7 @@ __all__ = [
     "MechanisticFeatureLineage",
     "MechanisticFeatureObject",
     "MechanisticFindingCode",
+    "MechanisticObservation",
     "MechanisticRelation",
     "MechanisticRelationKind",
     "MechanisticValueKind",

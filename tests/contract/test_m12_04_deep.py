@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from itertools import pairwise
 from typing import Any
 
 import pytest
@@ -14,6 +15,7 @@ import pytest
 import glio_proteogen.modules.c12_driver_to_protein_consequence.m12_04_network_state_mechanism_inference as m1204_package
 import glio_proteogen.modules.c12_driver_to_protein_consequence.m12_04_network_state_mechanism_inference.engine as engine_module
 from glio_proteogen.contracts.m12_04 import (
+    M1204_GLIOMA_MODEL_FAMILY,
     M1204_M1201_RESULT_MEDIA_TYPE,
     M1204_MODULE_ID,
     BiomarkerPanelMechanismInferenceResult,
@@ -23,6 +25,10 @@ from glio_proteogen.contracts.m12_04 import (
     MechanismFindingCode,
     MechanismInferenceConfiguration,
     MechanismInferenceStatus,
+    MechanismObservation,
+    MechanismObservationState,
+    MechanismRelation,
+    MechanismRelationKind,
     expected_uncertainty,
     result_payload_digest,
 )
@@ -164,6 +170,151 @@ def test_supported_posterior_is_typed_and_replayable() -> None:
     assert result.provenance.module_id == M1204_MODULE_ID
     assert result.parent_target == "biomarker_panel"
     assert engine.verify(result).model_dump(mode="json") == result.model_dump(mode="json")
+
+
+def test_typed_glioma_panel_graph_fits_and_replays() -> None:
+    base = _request()
+    typed = base.model_copy(
+        update={
+            "configuration": base.configuration.model_copy(
+                update={
+                    "model_family": M1204_GLIOMA_MODEL_FAMILY,
+                    "bootstrap_replicates": 16,
+                }
+            ),
+            "typed_observations": (
+                MechanismObservation(
+                    observation_id="obs.egfr",
+                    mechanism_id="egfr",
+                    label="EGFR signaling",
+                    standardized_effect=1.3,
+                    standard_error=0.2,
+                ),
+                MechanismObservation(
+                    observation_id="obs.pten",
+                    mechanism_id="pten",
+                    label="PTEN brake",
+                    standardized_effect=-0.7,
+                    standard_error=0.25,
+                ),
+                MechanismObservation(
+                    observation_id="obs.akt",
+                    mechanism_id="akt",
+                    label="AKT signaling",
+                    standardized_effect=0.5,
+                    standard_error=0.3,
+                    state=MechanismObservationState.LEFT_CENSORED,
+                ),
+            ),
+            "typed_relations": (
+                MechanismRelation(
+                    relation_id="rel.egfr-pten",
+                    source_mechanism_id="egfr",
+                    target_mechanism_id="pten",
+                    kind=MechanismRelationKind.INHIBITS,
+                    weight=0.7,
+                ),
+            ),
+        }
+    )
+    engine = M1204MechanismEngine()
+    result = engine.infer(typed)
+    assert result.status is MechanismInferenceStatus.INFERRED
+    assert result.typed_model is True
+    assert result.model_profile == M1204_GLIOMA_MODEL_FAMILY
+    assert result.solver_iterations > 0
+    assert result.solver_objective is not None
+    assert len(result.estimates) == 3
+    assert (
+        next(item for item in result.estimates if item.mechanism_id == "egfr").posterior_probability
+        > 0.5
+    )
+    assert engine.verify(result) == result
+
+
+def test_typed_panel_solver_backtracks_objective_increase(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    base = _request()
+    request = base.model_copy(
+        update={
+            "configuration": base.configuration.model_copy(
+                update={"model_family": M1204_GLIOMA_MODEL_FAMILY, "bootstrap_replicates": 8}
+            ),
+            "typed_observations": (
+                MechanismObservation(
+                    observation_id="obs.egfr",
+                    mechanism_id="egfr",
+                    label="EGFR signaling",
+                    standardized_effect=1.1,
+                    standard_error=0.2,
+                    quality_weight=0.95,
+                ),
+                MechanismObservation(
+                    observation_id="obs.pten",
+                    mechanism_id="pten",
+                    label="PTEN brake",
+                    standardized_effect=-0.7,
+                    standard_error=0.25,
+                    quality_weight=0.9,
+                ),
+            ),
+            "typed_relations": (
+                MechanismRelation(
+                    relation_id="rel.egfr-pten",
+                    source_mechanism_id="egfr",
+                    target_mechanism_id="pten",
+                    kind=MechanismRelationKind.INHIBITS,
+                    weight=0.7,
+                ),
+            ),
+        }
+    )
+    original = engine_module._typed_objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == 2 else value
+
+    monkeypatch.setattr(engine_module, "_typed_objective", objective)
+    fit = engine_module._fit_typed(request)
+    assert fit is not None
+    assert fit.converged
+    assert calls > 2
+    assert all(
+        after <= before + engine_module._M1204_OBJECTIVE_TOLERANCE
+        for before, after in pairwise(fit.trace)
+    )
+
+
+def test_typed_initialization_keeps_left_censored_limits_feasible() -> None:
+    """Mechanism starts use observed centers and feasible censor bounds."""
+
+    observations = [
+        (0, 1.2, 0.2, 1.0, MechanismObservationState.OBSERVED),
+        (0, 0.4, 0.2, 1.0, MechanismObservationState.LEFT_CENSORED),
+        (1, -0.3, 0.2, 1.0, MechanismObservationState.LEFT_CENSORED),
+    ]
+
+    values = engine_module._initial_typed_values(observations, 2)
+    assert values == [0.4, -0.3]
+
+
+def test_typed_initialization_downweights_failed_panel_replicate() -> None:
+    """Repeated panel-mechanism observations use a robust Huber center."""
+
+    terms = tuple(
+        (0, target, 0.2, 1.0, MechanismObservationState.OBSERVED)
+        for target in (0.2, 0.25, 0.3, 4.0)
+    )
+    center = engine_module._robust_initial_center(terms)
+    arithmetic_mean = sum(term[1] for term in terms) / len(terms)
+    assert center < 0.5
+    assert arithmetic_mean > 1.0
+    assert engine_module._initial_measurement_objective(center, terms) <= (
+        engine_module._initial_measurement_objective(arithmetic_mean, terms)
+    )
 
 
 def test_state_method_preserves_alternatives_and_counter_evidence() -> None:

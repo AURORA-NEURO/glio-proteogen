@@ -1,0 +1,6025 @@
+{
+  "profile": {
+    "algorithm_id": "glio-ecgi",
+    "algorithm_version": "1.0.0",
+    "claim_ceiling": "limited_unvalidated_caller_graph",
+    "constants": {
+      "ablation_permutation_policy": "common_base_computational_request_domain",
+      "ablation_policy": "full_two_pass_reestimate",
+      "activation_threshold": 0.25,
+      "backtracking_factor": 0.5,
+      "backtracking_steps": 18,
+      "bootstrap_kinase_policy": "conditional_supported_kinase_rescore",
+      "bootstrap_perturbation_scale": 1.0,
+      "bootstrap_quantile_method": "linear",
+      "bootstrap_sampling_policy": "antithetic_normal_v1",
+      "complex_coherence_weight": 0.45,
+      "computational_digest_policy": "explicit_numerical_projection_v1",
+      "damping": 0.72,
+      "discordance_scale": 1.0,
+      "empirical_p_pseudocount": 1.0,
+      "essential_bottleneck_weight": 1.75,
+      "first_pass_edge_policy": "exclude_kinase_substrate",
+      "huber_delta": 1.345,
+      "interval_lower_quantile": 0.05,
+      "interval_upper_quantile": 0.95,
+      "kinase_feedback_standard_error": 1.0,
+      "kinase_feedback_weight": 0.75,
+      "kinase_min_substrates": 3,
+      "kinase_null_ddof": 1,
+      "kinase_null_sd_floor": 0.05,
+      "kinase_q_threshold": 0.1,
+      "kinase_score_clip": 5.0,
+      "left_censor_support_policy": "binding_upper_bound_or_independent_directed_evidence",
+      "max_iterations": 1000,
+      "max_top_drivers": 5,
+      "min_rank_correlation_pairs": 2,
+      "min_stratified_site_count": 4,
+      "objective_increase_tolerance": 1e-12,
+      "objective_trace_policy": "paired_frozen_parent_baseline_candidate",
+      "quantization_decimals": 8,
+      "random_seed_bytes": 8,
+      "random_seed_modulus": 9007199254740992,
+      "rank_center": 0.5,
+      "relaxed_max_iterations": 96,
+      "relaxed_tolerance": 2e-05,
+      "reliability_stratum_q1": 0.25,
+      "reliability_stratum_q2": 0.5,
+      "reliability_stratum_q3": 0.75,
+      "ridge_penalty": 0.035,
+      "second_pass_kinase_edge_policy": "supported_feedback_sources_only",
+      "secondary_convergence_policy": "relaxed_then_full_or_fail",
+      "solver_semantics": "directed_conditional_irls",
+      "sweep_update_policy": "synchronous_frozen_parent",
+      "tolerance": 1e-07
+    },
+    "demo_graph_digest": "sha256:7ccc01a460714c7f4920002cf4570bb49a43c91191ee9de85f9177f1d52341a5",
+    "demo_topology_provenance_digest": "sha256:e3bca8ecf571f69fc7afa37631039eb873e245e1d56ad0c9f13e1297f97697d4",
+    "interpretation": "non_prescriptive",
+    "limits": {
+      "max_bootstrap_replicates": 256,
+      "max_edges": 2048,
+      "max_kinases": 128,
+      "max_nodes": 256,
+      "max_observations": 4096,
+      "max_permutation_replicates": 2048,
+      "max_request_bytes": 2097152,
+      "max_result_bytes": 4194304
+    },
+    "numpy_version": "2.5.2",
+    "profile_digest": "sha256:0600809e58cc1ed08e6e5f0cbd1b5ce39a75ac241f4d0390a1a815997aec00e5",
+    "profile_id": "glio-ecgi/1.0.0",
+    "relation_weights": [
+      {
+        "kind": "regulates",
+        "weight": 0.75
+      },
+      {
+        "kind": "member_of",
+        "weight": 0.9
+      },
+      {
+        "kind": "kinase_substrate",
+        "weight": 0.3
+      },
+      {
+        "kind": "participates_in",
+        "weight": 0.8
+      },
+      {
+        "kind": "proteoform_of",
+        "weight": 0.55
+      },
+      {
+        "kind": "site_of",
+        "weight": 0.2
+      }
+    ],
+    "safety_class": "research_use_only"
+  },
+  "request": {
+    "bootstrap_replicates": 64,
+    "edges": [
+      {
+        "edge_id": "edge.001",
+        "essential": false,
+        "kind": "proteoform_of",
+        "sign": 1,
+        "source_id": "proteoform.EGFR.vIII",
+        "target_id": "protein.EGFR",
+        "weight": 1.2
+      },
+      {
+        "edge_id": "edge.002",
+        "essential": false,
+        "kind": "proteoform_of",
+        "sign": 1,
+        "source_id": "proteoform.PTEN.canonical",
+        "target_id": "protein.PTEN",
+        "weight": 1.2
+      },
+      {
+        "edge_id": "edge.003",
+        "essential": false,
+        "kind": "proteoform_of",
+        "sign": 1,
+        "source_id": "proteoform.AKT1.canonical",
+        "target_id": "protein.AKT1",
+        "weight": 1.2
+      },
+      {
+        "edge_id": "edge.004",
+        "essential": false,
+        "kind": "proteoform_of",
+        "sign": 1,
+        "source_id": "proteoform.MAPK1.canonical",
+        "target_id": "protein.MAPK1",
+        "weight": 1.2
+      },
+      {
+        "edge_id": "edge.005",
+        "essential": false,
+        "kind": "proteoform_of",
+        "sign": 1,
+        "source_id": "proteoform.CDK1.canonical",
+        "target_id": "protein.CDK1",
+        "weight": 1.2
+      },
+      {
+        "edge_id": "edge.006",
+        "essential": false,
+        "kind": "proteoform_of",
+        "sign": 1,
+        "source_id": "proteoform.MTOR.canonical",
+        "target_id": "protein.MTOR",
+        "weight": 1.2
+      },
+      {
+        "edge_id": "edge.007",
+        "essential": false,
+        "kind": "proteoform_of",
+        "sign": 1,
+        "source_id": "proteoform.RB1.canonical",
+        "target_id": "protein.RB1",
+        "weight": 1.2
+      },
+      {
+        "edge_id": "edge.008",
+        "essential": false,
+        "kind": "proteoform_of",
+        "sign": 1,
+        "source_id": "proteoform.TP53.canonical",
+        "target_id": "protein.TP53",
+        "weight": 1.2
+      },
+      {
+        "edge_id": "edge.009",
+        "essential": false,
+        "kind": "proteoform_of",
+        "sign": 1,
+        "source_id": "proteoform.PDGFRA.canonical",
+        "target_id": "protein.PDGFRA",
+        "weight": 1.2
+      },
+      {
+        "edge_id": "edge.010",
+        "essential": false,
+        "kind": "proteoform_of",
+        "sign": 1,
+        "source_id": "proteoform.NF1.canonical",
+        "target_id": "protein.NF1",
+        "weight": 1.2
+      },
+      {
+        "edge_id": "edge.011",
+        "essential": false,
+        "kind": "proteoform_of",
+        "sign": 1,
+        "source_id": "proteoform.STAT3.canonical",
+        "target_id": "protein.STAT3",
+        "weight": 1.2
+      },
+      {
+        "edge_id": "edge.012",
+        "essential": false,
+        "kind": "proteoform_of",
+        "sign": 1,
+        "source_id": "proteoform.ERBB3.canonical",
+        "target_id": "protein.ERBB3",
+        "weight": 1.2
+      },
+      {
+        "edge_id": "edge.013",
+        "essential": false,
+        "kind": "site_of",
+        "sign": 1,
+        "source_id": "phosphosite.EGFR.Y1068",
+        "target_id": "proteoform.EGFR.vIII",
+        "weight": 0.35
+      },
+      {
+        "edge_id": "edge.014",
+        "essential": false,
+        "kind": "site_of",
+        "sign": 1,
+        "source_id": "phosphosite.EGFR.Y1173",
+        "target_id": "proteoform.EGFR.vIII",
+        "weight": 0.35
+      },
+      {
+        "edge_id": "edge.015",
+        "essential": false,
+        "kind": "site_of",
+        "sign": 1,
+        "source_id": "phosphosite.ERBB3.Y1289",
+        "target_id": "proteoform.ERBB3.canonical",
+        "weight": 0.35
+      },
+      {
+        "edge_id": "edge.016",
+        "essential": false,
+        "kind": "site_of",
+        "sign": 1,
+        "source_id": "phosphosite.STAT3.Y705",
+        "target_id": "proteoform.STAT3.canonical",
+        "weight": 0.35
+      },
+      {
+        "edge_id": "edge.017",
+        "essential": false,
+        "kind": "site_of",
+        "sign": 1,
+        "source_id": "phosphosite.GAB1.Y627",
+        "target_id": "proteoform.EGFR.vIII",
+        "weight": 0.35
+      },
+      {
+        "edge_id": "edge.018",
+        "essential": false,
+        "kind": "site_of",
+        "sign": 1,
+        "source_id": "phosphosite.SHC1.Y317",
+        "target_id": "proteoform.EGFR.vIII",
+        "weight": 0.35
+      },
+      {
+        "edge_id": "edge.019",
+        "essential": false,
+        "kind": "site_of",
+        "sign": 1,
+        "source_id": "phosphosite.AKT1.S473",
+        "target_id": "proteoform.AKT1.canonical",
+        "weight": 0.35
+      },
+      {
+        "edge_id": "edge.020",
+        "essential": false,
+        "kind": "site_of",
+        "sign": 1,
+        "source_id": "phosphosite.AKT1.T308",
+        "target_id": "proteoform.AKT1.canonical",
+        "weight": 0.35
+      },
+      {
+        "edge_id": "edge.021",
+        "essential": false,
+        "kind": "site_of",
+        "sign": 1,
+        "source_id": "phosphosite.MTOR.S2448",
+        "target_id": "proteoform.MTOR.canonical",
+        "weight": 0.35
+      },
+      {
+        "edge_id": "edge.022",
+        "essential": false,
+        "kind": "site_of",
+        "sign": 1,
+        "source_id": "phosphosite.GSK3B.S9",
+        "target_id": "proteoform.AKT1.canonical",
+        "weight": 0.35
+      },
+      {
+        "edge_id": "edge.023",
+        "essential": false,
+        "kind": "site_of",
+        "sign": 1,
+        "source_id": "phosphosite.FOXO3.S253",
+        "target_id": "proteoform.AKT1.canonical",
+        "weight": 0.35
+      },
+      {
+        "edge_id": "edge.024",
+        "essential": false,
+        "kind": "site_of",
+        "sign": 1,
+        "source_id": "phosphosite.TSC2.T1462",
+        "target_id": "proteoform.AKT1.canonical",
+        "weight": 0.35
+      },
+      {
+        "edge_id": "edge.025",
+        "essential": false,
+        "kind": "site_of",
+        "sign": 1,
+        "source_id": "phosphosite.MAPK1.T185",
+        "target_id": "proteoform.MAPK1.canonical",
+        "weight": 0.35
+      },
+      {
+        "edge_id": "edge.026",
+        "essential": false,
+        "kind": "site_of",
+        "sign": 1,
+        "source_id": "phosphosite.MAPK1.Y187",
+        "target_id": "proteoform.MAPK1.canonical",
+        "weight": 0.35
+      },
+      {
+        "edge_id": "edge.027",
+        "essential": false,
+        "kind": "site_of",
+        "sign": 1,
+        "source_id": "phosphosite.ELK1.S383",
+        "target_id": "proteoform.MAPK1.canonical",
+        "weight": 0.35
+      },
+      {
+        "edge_id": "edge.028",
+        "essential": false,
+        "kind": "site_of",
+        "sign": 1,
+        "source_id": "phosphosite.RPS6KA1.S380",
+        "target_id": "proteoform.MAPK1.canonical",
+        "weight": 0.35
+      },
+      {
+        "edge_id": "edge.029",
+        "essential": false,
+        "kind": "site_of",
+        "sign": 1,
+        "source_id": "phosphosite.JUN.S63",
+        "target_id": "proteoform.MAPK1.canonical",
+        "weight": 0.35
+      },
+      {
+        "edge_id": "edge.030",
+        "essential": false,
+        "kind": "site_of",
+        "sign": 1,
+        "source_id": "phosphosite.MYC.S62",
+        "target_id": "proteoform.MAPK1.canonical",
+        "weight": 0.35
+      },
+      {
+        "edge_id": "edge.031",
+        "essential": false,
+        "kind": "site_of",
+        "sign": 1,
+        "source_id": "phosphosite.CDK1.Y15",
+        "target_id": "proteoform.CDK1.canonical",
+        "weight": 0.35
+      },
+      {
+        "edge_id": "edge.032",
+        "essential": false,
+        "kind": "site_of",
+        "sign": 1,
+        "source_id": "phosphosite.RB1.S807",
+        "target_id": "proteoform.RB1.canonical",
+        "weight": 0.35
+      },
+      {
+        "edge_id": "edge.033",
+        "essential": false,
+        "kind": "site_of",
+        "sign": 1,
+        "source_id": "phosphosite.LMNA.S22",
+        "target_id": "proteoform.CDK1.canonical",
+        "weight": 0.35
+      },
+      {
+        "edge_id": "edge.034",
+        "essential": false,
+        "kind": "site_of",
+        "sign": 1,
+        "source_id": "phosphosite.NPM1.T199",
+        "target_id": "proteoform.CDK1.canonical",
+        "weight": 0.35
+      },
+      {
+        "edge_id": "edge.035",
+        "essential": false,
+        "kind": "site_of",
+        "sign": 1,
+        "source_id": "phosphosite.HIST1H1E.S18",
+        "target_id": "proteoform.CDK1.canonical",
+        "weight": 0.35
+      },
+      {
+        "edge_id": "edge.036",
+        "essential": false,
+        "kind": "site_of",
+        "sign": 1,
+        "source_id": "phosphosite.CDC25C.S216",
+        "target_id": "proteoform.CDK1.canonical",
+        "weight": 0.35
+      },
+      {
+        "edge_id": "edge.037",
+        "essential": false,
+        "kind": "kinase_substrate",
+        "sign": 1,
+        "source_id": "kinase.EGFR.kinase",
+        "target_id": "phosphosite.EGFR.Y1068",
+        "weight": 1.0
+      },
+      {
+        "edge_id": "edge.038",
+        "essential": false,
+        "kind": "kinase_substrate",
+        "sign": 1,
+        "source_id": "kinase.EGFR.kinase",
+        "target_id": "phosphosite.EGFR.Y1173",
+        "weight": 1.0
+      },
+      {
+        "edge_id": "edge.039",
+        "essential": false,
+        "kind": "kinase_substrate",
+        "sign": 1,
+        "source_id": "kinase.EGFR.kinase",
+        "target_id": "phosphosite.ERBB3.Y1289",
+        "weight": 1.0
+      },
+      {
+        "edge_id": "edge.040",
+        "essential": false,
+        "kind": "kinase_substrate",
+        "sign": 1,
+        "source_id": "kinase.EGFR.kinase",
+        "target_id": "phosphosite.STAT3.Y705",
+        "weight": 1.0
+      },
+      {
+        "edge_id": "edge.041",
+        "essential": false,
+        "kind": "kinase_substrate",
+        "sign": 1,
+        "source_id": "kinase.EGFR.kinase",
+        "target_id": "phosphosite.GAB1.Y627",
+        "weight": 1.0
+      },
+      {
+        "edge_id": "edge.042",
+        "essential": false,
+        "kind": "kinase_substrate",
+        "sign": 1,
+        "source_id": "kinase.EGFR.kinase",
+        "target_id": "phosphosite.SHC1.Y317",
+        "weight": 1.0
+      },
+      {
+        "edge_id": "edge.043",
+        "essential": false,
+        "kind": "kinase_substrate",
+        "sign": 1,
+        "source_id": "kinase.AKT1.kinase",
+        "target_id": "phosphosite.AKT1.S473",
+        "weight": 1.0
+      },
+      {
+        "edge_id": "edge.044",
+        "essential": false,
+        "kind": "kinase_substrate",
+        "sign": 1,
+        "source_id": "kinase.AKT1.kinase",
+        "target_id": "phosphosite.AKT1.T308",
+        "weight": 1.0
+      },
+      {
+        "edge_id": "edge.045",
+        "essential": false,
+        "kind": "kinase_substrate",
+        "sign": 1,
+        "source_id": "kinase.AKT1.kinase",
+        "target_id": "phosphosite.MTOR.S2448",
+        "weight": 1.0
+      },
+      {
+        "edge_id": "edge.046",
+        "essential": false,
+        "kind": "kinase_substrate",
+        "sign": 1,
+        "source_id": "kinase.AKT1.kinase",
+        "target_id": "phosphosite.GSK3B.S9",
+        "weight": 1.0
+      },
+      {
+        "edge_id": "edge.047",
+        "essential": false,
+        "kind": "kinase_substrate",
+        "sign": 1,
+        "source_id": "kinase.AKT1.kinase",
+        "target_id": "phosphosite.FOXO3.S253",
+        "weight": 1.0
+      },
+      {
+        "edge_id": "edge.048",
+        "essential": false,
+        "kind": "kinase_substrate",
+        "sign": 1,
+        "source_id": "kinase.AKT1.kinase",
+        "target_id": "phosphosite.TSC2.T1462",
+        "weight": 1.0
+      },
+      {
+        "edge_id": "edge.049",
+        "essential": false,
+        "kind": "kinase_substrate",
+        "sign": 1,
+        "source_id": "kinase.MAPK1.kinase",
+        "target_id": "phosphosite.MAPK1.T185",
+        "weight": 1.0
+      },
+      {
+        "edge_id": "edge.050",
+        "essential": false,
+        "kind": "kinase_substrate",
+        "sign": 1,
+        "source_id": "kinase.MAPK1.kinase",
+        "target_id": "phosphosite.MAPK1.Y187",
+        "weight": 1.0
+      },
+      {
+        "edge_id": "edge.051",
+        "essential": false,
+        "kind": "kinase_substrate",
+        "sign": 1,
+        "source_id": "kinase.MAPK1.kinase",
+        "target_id": "phosphosite.ELK1.S383",
+        "weight": 1.0
+      },
+      {
+        "edge_id": "edge.052",
+        "essential": false,
+        "kind": "kinase_substrate",
+        "sign": 1,
+        "source_id": "kinase.MAPK1.kinase",
+        "target_id": "phosphosite.RPS6KA1.S380",
+        "weight": 1.0
+      },
+      {
+        "edge_id": "edge.053",
+        "essential": false,
+        "kind": "kinase_substrate",
+        "sign": 1,
+        "source_id": "kinase.MAPK1.kinase",
+        "target_id": "phosphosite.JUN.S63",
+        "weight": 1.0
+      },
+      {
+        "edge_id": "edge.054",
+        "essential": false,
+        "kind": "kinase_substrate",
+        "sign": 1,
+        "source_id": "kinase.MAPK1.kinase",
+        "target_id": "phosphosite.MYC.S62",
+        "weight": 1.0
+      },
+      {
+        "edge_id": "edge.055",
+        "essential": false,
+        "kind": "kinase_substrate",
+        "sign": -1,
+        "source_id": "kinase.CDK1.kinase",
+        "target_id": "phosphosite.CDK1.Y15",
+        "weight": 1.0
+      },
+      {
+        "edge_id": "edge.056",
+        "essential": false,
+        "kind": "kinase_substrate",
+        "sign": 1,
+        "source_id": "kinase.CDK1.kinase",
+        "target_id": "phosphosite.RB1.S807",
+        "weight": 1.0
+      },
+      {
+        "edge_id": "edge.057",
+        "essential": false,
+        "kind": "kinase_substrate",
+        "sign": 1,
+        "source_id": "kinase.CDK1.kinase",
+        "target_id": "phosphosite.LMNA.S22",
+        "weight": 1.0
+      },
+      {
+        "edge_id": "edge.058",
+        "essential": false,
+        "kind": "kinase_substrate",
+        "sign": 1,
+        "source_id": "kinase.CDK1.kinase",
+        "target_id": "phosphosite.NPM1.T199",
+        "weight": 1.0
+      },
+      {
+        "edge_id": "edge.059",
+        "essential": false,
+        "kind": "kinase_substrate",
+        "sign": 1,
+        "source_id": "kinase.CDK1.kinase",
+        "target_id": "phosphosite.HIST1H1E.S18",
+        "weight": 1.0
+      },
+      {
+        "edge_id": "edge.060",
+        "essential": false,
+        "kind": "kinase_substrate",
+        "sign": -1,
+        "source_id": "kinase.CDK1.kinase",
+        "target_id": "phosphosite.CDC25C.S216",
+        "weight": 1.0
+      },
+      {
+        "edge_id": "edge.061",
+        "essential": true,
+        "kind": "member_of",
+        "sign": 1,
+        "source_id": "protein.PIK3CA",
+        "target_id": "complex.PI3K",
+        "weight": 1.0
+      },
+      {
+        "edge_id": "edge.062",
+        "essential": false,
+        "kind": "member_of",
+        "sign": 1,
+        "source_id": "protein.PTEN",
+        "target_id": "complex.PI3K",
+        "weight": 1.0
+      },
+      {
+        "edge_id": "edge.063",
+        "essential": true,
+        "kind": "member_of",
+        "sign": 1,
+        "source_id": "protein.MTOR",
+        "target_id": "complex.mTORC1",
+        "weight": 1.0
+      },
+      {
+        "edge_id": "edge.064",
+        "essential": true,
+        "kind": "member_of",
+        "sign": 1,
+        "source_id": "protein.CDK1",
+        "target_id": "complex.CDK1.cyclinB",
+        "weight": 1.0
+      },
+      {
+        "edge_id": "edge.065",
+        "essential": true,
+        "kind": "member_of",
+        "sign": 1,
+        "source_id": "protein.RB1",
+        "target_id": "complex.RB.E2F",
+        "weight": 1.0
+      },
+      {
+        "edge_id": "edge.066",
+        "essential": true,
+        "kind": "member_of",
+        "sign": 1,
+        "source_id": "protein.EGFR",
+        "target_id": "complex.EGFR.ERBB3",
+        "weight": 1.0
+      },
+      {
+        "edge_id": "edge.067",
+        "essential": true,
+        "kind": "member_of",
+        "sign": 1,
+        "source_id": "protein.ERBB3",
+        "target_id": "complex.EGFR.ERBB3",
+        "weight": 1.0
+      },
+      {
+        "edge_id": "edge.068",
+        "essential": false,
+        "kind": "participates_in",
+        "sign": 1,
+        "source_id": "protein.EGFR",
+        "target_id": "pathway.RTK.signaling",
+        "weight": 0.8
+      },
+      {
+        "edge_id": "edge.069",
+        "essential": false,
+        "kind": "participates_in",
+        "sign": 1,
+        "source_id": "protein.PDGFRA",
+        "target_id": "pathway.RTK.signaling",
+        "weight": 0.8
+      },
+      {
+        "edge_id": "edge.070",
+        "essential": false,
+        "kind": "participates_in",
+        "sign": 1,
+        "source_id": "complex.EGFR.ERBB3",
+        "target_id": "pathway.RTK.signaling",
+        "weight": 0.8
+      },
+      {
+        "edge_id": "edge.071",
+        "essential": false,
+        "kind": "participates_in",
+        "sign": 1,
+        "source_id": "complex.PI3K",
+        "target_id": "pathway.PI3K.AKT.mTOR",
+        "weight": 0.8
+      },
+      {
+        "edge_id": "edge.072",
+        "essential": false,
+        "kind": "participates_in",
+        "sign": -1,
+        "source_id": "protein.PTEN",
+        "target_id": "pathway.PI3K.AKT.mTOR",
+        "weight": 0.8
+      },
+      {
+        "edge_id": "edge.073",
+        "essential": false,
+        "kind": "participates_in",
+        "sign": 1,
+        "source_id": "protein.AKT1",
+        "target_id": "pathway.PI3K.AKT.mTOR",
+        "weight": 0.8
+      },
+      {
+        "edge_id": "edge.074",
+        "essential": false,
+        "kind": "participates_in",
+        "sign": 1,
+        "source_id": "complex.mTORC1",
+        "target_id": "pathway.PI3K.AKT.mTOR",
+        "weight": 0.8
+      },
+      {
+        "edge_id": "edge.075",
+        "essential": false,
+        "kind": "participates_in",
+        "sign": 1,
+        "source_id": "complex.CDK1.cyclinB",
+        "target_id": "pathway.cell.cycle",
+        "weight": 0.8
+      },
+      {
+        "edge_id": "edge.076",
+        "essential": false,
+        "kind": "participates_in",
+        "sign": -1,
+        "source_id": "complex.RB.E2F",
+        "target_id": "pathway.cell.cycle",
+        "weight": 0.8
+      },
+      {
+        "edge_id": "edge.077",
+        "essential": false,
+        "kind": "participates_in",
+        "sign": -1,
+        "source_id": "protein.TP53",
+        "target_id": "pathway.cell.cycle",
+        "weight": 0.8
+      },
+      {
+        "edge_id": "edge.078",
+        "essential": false,
+        "kind": "regulates",
+        "sign": 1,
+        "source_id": "protein.EGFR",
+        "target_id": "protein.PIK3CA",
+        "weight": 0.65
+      },
+      {
+        "edge_id": "edge.079",
+        "essential": false,
+        "kind": "regulates",
+        "sign": -1,
+        "source_id": "protein.PTEN",
+        "target_id": "protein.AKT1",
+        "weight": 0.65
+      },
+      {
+        "edge_id": "edge.080",
+        "essential": false,
+        "kind": "regulates",
+        "sign": 1,
+        "source_id": "protein.AKT1",
+        "target_id": "protein.MTOR",
+        "weight": 0.65
+      },
+      {
+        "edge_id": "edge.081",
+        "essential": false,
+        "kind": "regulates",
+        "sign": -1,
+        "source_id": "protein.NF1",
+        "target_id": "protein.MAPK1",
+        "weight": 0.65
+      },
+      {
+        "edge_id": "edge.082",
+        "essential": false,
+        "kind": "regulates",
+        "sign": 1,
+        "source_id": "protein.MAPK1",
+        "target_id": "phosphosite.MYC.S62",
+        "weight": 0.65
+      },
+      {
+        "edge_id": "edge.083",
+        "essential": false,
+        "kind": "regulates",
+        "sign": -1,
+        "source_id": "protein.CDK1",
+        "target_id": "protein.RB1",
+        "weight": 0.65
+      }
+    ],
+    "external_kinase_profile": {
+      "estimates": [
+        {
+          "activity": 1.2,
+          "kinase_id": "kinase.EGFR.kinase",
+          "lower_bound": 0.7,
+          "upper_bound": 1.7
+        },
+        {
+          "activity": 0.7,
+          "kinase_id": "kinase.AKT1.kinase",
+          "lower_bound": 0.2,
+          "upper_bound": 1.2
+        },
+        {
+          "activity": 0.3,
+          "kinase_id": "kinase.CDK1.kinase",
+          "lower_bound": -0.2,
+          "upper_bound": 0.8
+        }
+      ],
+      "profile_id": "kinophos.synthetic.v1",
+      "source_digest": "sha256:b4465b25bb46b6c6e5a7129e457d25af8ff1ff6b9bda571d0ecfcfcc2b7c06a0"
+    },
+    "nodes": [
+      {
+        "display_name": "EGFR",
+        "kind": "protein",
+        "node_id": "protein.EGFR"
+      },
+      {
+        "display_name": "PTEN",
+        "kind": "protein",
+        "node_id": "protein.PTEN"
+      },
+      {
+        "display_name": "AKT1",
+        "kind": "protein",
+        "node_id": "protein.AKT1"
+      },
+      {
+        "display_name": "MAPK1",
+        "kind": "protein",
+        "node_id": "protein.MAPK1"
+      },
+      {
+        "display_name": "CDK1",
+        "kind": "protein",
+        "node_id": "protein.CDK1"
+      },
+      {
+        "display_name": "MTOR",
+        "kind": "protein",
+        "node_id": "protein.MTOR"
+      },
+      {
+        "display_name": "RB1",
+        "kind": "protein",
+        "node_id": "protein.RB1"
+      },
+      {
+        "display_name": "TP53",
+        "kind": "protein",
+        "node_id": "protein.TP53"
+      },
+      {
+        "display_name": "GFAP",
+        "kind": "protein",
+        "node_id": "protein.GFAP"
+      },
+      {
+        "display_name": "OLIG2",
+        "kind": "protein",
+        "node_id": "protein.OLIG2"
+      },
+      {
+        "display_name": "PDGFRA",
+        "kind": "protein",
+        "node_id": "protein.PDGFRA"
+      },
+      {
+        "display_name": "NF1",
+        "kind": "protein",
+        "node_id": "protein.NF1"
+      },
+      {
+        "display_name": "PIK3CA",
+        "kind": "protein",
+        "node_id": "protein.PIK3CA"
+      },
+      {
+        "display_name": "STAT3",
+        "kind": "protein",
+        "node_id": "protein.STAT3"
+      },
+      {
+        "display_name": "CDK2",
+        "kind": "protein",
+        "node_id": "protein.CDK2"
+      },
+      {
+        "display_name": "ERBB3",
+        "kind": "protein",
+        "node_id": "protein.ERBB3"
+      },
+      {
+        "display_name": "EGFR.vIII",
+        "kind": "proteoform",
+        "node_id": "proteoform.EGFR.vIII"
+      },
+      {
+        "display_name": "PTEN.canonical",
+        "kind": "proteoform",
+        "node_id": "proteoform.PTEN.canonical"
+      },
+      {
+        "display_name": "AKT1.canonical",
+        "kind": "proteoform",
+        "node_id": "proteoform.AKT1.canonical"
+      },
+      {
+        "display_name": "MAPK1.canonical",
+        "kind": "proteoform",
+        "node_id": "proteoform.MAPK1.canonical"
+      },
+      {
+        "display_name": "CDK1.canonical",
+        "kind": "proteoform",
+        "node_id": "proteoform.CDK1.canonical"
+      },
+      {
+        "display_name": "MTOR.canonical",
+        "kind": "proteoform",
+        "node_id": "proteoform.MTOR.canonical"
+      },
+      {
+        "display_name": "RB1.canonical",
+        "kind": "proteoform",
+        "node_id": "proteoform.RB1.canonical"
+      },
+      {
+        "display_name": "TP53.canonical",
+        "kind": "proteoform",
+        "node_id": "proteoform.TP53.canonical"
+      },
+      {
+        "display_name": "PDGFRA.canonical",
+        "kind": "proteoform",
+        "node_id": "proteoform.PDGFRA.canonical"
+      },
+      {
+        "display_name": "NF1.canonical",
+        "kind": "proteoform",
+        "node_id": "proteoform.NF1.canonical"
+      },
+      {
+        "display_name": "STAT3.canonical",
+        "kind": "proteoform",
+        "node_id": "proteoform.STAT3.canonical"
+      },
+      {
+        "display_name": "ERBB3.canonical",
+        "kind": "proteoform",
+        "node_id": "proteoform.ERBB3.canonical"
+      },
+      {
+        "display_name": "EGFR.Y1068",
+        "kind": "phosphosite",
+        "node_id": "phosphosite.EGFR.Y1068"
+      },
+      {
+        "display_name": "EGFR.Y1173",
+        "kind": "phosphosite",
+        "node_id": "phosphosite.EGFR.Y1173"
+      },
+      {
+        "display_name": "ERBB3.Y1289",
+        "kind": "phosphosite",
+        "node_id": "phosphosite.ERBB3.Y1289"
+      },
+      {
+        "display_name": "STAT3.Y705",
+        "kind": "phosphosite",
+        "node_id": "phosphosite.STAT3.Y705"
+      },
+      {
+        "display_name": "GAB1.Y627",
+        "kind": "phosphosite",
+        "node_id": "phosphosite.GAB1.Y627"
+      },
+      {
+        "display_name": "SHC1.Y317",
+        "kind": "phosphosite",
+        "node_id": "phosphosite.SHC1.Y317"
+      },
+      {
+        "display_name": "AKT1.S473",
+        "kind": "phosphosite",
+        "node_id": "phosphosite.AKT1.S473"
+      },
+      {
+        "display_name": "AKT1.T308",
+        "kind": "phosphosite",
+        "node_id": "phosphosite.AKT1.T308"
+      },
+      {
+        "display_name": "MTOR.S2448",
+        "kind": "phosphosite",
+        "node_id": "phosphosite.MTOR.S2448"
+      },
+      {
+        "display_name": "GSK3B.S9",
+        "kind": "phosphosite",
+        "node_id": "phosphosite.GSK3B.S9"
+      },
+      {
+        "display_name": "FOXO3.S253",
+        "kind": "phosphosite",
+        "node_id": "phosphosite.FOXO3.S253"
+      },
+      {
+        "display_name": "TSC2.T1462",
+        "kind": "phosphosite",
+        "node_id": "phosphosite.TSC2.T1462"
+      },
+      {
+        "display_name": "MAPK1.T185",
+        "kind": "phosphosite",
+        "node_id": "phosphosite.MAPK1.T185"
+      },
+      {
+        "display_name": "MAPK1.Y187",
+        "kind": "phosphosite",
+        "node_id": "phosphosite.MAPK1.Y187"
+      },
+      {
+        "display_name": "ELK1.S383",
+        "kind": "phosphosite",
+        "node_id": "phosphosite.ELK1.S383"
+      },
+      {
+        "display_name": "RPS6KA1.S380",
+        "kind": "phosphosite",
+        "node_id": "phosphosite.RPS6KA1.S380"
+      },
+      {
+        "display_name": "JUN.S63",
+        "kind": "phosphosite",
+        "node_id": "phosphosite.JUN.S63"
+      },
+      {
+        "display_name": "MYC.S62",
+        "kind": "phosphosite",
+        "node_id": "phosphosite.MYC.S62"
+      },
+      {
+        "display_name": "CDK1.Y15",
+        "kind": "phosphosite",
+        "node_id": "phosphosite.CDK1.Y15"
+      },
+      {
+        "display_name": "RB1.S807",
+        "kind": "phosphosite",
+        "node_id": "phosphosite.RB1.S807"
+      },
+      {
+        "display_name": "LMNA.S22",
+        "kind": "phosphosite",
+        "node_id": "phosphosite.LMNA.S22"
+      },
+      {
+        "display_name": "NPM1.T199",
+        "kind": "phosphosite",
+        "node_id": "phosphosite.NPM1.T199"
+      },
+      {
+        "display_name": "HIST1H1E.S18",
+        "kind": "phosphosite",
+        "node_id": "phosphosite.HIST1H1E.S18"
+      },
+      {
+        "display_name": "CDC25C.S216",
+        "kind": "phosphosite",
+        "node_id": "phosphosite.CDC25C.S216"
+      },
+      {
+        "display_name": "PI3K",
+        "kind": "complex",
+        "node_id": "complex.PI3K"
+      },
+      {
+        "display_name": "mTORC1",
+        "kind": "complex",
+        "node_id": "complex.mTORC1"
+      },
+      {
+        "display_name": "CDK1-cyclinB",
+        "kind": "complex",
+        "node_id": "complex.CDK1.cyclinB"
+      },
+      {
+        "display_name": "RB-E2F",
+        "kind": "complex",
+        "node_id": "complex.RB.E2F"
+      },
+      {
+        "display_name": "EGFR-ERBB3",
+        "kind": "complex",
+        "node_id": "complex.EGFR.ERBB3"
+      },
+      {
+        "display_name": "RTK-signaling",
+        "kind": "pathway",
+        "node_id": "pathway.RTK.signaling"
+      },
+      {
+        "display_name": "PI3K-AKT-mTOR",
+        "kind": "pathway",
+        "node_id": "pathway.PI3K.AKT.mTOR"
+      },
+      {
+        "display_name": "cell-cycle",
+        "kind": "pathway",
+        "node_id": "pathway.cell.cycle"
+      },
+      {
+        "display_name": "EGFR-kinase",
+        "kind": "kinase",
+        "node_id": "kinase.EGFR.kinase"
+      },
+      {
+        "display_name": "AKT1-kinase",
+        "kind": "kinase",
+        "node_id": "kinase.AKT1.kinase"
+      },
+      {
+        "display_name": "MAPK1-kinase",
+        "kind": "kinase",
+        "node_id": "kinase.MAPK1.kinase"
+      },
+      {
+        "display_name": "CDK1-kinase",
+        "kind": "kinase",
+        "node_id": "kinase.CDK1.kinase"
+      }
+    ],
+    "observations": [
+      {
+        "modality": "proteomics",
+        "node_id": "protein.EGFR",
+        "observation_id": "obs.001",
+        "provenance_digest": "sha256:713dcd67ba05baffccf8482415522380110e1e9fca1ed1cbde05b991f6b0540e",
+        "quality_weight": 0.92,
+        "standard_error": 0.25,
+        "standardized_effect": 1.4,
+        "state": "observed"
+      },
+      {
+        "modality": "proteomics",
+        "node_id": "protein.PTEN",
+        "observation_id": "obs.002",
+        "provenance_digest": "sha256:7f92943db43c6cfe9065d98aa5e8dce59266f8e9a9e8f55c176c1054349c846e",
+        "quality_weight": 0.92,
+        "standard_error": 0.25,
+        "standardized_effect": -1.1,
+        "state": "observed"
+      },
+      {
+        "modality": "proteomics",
+        "node_id": "protein.AKT1",
+        "observation_id": "obs.003",
+        "provenance_digest": "sha256:7fe684a147d49330e2deb6826337359f6d20cb4a347cd0ae302bca075fab72da",
+        "quality_weight": 0.92,
+        "standard_error": 0.25,
+        "standardized_effect": 0.8,
+        "state": "observed"
+      },
+      {
+        "modality": "proteomics",
+        "node_id": "protein.MAPK1",
+        "observation_id": "obs.004",
+        "provenance_digest": "sha256:764907759591413d6a0b56978d1395366a212efaf5f0ebb044205a06a6874fa2",
+        "quality_weight": 0.92,
+        "standard_error": 0.25,
+        "standardized_effect": 0.6,
+        "state": "observed"
+      },
+      {
+        "modality": "proteomics",
+        "node_id": "protein.CDK1",
+        "observation_id": "obs.005",
+        "provenance_digest": "sha256:988b13b14a61ca32cba076b93157203ba9424c8305f567508f8ddebe5c5491c2",
+        "quality_weight": 0.92,
+        "standard_error": 0.25,
+        "standardized_effect": 0.5,
+        "state": "observed"
+      },
+      {
+        "modality": "proteomics",
+        "node_id": "protein.MTOR",
+        "observation_id": "obs.006",
+        "provenance_digest": "sha256:562f10dbee32d8bfdf6e3eddd599c60f6546e2f16c9b6047b423e2fbafd37055",
+        "quality_weight": 0.92,
+        "standard_error": 0.25,
+        "standardized_effect": 0.9,
+        "state": "observed"
+      },
+      {
+        "modality": "proteomics",
+        "node_id": "protein.RB1",
+        "observation_id": "obs.007",
+        "provenance_digest": "sha256:08459a07442824d51d74cd1b2d167f231da3dd6de557cc750f60abdf1610420b",
+        "quality_weight": 0.92,
+        "standard_error": 0.25,
+        "standardized_effect": -0.7,
+        "state": "observed"
+      },
+      {
+        "modality": "proteomics",
+        "node_id": "protein.TP53",
+        "observation_id": "obs.008",
+        "provenance_digest": "sha256:a7cf15e911aa4371ddd6046fea3eb2c915ab220b7b7296eb3181707dfea0eb6c",
+        "quality_weight": 0.92,
+        "standard_error": 0.25,
+        "standardized_effect": -0.4,
+        "state": "observed"
+      },
+      {
+        "modality": "proteomics",
+        "node_id": "protein.GFAP",
+        "observation_id": "obs.009",
+        "provenance_digest": "sha256:86f0671e050db0e4a661072210423ba55650f55cfd7c7c7d187e13275e8a477b",
+        "quality_weight": 0.92,
+        "standard_error": 0.25,
+        "standardized_effect": 0.2,
+        "state": "observed"
+      },
+      {
+        "modality": "proteomics",
+        "node_id": "protein.OLIG2",
+        "observation_id": "obs.010",
+        "provenance_digest": "sha256:8d2474bcaf3048ed1c211f7c744975ab4320c8abf1c3bf8520e385365601710e",
+        "quality_weight": 0.92,
+        "standard_error": 0.25,
+        "standardized_effect": 0.7,
+        "state": "observed"
+      },
+      {
+        "modality": "proteomics",
+        "node_id": "protein.PDGFRA",
+        "observation_id": "obs.011",
+        "provenance_digest": "sha256:187e07db4bbcced130a762ff6d71489cdbca739a6d5758edfe656d8fc1c607f0",
+        "quality_weight": 0.92,
+        "standard_error": 0.25,
+        "standardized_effect": 0.9,
+        "state": "observed"
+      },
+      {
+        "modality": "proteomics",
+        "node_id": "protein.NF1",
+        "observation_id": "obs.012",
+        "provenance_digest": "sha256:22b2b936c274f0d0937a0cbb06690867eefe3e5fcc249a061eb3eeaa1d06e6a9",
+        "quality_weight": 0.92,
+        "standard_error": 0.25,
+        "standardized_effect": -0.8,
+        "state": "observed"
+      },
+      {
+        "modality": "proteomics",
+        "node_id": "protein.PIK3CA",
+        "observation_id": "obs.013",
+        "provenance_digest": "sha256:65c32ae96bdb9b911995e0c31a394347f510e2504226f95a4ad9908068f9a364",
+        "quality_weight": 0.92,
+        "standard_error": 0.25,
+        "standardized_effect": 1.0,
+        "state": "observed"
+      },
+      {
+        "modality": "proteomics",
+        "node_id": "protein.STAT3",
+        "observation_id": "obs.014",
+        "provenance_digest": "sha256:6bf1ad7d360a7082742fbae8288fe417ae08ced53db6f457083015d337f3a174",
+        "quality_weight": 0.92,
+        "standard_error": 0.25,
+        "standardized_effect": 0.8,
+        "state": "observed"
+      },
+      {
+        "modality": "proteomics",
+        "node_id": "protein.CDK2",
+        "observation_id": "obs.015",
+        "provenance_digest": "sha256:0bdd71f1fbf26ff98967f122117bac7c61ea801fafef00e0248df652c5269cf3",
+        "quality_weight": 0.92,
+        "standard_error": 0.25,
+        "standardized_effect": 0.3,
+        "state": "observed"
+      },
+      {
+        "modality": "proteomics",
+        "node_id": "protein.ERBB3",
+        "observation_id": "obs.016",
+        "provenance_digest": "sha256:6437ebe0bbae11c974d400929dc5618a6bb25ce6c737429705304cafbc1e9f29",
+        "quality_weight": 0.92,
+        "standard_error": 0.25,
+        "standardized_effect": 0.9,
+        "state": "observed"
+      },
+      {
+        "modality": "phosphoproteomics",
+        "node_id": "phosphosite.EGFR.Y1068",
+        "observation_id": "obs.017",
+        "provenance_digest": "sha256:f4d93f171efec135240aa8d5743a8ad6baa1ec650edea4b84579854ada97ed8d",
+        "quality_weight": 0.95,
+        "standard_error": 0.22,
+        "standardized_effect": 2.2,
+        "state": "observed"
+      },
+      {
+        "modality": "phosphoproteomics",
+        "node_id": "phosphosite.EGFR.Y1173",
+        "observation_id": "obs.018",
+        "provenance_digest": "sha256:f8cb3b6a53e803363cef351d8cb14a7a21bd547f9e2bcb70326cd9bab02e5b6c",
+        "quality_weight": 0.95,
+        "standard_error": 0.22,
+        "standardized_effect": 2.0,
+        "state": "observed"
+      },
+      {
+        "modality": "phosphoproteomics",
+        "node_id": "phosphosite.ERBB3.Y1289",
+        "observation_id": "obs.019",
+        "provenance_digest": "sha256:ee3135a02c9f4514418324012e91c7ec2735e88bc02864cfd808b73a0de51211",
+        "quality_weight": 0.95,
+        "standard_error": 0.22,
+        "standardized_effect": 1.8,
+        "state": "observed"
+      },
+      {
+        "modality": "phosphoproteomics",
+        "node_id": "phosphosite.STAT3.Y705",
+        "observation_id": "obs.020",
+        "provenance_digest": "sha256:077022ae2ced08c9a364cb18bca8c968f029e28928f99f46063adb8d63b7ff28",
+        "quality_weight": 0.95,
+        "standard_error": 0.22,
+        "standardized_effect": 1.7,
+        "state": "observed"
+      },
+      {
+        "modality": "phosphoproteomics",
+        "node_id": "phosphosite.GAB1.Y627",
+        "observation_id": "obs.021",
+        "provenance_digest": "sha256:10aa0d54a4926fc7e0963d9a1db75c1b08a294fe11019fb0ab62c82915ba3734",
+        "quality_weight": 0.95,
+        "standard_error": 0.22,
+        "standardized_effect": 1.6,
+        "state": "observed"
+      },
+      {
+        "modality": "phosphoproteomics",
+        "node_id": "phosphosite.SHC1.Y317",
+        "observation_id": "obs.022",
+        "provenance_digest": "sha256:1b5b8e7794ffcd115d2a32049652049f5ff77c1c231317a97223a1c6a33e220d",
+        "quality_weight": 0.95,
+        "standard_error": 0.22,
+        "standardized_effect": 1.5,
+        "state": "observed"
+      },
+      {
+        "modality": "phosphoproteomics",
+        "node_id": "phosphosite.AKT1.S473",
+        "observation_id": "obs.023",
+        "provenance_digest": "sha256:d5e3c52d26eddf7fb9d3611d3bbbeaa8fccb1b8f382631d385dd04a4d47327bc",
+        "quality_weight": 0.95,
+        "standard_error": 0.22,
+        "standardized_effect": 1.3,
+        "state": "observed"
+      },
+      {
+        "modality": "phosphoproteomics",
+        "node_id": "phosphosite.AKT1.T308",
+        "observation_id": "obs.024",
+        "provenance_digest": "sha256:43799ae6f5f18cbb3fb023feef10fa09b18dc890c13581098cf1a4be62eb1bd1",
+        "quality_weight": 0.95,
+        "standard_error": 0.22,
+        "standardized_effect": 1.2,
+        "state": "observed"
+      },
+      {
+        "modality": "phosphoproteomics",
+        "node_id": "phosphosite.MTOR.S2448",
+        "observation_id": "obs.025",
+        "provenance_digest": "sha256:9a4d04aa483913da8468f30a1f7770e1afe6166bc3cc2c8e509a943f41575147",
+        "quality_weight": 0.95,
+        "standard_error": 0.22,
+        "standardized_effect": 1.1,
+        "state": "observed"
+      },
+      {
+        "modality": "phosphoproteomics",
+        "node_id": "phosphosite.GSK3B.S9",
+        "observation_id": "obs.026",
+        "provenance_digest": "sha256:89d4b6cf0db85083da889cf7d302ef057d123c211e0edab248752f8035f3e179",
+        "quality_weight": 0.95,
+        "standard_error": 0.22,
+        "standardized_effect": 0.9,
+        "state": "observed"
+      },
+      {
+        "modality": "phosphoproteomics",
+        "node_id": "phosphosite.FOXO3.S253",
+        "observation_id": "obs.027",
+        "provenance_digest": "sha256:853b0b1928453b918da7d60819439c294cd7a1b25b491d6820e29f268edd22fd",
+        "quality_weight": 0.95,
+        "standard_error": 0.22,
+        "standardized_effect": 0.8,
+        "state": "observed"
+      },
+      {
+        "modality": "phosphoproteomics",
+        "node_id": "phosphosite.TSC2.T1462",
+        "observation_id": "obs.028",
+        "provenance_digest": "sha256:5c5a3f59199ecf5587bd0eb2fd26be68382104c54c8bf24dfb650067d5e52d1e",
+        "quality_weight": 0.95,
+        "standard_error": 0.22,
+        "standardized_effect": 0.7,
+        "state": "observed"
+      },
+      {
+        "modality": "phosphoproteomics",
+        "node_id": "phosphosite.MAPK1.T185",
+        "observation_id": "obs.029",
+        "provenance_digest": "sha256:5980f2a1869833076ef060653371abea230f99682d7cb8f63ec6943bc5ddb8d4",
+        "quality_weight": 0.95,
+        "standard_error": 0.22,
+        "standardized_effect": 0.6,
+        "state": "observed"
+      },
+      {
+        "modality": "phosphoproteomics",
+        "node_id": "phosphosite.MAPK1.Y187",
+        "observation_id": "obs.030",
+        "provenance_digest": "sha256:52413d1db9f7098231dcd2668d975dd09be251eea94cd46e397261e27ca1dd38",
+        "quality_weight": 0.95,
+        "standard_error": 0.22,
+        "standardized_effect": 0.5,
+        "state": "observed"
+      },
+      {
+        "modality": "phosphoproteomics",
+        "node_id": "phosphosite.ELK1.S383",
+        "observation_id": "obs.031",
+        "provenance_digest": "sha256:cb7d8fa595fc8c1467e5b721391dab0a47fda2aec06ca58c8a791caf134ed36d",
+        "quality_weight": 0.95,
+        "standard_error": 0.22,
+        "standardized_effect": 0.4,
+        "state": "observed"
+      },
+      {
+        "modality": "phosphoproteomics",
+        "node_id": "phosphosite.RPS6KA1.S380",
+        "observation_id": "obs.032",
+        "provenance_digest": "sha256:8b08a536b34e536f2853fde72a50cb2767353ede2dbefe50b6945ebdadacc9a1",
+        "quality_weight": 0.95,
+        "standard_error": 0.22,
+        "standardized_effect": 0.3,
+        "state": "observed"
+      },
+      {
+        "modality": "phosphoproteomics",
+        "node_id": "phosphosite.JUN.S63",
+        "observation_id": "obs.033",
+        "provenance_digest": "sha256:166a5bd94b4111fa69925713eebcfdd95d16d8f6ba50ecf32aea2b7bf523d9b9",
+        "quality_weight": 0.95,
+        "standard_error": 0.22,
+        "standardized_effect": 0.2,
+        "state": "observed"
+      },
+      {
+        "modality": "phosphoproteomics",
+        "node_id": "phosphosite.MYC.S62",
+        "observation_id": "obs.034",
+        "provenance_digest": "sha256:47b19ed64587060204e1f8810028d7cebb6f10f57cf956dd0959490483aabbf3",
+        "quality_weight": 0.95,
+        "standard_error": 0.22,
+        "standardized_effect": 0.1,
+        "state": "observed"
+      },
+      {
+        "modality": "phosphoproteomics",
+        "node_id": "phosphosite.CDK1.Y15",
+        "observation_id": "obs.035",
+        "provenance_digest": "sha256:9c7f343aeff265e1d2c6a739a6dde16131ef052cf8248a77d35d3356208be55a",
+        "quality_weight": 0.95,
+        "standard_error": 0.22,
+        "standardized_effect": -0.2,
+        "state": "observed"
+      },
+      {
+        "modality": "phosphoproteomics",
+        "node_id": "phosphosite.RB1.S807",
+        "observation_id": "obs.036",
+        "provenance_digest": "sha256:528a482455e2e5caee92f156d04f61b4432e4a43405092857d31d19f9a31c581",
+        "quality_weight": 0.95,
+        "standard_error": 0.22,
+        "standardized_effect": -0.4,
+        "state": "observed"
+      },
+      {
+        "modality": "phosphoproteomics",
+        "node_id": "phosphosite.LMNA.S22",
+        "observation_id": "obs.037",
+        "provenance_digest": "sha256:794aea129bd766c498a0762d0c49a38a30aadd546b052cb9c4808dbd85bf7685",
+        "quality_weight": 0.95,
+        "standard_error": 0.22,
+        "standardized_effect": -0.6,
+        "state": "observed"
+      },
+      {
+        "modality": "phosphoproteomics",
+        "node_id": "phosphosite.NPM1.T199",
+        "observation_id": "obs.038",
+        "provenance_digest": "sha256:1e763703acf98f1f76e24bff537639194293aad0543eb2744072b021caa8e398",
+        "quality_weight": 0.95,
+        "standard_error": 0.22,
+        "standardized_effect": -0.8,
+        "state": "observed"
+      },
+      {
+        "modality": "phosphoproteomics",
+        "node_id": "phosphosite.HIST1H1E.S18",
+        "observation_id": "obs.039",
+        "provenance_digest": "sha256:8f6090fa1081782dd0b3b67c10a85d6dedf3c28187bcd35f2afbed67a6459900",
+        "quality_weight": 0.7,
+        "standard_error": 0.35,
+        "standardized_effect": -0.85,
+        "state": "left_censored"
+      },
+      {
+        "modality": "phosphoproteomics",
+        "node_id": "phosphosite.CDC25C.S216",
+        "observation_id": "obs.040",
+        "provenance_digest": "sha256:a159e52450e9977ee69584c14e7aae0bd03c450f0499b8ec5701ea5017c04c15",
+        "quality_weight": 0.0,
+        "standard_error": null,
+        "standardized_effect": null,
+        "state": "missing"
+      }
+    ],
+    "permutation_replicates": 256,
+    "profile_id": "glio-ecgi/1.0.0",
+    "sample_id": "synthetic-glioma-demo-v1",
+    "topology_provenance": {
+      "curation_note": "Reactome records provide biological context for the three pathway nodes only. The node selection, edges, signs, weights, essential flags, and observations are repository-native synthetic demo choices, not a Reactome export or patient data.",
+      "derivation": "synthetic_abstraction",
+      "sources": [
+        {
+          "license_id": "CC0-1.0",
+          "license_uri": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "record_id": "R-HSA-177929",
+          "record_title": "Signaling by EGFR",
+          "resource_name": "Reactome",
+          "resource_release": "97",
+          "retrieved_on": "2026-08-27",
+          "role": "biological_context",
+          "scope_node_ids": [
+            "pathway.RTK.signaling"
+          ],
+          "source_digest": "sha256:8bfd16fd5aa56ac37ff1d3e8e1bc8a14f27d5ca9cf4204bcfc2231e004823260",
+          "source_format": "SBML Level 3 Version 1",
+          "source_id": "reactome.R-HSA-177929.release97",
+          "source_size_bytes": 715097,
+          "source_uri": "https://reactome.org/ContentService/exporter/event/R-HSA-177929.sbml"
+        },
+        {
+          "license_id": "CC0-1.0",
+          "license_uri": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "record_id": "R-HSA-1257604",
+          "record_title": "PIP3 activates AKT signaling",
+          "resource_name": "Reactome",
+          "resource_release": "97",
+          "retrieved_on": "2026-08-27",
+          "role": "biological_context",
+          "scope_node_ids": [
+            "pathway.PI3K.AKT.mTOR"
+          ],
+          "source_digest": "sha256:8274c7abb68f83738c46b7156f81f2546a51720f57ef5997c1353de92aeb4c1a",
+          "source_format": "SBML Level 3 Version 1",
+          "source_id": "reactome.R-HSA-1257604.release97",
+          "source_size_bytes": 1085445,
+          "source_uri": "https://reactome.org/ContentService/exporter/event/R-HSA-1257604.sbml"
+        },
+        {
+          "license_id": "CC0-1.0",
+          "license_uri": "https://creativecommons.org/publicdomain/zero/1.0/",
+          "record_id": "R-HSA-69278",
+          "record_title": "Cell Cycle, Mitotic",
+          "resource_name": "Reactome",
+          "resource_release": "97",
+          "retrieved_on": "2026-08-27",
+          "role": "biological_context",
+          "scope_node_ids": [
+            "pathway.cell.cycle"
+          ],
+          "source_digest": "sha256:5c14a87dc086a50327c09191e001d7d1cb86231eaf34646cc8f4c3555df62ad4",
+          "source_format": "SBML Level 3 Version 1",
+          "source_id": "reactome.R-HSA-69278.release97",
+          "source_size_bytes": 3546893,
+          "source_uri": "https://reactome.org/ContentService/exporter/event/R-HSA-69278.sbml"
+        }
+      ],
+      "topology_digest": "sha256:7ccc01a460714c7f4920002cf4570bb49a43c91191ee9de85f9177f1d52341a5"
+    }
+  },
+  "result": {
+    "algorithm_id": "glio-ecgi",
+    "algorithm_version": "1.0.0",
+    "external_kinase_comparison": {
+      "external_ids_with_abstained_local_estimates": [
+        "kinase.AKT1.kinase",
+        "kinase.CDK1.kinase"
+      ],
+      "matches": [
+        {
+          "activity_difference": 2.28379301,
+          "direction_agreement": true,
+          "external_activity": 1.2,
+          "interval_overlap": false,
+          "kinase_id": "kinase.EGFR.kinase",
+          "local_activity": 3.48379301
+        }
+      ],
+      "note": "External values are compared by exact identifier and never merged or substituted.",
+      "profile_id": "kinophos.synthetic.v1",
+      "rank_correlation": null,
+      "source_digest": "sha256:b4465b25bb46b6c6e5a7129e457d25af8ff1ff6b9bda571d0ecfcfcc2b7c06a0",
+      "unmatched_local_ids": [
+        "kinase.AKT1.kinase",
+        "kinase.CDK1.kinase",
+        "kinase.MAPK1.kinase"
+      ]
+    },
+    "kinase_states": [
+      {
+        "ablation_effects": [],
+        "abstention_reason": "Local substrate enrichment did not meet the configured q-value support threshold.",
+        "activity": null,
+        "censored_count": 0,
+        "classification": "not_estimable",
+        "discordance": null,
+        "enrichment_score": 1.10754971,
+        "evidence_count": 0,
+        "kind": "kinase",
+        "lower_bound": null,
+        "mapped_substrates": 6,
+        "node_id": "kinase.AKT1.kinase",
+        "null_standard_deviation": 0.20520318,
+        "observed_count": 0,
+        "p_value": 0.3229572,
+        "q_value": 0.3229572,
+        "rank_statistic": 0.22727273,
+        "stability": null,
+        "support": "abstained",
+        "top_drivers": [],
+        "upper_bound": null
+      },
+      {
+        "ablation_effects": [],
+        "abstention_reason": "Local substrate enrichment did not meet the configured q-value support threshold.",
+        "activity": null,
+        "censored_count": 0,
+        "classification": "not_estimable",
+        "discordance": null,
+        "enrichment_score": -1.79089968,
+        "evidence_count": 0,
+        "kind": "kinase",
+        "lower_bound": null,
+        "mapped_substrates": 5,
+        "node_id": "kinase.CDK1.kinase",
+        "null_standard_deviation": 0.27447173,
+        "observed_count": 0,
+        "p_value": 0.07782101,
+        "q_value": 0.15564202,
+        "rank_statistic": -0.49155134,
+        "stability": null,
+        "support": "abstained",
+        "top_drivers": [],
+        "upper_bound": null
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 3.48379301,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 3.48379301,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 3.48379301,
+        "censored_count": 0,
+        "classification": "activated",
+        "discordance": 0.0,
+        "enrichment_score": 3.64637001,
+        "evidence_count": 0,
+        "kind": "kinase",
+        "lower_bound": 3.14224383,
+        "mapped_substrates": 6,
+        "node_id": "kinase.EGFR.kinase",
+        "null_standard_deviation": 0.21191686,
+        "observed_count": 0,
+        "p_value": 0.00389105,
+        "q_value": 0.0155642,
+        "rank_statistic": 0.77272727,
+        "stability": 1.0,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "kinase.EGFR.kinase",
+            "driver_type": "kinase_feedback",
+            "signed_contribution": 0.12193276,
+            "strength": 0.12193276
+          }
+        ],
+        "upper_bound": 3.48379301
+      },
+      {
+        "ablation_effects": [],
+        "abstention_reason": "Local substrate enrichment did not meet the configured q-value support threshold.",
+        "activity": null,
+        "censored_count": 0,
+        "classification": "not_estimable",
+        "discordance": null,
+        "enrichment_score": -1.58661576,
+        "evidence_count": 0,
+        "kind": "kinase",
+        "lower_bound": null,
+        "mapped_substrates": 6,
+        "node_id": "kinase.MAPK1.kinase",
+        "null_standard_deviation": 0.20054119,
+        "observed_count": 0,
+        "p_value": 0.12840467,
+        "q_value": 0.17120623,
+        "rank_statistic": -0.31818182,
+        "stability": null,
+        "support": "abstained",
+        "top_drivers": [],
+        "upper_bound": null
+      }
+    ],
+    "limitations": [
+      "Research-use-only latent activity estimates; not validated for clinical use.",
+      "Graph topology and caller-supplied evidence determine the result; association is not causation.",
+      "All estimated states are LIMITED because caller-curated and synthetic-abstraction graphs are not validated glioma models.",
+      "Experimental kinase enrichment is local to this research lane and is non-prescriptive.",
+      "Bootstrap intervals describe numerical sensitivity, not calibrated biological probability."
+    ],
+    "node_states": [
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": -0.0185134,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.86304664,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.44647278,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": -0.03931246,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": -0.01851335,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 0.44647278,
+        "censored_count": 0,
+        "classification": "indeterminate",
+        "discordance": 0.01066203,
+        "evidence_count": 0,
+        "kind": "complex",
+        "lower_bound": 0.08321536,
+        "node_id": "complex.CDK1.cyclinB",
+        "observed_count": 0,
+        "stability": 0.828125,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "edge.064",
+            "driver_type": "edge",
+            "signed_contribution": 0.01077693,
+            "strength": 0.01077693
+          }
+        ],
+        "upper_bound": 0.80991884
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 0.05707956,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": -0.20899956,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.00063853,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 1.05702427,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.01235181,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.05707992,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 1.05702427,
+        "censored_count": 0,
+        "classification": "activated",
+        "discordance": 0.18237793,
+        "evidence_count": 0,
+        "kind": "complex",
+        "lower_bound": 0.71777747,
+        "node_id": "complex.EGFR.ERBB3",
+        "observed_count": 0,
+        "stability": 1.0,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "edge.066",
+            "driver_type": "edge",
+            "signed_contribution": 0.314962,
+            "strength": 0.314962
+          },
+          {
+            "driver_id": "edge.067",
+            "driver_type": "edge",
+            "signed_contribution": -0.13115594,
+            "strength": 0.13115594
+          }
+        ],
+        "upper_bound": 1.3962472
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 0.00110629,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": -0.73533163,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": -0.01958002,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.02334434,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.00645955,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.0011062,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": -0.01958002,
+        "censored_count": 0,
+        "classification": "indeterminate",
+        "discordance": 0.48119503,
+        "evidence_count": 0,
+        "kind": "complex",
+        "lower_bound": -0.29872514,
+        "node_id": "complex.PI3K",
+        "observed_count": 0,
+        "stability": 0.828125,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "edge.062",
+            "driver_type": "edge",
+            "signed_contribution": -0.92774288,
+            "strength": 0.92774288
+          },
+          {
+            "driver_id": "edge.061",
+            "driver_type": "edge",
+            "signed_contribution": 0.92727027,
+            "strength": 0.92727027
+          }
+        ],
+        "upper_bound": 0.25956325
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": -0.01033915,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": -0.68956178,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": -0.66496891,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.01868097,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.00670534,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": -0.01033933,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": -0.66496891,
+        "censored_count": 0,
+        "classification": "suppressed",
+        "discordance": 0.00722058,
+        "evidence_count": 0,
+        "kind": "complex",
+        "lower_bound": -1.04310445,
+        "node_id": "complex.RB.E2F",
+        "observed_count": 0,
+        "stability": 0.96875,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "edge.065",
+            "driver_type": "edge",
+            "signed_contribution": -0.0072731,
+            "strength": 0.0072731
+          }
+        ],
+        "upper_bound": -0.28697778
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 0.03068945,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.26788572,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.86507602,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": -0.00652819,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": -0.00242248,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.03068968,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 0.86507602,
+        "censored_count": 0,
+        "classification": "activated",
+        "discordance": 0.02045404,
+        "evidence_count": 0,
+        "kind": "complex",
+        "lower_bound": 0.58177178,
+        "node_id": "complex.mTORC1",
+        "observed_count": 0,
+        "stability": 1.0,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "edge.063",
+            "driver_type": "edge",
+            "signed_contribution": 0.02088115,
+            "strength": 0.02088115
+          }
+        ],
+        "upper_bound": 1.14838065
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 0.01694529,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.22103636,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.20852309,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.66725838,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": -0.00696005,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.00287367,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.01694468,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 0.66725838,
+        "censored_count": 0,
+        "classification": "activated",
+        "discordance": 0.18409095,
+        "evidence_count": 0,
+        "kind": "pathway",
+        "lower_bound": 0.53987129,
+        "node_id": "pathway.PI3K.AKT.mTOR",
+        "observed_count": 0,
+        "stability": 1.0,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "edge.071",
+            "driver_type": "edge",
+            "signed_contribution": -0.43957658,
+            "strength": 0.43957658
+          },
+          {
+            "driver_id": "edge.072",
+            "driver_type": "edge",
+            "signed_contribution": 0.24521413,
+            "strength": 0.24521413
+          },
+          {
+            "driver_id": "edge.074",
+            "driver_type": "edge",
+            "signed_contribution": 0.12660329,
+            "strength": 0.12660329
+          },
+          {
+            "driver_id": "edge.073",
+            "driver_type": "edge",
+            "signed_contribution": 0.09111321,
+            "strength": 0.09111321
+          }
+        ],
+        "upper_bound": 0.79464459
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 0.04163379,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.16451781,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.00046355,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.34603583,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 1.08797671,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": -0.0051684,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.04163509,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 1.08797671,
+        "censored_count": 0,
+        "classification": "activated",
+        "discordance": 0.10985768,
+        "evidence_count": 0,
+        "kind": "pathway",
+        "lower_bound": 0.85340106,
+        "node_id": "pathway.RTK.signaling",
+        "observed_count": 0,
+        "stability": 1.0,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "edge.068",
+            "driver_type": "edge",
+            "signed_contribution": 0.20416341,
+            "strength": 0.20416341
+          },
+          {
+            "driver_id": "edge.069",
+            "driver_type": "edge",
+            "signed_contribution": -0.1462746,
+            "strength": 0.1462746
+          },
+          {
+            "driver_id": "edge.070",
+            "driver_type": "edge",
+            "signed_contribution": -0.01980956,
+            "strength": 0.01980956
+          }
+        ],
+        "upper_bound": 1.32251174
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": -0.00267534,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.63331324,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.36384792,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.48889037,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": -0.02457829,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": -0.0021951,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": -0.00267589,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 0.48889037,
+        "censored_count": 0,
+        "classification": "activated",
+        "discordance": 0.06491642,
+        "evidence_count": 0,
+        "kind": "pathway",
+        "lower_bound": 0.2558131,
+        "node_id": "pathway.cell.cycle",
+        "observed_count": 0,
+        "stability": 0.953125,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "edge.076",
+            "driver_type": "edge",
+            "signed_contribution": 0.11269027,
+            "strength": 0.11269027
+          },
+          {
+            "driver_id": "edge.077",
+            "driver_type": "edge",
+            "signed_contribution": -0.06843184,
+            "strength": 0.06843184
+          },
+          {
+            "driver_id": "edge.075",
+            "driver_type": "edge",
+            "signed_contribution": -0.02714726,
+            "strength": 0.02714726
+          }
+        ],
+        "upper_bound": 0.72331446
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 1.29768602,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 1.29768602,
+        "censored_count": 0,
+        "classification": "activated",
+        "discordance": 0.00989333,
+        "evidence_count": 1,
+        "kind": "phosphosite",
+        "lower_bound": 0.97279108,
+        "node_id": "phosphosite.AKT1.S473",
+        "observed_count": 1,
+        "stability": 1.0,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "obs.023",
+            "driver_type": "observation",
+            "signed_contribution": 0.00999218,
+            "strength": 0.00999218
+          }
+        ],
+        "upper_bound": 1.62258096
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 1.19786402,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 1.19786402,
+        "censored_count": 0,
+        "classification": "activated",
+        "discordance": 0.00913926,
+        "evidence_count": 1,
+        "kind": "phosphosite",
+        "lower_bound": 0.85745029,
+        "node_id": "phosphosite.AKT1.T308",
+        "observed_count": 1,
+        "stability": 1.0,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "obs.024",
+            "driver_type": "observation",
+            "signed_contribution": 0.00922355,
+            "strength": 0.00922355
+          }
+        ],
+        "upper_bound": 1.53827775
+      },
+      {
+        "ablation_effects": [],
+        "abstention_reason": "No direction-informative measured or feedback evidence is connected to this node.",
+        "activity": null,
+        "censored_count": 0,
+        "classification": "not_estimable",
+        "discordance": null,
+        "evidence_count": 0,
+        "kind": "phosphosite",
+        "lower_bound": null,
+        "node_id": "phosphosite.CDC25C.S216",
+        "observed_count": 0,
+        "stability": null,
+        "support": "abstained",
+        "top_drivers": [],
+        "upper_bound": null
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": -0.199644,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": -0.199644,
+        "censored_count": 0,
+        "classification": "indeterminate",
+        "discordance": 0.0015349,
+        "evidence_count": 1,
+        "kind": "phosphosite",
+        "lower_bound": -0.55534931,
+        "node_id": "phosphosite.CDK1.Y15",
+        "observed_count": 1,
+        "stability": 0.5625,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "obs.035",
+            "driver_type": "observation",
+            "signed_contribution": -0.00153726,
+            "strength": 0.00153726
+          }
+        ],
+        "upper_bound": 0.15606131
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 2.21543537,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.01935134,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 2.21543537,
+        "censored_count": 0,
+        "classification": "activated",
+        "discordance": 0.18272611,
+        "evidence_count": 1,
+        "kind": "phosphosite",
+        "lower_bound": 1.90211713,
+        "node_id": "phosphosite.EGFR.Y1068",
+        "observed_count": 1,
+        "stability": 1.0,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "edge.037",
+            "driver_type": "edge",
+            "signed_contribution": 0.38050729,
+            "strength": 0.38050729
+          },
+          {
+            "driver_id": "obs.017",
+            "driver_type": "observation",
+            "signed_contribution": -0.06665275,
+            "strength": 0.06665275
+          }
+        ],
+        "upper_bound": 2.52214835
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 2.0169607,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.02052067,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 2.0169607,
+        "censored_count": 0,
+        "classification": "activated",
+        "discordance": 0.20423002,
+        "evidence_count": 1,
+        "kind": "phosphosite",
+        "lower_bound": 1.75710112,
+        "node_id": "phosphosite.EGFR.Y1173",
+        "observed_count": 1,
+        "stability": 1.0,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "edge.038",
+            "driver_type": "edge",
+            "signed_contribution": 0.44004969,
+            "strength": 0.44004969
+          },
+          {
+            "driver_id": "obs.018",
+            "driver_type": "observation",
+            "signed_contribution": -0.0732394,
+            "strength": 0.0732394
+          }
+        ],
+        "upper_bound": 2.27474555
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 0.39928801,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 0.39928801,
+        "censored_count": 0,
+        "classification": "indeterminate",
+        "discordance": 0.00306509,
+        "evidence_count": 1,
+        "kind": "phosphosite",
+        "lower_bound": 0.03155735,
+        "node_id": "phosphosite.ELK1.S383",
+        "observed_count": 1,
+        "stability": 0.828125,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "obs.031",
+            "driver_type": "observation",
+            "signed_contribution": 0.00307452,
+            "strength": 0.00307452
+          }
+        ],
+        "upper_bound": 0.76701866
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 1.8173167,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.02052067,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 1.8173167,
+        "censored_count": 0,
+        "classification": "activated",
+        "discordance": 0.22321637,
+        "evidence_count": 1,
+        "kind": "phosphosite",
+        "lower_bound": 1.51211285,
+        "node_id": "phosphosite.ERBB3.Y1289",
+        "observed_count": 1,
+        "stability": 1.0,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "edge.039",
+            "driver_type": "edge",
+            "signed_contribution": 0.49994289,
+            "strength": 0.49994289
+          },
+          {
+            "driver_id": "obs.019",
+            "driver_type": "observation",
+            "signed_contribution": -0.07477666,
+            "strength": 0.07477666
+          }
+        ],
+        "upper_bound": 2.12251663
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 0.79857601,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 0.79857601,
+        "censored_count": 0,
+        "classification": "activated",
+        "discordance": 0.00611146,
+        "evidence_count": 1,
+        "kind": "phosphosite",
+        "lower_bound": 0.50953895,
+        "node_id": "phosphosite.FOXO3.S253",
+        "observed_count": 1,
+        "stability": 1.0,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "obs.027",
+            "driver_type": "observation",
+            "signed_contribution": 0.00614904,
+            "strength": 0.00614904
+          }
+        ],
+        "upper_bound": 1.08761308
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 1.6176727,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.02052067,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 1.6176727,
+        "censored_count": 0,
+        "classification": "activated",
+        "discordance": 0.24131783,
+        "evidence_count": 1,
+        "kind": "phosphosite",
+        "lower_bound": 1.27923445,
+        "node_id": "phosphosite.GAB1.Y627",
+        "observed_count": 1,
+        "stability": 1.0,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "edge.041",
+            "driver_type": "edge",
+            "signed_contribution": 0.55983609,
+            "strength": 0.55983609
+          },
+          {
+            "driver_id": "obs.021",
+            "driver_type": "observation",
+            "signed_contribution": -0.07631392,
+            "strength": 0.07631392
+          }
+        ],
+        "upper_bound": 1.95611085
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 0.89839801,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 0.89839801,
+        "censored_count": 0,
+        "classification": "activated",
+        "discordance": 0.00687014,
+        "evidence_count": 1,
+        "kind": "phosphosite",
+        "lower_bound": 0.53118062,
+        "node_id": "phosphosite.GSK3B.S9",
+        "observed_count": 1,
+        "stability": 1.0,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "obs.026",
+            "driver_type": "observation",
+            "signed_contribution": 0.00691766,
+            "strength": 0.00691766
+          }
+        ],
+        "upper_bound": 1.2656154
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": -0.84482544,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": -0.84482544,
+        "censored_count": 1,
+        "classification": "indeterminate",
+        "discordance": 0.0102431,
+        "evidence_count": 1,
+        "kind": "phosphosite",
+        "lower_bound": -1.55541062,
+        "node_id": "phosphosite.HIST1H1E.S18",
+        "observed_count": 0,
+        "stability": 0.90625,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "obs.039",
+            "driver_type": "observation",
+            "signed_contribution": -0.01034911,
+            "strength": 0.01034911
+          }
+        ],
+        "upper_bound": -0.13424027
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 0.199644,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 0.199644,
+        "censored_count": 0,
+        "classification": "indeterminate",
+        "discordance": 0.0015349,
+        "evidence_count": 1,
+        "kind": "phosphosite",
+        "lower_bound": -0.07610551,
+        "node_id": "phosphosite.JUN.S63",
+        "observed_count": 1,
+        "stability": 0.609375,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "obs.033",
+            "driver_type": "observation",
+            "signed_contribution": 0.00153726,
+            "strength": 0.00153726
+          }
+        ],
+        "upper_bound": 0.47539352
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": -0.59893201,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": -0.59893201,
+        "censored_count": 0,
+        "classification": "suppressed",
+        "discordance": 0.00459061,
+        "evidence_count": 1,
+        "kind": "phosphosite",
+        "lower_bound": -0.91028378,
+        "node_id": "phosphosite.LMNA.S22",
+        "observed_count": 1,
+        "stability": 0.96875,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "obs.037",
+            "driver_type": "observation",
+            "signed_contribution": -0.00461178,
+            "strength": 0.00461178
+          }
+        ],
+        "upper_bound": -0.28758024
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 0.59893201,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 0.59893201,
+        "censored_count": 0,
+        "classification": "activated",
+        "discordance": 0.00459061,
+        "evidence_count": 1,
+        "kind": "phosphosite",
+        "lower_bound": 0.30387672,
+        "node_id": "phosphosite.MAPK1.T185",
+        "observed_count": 1,
+        "stability": 0.96875,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "obs.029",
+            "driver_type": "observation",
+            "signed_contribution": 0.00461178,
+            "strength": 0.00461178
+          }
+        ],
+        "upper_bound": 0.8939873
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 0.49911001,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 0.49911001,
+        "censored_count": 0,
+        "classification": "indeterminate",
+        "discordance": 0.00382843,
+        "evidence_count": 1,
+        "kind": "phosphosite",
+        "lower_bound": 0.11577271,
+        "node_id": "phosphosite.MAPK1.Y187",
+        "observed_count": 1,
+        "stability": 0.8125,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "obs.030",
+            "driver_type": "observation",
+            "signed_contribution": 0.00384315,
+            "strength": 0.00384315
+          }
+        ],
+        "upper_bound": 0.8824473
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 1.09804202,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 1.09804202,
+        "censored_count": 0,
+        "classification": "activated",
+        "discordance": 0.00838404,
+        "evidence_count": 1,
+        "kind": "phosphosite",
+        "lower_bound": 0.65347317,
+        "node_id": "phosphosite.MTOR.S2448",
+        "observed_count": 1,
+        "stability": 1.0,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "obs.025",
+            "driver_type": "observation",
+            "signed_contribution": 0.00845492,
+            "strength": 0.00845492
+          }
+        ],
+        "upper_bound": 1.54261086
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": -0.43152851,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.00996977,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": -0.00030711,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.01191356,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.00032566,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 0.11173557,
+        "censored_count": 0,
+        "classification": "indeterminate",
+        "discordance": 0.12470115,
+        "evidence_count": 1,
+        "kind": "phosphosite",
+        "lower_bound": -0.18591646,
+        "node_id": "phosphosite.MYC.S62",
+        "observed_count": 1,
+        "stability": 0.71875,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "edge.082",
+            "driver_type": "edge",
+            "signed_contribution": 0.23425759,
+            "strength": 0.23425759
+          },
+          {
+            "driver_id": "obs.034",
+            "driver_type": "observation",
+            "signed_contribution": -0.0506763,
+            "strength": 0.0506763
+          }
+        ],
+        "upper_bound": 0.40938759
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": -0.79857601,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": -0.79857601,
+        "censored_count": 0,
+        "classification": "suppressed",
+        "discordance": 0.00611146,
+        "evidence_count": 1,
+        "kind": "phosphosite",
+        "lower_bound": -1.18192297,
+        "node_id": "phosphosite.NPM1.T199",
+        "observed_count": 1,
+        "stability": 0.984375,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "obs.038",
+            "driver_type": "observation",
+            "signed_contribution": -0.00614904,
+            "strength": 0.00614904
+          }
+        ],
+        "upper_bound": -0.41522906
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": -0.39928801,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": -0.39928801,
+        "censored_count": 0,
+        "classification": "indeterminate",
+        "discordance": 0.00306509,
+        "evidence_count": 1,
+        "kind": "phosphosite",
+        "lower_bound": -0.67043183,
+        "node_id": "phosphosite.RB1.S807",
+        "observed_count": 1,
+        "stability": 0.828125,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "obs.036",
+            "driver_type": "observation",
+            "signed_contribution": -0.00307452,
+            "strength": 0.00307452
+          }
+        ],
+        "upper_bound": -0.12814418
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 0.299466,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 0.299466,
+        "censored_count": 0,
+        "classification": "indeterminate",
+        "discordance": 0.00230058,
+        "evidence_count": 1,
+        "kind": "phosphosite",
+        "lower_bound": -0.00238251,
+        "node_id": "phosphosite.RPS6KA1.S380",
+        "observed_count": 1,
+        "stability": 0.59375,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "obs.032",
+            "driver_type": "observation",
+            "signed_contribution": 0.00230589,
+            "strength": 0.00230589
+          }
+        ],
+        "upper_bound": 0.60131452
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 1.5178507,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.02052067,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 1.5178507,
+        "censored_count": 0,
+        "classification": "activated",
+        "discordance": 0.25005585,
+        "evidence_count": 1,
+        "kind": "phosphosite",
+        "lower_bound": 1.15647783,
+        "node_id": "phosphosite.SHC1.Y317",
+        "observed_count": 1,
+        "stability": 1.0,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "edge.042",
+            "driver_type": "edge",
+            "signed_contribution": 0.58978269,
+            "strength": 0.58978269
+          },
+          {
+            "driver_id": "obs.022",
+            "driver_type": "observation",
+            "signed_contribution": -0.07708255,
+            "strength": 0.07708255
+          }
+        ],
+        "upper_bound": 1.87922343
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 1.7174947,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.02052067,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 1.7174947,
+        "censored_count": 0,
+        "classification": "activated",
+        "discordance": 0.2323738,
+        "evidence_count": 1,
+        "kind": "phosphosite",
+        "lower_bound": 1.36280201,
+        "node_id": "phosphosite.STAT3.Y705",
+        "observed_count": 1,
+        "stability": 1.0,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "edge.040",
+            "driver_type": "edge",
+            "signed_contribution": 0.52988949,
+            "strength": 0.52988949
+          },
+          {
+            "driver_id": "obs.020",
+            "driver_type": "observation",
+            "signed_contribution": -0.07554529,
+            "strength": 0.07554529
+          }
+        ],
+        "upper_bound": 2.07218728
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 0.69875401,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 0.69875401,
+        "censored_count": 0,
+        "classification": "activated",
+        "discordance": 0.00535161,
+        "evidence_count": 1,
+        "kind": "phosphosite",
+        "lower_bound": 0.33886531,
+        "node_id": "phosphosite.TSC2.T1462",
+        "observed_count": 1,
+        "stability": 1.0,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "obs.028",
+            "driver_type": "observation",
+            "signed_contribution": 0.00538041,
+            "strength": 0.00538041
+          }
+        ],
+        "upper_bound": 1.05864271
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 0.03690949,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.31325628,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.0019483,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.00761476,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.0369095,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 0.80962277,
+        "censored_count": 0,
+        "classification": "activated",
+        "discordance": 0.0640781,
+        "evidence_count": 1,
+        "kind": "protein",
+        "lower_bound": 0.48375952,
+        "node_id": "protein.AKT1",
+        "observed_count": 1,
+        "stability": 1.0,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "edge.079",
+            "driver_type": "edge",
+            "signed_contribution": 0.11738156,
+            "strength": 0.11738156
+          },
+          {
+            "driver_id": "edge.003",
+            "driver_type": "edge",
+            "signed_contribution": 0.05260234,
+            "strength": 0.05260234
+          },
+          {
+            "driver_id": "obs.003",
+            "driver_type": "observation",
+            "signed_contribution": -0.03541178,
+            "strength": 0.03541178
+          }
+        ],
+        "upper_bound": 1.13549962
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": -0.01900988,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.88008354,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": -0.04036682,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": -0.01900988,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 0.45844714,
+        "censored_count": 0,
+        "classification": "indeterminate",
+        "discordance": 0.27233749,
+        "evidence_count": 1,
+        "kind": "protein",
+        "lower_bound": 0.08544719,
+        "node_id": "protein.CDK1",
+        "observed_count": 1,
+        "stability": 0.828125,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "edge.005",
+            "driver_type": "edge",
+            "signed_contribution": -0.59561241,
+            "strength": 0.59561241
+          },
+          {
+            "driver_id": "obs.005",
+            "driver_type": "observation",
+            "signed_contribution": 0.15291452,
+            "strength": 0.15291452
+          }
+        ],
+        "upper_bound": 0.8316408
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.29928838,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 0.29928838,
+        "censored_count": 0,
+        "classification": "indeterminate",
+        "discordance": 0.00261193,
+        "evidence_count": 1,
+        "kind": "protein",
+        "lower_bound": -0.17025715,
+        "node_id": "protein.CDK2",
+        "observed_count": 1,
+        "stability": 0.5625,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "obs.015",
+            "driver_type": "observation",
+            "signed_contribution": 0.00261877,
+            "strength": 0.00261877
+          }
+        ],
+        "upper_bound": 0.7688339
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 0.07010236,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": -0.14787855,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0007699,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.01030295,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.07010238,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 1.40698204,
+        "censored_count": 0,
+        "classification": "activated",
+        "discordance": 0.08160574,
+        "evidence_count": 1,
+        "kind": "protein",
+        "lower_bound": 0.9756976,
+        "node_id": "protein.EGFR",
+        "observed_count": 1,
+        "stability": 1.0,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "edge.001",
+            "driver_type": "edge",
+            "signed_contribution": 0.15202004,
+            "strength": 0.15202004
+          },
+          {
+            "driver_id": "obs.001",
+            "driver_type": "observation",
+            "signed_contribution": -0.02569391,
+            "strength": 0.02569391
+          }
+        ],
+        "upper_bound": 1.83820223
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 0.0518728,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": -0.23923594,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.00058577,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.01343032,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.05187281,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 0.91129545,
+        "censored_count": 0,
+        "classification": "activated",
+        "discordance": 0.10703586,
+        "evidence_count": 1,
+        "kind": "protein",
+        "lower_bound": 0.51745366,
+        "node_id": "protein.ERBB3",
+        "observed_count": 1,
+        "stability": 1.0,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "edge.012",
+            "driver_type": "edge",
+            "signed_contribution": 0.19816435,
+            "strength": 0.19816435
+          },
+          {
+            "driver_id": "obs.016",
+            "driver_type": "observation",
+            "signed_contribution": -0.04156725,
+            "strength": 0.04156725
+          }
+        ],
+        "upper_bound": 1.30513027
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.19952558,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 0.19952558,
+        "censored_count": 0,
+        "classification": "indeterminate",
+        "discordance": 0.00174281,
+        "evidence_count": 1,
+        "kind": "protein",
+        "lower_bound": -0.11781938,
+        "node_id": "protein.GFAP",
+        "observed_count": 1,
+        "stability": 0.578125,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "obs.009",
+            "driver_type": "observation",
+            "signed_contribution": 0.00174585,
+            "strength": 0.00174585
+          }
+        ],
+        "upper_bound": 0.51687055
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 0.0099928,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.412096,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": -0.01269422,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.00550746,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.01346083,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 0.59226394,
+        "censored_count": 0,
+        "classification": "indeterminate",
+        "discordance": 0.08786582,
+        "evidence_count": 1,
+        "kind": "protein",
+        "lower_bound": 0.22191554,
+        "node_id": "protein.MAPK1",
+        "observed_count": 1,
+        "stability": 0.921875,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "edge.004",
+            "driver_type": "edge",
+            "signed_contribution": -0.1768333,
+            "strength": 0.1768333
+          },
+          {
+            "driver_id": "edge.081",
+            "driver_type": "edge",
+            "signed_contribution": 0.0836878,
+            "strength": 0.0836878
+          },
+          {
+            "driver_id": "obs.004",
+            "driver_type": "observation",
+            "signed_contribution": 0.02846868,
+            "strength": 0.02846868
+          }
+        ],
+        "upper_bound": 0.96261235
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 0.03151275,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.2750704,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": -0.00670328,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": -0.00248745,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.03151277,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 0.88827729,
+        "censored_count": 0,
+        "classification": "activated",
+        "discordance": 0.05796888,
+        "evidence_count": 1,
+        "kind": "protein",
+        "lower_bound": 0.59737486,
+        "node_id": "protein.MTOR",
+        "observed_count": 1,
+        "stability": 1.0,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "edge.006",
+            "driver_type": "edge",
+            "signed_contribution": -0.10312452,
+            "strength": 0.10312452
+          },
+          {
+            "driver_id": "obs.006",
+            "driver_type": "observation",
+            "signed_contribution": 0.04313958,
+            "strength": 0.04313958
+          },
+          {
+            "driver_id": "edge.080",
+            "driver_type": "edge",
+            "signed_contribution": -0.03834408,
+            "strength": 0.03834408
+          }
+        ],
+        "upper_bound": 1.17918014
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": -0.76393124,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.0341711,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": -0.76393124,
+        "censored_count": 0,
+        "classification": "suppressed",
+        "discordance": 0.24154158,
+        "evidence_count": 1,
+        "kind": "protein",
+        "lower_bound": -1.14785831,
+        "node_id": "protein.NF1",
+        "observed_count": 1,
+        "stability": 0.984375,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "edge.010",
+            "driver_type": "edge",
+            "signed_contribution": 0.50419462,
+            "strength": 0.50419462
+          },
+          {
+            "driver_id": "obs.012",
+            "driver_type": "observation",
+            "signed_contribution": -0.13273305,
+            "strength": 0.13273305
+          }
+        ],
+        "upper_bound": -0.38000416
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.69833955,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 0.69833955,
+        "censored_count": 0,
+        "classification": "activated",
+        "discordance": 0.00607336,
+        "evidence_count": 1,
+        "kind": "protein",
+        "lower_bound": 0.31485725,
+        "node_id": "protein.OLIG2",
+        "observed_count": 1,
+        "stability": 0.953125,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "obs.010",
+            "driver_type": "observation",
+            "signed_contribution": 0.00611047,
+            "strength": 0.00611047
+          }
+        ],
+        "upper_bound": 1.08182184
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.85942264,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": -0.03844249,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 0.85942264,
+        "censored_count": 0,
+        "classification": "activated",
+        "discordance": 0.26377034,
+        "evidence_count": 1,
+        "kind": "protein",
+        "lower_bound": 0.47234323,
+        "node_id": "protein.PDGFRA",
+        "observed_count": 1,
+        "stability": 1.0,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "edge.009",
+            "driver_type": "edge",
+            "signed_contribution": -0.56721894,
+            "strength": 0.56721894
+          },
+          {
+            "driver_id": "obs.011",
+            "driver_type": "observation",
+            "signed_contribution": 0.14932468,
+            "strength": 0.14932468
+          }
+        ],
+        "upper_bound": 1.24650205
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 0.00224207,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": -0.43998603,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 2.465e-05,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.00032952,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.01309235,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.00224208,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 1.01072027,
+        "censored_count": 0,
+        "classification": "activated",
+        "discordance": 0.10419478,
+        "evidence_count": 1,
+        "kind": "protein",
+        "lower_bound": 0.52907241,
+        "node_id": "protein.PIK3CA",
+        "observed_count": 1,
+        "stability": 1.0,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "edge.078",
+            "driver_type": "edge",
+            "signed_contribution": 0.19317761,
+            "strength": 0.19317761
+          },
+          {
+            "driver_id": "obs.013",
+            "driver_type": "observation",
+            "signed_contribution": -0.0394506,
+            "strength": 0.0394506
+          }
+        ],
+        "upper_bound": 1.49236686
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": -1.05040545,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.04698527,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": -1.05040545,
+        "censored_count": 0,
+        "classification": "suppressed",
+        "discordance": 0.30453543,
+        "evidence_count": 1,
+        "kind": "protein",
+        "lower_bound": -1.40096975,
+        "node_id": "protein.PTEN",
+        "observed_count": 1,
+        "stability": 1.0,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "edge.002",
+            "driver_type": "edge",
+            "signed_contribution": 0.6932676,
+            "strength": 0.6932676
+          },
+          {
+            "driver_id": "obs.002",
+            "driver_type": "observation",
+            "signed_contribution": -0.18250795,
+            "strength": 0.18250795
+          }
+        ],
+        "upper_bound": -0.70223752
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": -0.01046497,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": -0.69830258,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.018908,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.00678683,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": -0.01046498,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": -0.67305013,
+        "censored_count": 0,
+        "classification": "suppressed",
+        "discordance": 0.13602454,
+        "evidence_count": 1,
+        "kind": "protein",
+        "lower_bound": -1.05578106,
+        "node_id": "protein.RB1",
+        "observed_count": 1,
+        "stability": 0.96875,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "edge.007",
+            "driver_type": "edge",
+            "signed_contribution": 0.26852636,
+            "strength": 0.26852636
+          },
+          {
+            "driver_id": "edge.083",
+            "driver_type": "edge",
+            "signed_contribution": 0.10461896,
+            "strength": 0.10461896
+          },
+          {
+            "driver_id": "obs.007",
+            "driver_type": "observation",
+            "signed_contribution": -0.09917552,
+            "strength": 0.09917552
+          }
+        ],
+        "upper_bound": -0.29046536
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 0.04902352,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": -0.27437996,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.00058577,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.01485242,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.04902353,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 0.81295476,
+        "censored_count": 0,
+        "classification": "activated",
+        "discordance": 0.11770715,
+        "evidence_count": 1,
+        "kind": "protein",
+        "lower_bound": 0.38455271,
+        "node_id": "protein.STAT3",
+        "observed_count": 1,
+        "stability": 0.984375,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "edge.011",
+            "driver_type": "edge",
+            "signed_contribution": 0.21914752,
+            "strength": 0.21914752
+          },
+          {
+            "driver_id": "obs.014",
+            "driver_type": "observation",
+            "signed_contribution": -0.04767352,
+            "strength": 0.04767352
+          }
+        ],
+        "upper_bound": 1.2412836
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": -0.38196562,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.01708555,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": -0.38196562,
+        "censored_count": 0,
+        "classification": "indeterminate",
+        "discordance": 0.13735985,
+        "evidence_count": 1,
+        "kind": "protein",
+        "lower_bound": -0.71947929,
+        "node_id": "protein.TP53",
+        "observed_count": 1,
+        "stability": 0.6875,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "edge.008",
+            "driver_type": "edge",
+            "signed_contribution": 0.25209731,
+            "strength": 0.25209731
+          },
+          {
+            "driver_id": "obs.008",
+            "driver_type": "observation",
+            "signed_contribution": -0.06636653,
+            "strength": 0.06636653
+          }
+        ],
+        "upper_bound": -0.04445194
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 0.88932329,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.88932329,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 0.88932329,
+        "censored_count": 0,
+        "classification": "activated",
+        "discordance": 0.01390602,
+        "evidence_count": 0,
+        "kind": "proteoform",
+        "lower_bound": 0.72982144,
+        "node_id": "proteoform.AKT1.canonical",
+        "observed_count": 0,
+        "stability": 1.0,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "edge.019",
+            "driver_type": "edge",
+            "signed_contribution": 0.02858539,
+            "strength": 0.02858539
+          },
+          {
+            "driver_id": "edge.020",
+            "driver_type": "edge",
+            "signed_contribution": 0.02159785,
+            "strength": 0.02159785
+          },
+          {
+            "driver_id": "edge.024",
+            "driver_type": "edge",
+            "signed_contribution": -0.01333985,
+            "strength": 0.01333985
+          },
+          {
+            "driver_id": "edge.023",
+            "driver_type": "edge",
+            "signed_contribution": -0.00635231,
+            "strength": 0.00635231
+          },
+          {
+            "driver_id": "edge.022",
+            "driver_type": "edge",
+            "signed_contribution": 0.00063523,
+            "strength": 0.00063523
+          }
+        ],
+        "upper_bound": 1.04882513
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": -0.4439959,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": -0.4439959,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": -0.4439959,
+        "censored_count": 0,
+        "classification": "suppressed",
+        "discordance": 0.02189174,
+        "evidence_count": 0,
+        "kind": "proteoform",
+        "lower_bound": -0.60733398,
+        "node_id": "proteoform.CDK1.canonical",
+        "observed_count": 0,
+        "stability": 0.953125,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "edge.036",
+            "driver_type": "edge",
+            "signed_contribution": 0.03107971,
+            "strength": 0.03107971
+          },
+          {
+            "driver_id": "edge.035",
+            "driver_type": "edge",
+            "signed_contribution": -0.02805807,
+            "strength": 0.02805807
+          },
+          {
+            "driver_id": "edge.034",
+            "driver_type": "edge",
+            "signed_contribution": -0.02482061,
+            "strength": 0.02482061
+          },
+          {
+            "driver_id": "edge.031",
+            "driver_type": "edge",
+            "signed_contribution": 0.01710463,
+            "strength": 0.01710463
+          },
+          {
+            "driver_id": "edge.033",
+            "driver_type": "edge",
+            "signed_contribution": -0.01084553,
+            "strength": 0.01084553
+          }
+        ],
+        "upper_bound": -0.28065783
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 1.63731544,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.01798077,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 1.63731544,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 1.63731544,
+        "censored_count": 0,
+        "classification": "activated",
+        "discordance": 0.01883375,
+        "evidence_count": 0,
+        "kind": "proteoform",
+        "lower_bound": 1.47693434,
+        "node_id": "proteoform.EGFR.vIII",
+        "observed_count": 0,
+        "stability": 1.0,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "edge.013",
+            "driver_type": "edge",
+            "signed_contribution": 0.0404684,
+            "strength": 0.0404684
+          },
+          {
+            "driver_id": "edge.014",
+            "driver_type": "edge",
+            "signed_contribution": 0.02657517,
+            "strength": 0.02657517
+          },
+          {
+            "driver_id": "edge.018",
+            "driver_type": "edge",
+            "signed_contribution": -0.00836253,
+            "strength": 0.00836253
+          },
+          {
+            "driver_id": "edge.017",
+            "driver_type": "edge",
+            "signed_contribution": -0.00137499,
+            "strength": 0.00137499
+          }
+        ],
+        "upper_bound": 1.79637247
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 1.21154447,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.01368047,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 1.21154447,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 1.21154447,
+        "censored_count": 0,
+        "classification": "activated",
+        "discordance": 0.0406791,
+        "evidence_count": 0,
+        "kind": "proteoform",
+        "lower_bound": 1.00807429,
+        "node_id": "proteoform.ERBB3.canonical",
+        "observed_count": 0,
+        "stability": 1.0,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "edge.015",
+            "driver_type": "edge",
+            "signed_contribution": 0.04240406,
+            "strength": 0.04240406
+          }
+        ],
+        "upper_bound": 1.41501019
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 0.24075837,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.00153381,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": -4.725e-05,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.00183286,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.32433471,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 0.32433471,
+        "censored_count": 0,
+        "classification": "indeterminate",
+        "discordance": 0.01023645,
+        "evidence_count": 0,
+        "kind": "proteoform",
+        "lower_bound": 0.21715496,
+        "node_id": "proteoform.MAPK1.canonical",
+        "observed_count": 0,
+        "stability": 0.875,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "edge.025",
+            "driver_type": "edge",
+            "signed_contribution": 0.01922181,
+            "strength": 0.01922181
+          },
+          {
+            "driver_id": "edge.030",
+            "driver_type": "edge",
+            "signed_contribution": -0.01488194,
+            "strength": 0.01488194
+          },
+          {
+            "driver_id": "edge.026",
+            "driver_type": "edge",
+            "signed_contribution": 0.01223427,
+            "strength": 0.01223427
+          },
+          {
+            "driver_id": "edge.029",
+            "driver_type": "edge",
+            "signed_contribution": -0.00872835,
+            "strength": 0.00872835
+          },
+          {
+            "driver_id": "edge.027",
+            "driver_type": "edge",
+            "signed_contribution": 0.00524673,
+            "strength": 0.00524673
+          }
+        ],
+        "upper_bound": 0.43151445
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 0.73202801,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 0.73202801,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 0.73202801,
+        "censored_count": 0,
+        "classification": "activated",
+        "discordance": 0.02498094,
+        "evidence_count": 0,
+        "kind": "proteoform",
+        "lower_bound": 0.43564878,
+        "node_id": "proteoform.MTOR.canonical",
+        "observed_count": 0,
+        "stability": 1.0,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "edge.021",
+            "driver_type": "edge",
+            "signed_contribution": 0.02562098,
+            "strength": 0.02562098
+          }
+        ],
+        "upper_bound": 1.02840724
+      },
+      {
+        "ablation_effects": [],
+        "abstention_reason": "No direction-informative measured or feedback evidence is connected to this node.",
+        "activity": null,
+        "censored_count": 0,
+        "classification": "not_estimable",
+        "discordance": null,
+        "evidence_count": 0,
+        "kind": "proteoform",
+        "lower_bound": null,
+        "node_id": "proteoform.NF1.canonical",
+        "observed_count": 0,
+        "stability": null,
+        "support": "abstained",
+        "top_drivers": [],
+        "upper_bound": null
+      },
+      {
+        "ablation_effects": [],
+        "abstention_reason": "No direction-informative measured or feedback evidence is connected to this node.",
+        "activity": null,
+        "censored_count": 0,
+        "classification": "not_estimable",
+        "discordance": null,
+        "evidence_count": 0,
+        "kind": "proteoform",
+        "lower_bound": null,
+        "node_id": "proteoform.PDGFRA.canonical",
+        "observed_count": 0,
+        "stability": null,
+        "support": "abstained",
+        "top_drivers": [],
+        "upper_bound": null
+      },
+      {
+        "ablation_effects": [],
+        "abstention_reason": "No direction-informative measured or feedback evidence is connected to this node.",
+        "activity": null,
+        "censored_count": 0,
+        "classification": "not_estimable",
+        "discordance": null,
+        "evidence_count": 0,
+        "kind": "proteoform",
+        "lower_bound": null,
+        "node_id": "proteoform.PTEN.canonical",
+        "observed_count": 0,
+        "stability": null,
+        "support": "abstained",
+        "top_drivers": [],
+        "upper_bound": null
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": -0.266192,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": -0.266192,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": -0.266192,
+        "censored_count": 0,
+        "classification": "indeterminate",
+        "discordance": 0.00923072,
+        "evidence_count": 0,
+        "kind": "proteoform",
+        "lower_bound": -0.44695455,
+        "node_id": "proteoform.RB1.canonical",
+        "observed_count": 0,
+        "stability": 0.546875,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "edge.032",
+            "driver_type": "edge",
+            "signed_contribution": -0.00931672,
+            "strength": 0.00931672
+          }
+        ],
+        "upper_bound": -0.08542946
+      },
+      {
+        "ablation_effects": [
+          {
+            "activity_delta": 1.14499647,
+            "kind": "modality",
+            "omitted": "phosphoproteomics"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "modality",
+            "omitted": "proteomics"
+          },
+          {
+            "activity_delta": 0.01368047,
+            "kind": "edge_family",
+            "omitted": "kinase_substrate"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "member_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "participates_in"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "proteoform_of"
+          },
+          {
+            "activity_delta": 0.0,
+            "kind": "edge_family",
+            "omitted": "regulates"
+          },
+          {
+            "activity_delta": 1.14499647,
+            "kind": "edge_family",
+            "omitted": "site_of"
+          }
+        ],
+        "abstention_reason": null,
+        "activity": 1.14499647,
+        "censored_count": 0,
+        "classification": "activated",
+        "discordance": 0.03853076,
+        "evidence_count": 0,
+        "kind": "proteoform",
+        "lower_bound": 0.90853373,
+        "node_id": "proteoform.STAT3.canonical",
+        "observed_count": 0,
+        "stability": 1.0,
+        "support": "limited",
+        "top_drivers": [
+          {
+            "driver_id": "edge.016",
+            "driver_type": "edge",
+            "signed_contribution": 0.04007488,
+            "strength": 0.04007488
+          }
+        ],
+        "upper_bound": 1.38145742
+      },
+      {
+        "ablation_effects": [],
+        "abstention_reason": "No direction-informative measured or feedback evidence is connected to this node.",
+        "activity": null,
+        "censored_count": 0,
+        "classification": "not_estimable",
+        "discordance": null,
+        "evidence_count": 0,
+        "kind": "proteoform",
+        "lower_bound": null,
+        "node_id": "proteoform.TP53.canonical",
+        "observed_count": 0,
+        "stability": null,
+        "support": "abstained",
+        "top_drivers": [],
+        "upper_bound": null
+      }
+    ],
+    "non_prescriptive": true,
+    "profile_digest": "sha256:0600809e58cc1ed08e6e5f0cbd1b5ce39a75ac241f4d0390a1a815997aec00e5",
+    "profile_id": "glio-ecgi/1.0.0",
+    "provenance": {
+      "computational_digest": "sha256:68c93cede9832357d0cc1264dc074a6d3184f94152dd01027a82e593ec4947bc",
+      "demo_graph_digest": "sha256:7ccc01a460714c7f4920002cf4570bb49a43c91191ee9de85f9177f1d52341a5",
+      "deterministic_seed": 1799374185494456,
+      "engine": "glio-ecgi/1.0.0",
+      "numpy_version": "2.5.2",
+      "observation_source_digests": [
+        "sha256:077022ae2ced08c9a364cb18bca8c968f029e28928f99f46063adb8d63b7ff28",
+        "sha256:08459a07442824d51d74cd1b2d167f231da3dd6de557cc750f60abdf1610420b",
+        "sha256:0bdd71f1fbf26ff98967f122117bac7c61ea801fafef00e0248df652c5269cf3",
+        "sha256:10aa0d54a4926fc7e0963d9a1db75c1b08a294fe11019fb0ab62c82915ba3734",
+        "sha256:166a5bd94b4111fa69925713eebcfdd95d16d8f6ba50ecf32aea2b7bf523d9b9",
+        "sha256:187e07db4bbcced130a762ff6d71489cdbca739a6d5758edfe656d8fc1c607f0",
+        "sha256:1b5b8e7794ffcd115d2a32049652049f5ff77c1c231317a97223a1c6a33e220d",
+        "sha256:1e763703acf98f1f76e24bff537639194293aad0543eb2744072b021caa8e398",
+        "sha256:22b2b936c274f0d0937a0cbb06690867eefe3e5fcc249a061eb3eeaa1d06e6a9",
+        "sha256:43799ae6f5f18cbb3fb023feef10fa09b18dc890c13581098cf1a4be62eb1bd1",
+        "sha256:47b19ed64587060204e1f8810028d7cebb6f10f57cf956dd0959490483aabbf3",
+        "sha256:52413d1db9f7098231dcd2668d975dd09be251eea94cd46e397261e27ca1dd38",
+        "sha256:528a482455e2e5caee92f156d04f61b4432e4a43405092857d31d19f9a31c581",
+        "sha256:562f10dbee32d8bfdf6e3eddd599c60f6546e2f16c9b6047b423e2fbafd37055",
+        "sha256:5980f2a1869833076ef060653371abea230f99682d7cb8f63ec6943bc5ddb8d4",
+        "sha256:5c5a3f59199ecf5587bd0eb2fd26be68382104c54c8bf24dfb650067d5e52d1e",
+        "sha256:6437ebe0bbae11c974d400929dc5618a6bb25ce6c737429705304cafbc1e9f29",
+        "sha256:65c32ae96bdb9b911995e0c31a394347f510e2504226f95a4ad9908068f9a364",
+        "sha256:6bf1ad7d360a7082742fbae8288fe417ae08ced53db6f457083015d337f3a174",
+        "sha256:713dcd67ba05baffccf8482415522380110e1e9fca1ed1cbde05b991f6b0540e",
+        "sha256:764907759591413d6a0b56978d1395366a212efaf5f0ebb044205a06a6874fa2",
+        "sha256:794aea129bd766c498a0762d0c49a38a30aadd546b052cb9c4808dbd85bf7685",
+        "sha256:7f92943db43c6cfe9065d98aa5e8dce59266f8e9a9e8f55c176c1054349c846e",
+        "sha256:7fe684a147d49330e2deb6826337359f6d20cb4a347cd0ae302bca075fab72da",
+        "sha256:853b0b1928453b918da7d60819439c294cd7a1b25b491d6820e29f268edd22fd",
+        "sha256:86f0671e050db0e4a661072210423ba55650f55cfd7c7c7d187e13275e8a477b",
+        "sha256:89d4b6cf0db85083da889cf7d302ef057d123c211e0edab248752f8035f3e179",
+        "sha256:8b08a536b34e536f2853fde72a50cb2767353ede2dbefe50b6945ebdadacc9a1",
+        "sha256:8d2474bcaf3048ed1c211f7c744975ab4320c8abf1c3bf8520e385365601710e",
+        "sha256:8f6090fa1081782dd0b3b67c10a85d6dedf3c28187bcd35f2afbed67a6459900",
+        "sha256:988b13b14a61ca32cba076b93157203ba9424c8305f567508f8ddebe5c5491c2",
+        "sha256:9a4d04aa483913da8468f30a1f7770e1afe6166bc3cc2c8e509a943f41575147",
+        "sha256:9c7f343aeff265e1d2c6a739a6dde16131ef052cf8248a77d35d3356208be55a",
+        "sha256:a159e52450e9977ee69584c14e7aae0bd03c450f0499b8ec5701ea5017c04c15",
+        "sha256:a7cf15e911aa4371ddd6046fea3eb2c915ab220b7b7296eb3181707dfea0eb6c",
+        "sha256:cb7d8fa595fc8c1467e5b721391dab0a47fda2aec06ca58c8a791caf134ed36d",
+        "sha256:d5e3c52d26eddf7fb9d3611d3bbbeaa8fccb1b8f382631d385dd04a4d47327bc",
+        "sha256:ee3135a02c9f4514418324012e91c7ec2735e88bc02864cfd808b73a0de51211",
+        "sha256:f4d93f171efec135240aa8d5743a8ad6baa1ec650edea4b84579854ada97ed8d",
+        "sha256:f8cb3b6a53e803363cef351d8cb14a7a21bd547f9e2bcb70326cd9bab02e5b6c"
+      ],
+      "profile_digest": "sha256:0600809e58cc1ed08e6e5f0cbd1b5ce39a75ac241f4d0390a1a815997aec00e5",
+      "request_digest": "sha256:53f45e6dc170e4abfa67489a4d765fa184c96326a8257e0308805c9797e24741",
+      "topology": {
+        "curation_note": "Reactome records provide biological context for the three pathway nodes only. The node selection, edges, signs, weights, essential flags, and observations are repository-native synthetic demo choices, not a Reactome export or patient data.",
+        "derivation": "synthetic_abstraction",
+        "sources": [
+          {
+            "license_id": "CC0-1.0",
+            "license_uri": "https://creativecommons.org/publicdomain/zero/1.0/",
+            "record_id": "R-HSA-177929",
+            "record_title": "Signaling by EGFR",
+            "resource_name": "Reactome",
+            "resource_release": "97",
+            "retrieved_on": "2026-08-27",
+            "role": "biological_context",
+            "scope_node_ids": [
+              "pathway.RTK.signaling"
+            ],
+            "source_digest": "sha256:8bfd16fd5aa56ac37ff1d3e8e1bc8a14f27d5ca9cf4204bcfc2231e004823260",
+            "source_format": "SBML Level 3 Version 1",
+            "source_id": "reactome.R-HSA-177929.release97",
+            "source_size_bytes": 715097,
+            "source_uri": "https://reactome.org/ContentService/exporter/event/R-HSA-177929.sbml"
+          },
+          {
+            "license_id": "CC0-1.0",
+            "license_uri": "https://creativecommons.org/publicdomain/zero/1.0/",
+            "record_id": "R-HSA-1257604",
+            "record_title": "PIP3 activates AKT signaling",
+            "resource_name": "Reactome",
+            "resource_release": "97",
+            "retrieved_on": "2026-08-27",
+            "role": "biological_context",
+            "scope_node_ids": [
+              "pathway.PI3K.AKT.mTOR"
+            ],
+            "source_digest": "sha256:8274c7abb68f83738c46b7156f81f2546a51720f57ef5997c1353de92aeb4c1a",
+            "source_format": "SBML Level 3 Version 1",
+            "source_id": "reactome.R-HSA-1257604.release97",
+            "source_size_bytes": 1085445,
+            "source_uri": "https://reactome.org/ContentService/exporter/event/R-HSA-1257604.sbml"
+          },
+          {
+            "license_id": "CC0-1.0",
+            "license_uri": "https://creativecommons.org/publicdomain/zero/1.0/",
+            "record_id": "R-HSA-69278",
+            "record_title": "Cell Cycle, Mitotic",
+            "resource_name": "Reactome",
+            "resource_release": "97",
+            "retrieved_on": "2026-08-27",
+            "role": "biological_context",
+            "scope_node_ids": [
+              "pathway.cell.cycle"
+            ],
+            "source_digest": "sha256:5c14a87dc086a50327c09191e001d7d1cb86231eaf34646cc8f4c3555df62ad4",
+            "source_format": "SBML Level 3 Version 1",
+            "source_id": "reactome.R-HSA-69278.release97",
+            "source_size_bytes": 3546893,
+            "source_uri": "https://reactome.org/ContentService/exporter/event/R-HSA-69278.sbml"
+          }
+        ],
+        "topology_digest": "sha256:7ccc01a460714c7f4920002cf4570bb49a43c91191ee9de85f9177f1d52341a5"
+      }
+    },
+    "request_digest": "sha256:53f45e6dc170e4abfa67489a4d765fa184c96326a8257e0308805c9797e24741",
+    "research_use_only": true,
+    "result_digest": "sha256:281180538950ee60fa362cbd8f390aac3d6dff11bff4dd3ec25768181c6af973",
+    "sample_id": "synthetic-glioma-demo-v1",
+    "solver": {
+      "first_pass": {
+        "converged": true,
+        "convergence_measure": "maximum_undamped_fixed_point_residual",
+        "final_objective": 4.21896093,
+        "iterations": 19,
+        "max_update": 3e-08,
+        "objective_trace": [
+          10.85705344,
+          6.44581941,
+          4.8257896,
+          4.2133852,
+          4.24588812,
+          4.149677,
+          4.20443877,
+          4.19098347,
+          4.21153553,
+          4.20945434,
+          4.21620586,
+          4.21586506,
+          4.21802879,
+          4.21797214,
+          4.21865905,
+          4.21864979,
+          4.21886584,
+          4.21886438,
+          4.21893159,
+          4.21893137,
+          4.21895203,
+          4.218952,
+          4.21895827,
+          4.21895827,
+          4.21896015,
+          4.21896015,
+          4.2189607,
+          4.2189607,
+          4.21896086,
+          4.21896086,
+          4.21896091,
+          4.21896091,
+          4.21896092,
+          4.21896092,
+          4.21896093,
+          4.21896093,
+          4.21896093,
+          4.21896093
+        ],
+        "objective_trace_semantics": "paired_frozen_parent_baseline_candidate",
+        "pass_name": "evidence_graph",
+        "solver_kind": "directed_conditional_irls",
+        "trace_digest": "sha256:322d830f0c89103b68ee7d05687c4f063eebc62865200968c3f297355f94ce06"
+      },
+      "second_pass": {
+        "converged": true,
+        "convergence_measure": "maximum_undamped_fixed_point_residual",
+        "final_objective": 6.88487188,
+        "iterations": 18,
+        "max_update": 9e-08,
+        "objective_trace": [
+          9.94077299,
+          7.66243679,
+          5.29532409,
+          4.78524023,
+          6.17522864,
+          6.12108394,
+          6.66443076,
+          6.65931547,
+          6.81973963,
+          6.81926727,
+          6.86580069,
+          6.86575424,
+          6.87928025,
+          6.87927516,
+          6.8832255,
+          6.88322484,
+          6.88438485,
+          6.88438475,
+          6.88472721,
+          6.88472719,
+          6.88482877,
+          6.88482877,
+          6.88485901,
+          6.88485901,
+          6.88486804,
+          6.88486804,
+          6.88487074,
+          6.88487074,
+          6.88487155,
+          6.88487155,
+          6.88487179,
+          6.88487179,
+          6.88487186,
+          6.88487186,
+          6.88487188,
+          6.88487188
+        ],
+        "objective_trace_semantics": "paired_frozen_parent_baseline_candidate",
+        "pass_name": "kinase_feedback",
+        "solver_kind": "directed_conditional_irls",
+        "trace_digest": "sha256:dfd9487f0193eb2a2049f89087c3a6305a8ad6cd23d75ffc28b6d4d7cfe91175"
+      }
+    }
+  },
+  "verification": {
+    "message": "Replay exactly matches the deterministic research receipt.",
+    "profile_digest_match": true,
+    "provided_result_digest": "sha256:281180538950ee60fa362cbd8f390aac3d6dff11bff4dd3ec25768181c6af973",
+    "recomputed_request_digest": "sha256:53f45e6dc170e4abfa67489a4d765fa184c96326a8257e0308805c9797e24741",
+    "recomputed_result_digest": "sha256:281180538950ee60fa362cbd8f390aac3d6dff11bff4dd3ec25768181c6af973",
+    "request_digest_match": true,
+    "result_digest_match": true,
+    "semantic_match": true,
+    "solver_trace_match": true,
+    "verified": true
+  }
+}

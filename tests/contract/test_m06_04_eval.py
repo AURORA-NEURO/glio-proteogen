@@ -5,7 +5,7 @@ import json
 import pytest
 from evals.m06_04.run import SCENARIO_PATH, main
 
-_SCENARIO_COUNT = 6
+_SCENARIO_COUNT = 7
 
 
 def test_m06_04_evaluator_replays_matrix(capsys: pytest.CaptureFixture[str]) -> None:

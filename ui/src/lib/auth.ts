@@ -35,6 +35,7 @@ function openDatabase() {
   mkdirSync(path.dirname(filename), { recursive: true });
   const database = new DatabaseSync(filename);
   database.exec("PRAGMA busy_timeout = 5000;");
+  database.exec("PRAGMA foreign_keys = ON;");
   database.exec(`
     CREATE TABLE IF NOT EXISTS accounts (
       id TEXT PRIMARY KEY,
@@ -164,12 +165,21 @@ export function deleteSession(token: string | undefined) {
   }
 }
 
+export function deleteAccount(accountId: string) {
+  const database = openDatabase();
+  try {
+    database.prepare("DELETE FROM accounts WHERE id = ?").run(accountId);
+  } finally {
+    database.close();
+  }
+}
+
 export function sessionCookieOptions() {
   return {
     httpOnly: true,
     sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
-    path: "/",
+    path: "/api",
     maxAge: SESSION_TTL_SECONDS,
   };
 }

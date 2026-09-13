@@ -28,6 +28,7 @@ P95_BUDGET_NS = 250_000_000
 
 @dataclass(frozen=True, slots=True)
 class BenchmarkReport:
+    module_id: str
     workload: str
     timed_boundary: str
     iterations: int
@@ -74,6 +75,7 @@ def run_benchmark(iterations: int = DEFAULT_ITERATIONS) -> BenchmarkReport:
     p95 = ordered[min(len(ordered) - 1, (95 * len(ordered) - 1) // 100)]
     mean = fmean(samples)
     return BenchmarkReport(
+        module_id="GLIO-PROTEOGEN-M03-03",
         workload="genuine_m0102_m0301_m0302_prepared_m0303_admission",
         timed_boundary="ingest_protein_inference_raw_inputs_only",
         iterations=iterations,

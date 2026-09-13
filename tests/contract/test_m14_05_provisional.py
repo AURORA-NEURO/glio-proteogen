@@ -6,7 +6,9 @@ import pytest
 from jsonschema import Draft202012Validator
 
 from glio_proteogen.contracts.m14_05 import (
+    M1405_DEFAULT_BOOTSTRAP_REPLICATES,
     M1405_DOSSIER_SLICE,
+    M1405_MAX_BOOTSTRAP_REPLICATES,
     M1405_OUTPUT_MEDIA_TYPE,
     M1405_PROVISIONAL_ABI,
     M1405_REQUIREMENT_SHA256,
@@ -38,6 +40,10 @@ def test_provisional_schemas_require_ordering_and_leakage_controls() -> None:
         assert metadata["temporalOrderingRequired"] is True
         assert metadata["futureLeakageBlocked"] is True
         assert metadata["unsupportedToNegative"] is False
+        assert metadata["typedGliomaTemporalModel"] is True
+        assert metadata["robustEstimator"] == "damped_huber_temporal_coordinate_descent"
+        assert metadata["bootstrapReplicatesDefault"] == M1405_DEFAULT_BOOTSTRAP_REPLICATES
+        assert metadata["bootstrapReplicatesMaximum"] == M1405_MAX_BOOTSTRAP_REPLICATES
     assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M1405_OUTPUT_MEDIA_TYPE
     assert M1405_PROVISIONAL_ABI is True
     assert M1405_DOSSIER_SLICE == "4892-4932"

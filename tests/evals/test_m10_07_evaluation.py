@@ -3,7 +3,7 @@
 from evals.m10_07.benchmark import run_benchmark
 from evals.m10_07.run import run_evaluation
 
-_CHECK_COUNT = 10
+_CHECK_COUNT = 11
 _ITERATIONS = 10
 
 

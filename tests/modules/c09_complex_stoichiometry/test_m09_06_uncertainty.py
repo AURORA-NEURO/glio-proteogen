@@ -10,7 +10,9 @@ from typing import Final
 import pytest
 
 from glio_proteogen.contracts.m09_06 import (
+    M0906_GLIOMA_MODEL_FAMILY,
     M0906_M0905_RESULT_MEDIA_TYPE,
+    ComplexUncertaintyObservation,
     DecomposeComplexActivityUncertaintyRequest,
     DecomposeComplexActivityUncertaintyVerification,
     SensitivityEnvelope,
@@ -18,6 +20,7 @@ from glio_proteogen.contracts.m09_06 import (
     UncertaintyDecomposition,
     UncertaintyDecompositionPolicy,
     UncertaintyDecompositionReplayReason,
+    UncertaintyDimension,
     canonical_request_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -25,6 +28,7 @@ from glio_proteogen.kernel.models import (
     ConsentReference,
     ConsentState,
     ContextReferences,
+    EvidenceReference,
     ExecutionContext,
     IdentityLineageReference,
     IdentityLineageState,
@@ -45,6 +49,7 @@ M0906InputError = m0906_module.engine.M0906InputError
 
 _DIGEST: Final = "sha256:" + ("a" * 64)
 _DIMENSION_COUNT: Final = 7
+_TYPED_REPLICATES: Final = 10
 
 
 def _artifact(
@@ -118,6 +123,47 @@ def _request(
     )
 
 
+def _typed_request(
+    *,
+    coverage_hits: tuple[bool, ...] | None = None,
+    observations: tuple[ComplexUncertaintyObservation, ...] | None = None,
+) -> DecomposeComplexActivityUncertaintyRequest:
+    hits = coverage_hits or (True,) * 9 + (False,)
+    typed = observations or tuple(
+        ComplexUncertaintyObservation(
+            observation_id=f"observation.m0906.{dimension.value}",
+            dimension=dimension,
+            scores=tuple(
+                min(
+                    1.0,
+                    max(
+                        0.0,
+                        0.12
+                        + (index % 4) * 0.03
+                        + (0.04 if dimension is UncertaintyDimension.SUPPORT else 0.0),
+                    ),
+                )
+                for index in range(_TYPED_REPLICATES)
+            ),
+            coverage_hits=hits,
+            quality_weight=0.9,
+            member_count=8,
+            supported_member_count=7,
+            evidence=(
+                EvidenceReference(
+                    reference=_artifact(f"evidence.m0906.{dimension.value}"),
+                    role="evidence",
+                    claim="synthetic repeated complex-member uncertainty evidence",
+                ),
+            ),
+        )
+        for dimension in UncertaintyDimension
+    )
+    return _request(
+        method="locked_glioma_complex_uncertainty_irls_v1",
+    ).model_copy(update={"uncertainty_observations": typed})
+
+
 def test_decomposed_result_exposes_all_dimensions_and_coverage() -> None:
     built = M0906Service().execute(_request())
     assert built.result.status.value == "decomposed"
@@ -135,6 +181,111 @@ def test_decomposed_result_exposes_all_dimensions_and_coverage() -> None:
     }
     assert built.result.sensitivity_envelope.status is SensitivityEnvelopeStatus.EVALUATED
     assert M0906UncertaintyDecompositionEngine.verify(built.result, built.canonical_bytes).verified
+
+
+def test_typed_glioma_lane_fits_replicates_and_exposes_bottleneck() -> None:
+    built = M0906Service().execute(_typed_request())
+    assert built.result.status.value == "decomposed"
+    decomposition = built.result.decomposition
+    assert decomposition is not None
+    assert M0906_GLIOMA_MODEL_FAMILY in decomposition.method
+    assert all(item.replicate_count == _TYPED_REPLICATES for item in decomposition.components)
+    for item in decomposition.components:
+        assert item.lower_bound is not None
+        assert item.upper_bound is not None
+        assert item.estimate.probability is not None
+        assert item.lower_bound <= item.estimate.probability <= item.upper_bound
+    support = next(
+        item for item in decomposition.components if item.dimension is UncertaintyDimension.SUPPORT
+    )
+    assert support.stability is not None
+    assert built.result.uncertainty.support.probability == support.estimate.probability
+
+
+def test_typed_glioma_lane_is_order_invariant_and_bottleneck_sensitive() -> None:
+    first = M0906Service().execute(_typed_request())
+    reversed_request = first.result.request.model_copy(
+        update={
+            "uncertainty_observations": tuple(
+                reversed(first.result.request.uncertainty_observations)
+            )
+        }
+    )
+    second = M0906Service().execute(reversed_request)
+    assert first.canonical_bytes == second.canonical_bytes
+    low_support = _typed_request(
+        observations=tuple(
+            observation.model_copy(
+                update={"supported_member_count": 1}
+            )
+            if observation.dimension is UncertaintyDimension.SUPPORT
+            else observation
+            for observation in _typed_request().uncertainty_observations
+        )
+    )
+    low = M0906Service().execute(low_support)
+    first_decomposition = first.result.decomposition
+    low_decomposition = low.result.decomposition
+    assert first_decomposition is not None
+    assert low_decomposition is not None
+    first_support = next(
+        item for item in first_decomposition.components
+        if item.dimension is UncertaintyDimension.SUPPORT
+    )
+    low_support_estimate = next(
+        item for item in low_decomposition.components
+        if item.dimension is UncertaintyDimension.SUPPORT
+    )
+    assert first_support.estimate.probability is not None
+    assert low_support_estimate.estimate.probability is not None
+    assert low_support_estimate.estimate.probability > first_support.estimate.probability
+
+
+def test_typed_glioma_lane_abstains_for_incomplete_or_unsafe_coverage() -> None:
+    incomplete = _typed_request(observations=_typed_request().uncertainty_observations[:-1])
+    incomplete_result = M0906Service().execute(incomplete).result
+    assert incomplete_result.status.value == "abstained"
+    assert incomplete_result.decomposition is None
+    unsafe = M0906Service().execute(
+        _typed_request(coverage_hits=(True,) * 10)
+    ).result
+    assert unsafe.status.value == "abstained"
+    assert unsafe.sensitivity_envelope.status is SensitivityEnvelopeStatus.ABSTAINED
+
+
+def test_typed_observation_contract_rejects_misaligned_or_forged_member_support() -> None:
+    with pytest.raises(ValueError, match="align"):
+        ComplexUncertaintyObservation(
+            observation_id="bad.align",
+            dimension=UncertaintyDimension.MEASUREMENT,
+            scores=(0.1,) * 9,
+            coverage_hits=(True,) * 8,
+            quality_weight=0.9,
+            evidence=(
+                EvidenceReference(
+                    reference=_artifact("evidence.bad.align"),
+                    role="evidence",
+                    claim="synthetic evidence",
+                ),
+            ),
+        )
+    with pytest.raises(ValueError, match="exceed"):
+        ComplexUncertaintyObservation(
+            observation_id="bad.support",
+            dimension=UncertaintyDimension.MEASUREMENT,
+            scores=(0.1,) * 8,
+            coverage_hits=(True,) * 8,
+            quality_weight=0.9,
+            member_count=2,
+            supported_member_count=3,
+            evidence=(
+                EvidenceReference(
+                    reference=_artifact("evidence.bad.support"),
+                    role="evidence",
+                    claim="synthetic evidence",
+                ),
+            ),
+        )
 
 
 def test_determinism_and_replay_tamper_closure() -> None:

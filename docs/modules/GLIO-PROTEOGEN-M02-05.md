@@ -36,7 +36,9 @@ batch seeding all seven artifact classes; a clean batch with zero false exclusio
 missing and unsupported/OOD signals; a multi-class target proving mask deduplication; a reordered
 request proving full-output determinism; and consent denial before hostile signal traversal. A
 recursive boundary check excludes raw assay content and prohibited scientific or clinical claims.
-One broad batch benchmark uses a generous 500 ms regression budget.
+One broad batch benchmark processes 24 complete results under a 750 ms mean-latency regression
+ceiling. The ceiling includes fresh-process runtime variance and is a tripwire, not a throughput
+or production-capacity claim.
 
 The locked seeded-class criterion is sensitivity at least `0.95` (expected `7/7 = 1.0`) and the
 clean-target false-exclusion ceiling is `0.05` (expected `0.0`). These are deterministic regression

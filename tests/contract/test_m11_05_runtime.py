@@ -18,6 +18,7 @@ from glio_proteogen.contracts.m11_05 import (
     ChangePointStatus,
     EvolutionModelConfiguration,
     EvolutionModelFamily,
+    LongitudinalObservationState,
     ModelVariantPeptideLongitudinalEvolutionRequest,
     TimePointObservation,
     TrajectoryDimension,
@@ -60,6 +61,7 @@ from glio_proteogen.modules.c11_protein_native_subtype.m11_05_longitudinal_evolu
 )
 from glio_proteogen.modules.c11_protein_native_subtype.m11_05_longitudinal_evolution.engine import (
     _limitations,
+    _Measurement,
 )
 
 if TYPE_CHECKING:
@@ -72,6 +74,11 @@ _HTTP_UNPROCESSABLE = 422
 _HTTP_FORBIDDEN = 403
 _HTTP_BAD_REQUEST = 400
 _CLI_USAGE_ERROR = 2
+_EXPECTED_MEASURED_STATES = 2
+_EXPECTED_MEASURED_CHANGE_POINT = 2
+_EXPECTED_MEASURED_POSTERIOR = 0.8
+_EXPECTED_MEASUREMENTS_PER_STATE = 2
+_FIRST_CANDIDATE_LOSS_CALL = 2
 
 
 def _digest(letter: str) -> str:
@@ -197,6 +204,164 @@ def test_supported_runtime_replays_and_detects_change_point() -> None:
     assert result.change_points[0].status.value == "detected"
     assert result.human_review_required is True
     assert service.verify(result).model_dump(mode="json") == result.model_dump(mode="json")
+
+
+def test_typed_effect_lane_detects_molecular_shift_without_label_change() -> None:
+    """A proteomic effect transition must not depend on caller relabeling."""
+
+    request = _request()
+    effects = (-1.0, -0.9, 1.2, 1.1)
+    observations = [
+        item.model_copy(
+            update={
+                "territory": "primary",
+                "treatment_era": "baseline",
+                "measurement_state": LongitudinalObservationState.OBSERVED,
+                "effect": effect,
+                "standard_error": 0.1,
+            }
+        )
+        for item, effect in zip(request.observations, effects[:3], strict=True)
+    ]
+    observations.append(
+        request.observations[-1].model_copy(
+            update={
+                "observation_id": "observation.4",
+                "sequence": 3,
+                "observed_at": datetime(2026, 4, 1, tzinfo=UTC),
+                "territory": "primary",
+                "treatment_era": "baseline",
+                "measurement_state": LongitudinalObservationState.OBSERVED,
+                "effect": effects[3],
+                "standard_error": 0.1,
+            }
+        )
+    )
+    measured = request.model_copy(update={"observations": tuple(observations)})
+    result = M1105LongitudinalEngine().infer(measured)
+    assert result.status is TrajectoryStatus.MODELED
+    assert len(result.trajectory) == _EXPECTED_MEASURED_STATES
+    assert len(result.change_points) == 1
+    assert result.change_points[0].sequence == _EXPECTED_MEASURED_CHANGE_POINT
+    assert result.change_points[0].posterior_probability > _EXPECTED_MEASURED_POSTERIOR
+    assert all("trend=" in state.label for state in result.trajectory)
+    assert all(
+        state.measurement_count == _EXPECTED_MEASUREMENTS_PER_STATE
+        for state in result.trajectory
+    )
+    assert all(
+        state.effect_lower is not None
+        and state.effect_estimate is not None
+        and state.effect_upper is not None
+        and state.effect_lower <= state.effect_estimate <= state.effect_upper
+        for state in result.trajectory
+    )
+    assert M1105LongitudinalEngine().verify(result).model_dump(mode="json") == result.model_dump(
+        mode="json"
+    )
+
+
+def test_robust_location_backtracks_non_monotone_loss(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    measurements = tuple(
+        _Measurement(
+            index=index,
+            value=value,
+            standard_error=0.15,
+            quality_weight=0.9,
+            censored=False,
+        )
+        for index, value in enumerate((-1.0, -0.8, 1.1, 1.2))
+    )
+    original = m1105_engine._weighted_loss
+    calls = 0
+
+    def loss(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == _FIRST_CANDIDATE_LOSS_CALL else value
+
+    monkeypatch.setattr(m1105_engine, "_weighted_loss", loss)
+    estimate, error = m1105_engine._weighted_huber_location(measurements)
+
+    assert calls > _FIRST_CANDIDATE_LOSS_CALL
+    assert estimate == pytest.approx(0.15, abs=0.2)
+    assert error > 0.0
+
+
+def test_typed_missing_history_abstains_without_negative_imputation() -> None:
+    request = _request()
+    observations = tuple(
+        item.model_copy(update={"measurement_state": LongitudinalObservationState.MISSING})
+        for item in request.observations
+    )
+    result = M1105LongitudinalEngine().infer(
+        request.model_copy(update={"observations": observations})
+    )
+    assert result.status is TrajectoryStatus.ABSTAINED
+    assert not result.trajectory
+    assert not result.change_points
+    assert result.abstention_reason is not None
+    assert result.support_decision.status is SupportStatus.UNSUPPORTED
+
+
+def test_left_censored_without_error_uses_same_history_observed_scale() -> None:
+    base = _request()
+    observations = tuple(
+        item.model_copy(
+            update={
+                "measurement_state": LongitudinalObservationState.OBSERVED,
+                "effect": effect,
+                "standard_error": 0.2 if item.sequence == 0 else 0.4,
+            }
+        )
+        for item, effect in zip(base.observations, (0.3, 0.4, 0.5), strict=True)
+    )
+    censored = observations[-1].model_copy(
+        update={
+            "measurement_state": LongitudinalObservationState.LEFT_CENSORED,
+            "effect": None,
+            "standard_error": None,
+            "censoring_limit": 0.1,
+        }
+    )
+    result = M1105LongitudinalEngine().infer(
+        base.model_copy(update={"observations": (*observations[:-1], censored)})
+    )
+    assert result.status is TrajectoryStatus.MODELED
+    measured = m1105_engine._measurements(
+        base.model_copy(update={"observations": (*observations[:-1], censored)})
+    )
+    assert measured[-1].censored is True
+    assert measured[-1].value == pytest.approx(0.1)
+    assert measured[-1].standard_error == pytest.approx(0.3)
+    assert result.trajectory[-1].measurement_count == _EXPECTED_MEASUREMENTS_PER_STATE
+    assert M1105LongitudinalEngine().verify(result).model_dump(mode="json") == result.model_dump(
+        mode="json"
+    )
+
+
+def test_longitudinal_huber_mad_uses_midpoint_median() -> None:
+    assert m1105_engine._midpoint_median((-3.0, -1.0, 2.0, 10.0)) == pytest.approx(0.5)
+
+
+def test_censored_only_history_without_error_abstains() -> None:
+    base = _request()
+    censored = tuple(
+        item.model_copy(
+            update={
+                "measurement_state": LongitudinalObservationState.LEFT_CENSORED,
+                "effect": None,
+                "standard_error": None,
+                "censoring_limit": 0.1,
+            }
+        )
+        for item in base.observations
+    )
+    result = M1105LongitudinalEngine().infer(base.model_copy(update={"observations": censored}))
+    assert result.status is TrajectoryStatus.ABSTAINED
+    assert result.trajectory == ()
+    assert result.change_points == ()
 
 
 def test_denied_control_fails_before_payload_traversal() -> None:

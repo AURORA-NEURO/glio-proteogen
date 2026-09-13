@@ -16,7 +16,7 @@ MODULE_ID: Final = "GLIO-PROTEOGEN-M12-04"
 ROOT: Final = Path(__file__).parents[1]
 EVIDENCE: Final = ROOT / "release-evidence" / "m12_04"
 FIXTURE: Final = ROOT / "tests" / "fixtures" / "m12_04" / "scenarios.json"
-FIXTURE_DIGEST: Final = "sha256:0613edb1881a8364c803756b7eac97c48120cebd71514f59b59a13b414292dd5"
+FIXTURE_DIGEST: Final = "sha256:137c3483da2ddd195209ed360231b89a8854a0bfb6d9def004cf2a78f762f60b"
 CASE_IDS: Final = (
     "posterior_inference",
     "state_inference",
@@ -25,6 +25,7 @@ CASE_IDS: Final = (
     "invalid_bounds_abstention",
     "replay_and_tamper",
     "authorization_gate",
+    "typed_glioma_graph",
 )
 
 
@@ -51,9 +52,9 @@ def _verify_evaluation(value: dict[str, Any]) -> None:
     if actual_ids != CASE_IDS or tuple(value.get("case_ids", ())) != CASE_IDS:
         raise M1204ReleaseVerificationError("evaluation case IDs mismatch")
     if not (
-        value.get("declared_cases") == 7
-        and value.get("executed_cases") == 7
-        and value.get("passed_cases") == 7
+        value.get("declared_cases") == 8
+        and value.get("executed_cases") == 8
+        and value.get("passed_cases") == 8
         and value.get("passed") is True
     ):
         raise M1204ReleaseVerificationError("evaluation is not a complete pass")
@@ -75,7 +76,7 @@ def _verify_package(value: dict[str, Any]) -> None:
         raise M1204ReleaseVerificationError("package evidence identity or pass flag invalid")
     for kind in ("wheel", "sdist"):
         package = cast("dict[str, Any]", value.get(kind, {}))
-        path = next((ROOT / "dist-m12-04").glob(str(package.get("filename", ""))), None)
+        path = EVIDENCE / str(package.get("filename", ""))
         if path is None or not path.is_file():
             raise M1204ReleaseVerificationError(f"missing {kind} artifact")
         if _sha256(path) != package.get("sha256") or path.stat().st_size != package.get("bytes"):

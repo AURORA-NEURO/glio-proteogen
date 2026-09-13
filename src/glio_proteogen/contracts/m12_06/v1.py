@@ -9,7 +9,8 @@ explicit.
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Final, Literal
+from math import isfinite
+from typing import Annotated, Final, Literal
 
 from pydantic import Field, model_validator
 
@@ -51,9 +52,15 @@ M1206_MAX_AXES: Final = 32
 M1206_MAX_EVIDENCE: Final = 64
 M1206_MAX_FINDINGS: Final = 64
 M1206_MAX_ASSUMPTIONS: Final = 64
+M1206_MAX_REPLICATES: Final = 64
+M1206_MINIMUM_REPLICATES_PER_ARM: Final = 3
+M1206_DEFAULT_BOOTSTRAP_REPLICATES: Final = 64
+M1206_MAX_BOOTSTRAP_REPLICATES: Final = 256
+M1206_GLIOMA_MODEL_FAMILY: Final = "glioma-panel-perturbation-response-graph/1.0.0"
 M1206_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M1206_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
 _DELTA_TOLERANCE: Final = 1e-9
+FiniteFloat = Annotated[float, Field(allow_inf_nan=False)]
 
 
 class PerturbationKind(StrEnum):
@@ -94,6 +101,7 @@ class PerturbationFindingCode(StrEnum):
     ASSUMPTION_REQUIRED = "assumption_required"
     UPSTREAM_UNSUPPORTED = "upstream_unsupported"
     PROVISIONAL_ABI_PENDING_REVIEW = "provisional_abi_pending_review"
+    TYPED_INPUT_INCOMPLETE = "typed_input_incomplete"
 
 
 class SimulatorConfiguration(FrozenModel):
@@ -105,13 +113,19 @@ class SimulatorConfiguration(FrozenModel):
     locked: Literal[True] = True
     negative_controls_required: Literal[True] = True
     bounded_responses_required: Literal[True] = True
+    model_family: NonEmptyStr | None = None
+    bootstrap_replicates: int = Field(
+        default=M1206_DEFAULT_BOOTSTRAP_REPLICATES,
+        ge=16,
+        le=M1206_MAX_BOOTSTRAP_REPLICATES,
+    )
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1206_MAX_EVIDENCE)
 
 
 class PerturbationPolicy(FrozenModel):
     maximum_scenarios: int = Field(ge=1, le=M1206_MAX_SCENARIOS)
-    response_lower_bound: float
-    response_upper_bound: float
+    response_lower_bound: FiniteFloat
+    response_upper_bound: FiniteFloat
     unsupported_abstains: Literal[True] = True
     assumptions_required: Literal[True] = True
     configuration: SimulatorConfiguration
@@ -127,16 +141,32 @@ class PerturbationScenario(FrozenModel):
     scenario_id: Identifier
     kind: PerturbationKind
     parameter: NonEmptyStr
-    baseline_value: float
-    perturbed_value: float
+    baseline_value: FiniteFloat
+    perturbed_value: FiniteFloat
     unit: NonEmptyStr
     status: PerturbationStatus
     assumption: NonEmptyStr
     source_artifact: ArtifactReference
+    baseline_measurements: tuple[FiniteFloat, ...] = Field(
+        default=(), max_length=M1206_MAX_REPLICATES
+    )
+    perturbed_measurements: tuple[FiniteFloat, ...] = Field(
+        default=(), max_length=M1206_MAX_REPLICATES
+    )
+    quality_weight: FiniteFloat = Field(default=1.0, ge=0.0, le=1.0)
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1206_MAX_EVIDENCE)
 
     @model_validator(mode="after")
     def unsupported_scenario_is_explicit(self) -> PerturbationScenario:
+        if bool(self.baseline_measurements) != bool(self.perturbed_measurements):
+            raise ValueError("baseline and perturbed measurements must be supplied together")
+        if self.baseline_measurements and (
+            len(self.baseline_measurements) < M1206_MINIMUM_REPLICATES_PER_ARM
+            or len(self.perturbed_measurements) < M1206_MINIMUM_REPLICATES_PER_ARM
+        ):
+            raise ValueError("typed perturbations require at least three replicates per arm")
+        if self.baseline_measurements and self.quality_weight <= 0.0:
+            raise ValueError("typed perturbations require a positive quality weight")
         if (
             self.status is PerturbationStatus.SUPPORTED
             and self.source_artifact.digest == _DERIVED_DIGEST_SENTINEL
@@ -159,16 +189,30 @@ class PerturbationResponse(FrozenModel):
     scenario_id: Identifier
     status: PerturbationResponseStatus
     metric: SensitivityMetric
-    baseline_response: float
-    perturbed_response: float
-    delta: float
-    envelope_lower: float
-    envelope_upper: float
+    baseline_response: FiniteFloat
+    perturbed_response: FiniteFloat
+    delta: FiniteFloat
+    envelope_lower: FiniteFloat
+    envelope_upper: FiniteFloat
     bounded: Literal[True] = True
+    raw_effect_delta: FiniteFloat | None = None
+    sensitivity_standard_error: FiniteFloat | None = Field(default=None, gt=0.0)
+    replicate_count: int | None = Field(default=None, ge=0, le=M1206_MAX_REPLICATES * 2)
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1206_MAX_EVIDENCE)
 
     @model_validator(mode="after")
     def response_is_bounded_and_consistent(self) -> PerturbationResponse:
+        numeric = (
+            self.baseline_response,
+            self.perturbed_response,
+            self.delta,
+            self.envelope_lower,
+            self.envelope_upper,
+            self.raw_effect_delta,
+            self.sensitivity_standard_error,
+        )
+        if any(value is not None and not isfinite(float(value)) for value in numeric):
+            raise ValueError("response values must be finite numbers")
         if self.envelope_lower >= self.envelope_upper:
             raise ValueError("response envelope must be ordered")
         if not self.envelope_lower <= self.perturbed_response <= self.envelope_upper:
@@ -262,6 +306,9 @@ class BiomarkerPanelPerturbationSensitivityResult(FrozenModel):
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1206_MAX_EVIDENCE)
     limitations: tuple[Limitation, ...] = Field(min_length=1, max_length=32)
     human_review_required: bool = False
+    typed_model: bool = False
+    model_profile: NonEmptyStr | None = None
+    bootstrap_replicates: int | None = Field(default=None, ge=16, le=M1206_MAX_BOOTSTRAP_REPLICATES)
 
     @model_validator(mode="after")
     def result_is_closed(self) -> BiomarkerPanelPerturbationSensitivityResult:
@@ -291,15 +338,20 @@ class BiomarkerPanelPerturbationSensitivityResult(FrozenModel):
 
 __all__ = [
     "M1206_CONTRACT_VERSION",
+    "M1206_DEFAULT_BOOTSTRAP_REPLICATES",
     "M1206_GATE",
+    "M1206_GLIOMA_MODEL_FAMILY",
     "M1206_MAX_ASSUMPTIONS",
     "M1206_MAX_AXES",
+    "M1206_MAX_BOOTSTRAP_REPLICATES",
     "M1206_MAX_CANONICAL_REQUEST_BYTES",
     "M1206_MAX_CANONICAL_RESULT_BYTES",
     "M1206_MAX_EVIDENCE",
     "M1206_MAX_FINDINGS",
+    "M1206_MAX_REPLICATES",
     "M1206_MAX_RESPONSES",
     "M1206_MAX_SCENARIOS",
+    "M1206_MINIMUM_REPLICATES_PER_ARM",
     "M1206_MODULE_ID",
     "M1206_OPERATION",
     "M1206_OUTPUT_MEDIA_TYPE",

@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import math
 from datetime import UTC, datetime
 from hashlib import sha256
+from itertools import pairwise
 
+import numpy as np
 import pytest
 
+import glio_proteogen.modules.c10_pathway_proteotype.m10_03_mature_baseline_estimator.engine as engine_module  # noqa: E501
 from glio_proteogen.contracts.m10_03 import (
     M1003_BASELINE_MEDIA_TYPE,
     BaselineConfiguration,
@@ -14,7 +18,10 @@ from glio_proteogen.contracts.m10_03 import (
     BaselineEstimatorFamily,
     BaselinePreprocessingStep,
     BaselineTuningSpec,
+    DiscordanceEvidenceState,
     EstimateProteinRnaDiscordanceBaselineRequest,
+    GliomaDiscordanceProgram,
+    TypedProteinRnaObservation,
     canonical_request_digest,
     result_payload_digest,
 )
@@ -42,6 +49,11 @@ from glio_proteogen.modules.c10_pathway_proteotype.m10_03_mature_baseline_estima
 )
 
 _TWO_TARGETS = 2
+_TYPED_BOOTSTRAP_REPLICATES = 16
+_NEUTRAL_DISCORDANCE = 0.0
+_FIRST_CANDIDATE_CALL = 2
+_ROBUST_CENTER_MAX = 0.5
+_ARITHMETIC_MEAN_MIN = 1.0
 
 
 def _artifact(name: str, media_type: str = "application/json") -> ArtifactReference:
@@ -118,6 +130,57 @@ def _request(
             reference=_artifact("baseline-reference"),
         ),
         source_artifacts=(_artifact("source"),),
+    )
+
+
+def _typed_pair(
+    observation_id: str,
+    feature_id: str,
+    protein: float | None,
+    rna: float | None,
+    *,
+    state: DiscordanceEvidenceState = DiscordanceEvidenceState.OBSERVED,
+) -> TypedProteinRnaObservation:
+    active = state in {
+        DiscordanceEvidenceState.OBSERVED,
+        DiscordanceEvidenceState.LEFT_CENSORED,
+    }
+    return TypedProteinRnaObservation(
+        observation_id=observation_id,
+        feature_id=feature_id,
+        program=(GliomaDiscordanceProgram.RTK_PI3K_AKT_MTOR if active else None),
+        evidence_state=state,
+        protein_effect=protein if active else None,
+        rna_effect=rna if active else None,
+        protein_standard_error=0.15 if active else None,
+        rna_standard_error=0.12 if active else None,
+        quality_weight=0.9 if active else 0.0,
+    )
+
+
+def _typed_request(
+    *observations: TypedProteinRnaObservation,
+) -> EstimateProteinRnaDiscordanceBaselineRequest:
+    base = _request()
+    configured_targets = tuple(
+        sorted(
+            set(base.configuration.target_feature_ids)
+            | {observation.feature_id for observation in observations}
+        )
+    )
+    configuration = BaselineConfiguration.model_validate(
+        base.configuration.model_dump(mode="python")
+        | {
+            "target_feature_ids": configured_targets,
+            "bootstrap_replicates": _TYPED_BOOTSTRAP_REPLICATES,
+        }
+    )
+    return EstimateProteinRnaDiscordanceBaselineRequest.model_validate(
+        base.model_dump(mode="python")
+        | {
+            "configuration": configuration,
+            "typed_observations": observations,
+        }
     )
 
 
@@ -214,6 +277,140 @@ def test_plain_builtin_paths_and_replay_tamper_are_exercised() -> None:
     result = estimate_protein_rna_discordance_baseline(request)
     tampered = result.model_copy(update={"result_digest": _artifact("wrong").digest})
     assert verify_result_replay(tampered) is False
+
+
+def test_typed_glioma_discordance_fit_is_paired_and_replayable() -> None:
+    request = _typed_request(
+        _typed_pair("observation.alpha", "target.alpha", 1.40, 0.35),
+        _typed_pair("observation.beta", "target.beta", -0.20, 0.10),
+    )
+    result = estimate_protein_rna_discordance_baseline(request)
+    repeat = estimate_protein_rna_discordance_baseline(request)
+
+    assert result.status.value == "estimated"
+    assert result.model_dump(mode="json") == repeat.model_dump(mode="json")
+    assert verify_result_replay(result)
+    alpha = result.estimates[0]
+    assert alpha.feature_id == "target.alpha"
+    assert alpha.lower_bound <= alpha.estimate_value <= alpha.upper_bound
+    assert alpha.estimate_value > _NEUTRAL_DISCORDANCE
+    assert alpha.evidence_count == 1
+    assert alpha.top_drivers
+    assert alpha.ablation_effects
+    assert result.diagnostics[0].model_family == "glioma-protein-rna-discordance-programs/1.0.0"
+
+
+def test_typed_program_initialization_downweights_failed_replicate() -> None:
+    values = np.asarray((0.2, 0.3, 4.0), dtype=np.float64)
+    errors = np.asarray((0.2, 0.2, 0.2), dtype=np.float64)
+    weights = np.ones(3, dtype=np.float64)
+
+    center = engine_module._robust_initial_program_center(values, errors, weights)
+    arithmetic_mean = float(np.mean(values))
+
+    assert center < _ROBUST_CENTER_MAX
+    assert arithmetic_mean > _ARITHMETIC_MEAN_MIN
+    assert engine_module._initial_program_measurement_objective(
+        center, values, errors, weights
+    ) <= engine_module._initial_program_measurement_objective(
+        arithmetic_mean, values, errors, weights
+    )
+
+
+def test_typed_baseline_solver_backtracks_objective_increase(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    observations = (
+        _typed_pair("observation.alpha", "target.alpha", 1.40, 0.35),
+        _typed_pair("observation.beta", "target.beta", -0.20, 0.10),
+    )
+    values = np.asarray(
+        [item.protein_effect - item.rna_effect for item in observations], dtype=np.float64
+    )
+    errors = np.asarray(
+        [
+            math.hypot(item.protein_standard_error, item.rna_standard_error)
+            for item in observations
+        ],
+        dtype=np.float64,
+    )
+    original = engine_module._typed_objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == _FIRST_CANDIDATE_CALL else value
+
+    monkeypatch.setattr(engine_module, "_typed_objective", objective)
+    fitted = engine_module._fit_typed_arrays(
+        observations,
+        values,
+        errors,
+        max_iterations=64,
+    )
+    assert fitted is not None
+    assert calls > _FIRST_CANDIDATE_CALL
+    assert all(
+        after <= before + engine_module._TYPED_OBJECTIVE_TOLERANCE
+        for before, after in pairwise(fitted[5])
+    )
+
+
+def test_typed_discordance_uses_signed_glioma_program_relations() -> None:
+    rtk = _typed_pair("observation.rtk", "target.rtk", 2.0, 0.0)
+    proliferation = _typed_pair(
+        "observation.proliferation", "target.proliferation", 0.0, 0.0
+    ).model_copy(update={"program": GliomaDiscordanceProgram.PROLIFERATION})
+    result = estimate_protein_rna_discordance_baseline(_typed_request(rtk, proliferation))
+    estimates = {item.feature_id: item for item in result.estimates}
+
+    assert result.status.value == "estimated"
+    # RTK activation has a signed positive edge into proliferation. The
+    # proliferation observation is neutral, so this small propagated lift is a
+    # regression guard that the graph is active rather than decorative.
+    assert estimates["target.proliferation"].estimate_value > 0.0
+
+
+def test_typed_discordance_preserves_censoring_and_ignores_missing_values() -> None:
+    request = _typed_request(
+        _typed_pair("observation.alpha", "target.alpha", 0.20, 0.05),
+        _typed_pair(
+            "observation.beta", "target.beta", -0.10, 0.30,
+            state=DiscordanceEvidenceState.LEFT_CENSORED,
+        ),
+        _typed_pair(
+            "observation.missing", "target.gamma", None, None,
+            state=DiscordanceEvidenceState.MISSING,
+        ),
+    )
+    result = estimate_protein_rna_discordance_baseline(request)
+
+    assert result.status.value == "estimated"
+    assert {item.feature_id for item in result.estimates} == {"target.alpha", "target.beta"}
+    assert all(item.evidence_count == 1 for item in result.estimates)
+    assert all(
+        "target.gamma" not in driver
+        for item in result.estimates
+        for driver in item.top_drivers
+    )
+
+
+def test_typed_discordance_rejects_duplicate_feature_and_insufficient_support() -> None:
+    first = _typed_pair("observation.alpha", "target.alpha", 0.8, 0.1)
+    duplicate = first.model_copy(update={"observation_id": "observation.duplicate"})
+    with pytest.raises(ValueError, match="feature identifiers"):
+        _typed_request(first, duplicate)
+
+    insufficient = _typed_request(
+        _typed_pair("observation.only", "target.alpha", 0.8, 0.1),
+        _typed_pair(
+            "observation.unsupported", "target.beta", None, None,
+            state=DiscordanceEvidenceState.UNSUPPORTED,
+        ),
+    )
+    result = estimate_protein_rna_discordance_baseline(insufficient)
+    assert result.status.value == "abstained"
+    assert result.estimates == ()
 
 
 @pytest.mark.parametrize("field", ["request", "estimates", "diagnostics", "provenance"])

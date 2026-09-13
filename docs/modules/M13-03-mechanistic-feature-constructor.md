@@ -20,6 +20,11 @@ topology class, bounded state interval, complete source lineage, signed
 relations, explicit unit bounds, and negative-control gating. It emits no
 proteotype result itself (`emits_parent=false`).
 
+The typed glioma graph initializes left-censored observations as upper bounds:
+an entity with only censored evidence starts at the ridge-neutral feasible value,
+while a mixed entity is clamped to its tightest censoring limit. Censored values
+therefore never enter the robust center as exact measurements.
+
 Inputs are immutable caller-declared mass-spectrometry, genome/transcriptome,
 PTM, configuration, identity/lineage, provenance, consent, quality, support,
 and intended-use references. Referenced artifacts are never traversed. The

@@ -18,14 +18,19 @@ if __package__ in {None, ""}:
 
 from glio_proteogen.contracts.m10_06 import (
     M1006_M1005_RESULT_MEDIA_TYPE,
+    M1006_MAX_COMPONENTS,
+    M1006_MIN_REPLICATES,
     DecomposeProteinRnaDiscordanceUncertaintyRequest,
     UncertaintyDecompositionPolicy,
+    UncertaintyDimension,
+    UncertaintyObservation,
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     ConsentReference,
     ConsentState,
     ContextReferences,
+    EvidenceReference,
     ExecutionContext,
     IdentityLineageReference,
     IdentityLineageState,
@@ -55,9 +60,9 @@ def _artifact(name: str, fill: str, media_type: str = "application/json") -> Art
 
 
 def build_request(
-    *, accepted_controls: bool = True
+    *, accepted_controls: bool = True, measured: bool = False
 ) -> DecomposeProteinRnaDiscordanceUncertaintyRequest:
-    """Build an opaque, deterministic request from fixture references."""
+    """Build an opaque or measured deterministic request from fixture references."""
 
     state = UpstreamDecisionState.ACCEPTED if accepted_controls else UpstreamDecisionState.UNKNOWN
     consent_state = ConsentState.GRANTED if accepted_controls else ConsentState.UNKNOWN
@@ -109,6 +114,31 @@ def build_request(
             evidence=_artifact("intended", "9"),
         ),
     )
+    source_artifacts = (
+        _artifact("proteome.source", "2", "application/vnd.opaque.artifact+json"),
+        _artifact("transcriptome.source", "b", "application/vnd.opaque.artifact+json"),
+        _artifact("ptm.source", "c", "application/vnd.opaque.artifact+json"),
+    )
+    observations = tuple(
+        UncertaintyObservation(
+            observation_id=f"observation.m1006.{dimension.value}",
+            dimension=dimension,
+            scores=tuple(
+                round(0.12 + index * 0.012 + (0.03 if offset % 2 else 0.0), 4)
+                for index in range(M1006_MIN_REPLICATES + 2)
+            ),
+            coverage_hits=(True,) * (M1006_MIN_REPLICATES + 1) + (False,),
+            quality_weight=0.85,
+            evidence=(
+                EvidenceReference(
+                    reference=source_artifacts[offset % len(source_artifacts)],
+                    role="evidence",
+                    claim="synthetic glioma proteotype replicate stability evidence",
+                ),
+            ),
+        )
+        for offset, dimension in enumerate(UncertaintyDimension)
+    ) if measured else ()
     return DecomposeProteinRnaDiscordanceUncertaintyRequest(
         request_id="request.eval.m1006",
         context=ExecutionContext(
@@ -124,11 +154,8 @@ def build_request(
             method="deterministic-proteogenomic-vae-calibration",
             calibration_reference=_artifact("calibration.reference", "a"),
         ),
-        source_artifacts=(
-            _artifact("proteome.source", "2", "application/vnd.opaque.artifact+json"),
-            _artifact("transcriptome.source", "b", "application/vnd.opaque.artifact+json"),
-            _artifact("ptm.source", "c", "application/vnd.opaque.artifact+json"),
-        ),
+        source_artifacts=source_artifacts,
+        uncertainty_observations=observations,
     )
 
 
@@ -227,6 +254,27 @@ def evaluate() -> dict[str, object]:
                 result.emits_parent is False and result.parent_target == "protein_rna_discordance"
             ),
             detail="engine does not emit parent claims, kinase activity, or treatment advice",
+        )
+    )
+    measured = service.execute(build_request(measured=True))
+    checks.append(
+        _check(
+            "measured_replicate_lane_decomposes",
+            passed=(
+                measured.status.value == "decomposed"
+                and measured.decomposition is not None
+                and len(measured.decomposition.components) == M1006_MAX_COMPONENTS
+                and measured.sensitivity_envelope.status.value == "evaluated"
+                and measured.support_decision.status.value == "supported"
+                and all(
+                    component.replicate_count == M1006_MIN_REPLICATES + 2
+                    for component in measured.decomposition.components
+                )
+            ),
+            detail=(
+                "seven glioma uncertainty dimensions use quality-weighted IRLS and "
+                "deterministic bootstrap coverage"
+            ),
         )
     )
     passed = all(item["passed"] is True for item in checks)

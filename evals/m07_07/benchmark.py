@@ -45,6 +45,8 @@ def benchmark(iterations: int = 10) -> dict[str, object]:
         "p95_ns": p95,
         "max_mean_ns": _MAX_MEAN_NS,
         "max_p95_ns": _MAX_P95_NS,
+        "mean_budget_ns": _MAX_MEAN_NS,
+        "p95_budget_ns": _MAX_P95_NS,
         "passed": mean(timings) <= _MAX_MEAN_NS and p95 <= _MAX_P95_NS,
         "timings_ns": timings,
     }

@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
+import hashlib
+import math
+import re
+from collections import defaultdict
 from collections.abc import Mapping
+from dataclasses import dataclass
+from math import exp
 from typing import Final
 
 from pydantic import BaseModel, TypeAdapter
@@ -17,6 +23,10 @@ from glio_proteogen.contracts.m10_05 import (
     ConstraintEvaluationOutcome,
     ConstraintHardness,
     ConstraintIntegrationStatus,
+    FeatureObservation,
+    FeatureObservationState,
+    GliomaConstraintProgram,
+    GliomaConstraintProgramState,
     IntegrateProteinRnaConstraintsRequest,
     ProteinRnaConstraintIntegrationResult,
     expected_provenance,
@@ -38,6 +48,56 @@ _RESULT_ADAPTER: Final = TypeAdapter(ProteinRnaConstraintIntegrationResult)
 _ZERO_DIGEST: Final = "sha256:" + ("0" * 64)
 _TRUE_EXPRESSIONS: Final = frozenset({"true", "always_true", "satisfied", "x >= 0", "1 == 1"})
 _FALSE_EXPRESSIONS: Final = frozenset({"false", "always_false", "violated", "x < 0", "0 == 1"})
+_NUMERIC_EXPRESSION = re.compile(
+    r"^(?P<feature>[a-zA-Z][a-zA-Z0-9._:-]{0,127})\s*"
+    r"(?P<operator>==|>=|<=|>|<)\s*"
+    r"(?P<threshold>-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)$"
+)
+_MINIMUM_SCALE: Final = 1e-6
+_PROGRAM_ORDER: Final = tuple(GliomaConstraintProgram)
+_PROGRAM_EDGES: Final = (
+    (GliomaConstraintProgram.RTK_PI3K_AKT_MTOR, GliomaConstraintProgram.PROLIFERATION, 1.0),
+    (GliomaConstraintProgram.P53_CELL_CYCLE, GliomaConstraintProgram.PROLIFERATION, -1.0),
+    (GliomaConstraintProgram.IDH_HIF1A, GliomaConstraintProgram.MESENCHYMAL_PROGRAM, -1.0),
+    (GliomaConstraintProgram.RTK_PI3K_AKT_MTOR, GliomaConstraintProgram.MESENCHYMAL_PROGRAM, 1.0),
+    (GliomaConstraintProgram.MESENCHYMAL_PROGRAM, GliomaConstraintProgram.PROLIFERATION, 1.0),
+)
+_PROGRAM_EDGE_STRENGTH: Final = 0.35
+_PROGRAM_RIDGE: Final = 0.03
+_PROGRAM_DAMPING: Final = 0.7
+_PROGRAM_HUBER_DELTA: Final = 1.5
+_PROGRAM_ITERATIONS: Final = 120
+_PROGRAM_TOLERANCE: Final = 1e-5
+_PROGRAM_OBJECTIVE_TOLERANCE: Final = 1e-10
+_PROGRAM_BACKTRACKING_STEPS: Final = 18
+_PROGRAM_BACKTRACKING_FACTOR: Final = 0.5
+_PROGRAM_INITIAL_HUBER_ITERATIONS: Final = 32
+_PROGRAM_INITIAL_HUBER_TOLERANCE: Final = 1e-8
+_PROGRAM_INITIAL_OBJECTIVE_TOLERANCE: Final = 1e-10
+_PROGRAM_SCORE_LIMIT: Final = 4.0
+_BOOTSTRAP_LOW: Final = 0.05
+_BOOTSTRAP_HIGH: Final = 0.95
+
+
+@dataclass(frozen=True, slots=True)
+class _TypedObservation:
+    feature_id: str
+    program: GliomaConstraintProgram
+    direction: int
+    state: FeatureObservationState
+    value: float
+    standard_error: float
+    quality_weight: float
+    evidence: tuple[EvidenceReference, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class _TypedFit:
+    values: tuple[float, ...]
+    objective: float
+    iterations: int
+    converged: bool
+    objective_trace: tuple[float, ...]
 
 
 class M1005ConstraintAuthorizationError(PermissionError):
@@ -114,6 +174,11 @@ def _evidence(request: IntegrateProteinRnaConstraintsRequest) -> tuple[EvidenceR
         if request.constraint_set.evidence
         else request.representation_result,
         *context_artifacts,
+        *(
+            item.reference
+            for observation in request.feature_observations
+            for item in observation.evidence
+        ),
     )
     return tuple(
         EvidenceReference(reference=artifact, role="evidence", claim=M1005_EVIDENCE_CLAIM)
@@ -130,11 +195,540 @@ def _evaluate_expression(expression: str) -> ConstraintEvaluationOutcome:
     return ConstraintEvaluationOutcome.NOT_EVALUABLE
 
 
+def _numeric_constraint_result(  # noqa: PLR0911
+    expression: str,
+    feature_ids: tuple[str, ...],
+    observations: Mapping[str, FeatureObservation],
+) -> tuple[ConstraintEvaluationOutcome, float, float] | None:
+    """Evaluate a numeric comparison with an uncertainty-scaled residual.
+
+    Censored observations are used only when their upper bound proves an upper
+    constraint. Missing and unsupported values remain not evaluable, never negative.
+    """
+
+    match = _NUMERIC_EXPRESSION.fullmatch(expression.strip())
+    if match is None or match.group("feature") not in feature_ids:
+        return None
+    observation = observations.get(match.group("feature"))
+    if observation is None:
+        return ConstraintEvaluationOutcome.NOT_EVALUABLE, 1.0, 0.0
+    threshold = float(match.group("threshold"))
+    operator = match.group("operator")
+    if observation.state is FeatureObservationState.LEFT_CENSORED:
+        limit = observation.censoring_limit
+        if limit is None:
+            return ConstraintEvaluationOutcome.NOT_EVALUABLE, 1.0, 0.0
+        if operator == "<=" and limit <= threshold:
+            return ConstraintEvaluationOutcome.SATISFIED, 0.0, 1.0
+        if operator == "<" and limit < threshold:
+            return ConstraintEvaluationOutcome.SATISFIED, 0.0, 1.0
+        return ConstraintEvaluationOutcome.NOT_EVALUABLE, 1.0, 0.0
+    if observation.state is not FeatureObservationState.OBSERVED or observation.value is None:
+        return ConstraintEvaluationOutcome.NOT_EVALUABLE, 1.0, 0.0
+    value = observation.value
+    violation = {
+        "==": abs(value - threshold),
+        ">=": max(0.0, threshold - value),
+        "<=": max(0.0, value - threshold),
+        ">": (max(threshold - value, 2.0 * _MINIMUM_SCALE) if value <= threshold else 0.0),
+        "<": (max(value - threshold, 2.0 * _MINIMUM_SCALE) if value >= threshold else 0.0),
+    }[operator]
+    scale = max(observation.standard_error or 0.1, _MINIMUM_SCALE)
+    residual = violation / scale
+    strength = exp(-0.5 * residual * residual)
+    outcome = (
+        ConstraintEvaluationOutcome.SATISFIED
+        if violation <= _MINIMUM_SCALE
+        else ConstraintEvaluationOutcome.VIOLATED
+    )
+    return outcome, residual, strength
+
+
+def _evaluate_constraint(
+    expression: str,
+    feature_ids: tuple[str, ...],
+    observations: Mapping[str, FeatureObservation],
+) -> tuple[ConstraintEvaluationOutcome, float, float]:
+    """Evaluate compatibility expressions or measured numeric constraints."""
+
+    closed = _evaluate_expression(expression)
+    if closed is not ConstraintEvaluationOutcome.NOT_EVALUABLE:
+        return (
+            closed,
+            0.0 if closed is ConstraintEvaluationOutcome.SATISFIED else 1.0,
+            1.0 if closed is ConstraintEvaluationOutcome.SATISFIED else 0.0,
+        )
+    numeric = _numeric_constraint_result(expression, feature_ids, observations)
+    if numeric is not None:
+        return numeric
+    return ConstraintEvaluationOutcome.NOT_EVALUABLE, 1.0, 0.0
+
+
 def _support(status: SupportStatus, reason: str) -> SupportDecision:
     return SupportDecision(status=status, reason_code=f"m1005_{reason}", rationale=reason)
 
 
-def _limitations(*, integrated: bool, soft_conflict: bool) -> tuple[Limitation, ...]:
+def _has_typed_observations(observations: tuple[FeatureObservation, ...]) -> bool:
+    return any(item.program is not None for item in observations)
+
+
+def _median(values: tuple[float, ...]) -> float:
+    ordered = sorted(values)
+    middle = len(ordered) // 2
+    return ordered[middle] if len(ordered) % 2 else (ordered[middle - 1] + ordered[middle]) / 2.0
+
+
+def _robust_location_scale(values: tuple[float, ...]) -> tuple[float, float]:
+    center = _median(values)
+    mad = _median(tuple(abs(value - center) for value in values))
+    return center, max(_MINIMUM_SCALE, 1.4826 * mad if mad > _MINIMUM_SCALE else 1.0)
+
+
+def _typed_location_scale(
+    observations: tuple[_TypedObservation, ...],
+) -> tuple[float, float]:
+    """Estimate normalization from observed values, never censor limits."""
+
+    observed = tuple(
+        item.value for item in observations if item.state is FeatureObservationState.OBSERVED
+    )
+    return _robust_location_scale(observed) if observed else (0.0, 1.0)
+
+
+def _hash_normal(material: str) -> float:
+    def uniform(suffix: str) -> float:
+        digest = hashlib.sha256((material + suffix).encode("utf-8")).digest()
+        return (int.from_bytes(digest[:8], "big") + 1.0) / (2.0**64 + 1.0)
+
+    first = max(_MINIMUM_SCALE, uniform(":u1"))
+    second = uniform(":u2")
+    return math.sqrt(-2.0 * math.log(first)) * math.cos(2.0 * math.pi * second)
+
+
+def _typed_observations(
+    observations: tuple[FeatureObservation, ...],
+) -> tuple[_TypedObservation, ...]:
+    result: list[_TypedObservation] = []
+    for item in sorted(observations, key=lambda value: value.feature_id):
+        if item.program is None:
+            continue
+        if item.state is FeatureObservationState.OBSERVED and item.value is not None:
+            value = item.value
+        elif (
+            item.state is FeatureObservationState.LEFT_CENSORED and item.censoring_limit is not None
+        ):
+            value = item.censoring_limit
+        else:
+            continue
+        result.append(
+            _TypedObservation(
+                feature_id=item.feature_id,
+                program=item.program,
+                direction=item.direction,
+                state=item.state,
+                value=value,
+                standard_error=max(_MINIMUM_SCALE, item.standard_error or 1.0),
+                quality_weight=item.quality_weight,
+                evidence=item.evidence,
+            )
+        )
+    return tuple(result)
+
+
+def _typed_target(item: _TypedObservation, center: float, scale: float) -> float:
+    """Map an evidence value into the signed program coordinate."""
+
+    return item.direction * max(
+        -_PROGRAM_SCORE_LIMIT,
+        min(_PROGRAM_SCORE_LIMIT, (item.value - center) / scale),
+    )
+
+
+def _typed_residual(item: _TypedObservation, current: float, target: float) -> float:
+    """Return a one-sided residual, reversing the bound for inhibitory markers."""
+
+    if item.state is not FeatureObservationState.LEFT_CENSORED:
+        return current - target
+    violation = current - target if item.direction == 1 else target - current
+    return max(0.0, violation)
+
+
+def _typed_gradient_residual(item: _TypedObservation, current: float, target: float) -> float:
+    """Return the signed derivative residual for a one-sided term."""
+
+    if item.state is not FeatureObservationState.LEFT_CENSORED:
+        return current - target
+    violation = _typed_residual(item, current, target)
+    return violation if item.direction == 1 else -violation
+
+
+def _initial_program_measurement_objective(
+    center: float,
+    terms: tuple[tuple[float, float, float], ...],
+) -> float:
+    """Evaluate the frozen-scale robust objective for a program start."""
+
+    total = 0.0
+    for target, standard_error, quality in terms:
+        standardized = (center - target) / max(_MINIMUM_SCALE, standard_error)
+        magnitude = abs(standardized)
+        loss = (
+            0.5 * magnitude * magnitude
+            if magnitude <= _PROGRAM_HUBER_DELTA
+            else _PROGRAM_HUBER_DELTA * (magnitude - 0.5 * _PROGRAM_HUBER_DELTA)
+        )
+        total += quality * loss
+    return float(total)
+
+
+def _robust_initial_program_center(
+    terms: tuple[tuple[float, float, float], ...],
+) -> float:
+    """Find a deterministic inverse-variance, quality-weighted Huber center."""
+
+    if len(terms) == 1:
+        return terms[0][0]
+    information = tuple(
+        quality / max(_MINIMUM_SCALE, standard_error**2)
+        for _target, standard_error, quality in terms
+    )
+    estimate = sum(
+        weight * term[0] for weight, term in zip(information, terms, strict=True)
+    ) / max(sum(information), _MINIMUM_SCALE)
+    for _ in range(_PROGRAM_INITIAL_HUBER_ITERATIONS):
+        residuals = tuple(
+            (term[0] - estimate) / max(_MINIMUM_SCALE, term[1]) for term in terms
+        )
+        robust_weights = tuple(
+            weight
+            * (
+                1.0
+                if abs(residual) <= _PROGRAM_HUBER_DELTA
+                else _PROGRAM_HUBER_DELTA / abs(residual)
+            )
+            for weight, residual in zip(information, residuals, strict=True)
+        )
+        proposal = sum(
+            weight * term[0]
+            for weight, term in zip(robust_weights, terms, strict=True)
+        ) / max(sum(robust_weights), _MINIMUM_SCALE)
+        baseline_objective = _initial_program_measurement_objective(estimate, terms)
+        proposal_objective = _initial_program_measurement_objective(proposal, terms)
+        accepted = proposal
+        if not math.isfinite(proposal_objective) or (
+            proposal_objective
+            > baseline_objective + _PROGRAM_INITIAL_OBJECTIVE_TOLERANCE
+        ):
+            direction = proposal - estimate
+            accepted = estimate
+            step = _PROGRAM_BACKTRACKING_FACTOR
+            for _ in range(_PROGRAM_BACKTRACKING_STEPS):
+                trial = estimate + step * direction
+                trial_objective = _initial_program_measurement_objective(trial, terms)
+                if math.isfinite(trial_objective) and (
+                    trial_objective
+                    <= baseline_objective + _PROGRAM_INITIAL_OBJECTIVE_TOLERANCE
+                ):
+                    accepted = trial
+                    break
+                step *= _PROGRAM_BACKTRACKING_FACTOR
+        if abs(accepted - estimate) <= _PROGRAM_INITIAL_HUBER_TOLERANCE:
+            estimate = accepted
+            break
+        estimate = accepted
+    return float(estimate)
+
+
+def _initial_program_values(
+    observations: tuple[_TypedObservation, ...], center: float, scale: float
+) -> list[float]:
+    """Initialize program coordinates from observed effects and feasible bounds."""
+
+    index = {program: position for position, program in enumerate(_PROGRAM_ORDER)}
+    grouped: dict[GliomaConstraintProgram, list[_TypedObservation]] = defaultdict(list)
+    for item in observations:
+        grouped[item.program].append(item)
+    values = [0.0] * len(_PROGRAM_ORDER)
+    for program, items in grouped.items():
+        observed = tuple(item for item in items if item.state is FeatureObservationState.OBSERVED)
+        weighted = tuple(
+            (
+                _typed_target(item, center, scale),
+                max(_MINIMUM_SCALE, item.standard_error / scale),
+                item.quality_weight,
+            )
+            for item in observed
+        )
+        value = _robust_initial_program_center(weighted) if weighted else 0.0
+        lower = tuple(
+            _typed_target(item, center, scale)
+            for item in items
+            if item.state is FeatureObservationState.LEFT_CENSORED and item.direction == -1
+        )
+        upper = tuple(
+            _typed_target(item, center, scale)
+            for item in items
+            if item.state is FeatureObservationState.LEFT_CENSORED and item.direction == 1
+        )
+        if lower:
+            value = max(value, *lower)
+        if upper:
+            value = min(value, *upper)
+        values[index[program]] = max(-_PROGRAM_SCORE_LIMIT, min(_PROGRAM_SCORE_LIMIT, value))
+    return values
+
+
+def _program_objective(
+    values: list[float],
+    observations: tuple[_TypedObservation, ...],
+    center: float,
+    scale: float,
+    *,
+    include_edges: bool,
+) -> float:
+    index = {program: position for position, program in enumerate(_PROGRAM_ORDER)}
+    objective = _PROGRAM_RIDGE * sum(value * value for value in values)
+    for item in observations:
+        target = _typed_target(item, center, scale)
+        residual = _typed_residual(item, values[index[item.program]], target)
+        scaled = residual / max(_MINIMUM_SCALE, item.standard_error / scale)
+        absolute = abs(scaled)
+        loss = (
+            0.5 * scaled * scaled
+            if absolute <= _PROGRAM_HUBER_DELTA
+            else (_PROGRAM_HUBER_DELTA * (absolute - 0.5 * _PROGRAM_HUBER_DELTA))
+        )
+        objective += item.quality_weight * loss
+    if include_edges:
+        for edge_source, edge_target, sign in _PROGRAM_EDGES:
+            residual = (
+                values[index[edge_target]]
+                - sign * _PROGRAM_EDGE_STRENGTH * values[index[edge_source]]
+            )
+            objective += 0.5 * residual * residual
+    return objective
+
+
+def _fit_programs(  # noqa: C901, PLR0912, PLR0915 - solver safeguards are explicit.
+    observations: tuple[_TypedObservation, ...],
+    center: float,
+    scale: float,
+    *,
+    include_edges: bool = True,
+) -> _TypedFit:
+    index = {program: position for position, program in enumerate(_PROGRAM_ORDER)}
+    grouped: dict[GliomaConstraintProgram, list[_TypedObservation]] = defaultdict(list)
+    for item in observations:
+        grouped[item.program].append(item)
+    values = _initial_program_values(observations, center, scale)
+    initial_objective = _program_objective(
+        values, observations, center, scale, include_edges=include_edges
+    )
+    if not math.isfinite(initial_objective):
+        return _TypedFit(
+            values=tuple(_quantize(value) for value in values),
+            objective=0.0,
+            iterations=0,
+            converged=False,
+            objective_trace=(),
+        )
+    trace: list[float] = [round(initial_objective, 10)]
+    for iteration in range(1, _PROGRAM_ITERATIONS + 1):
+        old = values.copy()
+        previous_objective = trace[-1]
+        proposals = old.copy()
+        for position, program in enumerate(_PROGRAM_ORDER):
+            # Every coordinate proposal observes one immutable parent state.
+            # This makes the signed graph sweep deterministic under input order
+            # and avoids an in-place Gauss-Seidel update changing edge curvature.
+            current = old[position]
+            gradient = 2.0 * _PROGRAM_RIDGE * current
+            hessian = 2.0 * _PROGRAM_RIDGE
+            for item in grouped[program]:
+                target_value = _typed_target(item, center, scale)
+                residual_value = _typed_residual(item, current, target_value)
+                if (
+                    item.state is FeatureObservationState.LEFT_CENSORED
+                    and residual_value <= 0.0
+                ):
+                    continue
+                residual = residual_value / max(
+                    _MINIMUM_SCALE, item.standard_error / scale
+                )
+                absolute = abs(residual)
+                huber = 1.0 if absolute <= _PROGRAM_HUBER_DELTA else _PROGRAM_HUBER_DELTA / absolute
+                information = (
+                    item.quality_weight
+                    * huber
+                    / max(_MINIMUM_SCALE, (item.standard_error / scale) ** 2)
+                )
+                gradient += information * _typed_gradient_residual(item, current, target_value)
+                hessian += information
+            if include_edges:
+                for edge_source, edge_target, sign in _PROGRAM_EDGES:
+                    if program is edge_source:
+                        residual = (
+                            old[index[edge_target]] - sign * _PROGRAM_EDGE_STRENGTH * current
+                        )
+                        gradient += -sign * _PROGRAM_EDGE_STRENGTH * residual
+                        hessian += _PROGRAM_EDGE_STRENGTH**2
+                    elif program is edge_target:
+                        residual = (
+                            current - sign * _PROGRAM_EDGE_STRENGTH * old[index[edge_source]]
+                        )
+                        gradient += residual
+                        hessian += 1.0
+            proposal = current - gradient / max(_MINIMUM_SCALE, hessian)
+            proposals[position] = current + _PROGRAM_DAMPING * (proposal - current)
+        candidate = [
+            max(-_PROGRAM_SCORE_LIMIT, min(_PROGRAM_SCORE_LIMIT, value))
+            for value in proposals
+        ]
+        next_objective = _program_objective(
+            candidate, observations, center, scale, include_edges=include_edges
+        )
+        accepted = candidate
+        if not math.isfinite(next_objective) or (
+            next_objective > previous_objective + _PROGRAM_OBJECTIVE_TOLERANCE
+        ):
+            # Robust Huber breakpoints and signed cycles can make a full Jacobi
+            # sweep overshoot. Backtrack the complete vector update so the
+            # replay receipt can prove a monotone objective trace.
+            accepted = old.copy()
+            next_objective = previous_objective
+            delta = [new - before for new, before in zip(candidate, old, strict=True)]
+            step = _PROGRAM_DAMPING
+            for _ in range(_PROGRAM_BACKTRACKING_STEPS):
+                step *= _PROGRAM_BACKTRACKING_FACTOR
+                trial = [
+                    max(
+                        -_PROGRAM_SCORE_LIMIT,
+                        min(_PROGRAM_SCORE_LIMIT, before + step * change),
+                    )
+                    for before, change in zip(old, delta, strict=True)
+                ]
+                trial_objective = _program_objective(
+                    trial, observations, center, scale, include_edges=include_edges
+                )
+                if math.isfinite(trial_objective) and (
+                    trial_objective <= previous_objective + _PROGRAM_OBJECTIVE_TOLERANCE
+                ):
+                    accepted = trial
+                    next_objective = trial_objective
+                    break
+            else:
+                return _TypedFit(
+                    values=tuple(_quantize(value) for value in old),
+                    objective=_quantize(previous_objective),
+                    iterations=iteration,
+                    converged=False,
+                    objective_trace=tuple(trace),
+                )
+        values = accepted
+        update = max(abs(new - before) for new, before in zip(values, old, strict=True))
+        trace.append(round(next_objective, 10))
+        if update <= _PROGRAM_TOLERANCE and abs(
+            previous_objective - next_objective
+        ) <= _PROGRAM_TOLERANCE:
+            return _TypedFit(
+                values=tuple(_quantize(value) for value in values),
+                objective=_quantize(next_objective),
+                iterations=iteration,
+                converged=True,
+                objective_trace=tuple(trace),
+            )
+    return _TypedFit(
+        values=tuple(_quantize(value) for value in values),
+        objective=_quantize(trace[-1]),
+        iterations=_PROGRAM_ITERATIONS,
+        converged=False,
+        objective_trace=tuple(trace),
+    )
+
+
+def _quantize(value: float) -> float:
+    return float(f"{value:.8f}")
+
+
+def _quantile(values: tuple[float, ...], probability: float) -> float:
+    ordered = sorted(values)
+    index = max(0, min(len(ordered) - 1, math.ceil(probability * len(ordered)) - 1))
+    return _quantize(ordered[index])
+
+
+def _typed_program_states(
+    request: IntegrateProteinRnaConstraintsRequest,
+    request_digest: str,
+) -> tuple[tuple[GliomaConstraintProgramState, ...], _TypedFit | None]:
+    observations = _typed_observations(request.feature_observations)
+    if not observations:
+        return (), None
+    center, scale = _typed_location_scale(observations)
+    fit = _fit_programs(observations, center, scale)
+    topology_free = _fit_programs(observations, center, scale, include_edges=False)
+    if not fit.converged or not topology_free.converged:
+        return (), None
+    draws: list[tuple[float, ...]] = []
+    for draw in range(request.bootstrap_replicates):
+        perturbed = tuple(
+            _TypedObservation(
+                feature_id=item.feature_id,
+                program=item.program,
+                direction=item.direction,
+                state=item.state,
+                value=item.value
+                + item.standard_error * _hash_normal(f"{request_digest}:{draw}:{item.feature_id}"),
+                standard_error=item.standard_error,
+                quality_weight=item.quality_weight,
+                evidence=item.evidence,
+            )
+            for item in observations
+        )
+        draw_center, draw_scale = _typed_location_scale(perturbed)
+        draw_fit = _fit_programs(perturbed, draw_center, draw_scale)
+        if not draw_fit.converged:
+            return (), None
+        draws.append(draw_fit.values)
+    index = {program: position for position, program in enumerate(_PROGRAM_ORDER)}
+    states: list[GliomaConstraintProgramState] = []
+    for program in sorted({item.program for item in observations}, key=lambda item: item.value):
+        position = index[program]
+        program_items = tuple(item for item in observations if item.program is program)
+        samples = tuple(draw[position] for draw in draws)
+        lower = min(_quantile(samples, _BOOTSTRAP_LOW), fit.values[position])
+        upper = max(_quantile(samples, _BOOTSTRAP_HIGH), fit.values[position])
+        drivers = tuple(
+            item.feature_id
+            for item in sorted(
+                program_items,
+                key=lambda item: (
+                    -abs(item.quality_weight * item.direction * (item.value - center)),
+                    item.feature_id,
+                ),
+            )[:3]
+        )
+        edge_delta = fit.values[position] - topology_free.values[position]
+        evidence = tuple(item for source in program_items for item in source.evidence)[:64]
+        states.append(
+            GliomaConstraintProgramState(
+                program=program,
+                score=fit.values[position],
+                lower_bound=lower,
+                upper_bound=upper,
+                stability=_quantize(max(0.0, min(1.0, 1.0 - (upper - lower) / 8.0))),
+                discordance=_quantize(min(1.0, abs(edge_delta))),
+                evidence_count=len(program_items),
+                top_drivers=drivers or ("no_observed_driver",),
+                ablation_effects=(f"signed_program_edges_removed:{_quantize(edge_delta):.8f}",),
+                evidence=evidence,
+            )
+        )
+    return tuple(states), fit
+
+
+def _limitations(
+    *, integrated: bool, soft_conflict: bool, typed: bool = False
+) -> tuple[Limitation, ...]:
     values = [
         Limitation(
             code="opaque_upstream_inputs",
@@ -150,8 +744,9 @@ def _limitations(*, integrated: bool, soft_conflict: bool) -> tuple[Limitation, 
         Limitation(
             code="caller_declared_expression_language",
             statement=(
-                "Only the closed true/false expression vocabulary is evaluated; all other "
-                "expressions abstain rather than being interpreted heuristically."
+                "Closed true/false expressions and bounded numeric feature comparisons use "
+                "declared measurements; all other expressions abstain rather than being "
+                "interpreted heuristically."
             ),
         ),
     ]
@@ -173,6 +768,25 @@ def _limitations(*, integrated: bool, soft_conflict: bool) -> tuple[Limitation, 
                 ),
             )
         )
+    if typed:
+        values.extend(
+            (
+                Limitation(
+                    code="typed_glioma_constraint_graph",
+                    statement=(
+                        "Annotated feature observations use robust median/MAD normalization "
+                        "and signed glioma program coupling."
+                    ),
+                ),
+                Limitation(
+                    code="research_use_only",
+                    statement=(
+                        "Program states are research-use-only signals, not calibrated clinical "
+                        "mechanism or treatment estimates."
+                    ),
+                ),
+            )
+        )
     return tuple(values)
 
 
@@ -185,7 +799,7 @@ class M1005ConstraintEngine:
         validated = _REQUEST_ADAPTER.validate_python(_prepare(request), strict=True)
         return self._result(validated)
 
-    def _result(
+    def _result(  # noqa: PLR0915 - legacy envelope and typed lane are rederived together.
         self,
         request: IntegrateProteinRnaConstraintsRequest,
     ) -> ProteinRnaConstraintIntegrationResult:
@@ -197,8 +811,13 @@ class M1005ConstraintEngine:
         soft_conflict = False
         weighted_score = 0.0
         total_weight = 0.0
+        observations = {item.feature_id: item for item in request.feature_observations}
         for constraint in request.constraint_set.constraints:
-            outcome = _evaluate_expression(constraint.expression)
+            outcome, residual, strength = _evaluate_constraint(
+                constraint.expression,
+                constraint.feature_ids,
+                observations,
+            )
             if outcome is ConstraintEvaluationOutcome.VIOLATED:
                 if constraint.hardness is ConstraintHardness.HARD:
                     hard_violated = True
@@ -209,9 +828,8 @@ class M1005ConstraintEngine:
             if constraint.hardness is ConstraintHardness.SOFT:
                 weight = constraint.weight or 0.0
                 total_weight += weight
-                if outcome is ConstraintEvaluationOutcome.SATISFIED:
-                    weighted_score += weight
-                effect = weight if outcome is ConstraintEvaluationOutcome.SATISFIED else 0.0
+                weighted_score += weight * strength
+                effect = weight * strength
                 ablations.append(
                     ConstraintAblation(
                         constraint_id=constraint.constraint_id,
@@ -225,19 +843,26 @@ class M1005ConstraintEngine:
                 ConstraintEvaluation(
                     constraint_id=constraint.constraint_id,
                     outcome=outcome,
-                    residual=(0.0 if outcome is ConstraintEvaluationOutcome.SATISFIED else 1.0),
+                    residual=residual,
                     effect_size=(
                         constraint.weight if constraint.hardness is ConstraintHardness.SOFT else 1.0
                     ),
                     message=(
-                        "closed expression satisfied"
+                        "constraint satisfied with declared feature evidence"
                         if outcome is ConstraintEvaluationOutcome.SATISFIED
-                        else "closed expression was not satisfied or evaluable"
+                        else "constraint was violated or not evaluable from declared evidence"
                     ),
                     evidence=constraint.evidence,
                 )
             )
-        integrated = not hard_violated and not not_evaluable
+        typed_model = _has_typed_observations(request.feature_observations)
+        program_states: tuple[GliomaConstraintProgramState, ...] = ()
+        typed_fit: _TypedFit | None = None
+        typed_failure = False
+        if typed_model:
+            program_states, typed_fit = _typed_program_states(request, request_hash)
+            typed_failure = typed_fit is None or not program_states
+        integrated = not hard_violated and not not_evaluable and not typed_failure
         if integrated:
             score = 1.0 if not total_weight else weighted_score / total_weight
             estimates: tuple[ConstraintAwareEstimate, ...] = (
@@ -254,15 +879,26 @@ class M1005ConstraintEngine:
             reason = None
         else:
             estimates = ()
+            program_states = ()
             status = ConstraintIntegrationStatus.ABSTAINED
+            if hard_violated:
+                support_status = SupportStatus.REVIEW_REQUIRED
+                support_reason = "hard_constraint_violation"
+                reason = "A hard constraint was violated; no estimate is emitted."
+            elif not_evaluable:
+                support_status = SupportStatus.UNSUPPORTED
+                support_reason = "constraint_not_evaluable"
+                reason = "At least one constraint is outside the closed evaluation vocabulary."
+            else:
+                support_status = SupportStatus.REVIEW_REQUIRED
+                support_reason = "typed_program_solver_not_converged"
+                reason = (
+                    "The typed glioma constraint graph did not produce a stable supported "
+                    "state; no estimate is emitted."
+                )
             support = _support(
-                SupportStatus.REVIEW_REQUIRED if hard_violated else SupportStatus.UNSUPPORTED,
-                "hard_constraint_violation" if hard_violated else "constraint_not_evaluable",
-            )
-            reason = (
-                "A hard constraint was violated; no estimate is emitted."
-                if hard_violated
-                else "At least one constraint is outside the closed evaluation vocabulary."
+                support_status,
+                support_reason,
             )
         payload: dict[str, object] = {
             "output_type": "protein_rna_constraint_integration",
@@ -273,6 +909,10 @@ class M1005ConstraintEngine:
             "request": request,
             "status": status,
             "estimates": estimates,
+            "program_states": program_states,
+            "typed_model": typed_model,
+            "solver_iterations": typed_fit.iterations if typed_fit is not None else None,
+            "solver_objective": typed_fit.objective if typed_fit is not None else None,
             "evaluations": tuple(evaluations),
             "ablations": tuple(ablations),
             "abstention_reason": reason,
@@ -282,7 +922,11 @@ class M1005ConstraintEngine:
             "uncertainty": expected_uncertainty(integrated=integrated),
             "provenance": expected_provenance(request, request_hash),
             "evidence": _evidence(request),
-            "limitations": _limitations(integrated=integrated, soft_conflict=soft_conflict),
+            "limitations": _limitations(
+                integrated=integrated,
+                soft_conflict=soft_conflict,
+                typed=typed_model,
+            ),
             "human_review_required": (not integrated) or soft_conflict,
         }
         constructed = ProteinRnaConstraintIntegrationResult.model_construct(**payload)  # type: ignore[arg-type]

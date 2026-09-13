@@ -1,8 +1,12 @@
 """Lightweight checks for the provisional M06-03 contract spine."""
 
+from typing import cast
+
 import pytest
 
 from glio_proteogen.contracts.m06_03 import (
+    M0603_DEFAULT_BOOTSTRAP_REPLICATES,
+    M0603_MAX_BOOTSTRAP_REPLICATES,
     M0603_MAX_EVIDENCE,
     M0603_OUTPUT_MEDIA_TYPE,
     BaselineEstimate,
@@ -10,6 +14,8 @@ from glio_proteogen.contracts.m06_03 import (
     BaselineEstimatorFamily,
     BaselinePreprocessingPolicy,
     BaselineTuningRecord,
+    GliomaBaselineProgram,
+    GliomaFeatureAnnotation,
     MatureBaselineConfiguration,
     contract_json_schemas,
 )
@@ -70,9 +76,33 @@ def test_scalar_baseline_estimate_is_explicitly_typed() -> None:
 def test_schema_exports_are_provisional_and_bounded() -> None:
     schemas = contract_json_schemas()
     assert len(schemas) == _SCHEMA_COUNT
-    assert all(schema["x-glio-contract"]["provisionalAbi"] for schema in schemas.values())
-    assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M0603_OUTPUT_MEDIA_TYPE
+    assert all(
+        cast("dict[str, object]", schema["x-glio-contract"])["provisionalAbi"]
+        for schema in schemas.values()
+    )
+    output_metadata = cast("dict[str, object]", schemas["output"]["x-glio-contract"])
+    assert output_metadata["outputMediaType"] == M0603_OUTPUT_MEDIA_TYPE
     assert M0603_MAX_EVIDENCE > 0
+    assert M0603_DEFAULT_BOOTSTRAP_REPLICATES <= M0603_MAX_BOOTSTRAP_REPLICATES
+    metadata = cast("dict[str, object]", schemas["request"]["x-glio-contract"])
+    assert metadata["typedGliomaBaselineModel"] is True
+
+
+def test_typed_glioma_annotation_is_closed_and_weighted() -> None:
+    annotation = GliomaFeatureAnnotation(
+        feature_id="feature.egfr",
+        program=GliomaBaselineProgram.RTK_PI3K_AKT_MTOR,
+        direction=1,
+        standard_error=0.25,
+        quality_weight=0.8,
+    )
+    assert annotation.program is GliomaBaselineProgram.RTK_PI3K_AKT_MTOR
+    with pytest.raises(ValueError, match="positive quality"):
+        GliomaFeatureAnnotation(
+            feature_id="feature.bad",
+            program=GliomaBaselineProgram.P53_CELL_CYCLE,
+            quality_weight=0.0,
+        )
 
 
 @pytest.mark.parametrize(
@@ -105,5 +135,5 @@ def test_estimate_shape_rejects_ambiguous_or_invalid_values(
             feature_id="protein.abundance",
             kind=kind,
             unit="normalized-abundance",
-            **values,
+            **values,  # type: ignore[arg-type]
         )

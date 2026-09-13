@@ -9,6 +9,7 @@ reviewable scaffolding and is explicitly provisional.
 
 from __future__ import annotations
 
+import math
 from enum import StrEnum
 from typing import Final, Literal
 
@@ -56,6 +57,8 @@ M1008_MAX_COUNTER_EVIDENCE: Final = 64
 M1008_MAX_RECONSTRUCTION_STEPS: Final = 256
 M1008_MAX_DIAGNOSTICS: Final = 128
 M1008_MAX_EVIDENCE: Final = 64
+M1008_MIN_DISCORDANCE_OBSERVATIONS: Final = 3
+M1008_MAX_DISCORDANCE_OBSERVATIONS: Final = 256
 M1008_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M1008_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
 M1008_EVIDENCE_CLAIM: Final = (
@@ -107,6 +110,58 @@ class PublisherEvidenceSource(FrozenModel):
     artifact: ArtifactReference
     claim: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1008_MAX_EVIDENCE)
+
+
+class DiscordanceObservation(FrozenModel):
+    """A paired standardized protein/RNA effect for a glioma feature."""
+
+    observation_id: Identifier
+    feature_id: NonEmptyStr
+    protein_effect: float = Field(ge=-20.0, le=20.0)
+    rna_effect: float = Field(ge=-20.0, le=20.0)
+    protein_standard_error: float = Field(gt=0.0, le=20.0)
+    rna_standard_error: float = Field(gt=0.0, le=20.0)
+    quality_weight: float = Field(gt=0.0, le=1.0)
+    evidence: tuple[EvidenceReference, ...] = Field(
+        min_length=1,
+        max_length=M1008_MAX_EVIDENCE,
+    )
+
+    @model_validator(mode="after")
+    def observation_is_finite_and_attributed(self) -> DiscordanceObservation:
+        numeric = (
+            self.protein_effect,
+            self.rna_effect,
+            self.protein_standard_error,
+            self.rna_standard_error,
+            self.quality_weight,
+        )
+        if any(not math.isfinite(value) for value in numeric):
+            raise ValueError("discordance observation values must be finite")
+        if any(item.role != "evidence" for item in self.evidence):
+            raise ValueError("discordance observation evidence must use the evidence role")
+        return self
+
+
+class DiscordanceSummary(FrozenModel):
+    """Robust paired protein/RNA discordance summary for the explanation receipt."""
+
+    observation_count: int = Field(
+        ge=M1008_MIN_DISCORDANCE_OBSERVATIONS,
+        le=M1008_MAX_DISCORDANCE_OBSERVATIONS,
+    )
+    robust_location: float
+    robust_scale: float = Field(ge=0.0)
+    discordant_fraction: float = Field(ge=0.0, le=1.0)
+    top_features: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=8)
+
+    @model_validator(mode="after")
+    def summary_is_finite(self) -> DiscordanceSummary:
+        if not math.isfinite(self.robust_location) or not math.isfinite(self.robust_scale):
+            raise ValueError("discordance summary values must be finite")
+        if len(self.top_features) != len(set(self.top_features)):
+            raise ValueError("discordance summary top features must be unique")
+        return self
 
 
 class PublisherAssumption(FrozenModel):
@@ -184,6 +239,7 @@ class ProteinRnaExplanation(FrozenModel):
     version: SemanticVersion
     bundle_id: Identifier
     summary: NonEmptyStr
+    discordance_summary: DiscordanceSummary | None = None
     diagnostics: tuple[PublisherDiagnostic, ...] = Field(
         min_length=1, max_length=M1008_MAX_DIAGNOSTICS
     )
@@ -225,6 +281,9 @@ class PublishProteinRnaEvidenceRequest(FrozenModel):
     reconstruction_steps: tuple[ReconstructionStep, ...] = Field(
         default=(), max_length=M1008_MAX_RECONSTRUCTION_STEPS
     )
+    discordance_observations: tuple[DiscordanceObservation, ...] = Field(
+        default=(), max_length=M1008_MAX_DISCORDANCE_OBSERVATIONS
+    )
     supersedes_result_digest: Sha256Digest | None = None
 
     @model_validator(mode="after")
@@ -240,6 +299,28 @@ class PublishProteinRnaEvidenceRequest(FrozenModel):
         sequences = tuple(item.sequence for item in self.reconstruction_steps)
         if len(sequences) != len(set(sequences)) or sequences != tuple(sorted(sequences)):
             raise ValueError("reconstruction steps must have unique ordered sequences")
+        if (
+            self.discordance_observations
+            and len(self.discordance_observations) < M1008_MIN_DISCORDANCE_OBSERVATIONS
+        ):
+            raise ValueError("measured discordance requires at least three observations")
+        observation_ids = tuple(item.observation_id for item in self.discordance_observations)
+        feature_ids = tuple(item.feature_id for item in self.discordance_observations)
+        if len(observation_ids) != len(set(observation_ids)):
+            raise ValueError("discordance observation identifiers must be unique")
+        if len(feature_ids) != len(set(feature_ids)):
+            raise ValueError("discordance feature identifiers must be unique")
+        evidence = tuple(
+            item
+            for source in self.source_artifacts
+            for item in source.evidence
+        ) + tuple(
+            item
+            for observation in self.discordance_observations
+            for item in observation.evidence
+        )
+        if len(dict.fromkeys(evidence)) > M1008_MAX_EVIDENCE:
+            raise ValueError("request evidence projection exceeds the M10-08 limit")
         return self
 
 
@@ -396,7 +477,12 @@ def expected_evidence(request: PublishProteinRnaEvidenceRequest) -> tuple[Eviden
     references = tuple(
         evidence for source in request.source_artifacts for evidence in source.evidence
     )
-    return tuple(dict.fromkeys(references))
+    measured = tuple(
+        evidence
+        for observation in request.discordance_observations
+        for evidence in observation.evidence
+    )
+    return tuple(dict.fromkeys(references + measured))
 
 
 def expected_input_digests(request: PublishProteinRnaEvidenceRequest) -> tuple[Sha256Digest, ...]:
@@ -495,9 +581,11 @@ __all__ = [
     "M1008_MAX_CANONICAL_RESULT_BYTES",
     "M1008_MAX_COUNTER_EVIDENCE",
     "M1008_MAX_DIAGNOSTICS",
+    "M1008_MAX_DISCORDANCE_OBSERVATIONS",
     "M1008_MAX_EVIDENCE",
     "M1008_MAX_RECONSTRUCTION_STEPS",
     "M1008_MAX_SOURCES",
+    "M1008_MIN_DISCORDANCE_OBSERVATIONS",
     "M1008_MODULE_ID",
     "M1008_OPERATION",
     "M1008_OUTPUT_MEDIA_TYPE",
@@ -505,6 +593,8 @@ __all__ = [
     "M1008_PARENT",
     "M1008_PROVISIONAL_ABI",
     "M1008_SAFETY_CLASS",
+    "DiscordanceObservation",
+    "DiscordanceSummary",
     "EvidencePublicationStatus",
     "ProteinRnaEvidenceBundle",
     "ProteinRnaEvidencePublicationResult",

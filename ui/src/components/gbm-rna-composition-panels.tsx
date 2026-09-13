@@ -1,0 +1,49 @@
+import { formatNumber, formatSigned, numberAt, shortDigest, textAt, type JsonObject } from "@/lib/research-state";
+import { gbmRnaCompositionRequestStats, normalizeGbmMixtureResult, mixtureProvenance } from "@/lib/gbm-rna-composition";
+
+function pct(value: number | null): string {
+  return value === null ? "—" : `${formatNumber(value * 100, 1)}%`;
+}
+
+export function GbmRnaCompositionResultPanels({ result }: { result: JsonObject }) {
+  const evidence = normalizeGbmMixtureResult(result);
+  return (
+    <div className="panel-stack">
+      <div className="summary-grid">
+        <article><span>KNOWN RNA MASS</span><b>{pct(evidence.unknownMass === null ? null : 1 - evidence.unknownMass)}</b><small>sum of caller reference weights</small></article>
+        <article><span>UNKNOWN RNA MASS</span><b>{pct(evidence.unknownMass)}</b><small>unexplained channel retained, never a lineage</small></article>
+        <article><span>ITERATIONS / KKT</span><b>{evidence.iterations ?? "—"}</b><small>{evidence.kktResidual === null ? "no converged solve" : `residual ${formatNumber(evidence.kktResidual, 7)}`}</small></article>
+        <article><span>OOD SCORE</span><b>{evidence.ood ? formatNumber(Number(evidence.ood.ood_score ?? evidence.ood.score ?? NaN), 3) : "—"}</b><small>count-native mixture diagnostics</small></article>
+      </div>
+      <section className="result-panel">
+        <div className="panel-title-row"><div><p className="eyebrow">DIRICHLET–MULTINOMIAL SIMPLEX</p><h3>Glioma RNA mixture coordinates</h3></div><span className={`support-badge ${evidence.support}`}>{evidence.support}</span></div>
+        <div className="zero-fill-notice"><b>Caller-owned references</b><span>These are RNA mixture weights from the submitted marker signatures. They are not GBmap cell fractions, malignant-cell purity, diagnosis, prognosis, or treatment guidance.</span></div>
+        {evidence.weights.length ? <div className="state-table-wrap"><table className="state-table"><thead><tr><th>Rank</th><th>Lineage reference</th><th>RNA weight</th><th>Mass bar</th></tr></thead><tbody>{evidence.weights.map((weight) => <tr key={weight.id}><td className="mono-cell">{weight.rank ?? "—"}</td><td><b>{weight.id}</b></td><td className="mono-cell">{pct(weight.weight)}</td><td><div className="activity-mark" aria-label={`${weight.id} ${pct(weight.weight)}`}><span className="activity-fill positive" style={{ left: 0, width: `${Math.max(0, Math.min(100, (weight.weight ?? 0) * 100))}%` }} /></div></td></tr>)}</tbody></table></div> : <p className="panel-empty">No fitted lineage weights were emitted because the simplex solver abstained.</p>}
+        {evidence.bootstrapReplicates > 0 && <div className="metric-strip"><article><span>POSTERIOR-PREDICTIVE DRAWS</span><b>{evidence.bootstrapReplicates}</b><small>deterministic Dirichlet–multinomial perturbations</small></article><article><span>INTERVAL MASS</span><b>{evidence.weightIntervals.length}/{evidence.weights.length}</b><small>ranked lineage coordinates with 5–95% bounds</small></article><article><span>UNKNOWN MASS INTERVAL</span><b>{evidence.unknownMassLower === null || evidence.unknownMassUpper === null ? "—" : `${pct(evidence.unknownMassLower)}–${pct(evidence.unknownMassUpper)}`}</b><small>background channel remains explicit</small></article></div>}
+        {evidence.weightIntervals.length > 0 && <div className="state-table-wrap"><table className="state-table"><thead><tr><th>Lineage reference</th><th>Fitted</th><th>5% lower</th><th>95% upper</th><th>Interval width</th></tr></thead><tbody>{evidence.weightIntervals.map((interval) => { const fitted = evidence.weights.find((weight) => weight.id === interval.id)?.weight ?? null; const width = interval.lower !== null && interval.upper !== null ? interval.upper - interval.lower : null; return <tr key={`interval-${interval.id}`}><td><b>{interval.id}</b></td><td className="mono-cell">{pct(fitted)}</td><td className="mono-cell">{pct(interval.lower)}</td><td className="mono-cell">{pct(interval.upper)}</td><td className="mono-cell">{pct(width)}</td></tr>; })}</tbody></table></div>}
+      </section>
+      <section className="result-panel">
+        <div className="panel-title-row"><div><p className="eyebrow">SOLVER CLOSURE</p><h3>Objective trace and identifiability</h3></div><span className="boundary-chip">monotonic trace · KKT closure</span></div>
+        <div className="metric-strip"><article><span>INITIAL OBJECTIVE</span><b>{formatNumber(evidence.initialObjective, 5)}</b><small>before adaptive unknown-mass solve</small></article><article><span>FINAL OBJECTIVE</span><b>{formatNumber(evidence.objective, 5)}</b><small>{evidence.trace.length} recorded points</small></article><article><span>SIGNATURE CONDITION</span><b>{formatNumber(evidence.conditionNumber, 3)}</b><small>reference matrix identifiability</small></article><article><span>TRACE DELTA</span><b>{evidence.trace.length > 1 ? formatSigned(evidence.trace[evidence.trace.length - 1] - evidence.trace[0], 5) : "—"}</b><small>must be non-increasing</small></article></div>
+        {evidence.abstentionReason && <p className="warning-copy">{evidence.abstentionReason}</p>}
+        {evidence.trace.length > 0 && <pre>{JSON.stringify({ objective_trace: evidence.trace }, null, 2)}</pre>}
+      </section>
+      <section className="result-panel">
+        <div className="panel-title-row"><div><p className="eyebrow">UNKNOWN CHANNEL / OOD</p><h3>Unexplained gene mass</h3></div><span className="boundary-chip">not assigned to a cell lineage</span></div>
+        <div className="metric-strip"><article><span>UNKNOWN MASS</span><b>{pct(evidence.unknownMass)}</b><small>adaptive simplex coordinate</small></article><article><span>UNKNOWN FEATURES</span><b>{evidence.unknownGeneMass.length}</b><small>gene-resolved background vector</small></article><article><span>FITTED FEATURES</span><b>{evidence.fittedProbabilities.length}</b><small>reconstructed probability axis</small></article><article><span>RESULT DIGEST</span><b><code>{shortDigest(textAt(result, ["result_digest"]))}</code></b><small>replay-closed receipt</small></article></div>
+        {evidence.ood && <pre>{JSON.stringify(evidence.ood, null, 2)}</pre>}
+      </section>
+      <section className="result-panel limitations-panel"><div className="panel-title-row"><div><p className="eyebrow">RESEARCH BOUNDARY</p><h3>Interpretation limits</h3></div></div><p>Only caller-supplied positive reference signatures are evaluated. Unknown RNA mass remains explicit, and the solver does not infer histologic fractions, malignant-cell purity, diagnosis, prognosis, or treatment action.</p></section>
+    </div>
+  );
+}
+
+export function GbmRnaCompositionEvidencePanel({ request, result }: { request: JsonObject; result: JsonObject }) {
+  const stats = gbmRnaCompositionRequestStats(request);
+  const provenance = mixtureProvenance(result);
+  return <div className="panel-stack"><section className="result-panel zero-fill-panel"><div className="panel-title-row"><div><p className="eyebrow">CALLER-OWNED COUNT INPUT</p><h3>GBM RNA composition request</h3></div><span className="count-chip">{stats.features}</span></div><div className="metric-strip"><article><span>FEATURES</span><b>{stats.features}</b><small>shared gene axis</small></article><article><span>NONZERO COUNTS</span><b>{stats.nonzero}</b><small>raw counts retained</small></article><article><span>DEPTH</span><b>{stats.depth.toLocaleString("en-US")}</b><small>positive sequencing depth</small></article><article><span>REFERENCES</span><b>{stats.references}</b><small>caller-supplied lineage signatures</small></article><article><span>UNCERTAINTY DRAWS</span><b>{numberAt(request, ["bootstrap_replicates"]) ?? 0}</b><small>0 or 8–256 deterministic count perturbations</small></article></div></section><section className="result-panel"><div className="panel-title-row"><div><p className="eyebrow">EXECUTED REQUEST</p><h3>Feature and reference ledger</h3></div><span className="boundary-chip">exact axis · no implicit remapping</span></div><pre>{JSON.stringify({ feature_ids: request.feature_ids, references: request.references, unknown_background: request.unknown_background, bootstrap_replicates: request.bootstrap_replicates, source_digests: request.source_digests, provenance_note: request.provenance_note }, null, 2)}</pre></section><section className="result-panel"><div className="panel-title-row"><div><p className="eyebrow">PROVENANCE</p><h3>Source digests and solver profile</h3></div></div><pre>{JSON.stringify({ source_digests: request.source_digests, provenance, profile_id: result.profile_id, profile_digest: result.profile_digest }, null, 2)}</pre></section></div>;
+}
+
+export function GbmRnaCompositionAuditPanels({ result, profile, verification }: { result: JsonObject; profile: JsonObject | null; verification: JsonObject | null }) {
+  return <div className="panel-stack audit-grid"><section className="result-panel receipt-panel"><div className="panel-title-row"><div><p className="eyebrow">DETERMINISTIC REPLAY</p><h3>RNA composition receipt verification</h3></div></div>{verification ? <><div className={`verification-banner ${verification.verified === true ? "verified" : "mismatch"}`}><i />{verification.verified === true ? "Replay verified" : "Replay mismatch detected"}</div><pre>{JSON.stringify(verification, null, 2)}</pre></> : <p className="panel-empty">Recompute this exact count/reference request to verify profile, solver trace, and result digests.</p>}</section><section className="result-panel"><div className="panel-title-row"><div><p className="eyebrow">PROFILE / LIMITATIONS</p><h3>Composition provenance</h3></div></div><pre>{JSON.stringify({ profile: profile ? { profile_id: profile.profile_id, profile_digest: profile.profile_digest, solver: profile.solver, numpy_version: profile.numpy_version } : null, source_digests: result.source_digests, limitations: result.limitations }, null, 2)}</pre></section></div>;
+}

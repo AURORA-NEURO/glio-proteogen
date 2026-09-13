@@ -24,7 +24,10 @@ from glio_proteogen.modules.c07_copy_number.m07_02_representation_feature_constr
 from glio_proteogen.modules.c07_copy_number.m07_02_representation_feature_constructor import (
     cli as m0702_cli,
 )
-from tests.modules.c07_copy_number.test_m07_02_representation import _request
+from tests.modules.c07_copy_number.test_m07_02_representation import (
+    _request,
+    _typed_observations,
+)
 
 _HTTP_OK = 200
 _HTTP_FORBIDDEN = 403
@@ -67,6 +70,21 @@ def test_api_and_cli_construct_identical_canonical_result(tmp_path) -> None:
     assert cli.exit_code == 0
     assert api.json()["result"] == json.loads(cli.stdout)
     assert json.loads(api.json()["canonical"]) == json.loads(cli.stdout)
+
+
+def test_api_constructs_typed_glioma_copy_number_representation() -> None:
+    request = _request().model_copy(
+        update={"typed_observations": _typed_observations(), "bootstrap_replicates": 16}
+    )
+    encoded = canonical_json_bytes(request.model_dump(mode="json"))
+    with TestClient(m0702_api.create_app()) as client:
+        response = client.post("/v1/modules/M07-02/construct", content=encoded)
+    assert response.status_code == _HTTP_OK
+    body = response.json()["result"]
+    assert body["status"] == "constructed"
+    assert body["model_family"] == "glioma-copy-number-purity-irls/1.0.0"
+    assert body["optimization_diagnostics"][0]["status"] == "converged"
+    assert all(feature["evidence_count"] > 0 for feature in body["features"])
 
 
 def test_plugin_parse_once_requires_validated_token() -> None:

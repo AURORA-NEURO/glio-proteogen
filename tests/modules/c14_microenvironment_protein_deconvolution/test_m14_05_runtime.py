@@ -1,15 +1,20 @@
 """Runtime and adversarial tests for provisional M14-05 replay."""
 
+import json
 from datetime import UTC, datetime, timedelta
+from itertools import pairwise
 
 import pytest
 from pydantic import ValidationError
 
+import glio_proteogen.modules.c14_microenvironment_protein_deconvolution.m14_05_protein_subtype_evolution.engine as engine_module  # noqa: E501
 from glio_proteogen.contracts.m14_05 import (
     M1405_M1404_RESULT_MEDIA_TYPE,
     ChangePointStatus,
     EvolutionModelConfiguration,
     EvolutionModelFamily,
+    GliomaTrajectoryProgram,
+    LongitudinalEvidenceState,
     ModelProteinSubtypeLongitudinalEvolutionRequest,
     TimePointObservation,
     TrajectoryDimension,
@@ -32,8 +37,39 @@ from glio_proteogen.kernel.models import (
 from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
     m14_05_protein_subtype_evolution as m1405,
 )
+from glio_proteogen.modules.c14_microenvironment_protein_deconvolution.m14_05_protein_subtype_evolution.engine import (  # noqa: E501
+    _bootstrap_class_support,
+    _initial_temporal_values,
+    _typed_terms,
+    _TypedTerm,
+)
 
 _FOLLOW_UP_SEQUENCE = 2
+_LEFT_CENSORED_BOUND = 0.6
+_FIRST_CANDIDATE_OBJECTIVE_CALL = 2
+
+
+def _typed_request() -> ModelProteinSubtypeLongitudinalEvolutionRequest:
+    payload = _request().model_dump(mode="json")
+    observations = list(payload["observations"])
+    effects = (0.15, 0.8, 1.15)
+    for observation, effect in zip(observations, effects, strict=True):
+        observation.update(
+            {
+                "program": GliomaTrajectoryProgram.RTK_PI3K_AKT_MTOR.value,
+                "evidence_state": LongitudinalEvidenceState.OBSERVED.value,
+                "standardized_effect": effect,
+                "standard_error": 0.12,
+                "quality_weight": 0.9,
+            }
+        )
+    payload["observations"] = observations
+    configuration = dict(payload["policy"]["configuration"])
+    configuration["bootstrap_replicates"] = 16
+    payload["policy"]["configuration"] = configuration
+    return ModelProteinSubtypeLongitudinalEvolutionRequest.model_validate_json(
+        json.dumps(payload), strict=True
+    )
 
 
 def _artifact(name: str, media_type: str = "application/json") -> ArtifactReference:
@@ -147,6 +183,191 @@ def test_constructs_ordered_metadata_trajectory_and_replays() -> None:
     assert result.future_leakage_checked is True
     assert result.human_review_required is True
     assert result.support_decision.status is SupportStatus.REVIEW_REQUIRED
+    assert service.verify(result) == result
+
+
+def test_typed_glioma_temporal_fit_emits_intervals_change_points_and_trace() -> None:
+    service = m1405.M1405Service()
+    request = _typed_request()
+    result = service.construct(request)
+
+    assert result.status.value == "modeled"
+    assert all(state.standardized_state is not None for state in result.trajectory)
+    assert all(
+        state.lower_bound is not None and state.upper_bound is not None
+        for state in result.trajectory
+    )
+    assert any(point.effect_delta is not None for point in result.change_points)
+    assert any("trace_digest=" in diagnostic.message for diagnostic in result.diagnostics)
+    assert result.uncertainty.measurement.state.value == "estimated"
+    assert any(item.code == "typed_glioma_temporal_fit" for item in result.limitations)
+    assert service.verify(result) == result
+
+
+def test_typed_temporal_fit_backtracks_non_monotone_sweep(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    request = _typed_request()
+    terms = _typed_terms(request.observations)
+    original = engine_module._temporal_objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == _FIRST_CANDIDATE_OBJECTIVE_CALL else value
+
+    monkeypatch.setattr(engine_module, "_temporal_objective", objective)
+    fit = engine_module._fit_temporal(terms, (0, 1, 2))
+
+    assert fit.converged
+    assert calls > _FIRST_CANDIDATE_OBJECTIVE_CALL
+    assert all(
+        after <= before + engine_module._OBJECTIVE_TOLERANCE
+        for before, after in pairwise(fit.objective_trace)
+    )
+
+
+def test_typed_initialization_keeps_left_censored_limits_feasible() -> None:
+    """Temporal starts use observed centers and feasible censor bounds."""
+
+    grouped = {
+        0: [
+            _TypedTerm(
+                sequence=0,
+                program=GliomaTrajectoryProgram.RTK_PI3K_AKT_MTOR,
+                state=LongitudinalEvidenceState.LEFT_CENSORED,
+                value=-0.3,
+                standard_error=0.2,
+                quality_weight=1.0,
+            )
+        ],
+        1: [
+            _TypedTerm(
+                sequence=1,
+                program=GliomaTrajectoryProgram.RTK_PI3K_AKT_MTOR,
+                state=LongitudinalEvidenceState.OBSERVED,
+                value=1.2,
+                standard_error=0.2,
+                quality_weight=1.0,
+            ),
+            _TypedTerm(
+                sequence=1,
+                program=GliomaTrajectoryProgram.RTK_PI3K_AKT_MTOR,
+                state=LongitudinalEvidenceState.LEFT_CENSORED,
+                value=0.4,
+                standard_error=0.2,
+                quality_weight=1.0,
+            ),
+        ],
+    }
+
+    values = _initial_temporal_values(grouped, 2)
+    assert values == [-0.3, 0.4]
+
+
+def test_typed_temporal_initialization_downweights_failed_replicate() -> None:
+    """Repeated time-point assays use a robust center before smoothing."""
+
+    program = GliomaTrajectoryProgram.RTK_PI3K_AKT_MTOR
+    grouped = {
+        0: [
+            _TypedTerm(
+                sequence=0,
+                program=program,
+                state=LongitudinalEvidenceState.OBSERVED,
+                value=0.2,
+                standard_error=0.1,
+                quality_weight=1.0,
+            ),
+            _TypedTerm(
+                sequence=0,
+                program=program,
+                state=LongitudinalEvidenceState.OBSERVED,
+                value=0.3,
+                standard_error=0.1,
+                quality_weight=1.0,
+            ),
+            _TypedTerm(
+                sequence=0,
+                program=program,
+                state=LongitudinalEvidenceState.OBSERVED,
+                value=8.0,
+                standard_error=0.1,
+                quality_weight=1.0,
+            ),
+        ]
+    }
+
+    values = _initial_temporal_values(grouped, 1)
+    center = values[0]
+    low_replicate = 0.2
+    high_bound = 0.4
+    arithmetic_mean = (low_replicate + 0.3 + 8.0) / 3.0
+    assert low_replicate < center < high_bound
+    assert center < arithmetic_mean / 2.0
+
+
+def test_typed_posterior_probability_is_bootstrap_class_support() -> None:
+    """Typed support is empirical class agreement, not a fixed confidence."""
+
+    assert _bootstrap_class_support(0.4, (0.3, 0.4, 0.1, -0.2)) == pytest.approx(0.5)
+    assert _bootstrap_class_support(0.0, (0.1, 0.2, 0.3, -0.2)) == pytest.approx(0.75)
+
+
+def test_typed_temporal_missing_and_unsupported_evidence_abstain_safely() -> None:
+    request = _typed_request().model_dump(mode="json")
+    request["observations"][0].update(
+        {
+            "program": GliomaTrajectoryProgram.RTK_PI3K_AKT_MTOR.value,
+            "evidence_state": LongitudinalEvidenceState.MISSING.value,
+            "standardized_effect": None,
+            "standard_error": None,
+            "quality_weight": 0.0,
+        }
+    )
+    request["observations"][1].update(
+        {
+            "program": GliomaTrajectoryProgram.P53_CELL_CYCLE.value,
+            "evidence_state": LongitudinalEvidenceState.UNSUPPORTED.value,
+            "standardized_effect": None,
+            "standard_error": None,
+            "quality_weight": 0.0,
+        }
+    )
+    request["observations"][2].update(
+        {
+            "program": GliomaTrajectoryProgram.IDH_HIF1A.value,
+            "evidence_state": LongitudinalEvidenceState.MISSING.value,
+            "standardized_effect": None,
+            "standard_error": None,
+            "quality_weight": 0.0,
+        }
+    )
+    typed = ModelProteinSubtypeLongitudinalEvolutionRequest.model_validate_json(
+        json.dumps(request), strict=True
+    )
+    result = m1405.M1405Service().construct(typed)
+
+    assert result.status.value == "abstained"
+    assert not result.trajectory
+    assert "no supported observations" in " ".join(
+        diagnostic.message for diagnostic in result.diagnostics
+    )
+
+
+def test_typed_left_censored_effect_is_one_sided_and_replay_stable() -> None:
+    payload = _typed_request().model_dump(mode="json")
+    payload["observations"][1]["evidence_state"] = LongitudinalEvidenceState.LEFT_CENSORED.value
+    payload["observations"][1]["standardized_effect"] = _LEFT_CENSORED_BOUND
+    typed = ModelProteinSubtypeLongitudinalEvolutionRequest.model_validate_json(
+        json.dumps(payload), strict=True
+    )
+    service = m1405.M1405Service()
+    result = service.construct(typed)
+
+    assert result.status.value == "modeled"
+    assert result.trajectory[1].standardized_state is not None
+    assert result.trajectory[1].standardized_state >= _LEFT_CENSORED_BOUND
     assert service.verify(result) == result
 
 

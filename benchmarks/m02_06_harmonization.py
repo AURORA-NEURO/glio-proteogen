@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 from evals.m02_06.run import build_representative_request
 
+from benchmarks._module_validation import run_pytest_benchmark
 from glio_proteogen.contracts.m02_06 import (
     HarmonizationDisposition,
     HarmonizeIdentificationEvidenceRequest,
@@ -68,3 +69,14 @@ def test_representative_public_identification_harmonization_latency(
     statistics = benchmark_stats.stats
     assert statistics is not None
     assert statistics.mean <= MEAN_BUDGET_SECONDS
+
+
+def run_benchmark(iterations: int = 10) -> dict[str, object]:
+    """Run the locked representative identification harmonization workload."""
+
+    return run_pytest_benchmark(
+        module_id="GLIO-PROTEOGEN-M02-06",
+        workload=test_representative_public_identification_harmonization_latency,
+        iterations=iterations,
+        mean_budget_seconds=MEAN_BUDGET_SECONDS,
+    )

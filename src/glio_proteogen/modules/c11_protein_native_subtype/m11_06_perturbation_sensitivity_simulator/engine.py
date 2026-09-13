@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Mapping
+from math import isfinite, sqrt, tanh
 from typing import Any, Final, cast
 
 from pydantic import TypeAdapter
@@ -11,6 +12,7 @@ from pydantic import TypeAdapter
 from glio_proteogen.contracts.m11_06 import (
     M1106_CONTRACT_VERSION,
     M1106_EVIDENCE_CLAIM,
+    M1106_MINIMUM_REPLICATES_PER_ARM,
     M1106_PARENT,
     PerturbationResponseStatus,
     PerturbationSpecification,
@@ -29,7 +31,6 @@ from glio_proteogen.contracts.m11_06.canonical import (
     canonical_request_digest,
     result_payload_digest,
 )
-from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import (
     EvidenceReference,
     Limitation,
@@ -44,6 +45,16 @@ _REJECTED_MARKERS: Final = frozenset(
     {"abstain", "fail", "incomplete", "missing", "n/a", "novel", "ood", "unknown", "unsupported"}
 )
 _PROHIBITED_MARKERS: Final = frozenset({"all_omics", "kinase", "treatment", "therapy"})
+_HUBER_DELTA: Final = 1.5
+_HUBER_ITERATIONS: Final = 24
+_HUBER_DAMPING: Final = 0.7
+_MAD_SCALE_FACTOR: Final = 1.4826
+_MINIMUM_SCALE: Final = 1e-6
+_OBJECTIVE_TOLERANCE: Final = 1e-12
+_BACKTRACKING_STEPS: Final = 12
+_BACKTRACKING_FACTOR: Final = 0.5
+_BOOTSTRAP_QUANTILE: Final = 0.05
+_RESPONSE_SCALE: Final = 3.0
 
 
 class M1106AuthorizationError(PermissionError):
@@ -139,33 +150,180 @@ def _text_is_prohibited(value: str) -> bool:
     return bool(tokens & _PROHIBITED_MARKERS)
 
 
+def _huber_location(values: tuple[float, ...]) -> tuple[float, float]:
+    """Estimate a proteomic arm location and robust standard error.
+
+    IRLS weights are computed from a scale frozen at the parent iterate.  The
+    damped proposal is accepted only when the corresponding Huber objective is
+    finite and non-increasing; a deterministic scalar backtracking line search
+    handles outlier breakpoints without allowing an oscillating arm estimate.
+    """
+
+    estimate = sum(values) / len(values)
+    for _ in range(_HUBER_ITERATIONS):
+        residuals = tuple(value - estimate for value in values)
+        scale = max(_MAD_SCALE_FACTOR * _median_abs(residuals), _MINIMUM_SCALE)
+        weights = tuple(
+            1.0
+            if abs(residual) / scale <= _HUBER_DELTA
+            else _HUBER_DELTA / (abs(residual) / scale)
+            for residual in residuals
+        )
+        denominator = sum(weights)
+        updated = (
+            sum(weight * value for weight, value in zip(weights, values, strict=True))
+            / denominator
+        )
+        proposal = _HUBER_DAMPING * updated + (1.0 - _HUBER_DAMPING) * estimate
+        baseline_objective = _huber_objective(values, estimate, scale)
+        proposal_objective = _huber_objective(values, proposal, scale)
+        accepted = proposal
+        if not isfinite(proposal_objective) or (
+            proposal_objective > baseline_objective + _OBJECTIVE_TOLERANCE
+        ):
+            direction = proposal - estimate
+            accepted = estimate
+            step = _BACKTRACKING_FACTOR
+            for _ in range(_BACKTRACKING_STEPS):
+                trial = estimate + step * direction
+                trial_objective = _huber_objective(values, trial, scale)
+                if isfinite(trial_objective) and (
+                    trial_objective <= baseline_objective + _OBJECTIVE_TOLERANCE
+                ):
+                    accepted = trial
+                    break
+                step *= _BACKTRACKING_FACTOR
+        if abs(accepted - estimate) <= _MINIMUM_SCALE / 100.0:
+            estimate = accepted
+            break
+        estimate = accepted
+    residuals = tuple(value - estimate for value in values)
+    scale = max(_MAD_SCALE_FACTOR * _median_abs(residuals), _MINIMUM_SCALE)
+    weights = tuple(
+        1.0
+        if abs(residual) / scale <= _HUBER_DELTA
+        else _HUBER_DELTA / (abs(residual) / scale)
+        for residual in residuals
+    )
+    weighted_variance = sum(
+        weight * residual * residual
+        for weight, residual in zip(weights, residuals, strict=True)
+    ) / max(sum(weights) - 1.0, 1.0)
+    return estimate, sqrt(max(weighted_variance / len(values), _MINIMUM_SCALE**2))
+
+
+def _huber_objective(values: tuple[float, ...], center: float, scale: float) -> float:
+    """Evaluate the frozen-scale Huber objective used by the arm line search."""
+
+    return float(
+        sum(_huber_loss((value - center) / max(scale, _MINIMUM_SCALE)) for value in values)
+    )
+
+
+def _huber_loss(residual: float) -> float:
+    """Return the standard Huber loss for a standardized residual."""
+
+    absolute = abs(residual)
+    return (
+        0.5 * residual * residual
+        if absolute <= _HUBER_DELTA
+        else _HUBER_DELTA * (absolute - 0.5 * _HUBER_DELTA)
+    )
+
+
+def _median_abs(values: tuple[float, ...]) -> float:
+    """Return the midpoint median of absolute residuals for a stable MAD scale."""
+
+    ordered = sorted(abs(value) for value in values)
+    midpoint = len(ordered) // 2
+    if len(ordered) % 2:
+        return ordered[midpoint]
+    return 0.5 * (ordered[midpoint - 1] + ordered[midpoint])
+
+
+def _bootstrap_deltas(
+    baseline: tuple[float, ...],
+    perturbed: tuple[float, ...],
+    seed: int,
+    draws: int,
+) -> tuple[float, ...]:
+    """Generate deterministic paired-arm bootstrap deltas for replayable bounds."""
+
+    deltas: list[float] = []
+    for draw in range(draws):
+        sampled_baseline = tuple(
+            baseline[
+                int.from_bytes(
+                    hashlib.sha256(f"{seed}:{draw}:baseline:{index}".encode())
+                    .digest()[:8],
+                    "big",
+                )
+                % len(baseline)
+            ]
+            for index in range(len(baseline))
+        )
+        sampled_perturbed = tuple(
+            perturbed[
+                int.from_bytes(
+                    hashlib.sha256(f"{seed}:{draw}:perturbed:{index}".encode())
+                    .digest()[:8],
+                    "big",
+                )
+                % len(perturbed)
+            ]
+            for index in range(len(perturbed))
+        )
+        deltas.append(_huber_location(sampled_perturbed)[0] - _huber_location(sampled_baseline)[0])
+    return tuple(deltas)
+
+
 def _bounded_response(
     request: SimulateVariantPeptidePerturbationsRequest,
     perturbation: PerturbationSpecification,
 ) -> SensitivityResponse:
-    """Derive a deterministic bounded response from declared inputs only."""
+    """Fit a robust finite-difference response from typed replicate evidence."""
 
-    material = canonical_json_bytes(
-        {
-            "module": "GLIO-PROTEOGEN-M11-06",
-            "upstream": request.upstream_result.digest,
-            "perturbation": perturbation,
-        }
+    baseline = perturbation.baseline_measurements
+    perturbed = perturbation.perturbed_measurements
+    baseline_estimate, baseline_error = _huber_location(baseline)
+    perturbed_estimate, perturbed_error = _huber_location(perturbed)
+    raw_delta = perturbed_estimate - baseline_estimate
+    standard_error = max(sqrt(baseline_error**2 + perturbed_error**2), _MINIMUM_SCALE)
+    standardized = perturbation.quality_weight * raw_delta / standard_error
+    value = tanh(standardized / _RESPONSE_SCALE)
+    seed_material = f"{canonical_request_digest(request)}:{perturbation.perturbation_id}"
+    seed = int.from_bytes(hashlib.sha256(seed_material.encode("utf-8")).digest()[:8], "big")
+    deltas = _bootstrap_deltas(
+        baseline,
+        perturbed,
+        seed,
+        request.configuration.bootstrap_replicates,
     )
-    fraction = int.from_bytes(hashlib.sha256(material).digest()[:8], "big") / 2**64
-    value = round((fraction * 2.0) - 1.0, 6)
-    half_width = 0.2
-    lower = round(max(-1.0, value - half_width), 6)
-    upper = round(min(1.0, value + half_width), 6)
+    transformed = tuple(
+        tanh(perturbation.quality_weight * delta / standard_error / _RESPONSE_SCALE)
+        for delta in deltas
+    )
+    ordered = sorted(transformed)
+    lower_index = max(0, int(_BOOTSTRAP_QUANTILE * (len(ordered) - 1)))
+    upper_index = min(len(ordered) - 1, int((1.0 - _BOOTSTRAP_QUANTILE) * (len(ordered) - 1)))
+    lower = min(value, ordered[lower_index])
+    upper = max(value, ordered[upper_index])
     return SensitivityResponse(
         scenario_id=perturbation.perturbation_id,
         status=PerturbationResponseStatus.BOUNDED,
-        response_value=value,
-        lower_bound=lower,
-        upper_bound=upper,
+        response_value=round(value, 8),
+        lower_bound=round(max(-1.0, lower), 8),
+        upper_bound=round(min(1.0, upper), 8),
+        raw_effect_delta=round(raw_delta, 8),
+        sensitivity_standard_error=round(standard_error, 8),
+        replicate_count=len(baseline) + len(perturbed),
         assumptions=(
-            "The locked provisional response envelope is used.",
-            "Caller-declared evidence references are not interpreted or mutated.",
+            "Arm locations use quality-weighted Huber IRLS over typed proteomic replicates.",
+            "The bounded response is a finite-difference sensitivity, not a causal effect.",
+            (
+                f"{request.configuration.bootstrap_replicates} deterministic bootstrap draws "
+                "provide the interval."
+            ),
             f"Perturbation kind {perturbation.kind.value} is evaluated as a bounded stress test.",
         ),
         evidence=perturbation.evidence,
@@ -182,7 +340,10 @@ def _limitations(*, supported: bool) -> tuple[Limitation, ...]:
         ),
         Limitation(
             code="opaque_artifacts",
-            statement="External artifacts remain immutable references and are never traversed.",
+            statement=(
+                "External artifacts remain immutable references and are never traversed; only "
+                "typed replicate values in the request are fitted."
+            ),
         ),
         Limitation(
             code="ownership_boundary",
@@ -229,6 +390,12 @@ class M1106SensitivityEngine:
                 unsafe.append(SensitivityFindingCode.ASSUMPTION_UNRESOLVED)
             elif any(_text_is_unsafe(value) for value in declared):
                 unsafe.append(SensitivityFindingCode.RESPONSE_OUT_OF_ENVELOPE)
+            if (
+                len(perturbation.baseline_measurements) < M1106_MINIMUM_REPLICATES_PER_ARM
+                or len(perturbation.perturbed_measurements) < M1106_MINIMUM_REPLICATES_PER_ARM
+                or perturbation.quality_weight <= 0.0
+            ):
+                unsafe.append(SensitivityFindingCode.INPUT_INCOMPLETE)
         if request.configuration.negative_control_artifact is None:
             unsafe.append(SensitivityFindingCode.NEGATIVE_CONTROL_FAILED)
         if len(request.perturbations) > request.configuration.maximum_scenarios:

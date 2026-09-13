@@ -54,6 +54,12 @@ M1504_MAX_EVIDENCE: Final = 64
 M1504_MAX_FINDINGS: Final = 64
 M1504_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M1504_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
+M1504_DEFAULT_BOOTSTRAP_REPLICATES: Final = 64
+M1504_MAX_BOOTSTRAP_REPLICATES: Final = 256
+M1504_MAX_TYPED_OBSERVATIONS: Final = 512
+M1504_MAX_TYPED_RELATIONS: Final = 1024
+M1504_MAX_EFFECT: Final = 20.0
+M1504_GLIOMA_MODEL_FAMILY: Final = "glioma-complex-activity-mechanism-graph/1.0.0"
 M1504_EVIDENCE_CLAIM: Final = (
     "Caller-declared M15-01 hypothesis and M15-04 mechanism-inference evidence; "
     "issuer authority is not authenticated."
@@ -70,6 +76,76 @@ class MechanismInferenceStatus(StrEnum):
     ABSTAINED = "abstained"
 
 
+class MechanismEvidenceState(StrEnum):
+    """Explicit state for typed program evidence."""
+
+    OBSERVED = "observed"
+    LEFT_CENSORED = "left_censored"
+    MISSING = "missing"
+    UNSUPPORTED = "unsupported"
+
+
+class GliomaMechanismProgram(StrEnum):
+    """Reviewable signaling programs for the glioma complex-activity lane."""
+
+    RTK_PI3K_AKT_MTOR = "RTK_PI3K_AKT_MTOR"
+    P53_CELL_CYCLE = "P53_CELL_CYCLE"
+    IDH_HIF1A = "IDH_HIF1A"
+    MESENCHYMAL_PROGRAM = "MESENCHYMAL_PROGRAM"
+    PROLIFERATION = "PROLIFERATION"
+
+
+class MechanismRelationKind(StrEnum):
+    ACTIVATES = "activates"
+    INHIBITS = "inhibits"
+    COUPLES = "couples"
+
+
+class MechanismObservation(FrozenModel):
+    """Standardized, finite evidence for one glioma signaling program."""
+
+    observation_id: Identifier
+    program: GliomaMechanismProgram
+    standardized_effect: float | None = Field(
+        default=None, ge=-M1504_MAX_EFFECT, le=M1504_MAX_EFFECT, allow_inf_nan=False
+    )
+    standard_error: float | None = Field(
+        default=None, gt=0.0, le=M1504_MAX_EFFECT, allow_inf_nan=False
+    )
+    quality_weight: float = Field(default=1.0, gt=0.0, le=1.0, allow_inf_nan=False)
+    evidence_state: MechanismEvidenceState = MechanismEvidenceState.OBSERVED
+    source_artifact_digest: Sha256Digest | None = None
+
+    @model_validator(mode="after")
+    def observation_shape_is_closed(self) -> MechanismObservation:
+        active = self.evidence_state in {
+            MechanismEvidenceState.OBSERVED,
+            MechanismEvidenceState.LEFT_CENSORED,
+        }
+        if active and (self.standardized_effect is None or self.standard_error is None):
+            raise ValueError("supported mechanism observation requires effect and error")
+        if not active and (self.standardized_effect is not None or self.standard_error is not None):
+            raise ValueError("missing or unsupported mechanism observation cannot carry values")
+        return self
+
+
+class MechanismRelation(FrozenModel):
+    """Signed relation used to conserve evidence across the mechanism graph."""
+
+    relation_id: Identifier
+    source_program: GliomaMechanismProgram
+    target_program: GliomaMechanismProgram
+    kind: MechanismRelationKind
+    weight: float = Field(default=1.0, gt=0.0, le=1.0, allow_inf_nan=False)
+    source_artifact_digest: Sha256Digest | None = None
+
+    @model_validator(mode="after")
+    def relation_shape_is_closed(self) -> MechanismRelation:
+        if self.source_program is self.target_program:
+            raise ValueError("mechanism relation cannot self-loop")
+        return self
+
+
 class MechanismFindingCode(StrEnum):
     UPSTREAM_UNSUPPORTED = "upstream_unsupported"
     COUNTER_EVIDENCE_REQUIRED = "counter_evidence_required"
@@ -84,6 +160,12 @@ class MechanismInferenceConfiguration(FrozenModel):
     model_reference: ArtifactReference
     calibration_reference: ArtifactReference
     locked: Literal[True] = True
+    model_family: NonEmptyStr = "provisional-declaration-v1"
+    bootstrap_replicates: int = Field(
+        default=M1504_DEFAULT_BOOTSTRAP_REPLICATES,
+        ge=16,
+        le=M1504_MAX_BOOTSTRAP_REPLICATES,
+    )
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1504_MAX_EVIDENCE)
 
 
@@ -104,6 +186,11 @@ class MechanismEstimate(FrozenModel):
         min_length=1, max_length=M1504_MAX_EVIDENCE
     )
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1504_MAX_EVIDENCE)
+    evidence_count: int = Field(default=0, ge=0, le=M1504_MAX_TYPED_OBSERVATIONS)
+    stability: float | None = Field(default=None, ge=0.0, le=1.0, allow_inf_nan=False)
+    discordance: float | None = Field(default=None, ge=0.0, le=1.0, allow_inf_nan=False)
+    top_drivers: tuple[NonEmptyStr, ...] = Field(default=(), max_length=8)
+    ablation_effects: tuple[NonEmptyStr, ...] = Field(default=(), max_length=8)
 
     @model_validator(mode="after")
     def estimate_shape_is_closed(self) -> MechanismEstimate:
@@ -142,12 +229,24 @@ class InferComplexActivityMechanismRequest(FrozenModel):
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M1504_MAX_EVIDENCE
     )
+    observations: tuple[MechanismObservation, ...] = Field(
+        default=(), max_length=M1504_MAX_TYPED_OBSERVATIONS
+    )
+    relations: tuple[MechanismRelation, ...] = Field(
+        default=(), max_length=M1504_MAX_TYPED_RELATIONS
+    )
     supersedes_result_digest: Sha256Digest | None = None
 
     @model_validator(mode="after")
     def request_is_bound(self) -> InferComplexActivityMechanismRequest:
         if self.hypothesis_registry_result.media_type != M1504_M1501_RESULT_MEDIA_TYPE:
             raise ValueError("mechanism request must bind the provisional M15-01 result")
+        observation_ids = tuple(item.observation_id for item in self.observations)
+        if len(observation_ids) != len(set(observation_ids)):
+            raise ValueError("mechanism observation ids must be unique")
+        relation_ids = tuple(item.relation_id for item in self.relations)
+        if len(relation_ids) != len(set(relation_ids)):
+            raise ValueError("mechanism relation ids must be unique")
         return self
 
 
@@ -174,6 +273,13 @@ class ComplexActivityMechanismInferenceResult(FrozenModel):
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1504_MAX_EVIDENCE)
     limitations: tuple[Limitation, ...] = Field(min_length=1, max_length=32)
     human_review_required: bool = False
+    typed_model: bool = False
+    solver_iterations: int | None = Field(default=None, ge=0, le=1000)
+    solver_objective: float | None = Field(default=None, ge=0.0, le=1e9, allow_inf_nan=False)
+    solver_max_update: float | None = Field(
+        default=None, ge=0.0, le=M1504_MAX_EFFECT, allow_inf_nan=False
+    )
+    objective_trace_digest: Sha256Digest | None = None
 
     @model_validator(mode="after")
     def result_is_closed(self) -> ComplexActivityMechanismInferenceResult:
@@ -322,8 +428,10 @@ def expected_provenance(
 
 __all__ = [
     "M1504_CONTRACT_VERSION",
+    "M1504_DEFAULT_BOOTSTRAP_REPLICATES",
     "M1504_EVIDENCE_CLAIM",
     "M1504_GATE",
+    "M1504_GLIOMA_MODEL_FAMILY",
     "M1504_M1501_RESULT_MEDIA_TYPE",
     "M1504_MAX_ALTERNATIVES",
     "M1504_MAX_ASSUMPTIONS",
@@ -332,6 +440,8 @@ __all__ = [
     "M1504_MAX_ESTIMATES",
     "M1504_MAX_EVIDENCE",
     "M1504_MAX_FINDINGS",
+    "M1504_MAX_TYPED_OBSERVATIONS",
+    "M1504_MAX_TYPED_RELATIONS",
     "M1504_MODULE_ID",
     "M1504_OPERATION",
     "M1504_OUTPUT_MEDIA_TYPE",
@@ -340,13 +450,18 @@ __all__ = [
     "M1504_PROVISIONAL_ABI",
     "M1504_SAFETY_CLASS",
     "ComplexActivityMechanismInferenceResult",
+    "GliomaMechanismProgram",
     "InferComplexActivityMechanismRequest",
     "MechanismEstimate",
     "MechanismEstimateKind",
+    "MechanismEvidenceState",
     "MechanismFinding",
     "MechanismFindingCode",
     "MechanismInferenceConfiguration",
     "MechanismInferenceStatus",
+    "MechanismObservation",
+    "MechanismRelation",
+    "MechanismRelationKind",
     "expected_provenance",
     "expected_uncertainty",
 ]

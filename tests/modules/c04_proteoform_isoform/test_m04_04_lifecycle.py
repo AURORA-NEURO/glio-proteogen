@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from collections.abc import Iterator, Mapping
+from dataclasses import replace
 from typing import Any, NoReturn, cast
+from unittest.mock import Mock
 
 import pytest
 from evals.m04_02.run import build_scenario_request as build_m0402_request
@@ -39,7 +41,11 @@ from glio_proteogen.contracts.m04_04 import (
     fact_ledger_digest,
     result_payload_digest,
 )
+from glio_proteogen.contracts.m04_04 import canonical as m0404_canonical
+from glio_proteogen.contracts.m04_04 import v1 as m0404_contracts
 from glio_proteogen.contracts.m04_04.v1 import (
+    _ISSUED_EXPECTED_BUNDLES,
+    _expected_bundle_for_capability,
     _issue_raw_input_replay_capability,
     _validate_request_with_raw_capability,
     _validate_result_with_capability,
@@ -343,6 +349,23 @@ def test_canonical_quality_result_is_deterministic_closed_and_metadata_only(
     )
 
 
+def test_metric_derivation_digests_each_role_binding_once(
+    canonical_request: ComputeProteoformQualityMetricsRequest,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    profiles = m0404_contracts.matching_quality_profiles(canonical_request)
+    profile_digest_spy = Mock(wraps=m0404_canonical.profile_digest)
+    role_facts_digest_spy = Mock(wraps=m0404_canonical.role_facts_digest)
+    monkeypatch.setattr(m0404_contracts, "profile_digest", profile_digest_spy)
+    monkeypatch.setattr(m0404_contracts, "role_facts_digest", role_facts_digest_spy)
+
+    metrics = m0404_contracts._derive_quality_metrics(canonical_request, profiles)
+
+    assert len(metrics) == M0404_COMPUTED_METRIC_COUNT
+    assert profile_digest_spy.call_count == M0404_ROLE_COUNT
+    assert role_facts_digest_spy.call_count == M0404_ROLE_COUNT
+
+
 def test_library_engine_service_and_plugin_have_exact_parity(
     canonical_request: ComputeProteoformQualityMetricsRequest,
 ) -> None:
@@ -626,6 +649,8 @@ def test_sealed_capabilities_are_nominal_and_candidate_bound(
         _validate_request_with_raw_capability(payload, raw_capability)
 
     request_capability = m0404_engine._validated_request_capability(canonical_request)
+    expected_bundle = _expected_bundle_for_capability(request_capability)
+    assert _expected_bundle_for_capability(request_capability) is expected_bundle
     result = compute_proteoform_quality_metrics(canonical_request)
     forged_request = request_capability.request.model_copy(
         update={"supersedes_result_digest": "sha256:" + ("f" * 64)}
@@ -633,6 +658,29 @@ def test_sealed_capabilities_are_nominal_and_candidate_bound(
     forged_result = result.model_copy(update={"request": forged_request})
     with pytest.raises(ValidationError):
         _validate_result_with_capability(forged_result, request_capability)
+
+
+def test_expected_bundle_cache_rejects_unissued_and_tampered_capabilities(
+    canonical_request: ComputeProteoformQualityMetricsRequest,
+) -> None:
+    request_capability = m0404_engine._validated_request_capability(canonical_request)
+    expected_bundle = _expected_bundle_for_capability(request_capability)
+
+    with pytest.raises(TypeError, match="invalid M04-04 expected-bundle capability"):
+        _expected_bundle_for_capability(replace(request_capability))
+
+    snapshot = _ISSUED_EXPECTED_BUNDLES[request_capability]
+    _ISSUED_EXPECTED_BUNDLES[request_capability] = (
+        request_capability.request.model_copy(),
+        *snapshot[1:],
+    )
+    try:
+        with pytest.raises(TypeError, match="mismatched M04-04 expected-bundle capability"):
+            _expected_bundle_for_capability(request_capability)
+    finally:
+        _ISSUED_EXPECTED_BUNDLES[request_capability] = snapshot
+
+    assert _expected_bundle_for_capability(request_capability) is expected_bundle
 
 
 def test_round_half_up_precedes_threshold_classification(

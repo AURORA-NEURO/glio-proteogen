@@ -12,6 +12,8 @@ from pydantic import TypeAdapter
 from glio_proteogen.contracts.m06_03 import (
     BaselineResultStatus,
     EstimateProteinAbundanceBaselineResult,
+    GliomaBaselineProgram,
+    GliomaFeatureAnnotation,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import SupportStatus
@@ -20,6 +22,9 @@ from glio_proteogen.modules.c06_estimation.m06_03_mature_baseline_estimator impo
     M0603Plugin,
     M0603Service,
     estimate_protein_abundance_baseline,
+)
+from glio_proteogen.modules.c06_estimation.m06_03_mature_baseline_estimator import (
+    kernel as kernel_module,
 )
 from glio_proteogen.modules.c06_estimation.m06_03_mature_baseline_estimator.engine import (
     PtmBaselineAuthorizationError,
@@ -30,6 +35,8 @@ if TYPE_CHECKING:
     from glio_proteogen.contracts.m06_03 import EstimateProteinAbundanceBaselineRequest
 
 pytestmark = pytest.mark.integration
+_EXPECTED_TYPED_PROGRAM_STATES = 2
+_FIRST_CANDIDATE_CALL = 2
 
 
 def _request(case_id: str = "clear") -> EstimateProteinAbundanceBaselineRequest:
@@ -47,6 +54,117 @@ def test_clear_request_emits_scalar_interval_and_categorical_estimates() -> None
     )
     assert result.abstention_reason is None
     assert result.emits_parent is False
+
+
+def test_typed_glioma_baseline_fits_program_states_with_bootstrap_intervals() -> None:
+    request = _request().model_copy(
+        update={
+            "configuration": _request().configuration.model_copy(
+                update={
+                    "glioma_annotations": (
+                        GliomaFeatureAnnotation(
+                            feature_id="feature.scalar",
+                            program=GliomaBaselineProgram.RTK_PI3K_AKT_MTOR,
+                            direction=1,
+                            standard_error=0.2,
+                        ),
+                        GliomaFeatureAnnotation(
+                            feature_id="feature.interval",
+                            program=GliomaBaselineProgram.P53_CELL_CYCLE,
+                            direction=-1,
+                            standard_error=0.2,
+                        ),
+                    ),
+                    "bootstrap_replicates": 16,
+                }
+            )
+        }
+    )
+    result = M0603MatureBaselineEngine().estimate(request)
+    assert result.status is BaselineResultStatus.ESTIMATED
+    assert len(result.program_states) == _EXPECTED_TYPED_PROGRAM_STATES
+    assert {state.program for state in result.program_states} == {
+        GliomaBaselineProgram.RTK_PI3K_AKT_MTOR,
+        GliomaBaselineProgram.P53_CELL_CYCLE,
+    }
+    assert all(
+        state.lower_bound <= state.score <= state.upper_bound
+        and state.evidence_count >= 1
+        and state.top_drivers
+        and state.ablation_effects
+        for state in result.program_states
+    )
+    assert any(item.metric_name == "program_score" for item in result.diagnostics)
+    assert M0603MatureBaselineEngine().estimate(request) == result
+
+
+def test_typed_solver_backtracks_objective_increase(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    request = _request().model_copy(
+        update={
+            "configuration": _request().configuration.model_copy(
+                update={
+                    "glioma_annotations": (
+                        GliomaFeatureAnnotation(
+                            feature_id="feature.scalar",
+                            program=GliomaBaselineProgram.RTK_PI3K_AKT_MTOR,
+                            direction=1,
+                            standard_error=0.2,
+                        ),
+                        GliomaFeatureAnnotation(
+                            feature_id="feature.interval",
+                            program=GliomaBaselineProgram.P53_CELL_CYCLE,
+                            direction=-1,
+                            standard_error=0.2,
+                        ),
+                    )
+                }
+            )
+        }
+    )
+    observations, reason = kernel_module._observations(request)
+    assert reason is None
+    center, scale = kernel_module._robust_location_scale(
+        observation.value for observation in observations
+    )
+    baseline = kernel_module._fit(observations, center, scale)
+    assert baseline.converged
+    original = kernel_module._objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == _FIRST_CANDIDATE_CALL else value
+
+    monkeypatch.setattr(kernel_module, "_objective", objective)
+    fit = kernel_module._fit(observations, center, scale)
+    assert fit.converged
+    assert calls > _FIRST_CANDIDATE_CALL
+    assert fit.objective <= baseline.objective + kernel_module._OBJECTIVE_TOLERANCE
+
+
+def test_typed_glioma_baseline_excludes_non_numeric_values_and_abstains_if_empty() -> None:
+    request = _request().model_copy(
+        update={
+            "configuration": _request().configuration.model_copy(
+                update={
+                    "glioma_annotations": (
+                        GliomaFeatureAnnotation(
+                            feature_id="feature.category",
+                            program=GliomaBaselineProgram.MESENCHYMAL_PROGRAM,
+                        ),
+                    )
+                }
+            )
+        }
+    )
+    result = M0603MatureBaselineEngine().estimate(request)
+    assert result.status is BaselineResultStatus.ABSTAINED
+    assert result.program_states == ()
+    assert result.abstention_reason == (
+        "typed glioma baseline requires observed scalar or interval evidence"
+    )
 
 
 def test_missing_formal_state_abstains_without_partial_estimates() -> None:
@@ -231,7 +349,7 @@ def test_request_validator_rejects_all_replay_bindings() -> None:
     malformed_fields["feature_values"] = subset
     malformed_subset = request.model_construct(**malformed_fields)
     with pytest.raises(ValueError, match="cover"):
-        malformed_subset.request_is_bound()
+        malformed_subset.request_is_bound()  # type: ignore[operator]
 
     configuration = request.configuration.model_copy(update={"state_schema_id": "schema.other"})
     with pytest.raises(ValueError, match="configuration"):

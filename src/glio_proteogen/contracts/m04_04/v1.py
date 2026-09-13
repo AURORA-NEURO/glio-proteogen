@@ -133,6 +133,21 @@ _ISSUED_REQUEST_CAPABILITIES: Final[
         ],
     ]
 ] = WeakKeyDictionary()
+_ISSUED_EXPECTED_BUNDLES: Final[
+    WeakKeyDictionary[
+        _ValidatedRequestCapability,
+        tuple[
+            ComputeProteoformQualityMetricsRequest,
+            object,
+            object,
+            object,
+            object,
+            object,
+            object,
+            object,
+        ],
+    ]
+] = WeakKeyDictionary()
 
 
 def _raw_capability_is_issued(capability: _RawInputReplayCapability) -> bool:
@@ -1362,6 +1377,11 @@ def _derive_quality_metrics(
     for role in ProteoformRawInputRole:
         profile = profile_by_role[role]
         fact = facts_by_role[role]
+        # Every metric for one role binds the same immutable profile and role-fact records.
+        # Digest each record once per role; recomputing both inside the eight-metric loop adds
+        # canonical serialization work without adding an independent integrity check.
+        role_profile_digest = profile_digest(profile)
+        role_fact_digest = role_facts_digest(fact)
         thresholds = {item.metric_code: item for item in profile.thresholds}
         for code in ProteoformQualityMetricCode:
             threshold = thresholds[code]
@@ -1408,8 +1428,8 @@ def _derive_quality_metrics(
                         raw_input_result_digest=upstream.result_digest,
                         raw_input_receipt_digest=upstream.receipt.receipt_digest,
                         fact_ledger_digest=ledger_hash,
-                        role_fact_digest=role_facts_digest(fact),
-                        profile_digest=profile_digest(profile),
+                        role_fact_digest=role_fact_digest,
+                        profile_digest=role_profile_digest,
                         threshold_digest=threshold_digest(threshold),
                         validated_input_digest=fact.validated_input_digest,
                         document_digest=fact.document_digest,
@@ -1653,6 +1673,42 @@ def _expected_quality_bundle(
         receipt=receipt,
         support=support,
     )
+
+
+def _expected_bundle_for_capability(
+    capability: _ValidatedRequestCapability,
+) -> _ExpectedQualityBundle:
+    """Derive once and identity-bind an immutable bundle to one issued request capability."""
+
+    if not _request_capability_is_issued(capability):
+        raise TypeError("invalid M04-04 expected-bundle capability")
+    snapshot = _ISSUED_EXPECTED_BUNDLES.get(capability)
+    if snapshot is None:
+        bundle = _expected_quality_bundle(capability.request)
+        _ISSUED_EXPECTED_BUNDLES[capability] = (
+            capability.request,
+            bundle,
+            bundle.profiles,
+            bundle.metrics,
+            bundle.findings,
+            bundle.assay_quality,
+            bundle.receipt,
+            bundle.support,
+        )
+        return bundle
+    cached_bundle = snapshot[1]
+    if (
+        snapshot[0] is not capability.request
+        or type(cached_bundle) is not _ExpectedQualityBundle
+        or snapshot[2] is not cached_bundle.profiles
+        or snapshot[3] is not cached_bundle.metrics
+        or snapshot[4] is not cached_bundle.findings
+        or snapshot[5] is not cached_bundle.assay_quality
+        or snapshot[6] is not cached_bundle.receipt
+        or snapshot[7] is not cached_bundle.support
+    ):
+        raise TypeError("mismatched M04-04 expected-bundle capability")
+    return cached_bundle
 
 
 def _canonical_region(values: tuple[object, ...]) -> tuple[bytes, ...]:
@@ -2003,18 +2059,22 @@ def _validate_result_replay(
     capability: _ValidatedRequestCapability | None = None,
 ) -> ProteoformQualityResult:
     metrics = tuple(item for assay in self.assay_quality for item in assay.metrics)
-    bundle = _expected_quality_bundle(self.request)
-    replay_metrics = bundle.metrics
-    replay_findings = bundle.findings
-    replay_disposition = bundle.disposition
-    replay_assay = bundle.assay_quality
-    replay_receipt = bundle.receipt
     sealed = (
         capability is not None
         and capability.seal is _VALIDATION_CAPABILITY_SEAL
         and _request_capability_is_issued(capability)
         and capability.request is self.request
     )
+    bundle = (
+        _expected_bundle_for_capability(capability)
+        if sealed and capability is not None
+        else _expected_quality_bundle(self.request)
+    )
+    replay_metrics = bundle.metrics
+    replay_findings = bundle.findings
+    replay_disposition = bundle.disposition
+    replay_assay = bundle.assay_quality
+    replay_receipt = bundle.receipt
     request_hash = (
         capability.request_digest
         if sealed and capability is not None

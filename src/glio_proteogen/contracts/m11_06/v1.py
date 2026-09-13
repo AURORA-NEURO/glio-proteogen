@@ -11,6 +11,7 @@ review.
 from __future__ import annotations
 
 from enum import StrEnum
+from math import isfinite
 from typing import Final, Literal
 
 from pydantic import Field, model_validator
@@ -56,6 +57,10 @@ M1106_MAX_RESPONSES: Final = M1106_MAX_SCENARIOS
 M1106_MAX_EVIDENCE: Final = 64
 M1106_MAX_DIAGNOSTICS: Final = 128
 M1106_MAX_FINDINGS: Final = 64
+M1106_MAX_REPLICATES: Final = 64
+M1106_MINIMUM_REPLICATES_PER_ARM: Final = 3
+M1106_MAX_BOOTSTRAP_REPLICATES: Final = 256
+M1106_DEFAULT_BOOTSTRAP_REPLICATES: Final = 64
 M1106_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M1106_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
 M1106_EVIDENCE_CLAIM: Final = (
@@ -108,12 +113,25 @@ class PerturbationSpecification(FrozenModel):
     baseline_value: NonEmptyStr
     perturbed_value: NonEmptyStr
     rationale: NonEmptyStr
+    baseline_measurements: tuple[float, ...] = Field(default=(), max_length=M1106_MAX_REPLICATES)
+    perturbed_measurements: tuple[float, ...] = Field(default=(), max_length=M1106_MAX_REPLICATES)
+    quality_weight: float = Field(default=1.0, ge=0.0, le=1.0)
     alternative_prior: ArtifactReference | None = None
     assay_artifact: ArtifactReference | None = None
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1106_MAX_EVIDENCE)
 
     @model_validator(mode="after")
     def perturbation_shape_is_closed(self) -> PerturbationSpecification:
+        numeric = (*self.baseline_measurements, *self.perturbed_measurements, self.quality_weight)
+        if any(not isfinite(number) for number in numeric):
+            raise ValueError("perturbation measurements must contain finite numbers")
+        if bool(self.baseline_measurements) != bool(self.perturbed_measurements):
+            raise ValueError("baseline and perturbed measurements must be supplied together")
+        if self.baseline_measurements and (
+            len(self.baseline_measurements) < M1106_MINIMUM_REPLICATES_PER_ARM
+            or len(self.perturbed_measurements) < M1106_MINIMUM_REPLICATES_PER_ARM
+        ):
+            raise ValueError("typed perturbations require at least three replicates per arm")
         if self.baseline_value == self.perturbed_value:
             raise ValueError("perturbation baseline and perturbed values must differ")
         if self.kind is PerturbationKind.ALTERNATIVE_PRIOR and self.alternative_prior is None:
@@ -129,11 +147,23 @@ class SensitivityResponse(FrozenModel):
     response_value: float | None = None
     lower_bound: float | None = None
     upper_bound: float | None = None
+    raw_effect_delta: float | None = None
+    sensitivity_standard_error: float | None = Field(default=None, gt=0.0)
+    replicate_count: int | None = Field(default=None, ge=0, le=M1106_MAX_REPLICATES * 2)
     assumptions: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=64)
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1106_MAX_EVIDENCE)
 
     @model_validator(mode="after")
     def response_bounds_are_closed(self) -> SensitivityResponse:
+        numeric = (
+            self.response_value,
+            self.lower_bound,
+            self.upper_bound,
+            self.raw_effect_delta,
+            self.sensitivity_standard_error,
+        )
+        if any(number is not None and not isfinite(number) for number in numeric):
+            raise ValueError("sensitivity response must contain finite numbers")
         has_bounds = self.lower_bound is not None or self.upper_bound is not None
         if self.status is PerturbationResponseStatus.BOUNDED:
             if (
@@ -144,7 +174,13 @@ class SensitivityResponse(FrozenModel):
                 or not self.lower_bound <= self.response_value <= self.upper_bound
             ):
                 raise ValueError("bounded response requires ordered bounds containing response")
-        elif self.response_value is not None or has_bounds:
+        elif (
+            self.response_value is not None
+            or has_bounds
+            or self.raw_effect_delta is not None
+            or self.sensitivity_standard_error is not None
+            or self.replicate_count is not None
+        ):
             raise ValueError("non-bounded response cannot carry response values")
         return self
 
@@ -155,6 +191,11 @@ class SensitivitySimulationConfiguration(FrozenModel):
     model_family: NonEmptyStr
     reference_artifact: ArtifactReference
     maximum_scenarios: int = Field(gt=0, le=M1106_MAX_SCENARIOS)
+    bootstrap_replicates: int = Field(
+        default=M1106_DEFAULT_BOOTSTRAP_REPLICATES,
+        ge=16,
+        le=M1106_MAX_BOOTSTRAP_REPLICATES,
+    )
     locked: Literal[True] = True
     negative_control_artifact: ArtifactReference | None = None
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1106_MAX_EVIDENCE)
@@ -292,14 +333,14 @@ def expected_uncertainty(*, supported: bool) -> UncertaintyProfile:
     """Return a conservative seven-dimension uncertainty profile.
 
     The simulator never invents confidence for an unsupported perturbation.  A
-    supported deterministic response is estimated but still records the
+    supported robust replicate response is estimated but still records the
     transport and model-form limitations that remain provisional.
     """
 
     probability = 0.1 if supported else None
     state = "estimated" if supported else "not_estimable"
     rationale = (
-        "Deterministic bounded response under the locked provisional envelope."
+        "Robust replicate finite-difference response with deterministic bootstrap bounds."
         if supported
         else "No uncertainty estimate is published after a safety-gated abstention."
     )
@@ -318,7 +359,7 @@ def expected_uncertainty(*, supported: bool) -> UncertaintyProfile:
         support=estimate(),
         transport=estimate(),
         sensitivity_notes=(
-            "Responses are bounded deterministic projections, not causal treatment effects.",
+            "Responses are bounded sensitivity projections, not causal treatment effects.",
             "Alternative priors and assay perturbations remain caller-declared references.",
         ),
     )
@@ -401,17 +442,21 @@ def expected_provenance(
 
 __all__ = [
     "M1106_CONTRACT_VERSION",
+    "M1106_DEFAULT_BOOTSTRAP_REPLICATES",
     "M1106_EVIDENCE_CLAIM",
     "M1106_GATE",
     "M1106_M1105_INPUT_MEDIA_TYPE",
+    "M1106_MAX_BOOTSTRAP_REPLICATES",
     "M1106_MAX_CANONICAL_REQUEST_BYTES",
     "M1106_MAX_CANONICAL_RESULT_BYTES",
     "M1106_MAX_DIAGNOSTICS",
     "M1106_MAX_EVIDENCE",
     "M1106_MAX_FINDINGS",
+    "M1106_MAX_REPLICATES",
     "M1106_MAX_RESPONSES",
     "M1106_MAX_SCENARIOS",
     "M1106_MAX_TARGETS",
+    "M1106_MINIMUM_REPLICATES_PER_ARM",
     "M1106_MODULE_ID",
     "M1106_OPERATION",
     "M1106_OUTPUT_MEDIA_TYPE",

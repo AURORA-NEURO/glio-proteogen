@@ -1,9 +1,14 @@
 {
-  "check_count": 7,
+  "check_count": 8,
   "checks": [
     {
       "detail": "abstention exposes not-evaluable optimization, evidence, and review",
       "id": "safe_abstention_has_diagnostic_and_uncertainty",
+      "passed": true
+    },
+    {
+      "detail": "quality/error-weighted measured discordance produces a replayable interval",
+      "id": "measured_observation_has_robust_posterior",
       "passed": true
     },
     {

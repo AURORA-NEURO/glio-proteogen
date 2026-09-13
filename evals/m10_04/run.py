@@ -21,6 +21,7 @@ from glio_proteogen.contracts.m10_04 import (
     EstimateProteinRnaDiscordanceProbabilisticRequest,
     ProbabilisticEstimatorConfiguration,
     ProbabilisticEstimatorFamily,
+    ProbabilisticObservation,
     ProbabilisticPrior,
     ProbabilisticPriorKind,
 )
@@ -37,6 +38,7 @@ from glio_proteogen.kernel.models import (
 )
 from glio_proteogen.kernel.strict_json import StrictJsonError, strict_json_loads
 from glio_proteogen.modules.c10_pathway_proteotype_factors.m10_04_probabilistic_advanced_estimator import (  # noqa: E501
+    M1004_GLIOMA_IRLS_OPTIMIZER,
     M1004ProbabilisticEstimatorAuthorizationError,
     M1004ReplayVerificationError,
     M1004Service,
@@ -56,9 +58,9 @@ def _artifact(name: str, fill: str, media_type: str = "application/json") -> Art
 
 
 def build_request(
-    *, accepted_controls: bool = True
+    *, accepted_controls: bool = True, measured: bool = False
 ) -> EstimateProteinRnaDiscordanceProbabilisticRequest:
-    """Build a deterministic request from opaque baseline/source references."""
+    """Build a deterministic request from references and optional measurements."""
 
     state = UpstreamDecisionState.ACCEPTED if accepted_controls else UpstreamDecisionState.UNKNOWN
     consent_state = ConsentState.GRANTED if accepted_controls else ConsentState.UNKNOWN
@@ -141,6 +143,16 @@ def build_request(
             _artifact("proteome.source", "2", "application/vnd.opaque.artifact+json"),
             _artifact("genome.source", "b", "application/vnd.opaque.artifact+json"),
         ),
+        observations=(
+            ProbabilisticObservation(
+                feature_id="prior.discordance",
+                value=0.8,
+                standard_error=0.2,
+                quality_weight=0.9,
+            ),
+        )
+        if measured
+        else (),
     )
 
 
@@ -164,6 +176,73 @@ def evaluate() -> dict[str, object]:
                 and bool(result.evidence)
             ),
             detail="abstention exposes not-evaluable optimization, evidence, and review",
+        )
+    )
+    measured_result = service.execute(build_request(measured=True))
+    measured_estimate = measured_result.estimates[0] if measured_result.estimates else None
+    measured_interval = (
+        measured_estimate is not None
+        and measured_estimate.lower_bound is not None
+        and measured_estimate.estimate_value is not None
+        and measured_estimate.upper_bound is not None
+        and measured_estimate.lower_bound <= measured_estimate.estimate_value
+        <= measured_estimate.upper_bound
+    )
+    checks.append(
+        _check(
+            "measured_observation_has_robust_posterior",
+            passed=(
+                measured_result.status.value == "estimated"
+                and len(measured_result.estimates) == 1
+                and measured_interval
+                and measured_result.diagnostics[0].status.value == "converged"
+            ),
+            detail="quality/error-weighted measured discordance produces a replayable interval",
+        )
+    )
+    genes = (("egfr", 1.2), ("pik3ca", 0.8), ("tp53", -0.5), ("mki67", 1.0))
+    typed_base = build_request()
+    typed_request = typed_base.model_copy(
+        update={
+            "configuration": typed_base.configuration.model_copy(
+                update={
+                    "optimizer": M1004_GLIOMA_IRLS_OPTIMIZER,
+                    "priors": tuple(
+                        ProbabilisticPrior(
+                            prior_id=f"prior.{gene}",
+                            version="0.1.0",
+                            kind=ProbabilisticPriorKind.NORMAL,
+                            parameters=(0.0, 1.0),
+                        )
+                        for gene, _value in genes
+                    ),
+                }
+            ),
+            "observations": tuple(
+                ProbabilisticObservation(
+                    feature_id=f"prior.{gene}",
+                    value=value,
+                    standard_error=0.2,
+                    quality_weight=0.9,
+                )
+                for gene, value in genes
+            ),
+        }
+    )
+    typed_result = service.execute(typed_request)
+    checks.append(
+        _check(
+            "locked_glioma_factor_graph_is_estimated",
+            passed=(
+                typed_result.status.value == "estimated"
+                and len(typed_result.estimates) == len(genes)
+                and typed_result.diagnostics[0].model_family
+                == "glioma-proteotype-factor-irls/1.0.0"
+                and typed_result.diagnostics[0].iteration_count > 1
+                and service.verify(typed_result).model_dump_json()
+                == typed_result.model_dump_json()
+            ),
+            detail="GBM marker observations are jointly fit with signed program factors",
         )
     )
     replay = service.verify(result)

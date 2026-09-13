@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 from evals.m01_06.run import build_scenario_request
 
+from benchmarks._module_validation import run_pytest_benchmark
 from glio_proteogen.contracts.m01_06 import (
     DiagnosticStatus,
     HarmonizationDisposition,
@@ -56,3 +57,14 @@ def test_supported_public_engine_latency(benchmark: BenchmarkFixture) -> None:
     statistics = benchmark_stats.stats
     assert statistics is not None
     assert statistics.mean <= MEAN_BUDGET_SECONDS
+
+
+def run_benchmark(iterations: int = 10) -> dict[str, object]:
+    """Run the locked supported harmonization workload."""
+
+    return run_pytest_benchmark(
+        module_id="GLIO-PROTEOGEN-M01-06",
+        workload=test_supported_public_engine_latency,
+        iterations=iterations,
+        mean_budget_seconds=MEAN_BUDGET_SECONDS,
+    )

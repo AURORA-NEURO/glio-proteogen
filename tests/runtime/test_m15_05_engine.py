@@ -3,14 +3,18 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from itertools import pairwise
 
 import pytest
 
+import glio_proteogen.modules.c15_longitudinal_recurrence_proteotype.m15_05_longitudinal_evolution.engine as engine_module  # noqa: E501
 from glio_proteogen.contracts.m15_05 import (
     M1505_M1504_RESULT_MEDIA_TYPE,
     ChangePointStatus,
     EvolutionModelConfiguration,
     EvolutionModelFamily,
+    GliomaEvolutionProgram,
+    LongitudinalEvidenceState,
     ModelComplexActivityLongitudinalEvolutionRequest,
     TimePointObservation,
     TrajectoryDimension,
@@ -34,8 +38,17 @@ from glio_proteogen.kernel.models import (
 from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
     m15_05_longitudinal_evolution as m1505,
 )
+from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype.m15_05_longitudinal_evolution.engine import (  # noqa: E501
+    _initial_typed_values,
+    _TypedTerm,
+)
 
 _OBSERVATION_COUNT = 2
+_TYPED_OBSERVATION_COUNT = 4
+_BACKTRACK_OBJECTIVE_CALL = 2
+_MIN_OBJECTIVE_CALLS = 3
+_ROBUST_CENTER_MAX = 0.5
+_ARITHMETIC_MEAN_MIN = 1.0
 
 
 def _digest(label: str) -> str:
@@ -136,6 +149,39 @@ def _request() -> ModelComplexActivityLongitudinalEvolutionRequest:
     )
 
 
+def _typed_request() -> ModelComplexActivityLongitudinalEvolutionRequest:
+    request = _request()
+    configuration = request.policy.configuration.model_copy(
+        update={
+            "model_family": EvolutionModelFamily.GLIOMA_TYPED_GRAPH,
+            "bootstrap_replicates": 16,
+        }
+    )
+    observations = tuple(
+        _observation(sequence, label).model_copy(
+            update={
+                "program": program,
+                "standardized_effect": effect,
+                "standard_error": 0.2,
+                "quality_weight": 0.9,
+                "evidence_state": LongitudinalEvidenceState.OBSERVED,
+            }
+        )
+        for sequence, label, program, effect in (
+            (0, "baseline-rtk", GliomaEvolutionProgram.RTK_PI3K_AKT_MTOR, 4.0),
+            (1, "baseline-p53", GliomaEvolutionProgram.P53_CELL_CYCLE, -4.0),
+            (2, "recurrence-rtk", GliomaEvolutionProgram.RTK_PI3K_AKT_MTOR, 4.0),
+            (3, "recurrence-p53", GliomaEvolutionProgram.P53_CELL_CYCLE, -4.0),
+        )
+    )
+    return request.model_copy(
+        update={
+            "policy": request.policy.model_copy(update={"configuration": configuration}),
+            "observations": observations,
+        }
+    )
+
+
 def test_supported_replay_preserves_order_and_explicit_change_points() -> None:
     service = m1505.M1505Service()
     result = service.execute(_request())
@@ -147,6 +193,139 @@ def test_supported_replay_preserves_order_and_explicit_change_points() -> None:
     assert result.temporal_order_verified is True
     assert result.future_leakage_checked is True
     assert service.verify(result).result_digest == result.result_digest
+
+
+def test_typed_glioma_temporal_graph_infers_intervals_and_change_points() -> None:
+    service = m1505.M1505Service()
+    result = service.execute(_typed_request())
+    assert result.status is TrajectoryStatus.MODELED
+    assert result.typed_model
+    assert result.solver_iterations is not None
+    assert result.objective_trace_digest is not None
+    assert len(result.trajectory) == _TYPED_OBSERVATION_COUNT
+    assert all(0.0 <= state.posterior_probability <= 1.0 for state in result.trajectory)
+    assert any(item.status is ChangePointStatus.DETECTED for item in result.change_points)
+    assert service.verify(result) == result
+
+
+def test_typed_temporal_solver_backtracks_objective_increase(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    request = _typed_request()
+    terms = engine_module._typed_terms(request)
+    sequences = tuple(item.sequence for item in request.observations)
+    original = engine_module._typed_objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == _BACKTRACK_OBJECTIVE_CALL else value
+
+    monkeypatch.setattr(engine_module, "_typed_objective", objective)
+    fit = engine_module._fit_typed(terms, sequences)
+    assert fit.converged
+    assert calls >= _MIN_OBJECTIVE_CALLS
+    assert all(
+        after <= before + engine_module._OBJECTIVE_TOLERANCE
+        for before, after in pairwise(fit.objective_trace)
+    )
+
+
+def test_typed_initialization_keeps_left_censored_limits_feasible() -> None:
+    """Censor limits constrain the start but are never averaged as observations."""
+
+    grouped = {
+        (GliomaEvolutionProgram.RTK_PI3K_AKT_MTOR, 0): [
+            _TypedTerm(
+                sequence=0,
+                observation_id="censored",
+                program=GliomaEvolutionProgram.RTK_PI3K_AKT_MTOR,
+                state=LongitudinalEvidenceState.LEFT_CENSORED,
+                value=-0.3,
+                standard_error=0.2,
+                quality_weight=1.0,
+            )
+        ],
+        (GliomaEvolutionProgram.P53_CELL_CYCLE, 0): [
+            _TypedTerm(
+                sequence=0,
+                observation_id="mixed-observed",
+                program=GliomaEvolutionProgram.P53_CELL_CYCLE,
+                state=LongitudinalEvidenceState.OBSERVED,
+                value=1.2,
+                standard_error=0.2,
+                quality_weight=1.0,
+            ),
+            _TypedTerm(
+                sequence=0,
+                observation_id="mixed-censored",
+                program=GliomaEvolutionProgram.P53_CELL_CYCLE,
+                state=LongitudinalEvidenceState.LEFT_CENSORED,
+                value=0.4,
+                standard_error=0.2,
+                quality_weight=1.0,
+            ),
+        ],
+    }
+
+    values = _initial_typed_values(grouped, (0,))
+    order = list(GliomaEvolutionProgram)
+    left_censor_limit = -0.3
+    mixed_censor_limit = 0.4
+    assert values[order.index(GliomaEvolutionProgram.RTK_PI3K_AKT_MTOR)][0] == left_censor_limit
+    assert values[order.index(GliomaEvolutionProgram.P53_CELL_CYCLE)][0] == mixed_censor_limit
+
+
+def test_typed_initialization_downweights_failed_timepoint_replicate() -> None:
+    """Repeated assays at one timepoint use a contamination-resistant Huber center."""
+
+    terms = tuple(
+        _TypedTerm(
+            sequence=0,
+            observation_id=f"observation.replicate.{index}",
+            program=GliomaEvolutionProgram.RTK_PI3K_AKT_MTOR,
+            state=LongitudinalEvidenceState.OBSERVED,
+            value=value,
+            standard_error=0.2,
+            quality_weight=1.0,
+        )
+        for index, value in enumerate((0.2, 0.25, 0.3, 4.0))
+    )
+    center = engine_module._robust_initial_center(terms)
+    arithmetic_mean = sum(term.value for term in terms) / len(terms)
+    assert center < _ROBUST_CENTER_MAX
+    assert arithmetic_mean > _ARITHMETIC_MEAN_MIN
+    assert engine_module._initial_measurement_objective(center, terms) <= (
+        engine_module._initial_measurement_objective(arithmetic_mean, terms)
+    )
+
+
+def test_typed_missing_evidence_abstains_without_negative_state() -> None:
+    request = _typed_request()
+    missing = request.observations[0].model_copy(
+        update={
+            "program": None,
+            "standardized_effect": None,
+            "standard_error": None,
+            "evidence_state": LongitudinalEvidenceState.MISSING,
+        }
+    )
+    result = m1505.M1505Service().execute(
+        request.model_copy(update={"observations": (missing, *request.observations[1:])})
+    )
+    assert result.status is TrajectoryStatus.MODELED
+    assert "indeterminate" in result.trajectory[0].label
+    insufficient = request.model_copy(
+        update={"observations": tuple(item.model_copy(update={
+            "program": None,
+            "standardized_effect": None,
+            "standard_error": None,
+            "evidence_state": LongitudinalEvidenceState.UNSUPPORTED,
+        }) for item in request.observations)}
+    )
+    abstained = m1505.M1505Service().execute(insufficient)
+    assert abstained.status is TrajectoryStatus.ABSTAINED
+    assert abstained.human_review_required
 
 
 def test_denied_control_fails_closed() -> None:
@@ -265,4 +444,3 @@ def test_replay_mismatch_is_distinguished_from_digest_tamper() -> None:
     changed = changed.model_copy(update={"result_digest": result_payload_digest(changed)})
     with pytest.raises(m1505.M1505ReplayVerificationError):
         m1505.M1505Service().verify(changed)
-

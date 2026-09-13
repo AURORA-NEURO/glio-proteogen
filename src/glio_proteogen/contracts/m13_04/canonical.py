@@ -19,7 +19,24 @@ def _dump(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
 
 
 def normalized_request(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
-    return _dump(value)
+    document = _dump(value)
+    observations = document.get("typed_observations")
+    if isinstance(observations, list):
+        document["typed_observations"] = sorted(
+            observations,
+            key=lambda item: (
+                str(item.get("observation_id", "")) if isinstance(item, dict) else str(item)
+            ),
+        )
+    relations = document.get("typed_relations")
+    if isinstance(relations, list):
+        document["typed_relations"] = sorted(
+            relations,
+            key=lambda item: (
+                str(item.get("relation_id", "")) if isinstance(item, dict) else str(item)
+            ),
+        )
+    return document
 
 
 def canonical_request_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:

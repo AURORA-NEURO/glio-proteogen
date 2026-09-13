@@ -1,6 +1,7 @@
 """Provisional M10-04 probabilistic/advanced estimator module."""
 
 from .engine import (
+    M1004_GLIOMA_IRLS_OPTIMIZER,
     M1004ProbabilisticEstimatorAuthorizationError,
     M1004ProbabilisticEstimatorEngine,
     M1004ReplayVerificationError,
@@ -11,6 +12,7 @@ from .plugin import M1004Plugin, ValidatedM1004Request
 from .service import M1004Service
 
 __all__ = [
+    "M1004_GLIOMA_IRLS_OPTIMIZER",
     "M1004Plugin",
     "M1004ProbabilisticEstimatorAuthorizationError",
     "M1004ProbabilisticEstimatorEngine",

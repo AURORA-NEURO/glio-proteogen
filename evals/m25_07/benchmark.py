@@ -21,6 +21,7 @@ from glio_proteogen.modules.c21_reference_material import (
 
 @dataclass(frozen=True, slots=True)
 class BenchmarkSummary:
+    module_id: str
     iterations: int
     samples_ns: tuple[int, ...]
     mean_ns: float
@@ -28,6 +29,7 @@ class BenchmarkSummary:
     p95_ns: int
     budget_mean_ns: int
     budget_p95_ns: int
+    budget_passed: bool
 
     @property
     def passed(self) -> bool:
@@ -54,6 +56,7 @@ def run_benchmark(
     ordered = sorted(samples)
     p95_index = min(len(ordered) - 1, max(0, int(len(ordered) * 0.95) - 1))
     return BenchmarkSummary(
+        module_id="GLIO-PROTEOGEN-M25-07",
         iterations=iterations,
         samples_ns=tuple(samples),
         mean_ns=statistics.fmean(samples),
@@ -61,6 +64,9 @@ def run_benchmark(
         p95_ns=ordered[p95_index],
         budget_mean_ns=budget_mean_ns,
         budget_p95_ns=budget_p95_ns,
+        budget_passed=(
+            statistics.fmean(samples) <= budget_mean_ns and ordered[p95_index] <= budget_p95_ns
+        ),
     )
 
 

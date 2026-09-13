@@ -37,6 +37,7 @@ from glio_proteogen.kernel.models import (
     ConsentReference,
     ConsentState,
     ContextReferences,
+    EvidenceReference,
     ExecutionContext,
     IdentityLineageReference,
     IdentityLineageState,
@@ -64,7 +65,9 @@ def _artifact(name: str, fill: str, media_type: str = "application/json") -> Art
     )
 
 
-def build_request(*, accepted_controls: bool = True) -> PublishProteinAbundanceEvidenceRequest:
+def build_request(
+    *, accepted_controls: bool = True, evidence_backed: bool = False
+) -> PublishProteinAbundanceEvidenceRequest:
     """Build a representative request using only opaque artifact references."""
 
     state = UpstreamDecisionState.ACCEPTED if accepted_controls else UpstreamDecisionState.UNKNOWN
@@ -74,6 +77,16 @@ def build_request(*, accepted_controls: bool = True) -> PublishProteinAbundanceE
     )
     upstream = _artifact("m0607.result", "1", M0608_M0607_RESULT_MEDIA_TYPE)
     source = _artifact("proteome.source", "2")
+    positive_evidence = EvidenceReference(
+        reference=source,
+        role="evidence",
+        claim="approved normalization evidence",
+    )
+    counter_evidence = EvidenceReference(
+        reference=source,
+        role="counter_evidence",
+        claim="batch-effect counter-evidence",
+    )
     return PublishProteinAbundanceEvidenceRequest(
         request_id="request.eval.m0608",
         context=ExecutionContext(
@@ -132,6 +145,7 @@ def build_request(*, accepted_controls: bool = True) -> PublishProteinAbundanceE
             PublisherAssumption(
                 assumption_id="assumption.normalization",
                 statement="Input intensity values use the approved normalized scale.",
+                evidence=(positive_evidence,) if evidence_backed else (),
             ),
         ),
         counter_evidence=(
@@ -139,6 +153,7 @@ def build_request(*, accepted_controls: bool = True) -> PublishProteinAbundanceE
                 counter_evidence_id="counter.batch",
                 statement="A batch effect remains possible.",
                 impact="The claim must remain reviewable.",
+                evidence=(counter_evidence,) if evidence_backed else (),
             ),
         ),
         reconstruction_steps=(
@@ -147,6 +162,7 @@ def build_request(*, accepted_controls: bool = True) -> PublishProteinAbundanceE
                 operation="bind_upstream_result",
                 input_digests=(upstream.digest, source.digest),
                 output_digest=_artifact("reconstruction", "0").digest,
+                evidence=(positive_evidence,) if evidence_backed else (),
             ),
         ),
     )
@@ -179,6 +195,7 @@ def evaluate() -> dict[str, object]:
     service = M0608Service()
     request = build_request()
     result = service.execute(request)
+    published = service.execute(build_request(evidence_backed=True))
     checks: list[dict[str, object]] = []
     checks.append(
         _check(
@@ -192,6 +209,20 @@ def evaluate() -> dict[str, object]:
                 "abstention carries evidence, typed support status, limitations, "
                 "uncertainty, and review"
             ),
+        )
+    )
+    checks.append(
+        _check(
+            "evidence_backed_bundle_is_published",
+            passed=(
+                published.status is EvidencePublicationStatus.PUBLISHED
+                and published.bundle is not None
+                and published.explanation is not None
+                and published.support_decision.status.value == "supported"
+                and not published.human_review_required
+                and service.verify(published) == published
+            ),
+            detail="explicit evidence and digest-linked reconstruction produce a replayable bundle",
         )
     )
     replay = service.verify(result)

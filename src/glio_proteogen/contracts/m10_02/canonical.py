@@ -19,7 +19,17 @@ def _dump(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
 
 
 def normalized_request(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
-    return _dump(value)
+    document = _dump(value)
+    observations = document.get("glioma_observations")
+    if isinstance(observations, list):
+        document["glioma_observations"] = sorted(
+            observations,
+            key=lambda item: (
+                str(item.get("observation_id", "")),
+                str(item.get("input_feature_id", "")),
+            ),
+        )
+    return document
 
 
 def canonical_request_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:

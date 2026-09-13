@@ -8,6 +8,7 @@
     {"case_id": "incomplete", "no_features": true, "expected_status": "abstained", "expected_findings": ["input_incomplete"]},
     {"case_id": "unit_failure", "unit": "unknown", "expected_status": "abstained", "expected_findings": ["unit_invariant_failed"]},
     {"case_id": "negative_control_failure", "negative_id": "negative.fail", "expected_status": "abstained", "expected_findings": ["negative_control_failed"]},
+    {"case_id": "typed_glioma", "typed_glioma": true, "expected_status": "constructed"},
     {"case_id": "replay_tamper", "expected_status": "constructed"},
     {"case_id": "denied_control", "controls": {"consent": "withheld"}, "expected_status": "authorization_rejected"}
   ]

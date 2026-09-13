@@ -16,6 +16,7 @@ from glio_proteogen.contracts.m10_07.v1 import (
     M1007_PARENT,
     M1007_PROVISIONAL_ABI,
     M1007_SAFETY_CLASS,
+    M1007_TYPED_MODEL_FAMILY,
     M1007_UNCERTAINTY_MEDIA_TYPE,
     CalibratedEstimate,
     CalibrateProteinRnaDiscordanceSelectivePredictionRequest,
@@ -79,6 +80,17 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "nominalCoverage": 0.9,
         "coverageEnvelope": [0.85, 0.95],
         "subgroupDisparityReviewRequired": True,
+        "typedGliomaModelFamily": M1007_TYPED_MODEL_FAMILY,
+        "typedEvidenceStates": ["observed", "left_censored", "missing", "unsupported"],
+        "typedPrograms": [
+            "RTK_PI3K_AKT_MTOR",
+            "P53_CELL_CYCLE",
+            "IDH_HIF1A",
+            "MESENCHYMAL_PROGRAM",
+            "PROLIFERATION",
+        ],
+        "typedEstimator": "quality_weighted_damped_robust_logistic_conformal",
+        "legacyOpaquePath": "compatibility_only",
     }
     if name == "request":
         schema["x-glio-contract"]["maxRequestBytes"] = M1007_MAX_CANONICAL_REQUEST_BYTES

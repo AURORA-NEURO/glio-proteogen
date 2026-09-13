@@ -24,6 +24,11 @@ upstream consequence artifact is content-addressed and intentionally opaque.
   lineage, provenance, consent, quality, support, and intended use.
 - Deterministic bounded reference simulation. Baseline and perturbed values
   must remain inside the configured response envelope.
+- Opt-in `glioma-panel-perturbation-response-graph/1.0.0` fits paired assay
+  replicates with quality-weighted Huber IRLS arm locations, conventional
+  midpoint-MAD scaling for even replicate counts, robust finite differences,
+  digest-seeded bootstrap intervals, and explicit replicate counts. The
+  compatibility scalar path above remains unchanged.
 - Unsupported scenarios, out-of-envelope values, and denied controls abstain;
   abstention emits no sensitivity surface and requires human review.
 - Seven uncertainty dimensions are always present. Simulated results expose
@@ -36,10 +41,10 @@ upstream consequence artifact is content-addressed and intentionally opaque.
 
 ## Evidence and gates
 
-The executable fixture contains six cases: supported bounded simulation,
-unsupported perturbation abstention, out-of-envelope abstention, and three
-control-denial cases. The evaluator also performs exact replay. The final
-focused lane contains 33 tests, Ruff and strict MyPy pass, and scoped
+The executable fixture contains seven cases: supported bounded simulation,
+typed glioma replicate simulation, unsupported perturbation abstention,
+out-of-envelope abstention, and three control-denial cases. The evaluator also
+performs exact replay. The focused lane contains 41 tests, Ruff and strict MyPy pass, and scoped
 branch-enabled coverage is recorded in `release-evidence/m12_06/evaluation.json`.
 
 The benchmark times only the public service execution over ten iterations and
@@ -52,6 +57,7 @@ wheel import verification.
 | Dossier requirement | Implementation evidence |
 | --- | --- |
 | Sensitivity surface and bounded response | `contracts/m12_06/v1.py`, runtime `engine.py` |
+| Typed glioma replicate response | `engine.py::_huber_location`, `_bounded_from_typed_replicates`; midpoint MAD keeps even-count robust scales reproducible |
 | Support envelope and safe abstention | `engine.py`, `test_m12_06_runtime.py` |
 | Seven uncertainty dimensions | `engine.py::_uncertainty` |
 | Identity, consent, quality and provenance controls | `engine.py::preflight_m1206_authorization` |

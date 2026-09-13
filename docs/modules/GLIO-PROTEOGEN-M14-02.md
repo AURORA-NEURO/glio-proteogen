@@ -23,6 +23,18 @@ foundation-assisted, curated rule, enrichment, CN-to-protein regression, and ort
 with negative-control gating. The runtime is deterministic and stateless; it does not train,
 fetch an external model, infer identity or consent, or merge raw omics into an all-omics output.
 
+### Locked GBM context model
+
+Supported observations are now interpreted by a small, auditable GBM context rule model in the
+runtime. Exact normalized labels from the Neftel-like tumor-cell vocabulary (`MES/MES1/MES2`,
+`AC`, `OPC`, and `NPC`) map to mesenchymal-inflammatory, astrocytic/glial, OPC-developmental,
+and neural-progenitor programs. Explicit microenvironment labels map to hypoxia/angiogenesis,
+myeloid/immune, vascular-remodeling, and proliferative/cell-cycle programs; territory labels
+map enhancing/necrotic core and infiltrative-edge niches. Matching is case-insensitive and
+separator-normalized but deliberately non-fuzzy. Each emitted mechanism carries the matched
+observation's evidence references and a rationale. Unknown labels remain stratified only under
+the generic declared method and are never silently assigned a biology program.
+
 The safety ceiling prohibits KINOPHOS kinase-state ownership, generic all-omics fusion, direct
 treatment recommendation, identity inference, consent inference, upstream relabeling,
 disagreement erasure, and conversion of unsupported/missing evidence into a negative finding.

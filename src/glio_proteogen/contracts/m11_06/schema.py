@@ -8,8 +8,11 @@ from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m11_06.v1 import (
     M1106_CONTRACT_VERSION,
+    M1106_DEFAULT_BOOTSTRAP_REPLICATES,
     M1106_GATE,
+    M1106_MAX_BOOTSTRAP_REPLICATES,
     M1106_MAX_CANONICAL_REQUEST_BYTES,
+    M1106_MINIMUM_REPLICATES_PER_ARM,
     M1106_MODULE_ID,
     M1106_OUTPUT_MEDIA_TYPE,
     M1106_OWNER,
@@ -82,6 +85,12 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "unsupportedPerturbationsAbstain": True,
         "upstreamMutationForbidden": True,
         "identityInferenceForbidden": True,
+        "typedReplicateSensitivity": True,
+        "robustHuberFit": True,
+        "deterministicBootstrap": True,
+        "minimumReplicatesPerArm": M1106_MINIMUM_REPLICATES_PER_ARM,
+        "defaultBootstrapReplicates": M1106_DEFAULT_BOOTSTRAP_REPLICATES,
+        "bootstrapReplicateLimit": M1106_MAX_BOOTSTRAP_REPLICATES,
     }
     if name == "request":
         schema["x-glio-contract"]["maxRequestBytes"] = M1106_MAX_CANONICAL_REQUEST_BYTES

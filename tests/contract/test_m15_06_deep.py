@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+from itertools import pairwise
 from pathlib import Path
 from typing import cast
 
@@ -17,6 +18,8 @@ from glio_proteogen.adapters.m1506 import app, m1506_app
 from glio_proteogen.contracts.m15_06 import (
     M1506_M1505_INPUT_MEDIA_TYPE,
     ComplexActivitySensitivitySimulationResult,
+    GliomaPerturbationProgram,
+    PerturbationEvidenceState,
     PerturbationKind,
     PerturbationResponseStatus,
     PerturbationSpecification,
@@ -207,6 +210,178 @@ def test_supported_result_has_bounds_parent_and_all_uncertainty_dimensions() -> 
     profile = expected_uncertainty(supported=True)
     assert profile.measurement.probability == 0.9
     assert len(profile.sensitivity_notes) == 2
+
+
+def test_typed_glioma_graph_solver_emits_bootstrap_and_ablation_metadata() -> None:
+    perturbations = (
+        _perturbation(
+            perturbation_id="scenario.rtk",
+            program=GliomaPerturbationProgram.RTK_PI3K_AKT_MTOR,
+            evidence_state=PerturbationEvidenceState.OBSERVED,
+            standard_error=0.1,
+        ),
+        _perturbation(
+            perturbation_id="scenario.p53",
+            baseline_value="1.0",
+            perturbed_value="0.7",
+            program=GliomaPerturbationProgram.P53_CELL_CYCLE,
+            evidence_state=PerturbationEvidenceState.OBSERVED,
+            standard_error=0.2,
+        ),
+        _perturbation(
+            perturbation_id="scenario.idh",
+            baseline_value="1.0",
+            perturbed_value="1.1",
+            program=GliomaPerturbationProgram.IDH_HIF1A,
+            evidence_state=PerturbationEvidenceState.LEFT_CENSORED,
+            standard_error=0.15,
+        ),
+    )
+    request = build_scenario_request(perturbations=perturbations).model_copy(
+        update={
+            "configuration": build_scenario_request().configuration.model_copy(
+                update={"bootstrap_replicates": 16}
+            )
+        }
+    )
+    engine = M1506SensitivitySimulatorEngine()
+    result = engine.infer(request)
+    assert result.status is SensitivitySimulationStatus.SIMULATED
+    assert result.surface is not None
+    assert result.surface.typed_model
+    assert result.surface.solver_iterations is not None
+    assert result.surface.solver_iterations > 0
+    assert result.surface.solver_objective is not None
+    assert result.surface.objective_trace_digest is not None
+    assert len(result.surface.responses) == 3
+    assert all(
+        response.lower_bound is not None
+        and response.upper_bound is not None
+        and response.stability is not None
+        and response.discordance is not None
+        and response.top_drivers
+        and response.ablation_effects
+        for response in result.surface.responses
+    )
+    assert all(
+        response.ablation_effects[0].startswith("measurement_ablation_delta=")
+        and response.ablation_effects[1].startswith("topology_ablation_delta=")
+        for response in result.surface.responses
+    )
+    assert engine.verify(result) == result
+
+
+def test_typed_perturbation_solver_backtracks_objective_increase(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    terms = (
+        engine_module._TypedTerm(
+            scenario_id="scenario.rtk",
+            program=GliomaPerturbationProgram.RTK_PI3K_AKT_MTOR,
+            state=PerturbationEvidenceState.OBSERVED,
+            delta=1.1,
+            standard_error=0.2,
+            quality_weight=0.95,
+        ),
+        engine_module._TypedTerm(
+            scenario_id="scenario.p53",
+            program=GliomaPerturbationProgram.P53_CELL_CYCLE,
+            state=PerturbationEvidenceState.OBSERVED,
+            delta=-0.7,
+            standard_error=0.25,
+            quality_weight=0.9,
+        ),
+    )
+    original = engine_module._typed_objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == 2 else value
+
+    monkeypatch.setattr(engine_module, "_typed_objective", objective)
+    fit = engine_module._fit_typed(terms)
+    assert fit.converged
+    assert calls > 2
+    assert all(
+        after <= before + engine_module._OBJECTIVE_TOLERANCE
+        for before, after in pairwise(fit.objective_trace)
+    )
+
+
+def test_typed_initialization_respects_left_censor_bounds() -> None:
+    grouped = {
+        GliomaPerturbationProgram.RTK_PI3K_AKT_MTOR: [
+            engine_module._TypedTerm(
+                scenario_id="scenario.observed",
+                program=GliomaPerturbationProgram.RTK_PI3K_AKT_MTOR,
+                state=PerturbationEvidenceState.OBSERVED,
+                delta=0.6,
+                standard_error=0.2,
+                quality_weight=1.0,
+            ),
+            engine_module._TypedTerm(
+                scenario_id="scenario.censored",
+                program=GliomaPerturbationProgram.RTK_PI3K_AKT_MTOR,
+                state=PerturbationEvidenceState.LEFT_CENSORED,
+                delta=0.2,
+                standard_error=0.2,
+                quality_weight=1.0,
+            ),
+        ],
+        GliomaPerturbationProgram.P53_CELL_CYCLE: [
+            engine_module._TypedTerm(
+                scenario_id="scenario.censored-only",
+                program=GliomaPerturbationProgram.P53_CELL_CYCLE,
+                state=PerturbationEvidenceState.LEFT_CENSORED,
+                delta=-0.3,
+                standard_error=0.2,
+                quality_weight=1.0,
+            ),
+        ],
+    }
+    initial = engine_module._initial_typed_values(grouped)
+    index = {program: position for position, program in enumerate(engine_module._PROGRAM_ORDER)}
+    assert initial[index[GliomaPerturbationProgram.RTK_PI3K_AKT_MTOR]] == 0.2
+    assert initial[index[GliomaPerturbationProgram.P53_CELL_CYCLE]] == -0.3
+
+
+def test_typed_initialization_downweights_failed_perturbation_replicate() -> None:
+    """Repeated perturbation deltas use a contamination-resistant Huber center."""
+
+    terms = tuple(
+        engine_module._TypedTerm(
+            scenario_id=f"scenario.replicate.{index}",
+            program=GliomaPerturbationProgram.RTK_PI3K_AKT_MTOR,
+            state=PerturbationEvidenceState.OBSERVED,
+            delta=delta,
+            standard_error=0.2,
+            quality_weight=1.0,
+        )
+        for index, delta in enumerate((0.2, 0.25, 0.3, 4.0))
+    )
+    center = engine_module._robust_initial_center(terms)
+    arithmetic_mean = sum(term.delta for term in terms) / len(terms)
+    assert center < 0.5
+    assert arithmetic_mean > 1.0
+    assert engine_module._initial_measurement_objective(center, terms) <= (
+        engine_module._initial_measurement_objective(arithmetic_mean, terms)
+    )
+
+
+def test_typed_missing_or_unsupported_evidence_abstains_without_negative_response() -> None:
+    missing = _perturbation(
+        program=GliomaPerturbationProgram.RTK_PI3K_AKT_MTOR,
+        evidence_state=PerturbationEvidenceState.MISSING,
+        quality_weight=0.0,
+    )
+    result = M1506SensitivitySimulatorEngine().infer(
+        build_scenario_request(perturbations=(missing,))
+    )
+    assert result.status is SensitivitySimulationStatus.ABSTAINED
+    assert result.surface is None
+    assert result.abstention_reason is not None
+    assert "excluded" in result.abstention_reason
 
 
 def test_evidence_paths_include_prior_and_assay_artifacts() -> None:

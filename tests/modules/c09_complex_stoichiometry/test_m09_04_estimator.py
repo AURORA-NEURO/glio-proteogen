@@ -2,15 +2,23 @@
 
 from datetime import UTC, datetime
 from http import HTTPStatus
+from itertools import pairwise
+from math import isfinite
 
+import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 
+import glio_proteogen.modules.c09_complex_stoichiometry.m09_04_probabilistic_estimator.engine as engine_module  # noqa: E501
 from glio_proteogen.contracts.m09_04 import (
     M0904_BASELINE_MEDIA_TYPE,
+    ComplexEvidenceState,
+    ComplexMemberObservation,
+    ComplexMemberRole,
     EstimateComplexActivityProbabilisticRequest,
     EstimateComplexActivityProbabilisticResult,
     EstimatorConstraint,
+    GliomaComplexProgram,
     OptimizationDiagnostic,
     OptimizationDiagnosticStatus,
     ProbabilisticEstimatorConfiguration,
@@ -25,6 +33,7 @@ from glio_proteogen.kernel.models import (
     ConsentReference,
     ConsentState,
     ContextReferences,
+    EstimateState,
     EvidenceReference,
     ExecutionContext,
     IdentityLineageReference,
@@ -50,6 +59,14 @@ _DIGEST = "sha256:" + ("1" * 64)
 _DIGEST_2 = "sha256:" + ("2" * 64)
 _EXPECTED_ESTIMATES = 2
 _EXPECTED_DIAGNOSTICS = 2
+_FIRST_CANDIDATE_CALL = 2
+_EXPECTED_POSTERIOR_MASS = 0.9
+_EGFR_ACTIVITY_THRESHOLD = 0.8
+_ACTIVITY_NEUTRAL = 0.5
+_TYPED_MEMBER_COUNT = 3
+_TYPED_SUPPORTED_COUNT = 2
+_TYPED_LOW_ACTIVITY = 0.35
+_EXPECTED_BOOTSTRAP_MEMBER_COUNT = 2
 
 
 def _artifact(name: str, media_type: str = "application/json") -> ArtifactReference:
@@ -150,6 +167,54 @@ def _request(*expressions: str) -> EstimateComplexActivityProbabilisticRequest:
     )
 
 
+def _typed_member(  # noqa: PLR0913 - helper exposes every typed observation field.
+    observation_id: str,
+    complex_id: str,
+    member_id: str,
+    effect: float | None,
+    *,
+    role: ComplexMemberRole = ComplexMemberRole.SUPPORTING,
+    state: ComplexEvidenceState = ComplexEvidenceState.OBSERVED,
+) -> ComplexMemberObservation:
+    active = state in {
+        ComplexEvidenceState.OBSERVED,
+        ComplexEvidenceState.LEFT_CENSORED,
+    }
+    return ComplexMemberObservation(
+        observation_id=observation_id,
+        complex_id=complex_id,
+        member_id=member_id,
+        program=(GliomaComplexProgram.RTK_PI3K_AKT_MTOR if active else None),
+        member_role=role,
+        evidence_state=state,
+        standardized_effect=effect if active else None,
+        standard_error=0.12 if active else None,
+        quality_weight=0.9 if active else 0.0,
+    )
+
+
+def _typed_request(
+    *observations: ComplexMemberObservation,
+) -> EstimateComplexActivityProbabilisticRequest:
+    base = _request("stable_support")
+    configuration = ProbabilisticEstimatorConfiguration.model_validate(
+        base.configuration.model_dump(mode="python")
+        | {
+            "estimator_family": ProbabilisticEstimatorFamily.MECHANISM_GUIDED,
+            "objective": "glioma_complex_stoichiometric_activity",
+            "bootstrap_replicates": 16,
+            "max_iterations": 48,
+        }
+    )
+    return EstimateComplexActivityProbabilisticRequest.model_validate(
+        base.model_dump(mode="python")
+        | {
+            "configuration": configuration,
+            "typed_observations": observations,
+        }
+    )
+
+
 def test_supported_estimate_is_deterministic_and_replayable() -> None:
     engine = M0904ProbabilisticEstimator()
     first = engine.build(_request("stable_support"))
@@ -160,6 +225,63 @@ def test_supported_estimate_is_deterministic_and_replayable() -> None:
     assert first.result.estimates[0].lower_bound <= first.result.estimates[0].estimate_value
     assert first.canonical_bytes == second.canonical_bytes
     assert engine.verify(first.result, first.canonical_bytes).verified
+
+
+def test_encoded_assay_summaries_drive_robust_activity_posterior() -> None:
+    request = _request("stable_support").model_copy(
+        update={
+            "source_artifacts": (
+                _artifact("complex.activity:0.92:sd:0.05"),
+                _artifact("complex.activity:0.18:sd:0.05"),
+            )
+        }
+    )
+    result = M0904ProbabilisticEstimator().estimate(request)
+
+    high, low = result.estimates
+    assert high.estimate_value > low.estimate_value
+    assert high.upper_bound <= 1.0
+    assert high.posterior_mass is not None
+    assert 0.0 < high.posterior_mass <= _EXPECTED_POSTERIOR_MASS
+    diagnostic = result.diagnostics[0]
+    assert diagnostic.iteration_count > 0
+    assert diagnostic.objective_value is not None
+    assert isfinite(diagnostic.objective_value)
+    assert "Huber IRLS" in result.support_decision.rationale
+
+
+def test_feature_matched_prior_and_contradictory_bounds_are_explicit() -> None:
+    request = _request("activity >= 0.0").model_copy(
+        update={
+            "source_artifacts": (_artifact("complex.egfr"),),
+            "configuration": _request("activity >= 0.0").configuration.model_copy(
+                update={
+                    "priors": (
+                        ProbabilisticPrior(
+                            prior_id="prior.egfr",
+                            version="1.0.0",
+                            kind=ProbabilisticPriorKind.NORMAL,
+                            parameters=(0.9, 0.05),
+                        ),
+                        ProbabilisticPrior(
+                            prior_id="prior.background",
+                            version="1.0.0",
+                            kind=ProbabilisticPriorKind.NORMAL,
+                            parameters=(0.1, 0.05),
+                        ),
+                    )
+                }
+            ),
+        }
+    )
+    estimate = M0904ProbabilisticEstimator().estimate(request).estimates[0]
+    assert estimate.estimate_value > _EGFR_ACTIVITY_THRESHOLD
+
+    contradictory = _request("activity >= 0.8", "activity <= 0.2")
+    result = M0904ProbabilisticEstimator().estimate(contradictory)
+    assert result.status is ProbabilisticResultStatus.ABSTAINED
+    assert result.support_decision.status is SupportStatus.REVIEW_REQUIRED
+    assert "contradictory" in (result.abstention_reason or "")
 
 
 def test_unsupported_and_ood_markers_abstain_without_estimates() -> None:
@@ -336,3 +458,181 @@ def test_api_schema_validate_estimate_and_verify() -> None:
     assert estimated.json()["result"]["status"] == "estimated"
     assert verified.status_code == HTTPStatus.OK
     assert verified.json()["verified"] is True
+
+
+def test_typed_glioma_complex_fit_is_member_driven_and_replayable() -> None:
+    request = _typed_request(
+        _typed_member(
+            "observation.egfr", "complex.egfr-mtor", "EGFR", 1.35,
+            role=ComplexMemberRole.ESSENTIAL,
+        ),
+        _typed_member("observation.pik3ca", "complex.egfr-mtor", "PIK3CA", 0.92),
+        _typed_member("observation.akt1", "complex.egfr-mtor", "AKT1", 0.81),
+    )
+    engine = M0904ProbabilisticEstimator()
+    first = engine.build(request)
+    second = engine.build(request)
+    estimate = first.result.estimates[0]
+
+    assert first.canonical_bytes == second.canonical_bytes
+    assert engine.verify(first.result, first.canonical_bytes, request).verified
+    assert estimate.feature_id == "complex.egfr-mtor"
+    assert _ACTIVITY_NEUTRAL < estimate.estimate_value < 1.0
+    assert estimate.lower_bound <= estimate.estimate_value <= estimate.upper_bound
+    assert estimate.evidence_count == _TYPED_MEMBER_COUNT
+    assert estimate.top_drivers
+    assert estimate.ablation_effects
+    assert first.result.diagnostics[0].model_family == "glioma-complex-stoichiometric-irls/1.0.0"
+    assert first.result.uncertainty.measurement.state is EstimateState.ESTIMATED
+
+
+def test_typed_complex_bottleneck_and_coherence_are_visible() -> None:
+    request = _typed_request(
+        _typed_member(
+            "observation.essential", "complex.chromatin", "SMARCA4", -0.65,
+            role=ComplexMemberRole.ESSENTIAL,
+        ),
+        _typed_member("observation.supporting", "complex.chromatin", "SMARCB1", 1.20),
+    )
+    estimate = M0904ProbabilisticEstimator().estimate(request).estimates[0]
+
+    assert estimate.estimate_value < _ACTIVITY_NEUTRAL
+    assert any(
+        item.startswith("essential_bottleneck_delta=") for item in estimate.ablation_effects
+    )
+    assert any(
+        item.startswith("stoichiometric_coherence_delta=") for item in estimate.ablation_effects
+    )
+
+
+def test_typed_latent_solver_backtracks_objective_increase(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    request = _typed_request(
+        _typed_member(
+            "observation.egfr", "complex.egfr-mtor", "EGFR", 1.35,
+            role=ComplexMemberRole.ESSENTIAL,
+        ),
+        _typed_member("observation.pik3ca", "complex.egfr-mtor", "PIK3CA", 0.92),
+        _typed_member("observation.akt1", "complex.egfr-mtor", "AKT1", 0.81),
+    )
+    original = engine_module._typed_objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == _FIRST_CANDIDATE_CALL else value
+
+    monkeypatch.setattr(engine_module, "_typed_objective", objective)
+    fitted = engine_module._fit_typed_latent(
+        request.typed_observations,
+        max_iterations=64,
+    )
+    assert fitted is not None
+    assert calls > _FIRST_CANDIDATE_CALL
+    assert all(
+        after <= before + engine_module._TYPED_OBJECTIVE_TOLERANCE
+        for before, after in pairwise(fitted[5])
+    )
+
+
+def test_typed_bootstrap_preserves_essential_member_stratum() -> None:
+    essential = _typed_member(
+        "observation.essential", "complex.test", "EGFR", 0.8,
+        role=ComplexMemberRole.ESSENTIAL,
+    )
+    supporting = _typed_member("observation.supporting", "complex.test", "AKT1", 0.7)
+
+    sampled = engine_module._bootstrap_members(
+        np.random.default_rng(7), (essential,), (supporting,)
+    )
+
+    assert len(sampled) == _EXPECTED_BOOTSTRAP_MEMBER_COUNT
+    assert sum(item.member_role is ComplexMemberRole.ESSENTIAL for item in sampled) == 1
+    assert sum(item.member_role is ComplexMemberRole.SUPPORTING for item in sampled) == 1
+
+
+def test_typed_initialization_uses_observed_center_and_projects_censor_bounds() -> None:
+    observed = _typed_member(
+        "observation.observed", "complex.hif", "EPAS1", 0.6,
+    )
+    censored = _typed_member(
+        "observation.censored", "complex.hif", "HIF1A", -0.2,
+        role=ComplexMemberRole.ESSENTIAL,
+        state=ComplexEvidenceState.LEFT_CENSORED,
+    )
+    observations = (observed, censored)
+    effects = np.asarray(
+        [item.standardized_effect for item in observations], dtype=np.float64
+    )
+    weights = np.asarray(
+        [item.quality_weight * item.stoichiometric_weight for item in observations],
+        dtype=np.float64,
+    )
+
+    assert engine_module._initial_typed_latent(observations, effects, weights) == pytest.approx(
+        -0.2
+    )
+
+
+def test_typed_censor_only_initialization_stays_on_neutral_feasible_side() -> None:
+    censored = _typed_member(
+        "observation.censored", "complex.hif", "HIF1A", 0.3,
+        role=ComplexMemberRole.ESSENTIAL,
+        state=ComplexEvidenceState.LEFT_CENSORED,
+    )
+    observations = (censored,)
+    effects = np.asarray([censored.standardized_effect], dtype=np.float64)
+    weights = np.asarray([censored.quality_weight], dtype=np.float64)
+
+    assert engine_module._initial_typed_latent(observations, effects, weights) == pytest.approx(0.0)
+
+
+def test_typed_missing_and_left_censored_members_never_become_negative_observations() -> None:
+    request = _typed_request(
+        _typed_member(
+            "observation.essential", "complex.hif", "HIF1A", -0.15,
+            role=ComplexMemberRole.ESSENTIAL,
+            state=ComplexEvidenceState.LEFT_CENSORED,
+        ),
+        _typed_member("observation.supporting", "complex.hif", "EPAS1", 0.35),
+        _typed_member(
+            "observation.missing", "complex.hif", "ARNT", None,
+            state=ComplexEvidenceState.MISSING,
+        ),
+        _typed_member(
+            "observation.unsupported", "complex.hif", "VEGFA", None,
+            state=ComplexEvidenceState.UNSUPPORTED,
+        ),
+    )
+    estimate = M0904ProbabilisticEstimator().estimate(request).estimates[0]
+
+    assert estimate.evidence_count == _TYPED_SUPPORTED_COUNT
+    assert estimate.estimate_value > _TYPED_LOW_ACTIVITY
+    assert all("ARNT" not in item for item in estimate.top_drivers)
+    assert all("VEGFA" not in item for item in estimate.top_drivers)
+
+
+def test_typed_complex_rejects_duplicate_members_and_insufficient_support() -> None:
+    first = _typed_member(
+        "observation.one", "complex.cell-cycle", "CDK4", 0.8,
+        role=ComplexMemberRole.ESSENTIAL,
+    )
+    duplicate = first.model_copy(update={"observation_id": "observation.two"})
+    with pytest.raises(ValueError, match="unique per complex"):
+        _typed_request(first, duplicate)
+
+    insufficient = _typed_request(
+        _typed_member(
+            "observation.only", "complex.cell-cycle", "CDK4", 0.8,
+            role=ComplexMemberRole.ESSENTIAL,
+        ),
+        _typed_member(
+            "observation.absent", "complex.cell-cycle", "RB1", None,
+            state=ComplexEvidenceState.MISSING,
+        ),
+    )
+    result = M0904ProbabilisticEstimator().estimate(insufficient)
+    assert result.status is ProbabilisticResultStatus.ABSTAINED
+    assert result.estimates == ()
+    assert result.support_decision.status is SupportStatus.REVIEW_REQUIRED

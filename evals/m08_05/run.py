@@ -15,11 +15,22 @@ if __package__ in {None, ""}:
     if str(_PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(_PROJECT_ROOT))
 
-from tests.modules.c08_transcript_protein_discordance.test_m08_05_integrator import _request
+from tests.modules.c08_transcript_protein_discordance.test_m08_05_integrator import (
+    _artifact,
+    _request,
+)
 
+from glio_proteogen.contracts.m08_05 import (
+    M0805_GLIOMA_MODEL_FAMILY,
+    ConstraintEvidenceObservation,
+    ConstraintObservationState,
+    IntegrateTranscriptProteinConstraintsRequest,
+)
 from glio_proteogen.modules.c08_transcript_protein_discordance.m08_05_mechanism_constraint_integrator import (
     M0805ConstraintIntegrator,
 )
+
+_TYPED_MIN_ESTIMATES = 2
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,13 +46,41 @@ class EvaluationReport:
     replay_verified: bool
     tamper_rejected: bool
     deterministic: bool
+    typed_status: str
+    typed_estimate_count: int
+    typed_deterministic: bool
     passed: bool
+
+
+def _typed_request() -> IntegrateTranscriptProteinConstraintsRequest:
+    base = _request("conservation_hold")
+    observations = (
+        ConstraintEvidenceObservation(feature_id="EGFR", value=1.1, standard_error=0.2),
+        ConstraintEvidenceObservation(feature_id="CDK4", value=0.8, standard_error=0.2),
+        ConstraintEvidenceObservation(
+            feature_id="TP53",
+            state=ConstraintObservationState.LEFT_CENSORED,
+            standard_error=0.2,
+            censoring_limit=0.0,
+        ),
+    )
+    return base.model_copy(
+        update={
+            "source_artifacts": (_artifact("EGFR"), _artifact("CDK4"), _artifact("TP53")),
+            "policy": base.policy.model_copy(
+                update={"estimator_family": M0805_GLIOMA_MODEL_FAMILY}
+            ),
+            "observations": observations,
+        }
+    )
 
 
 def evaluate() -> EvaluationReport:
     engine = M0805ConstraintIntegrator()
     supported = engine.integrate(_request("conservation_hold"))
     repeat = engine.integrate(_request("conservation_hold"))
+    typed = engine.integrate(_typed_request())
+    typed_repeat = engine.integrate(_typed_request())
     hard = engine.integrate(_request("force_violation"))
     soft = engine.integrate(_request("soft force_violation"))
     unsupported = engine.integrate(_request("unsupported ontology"))
@@ -59,6 +98,9 @@ def evaluate() -> EvaluationReport:
         replay_verified=replay.verified,
         tamper_rejected=not tampered.verified,
         deterministic=supported.canonical_bytes == repeat.canonical_bytes,
+        typed_status=typed.result.status.value,
+        typed_estimate_count=len(typed.result.estimates),
+        typed_deterministic=typed.canonical_bytes == typed_repeat.canonical_bytes,
         passed=(
             supported.result.status.value == "estimated"
             and hard.result.status.value == "abstained"
@@ -69,6 +111,10 @@ def evaluate() -> EvaluationReport:
             and replay.verified
             and not tampered.verified
             and supported.canonical_bytes == repeat.canonical_bytes
+            and typed.result.status.value == "estimated"
+            and typed.result.typed_model
+            and len(typed.result.estimates) >= _TYPED_MIN_ESTIMATES
+            and typed.canonical_bytes == typed_repeat.canonical_bytes
         ),
     )
 

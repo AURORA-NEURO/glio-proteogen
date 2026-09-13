@@ -2,14 +2,18 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import UTC, datetime
+from itertools import pairwise
 
 import pytest
 
+import glio_proteogen.modules.c09_complex_activity.m09_02_representation_feature_constructor.engine as engine_module  # noqa: E501
 from glio_proteogen.contracts.m09_01 import M0901_OUTPUT_MEDIA_TYPE
 from glio_proteogen.contracts.m09_02 import (
     ConstructComplexActivityRepresentationRequest,
     FeatureLineage,
     FeatureSpecification,
+    GliomaComplexEvidenceState,
+    GliomaComplexObservation,
     LeakageCheck,
     LeakageCheckStatus,
     RepresentationFeature,
@@ -34,6 +38,9 @@ from glio_proteogen.modules.c09_complex_activity import (
 )
 
 _DIGEST = "sha256:" + ("a" * 64)
+FIRST_CANDIDATE_CALL = 2
+_ROBUST_CENTER_MAX = 0.5
+_ARITHMETIC_MEAN_MIN = 1.0
 
 
 def _artifact(name: str, media_type: str = "application/json") -> ArtifactReference:
@@ -129,6 +136,16 @@ def test_constructor_is_deterministic_and_replay_bound() -> None:
     assert first.result.status.value == "constructed"
     assert first.result.features[0].lineage.feature_id == "feature.complex.activity"
     assert engine.verify(first.result, first.canonical_bytes)
+
+
+def test_declared_complex_measurements_are_normalized_instead_of_hashed() -> None:
+    request = _request()
+    specification = request.feature_specs[0].model_copy(update={"source_values": (1.0, 2.0)})
+    request = request.model_copy(update={"feature_specs": (specification,)})
+
+    result = m0902.M0902RepresentationConstructor().construct(request).result
+
+    assert result.features[0].values == (-1.0, 1.0)
 
 
 def test_request_bound_replay_rejects_resigned_feature_mutation() -> None:
@@ -290,3 +307,166 @@ def test_built_result_seal_rejects_digest_and_bytes_drift() -> None:
         )
     with pytest.raises(m0902.M0902InputError, match="canonical"):
         m0902.BuiltM0902Result(result=built.result, canonical_bytes=b"{}")
+
+
+def _typed_request(*, reverse: bool = False) -> ConstructComplexActivityRepresentationRequest:
+    request = _request()
+    specification = request.feature_specs[0].model_copy(update={"dimension": 4})
+    records = (
+        ("EGFR", 2.0, 1.20, True),
+        ("MET", 1.0, 0.90, False),
+        ("GRB2", 1.0, 0.80, False),
+    )
+    observations = tuple(
+        GliomaComplexObservation(
+            observation_id=f"observation.{member.casefold()}",
+            feature_id=specification.feature_id,
+            complex_id="complex.rtk",
+            member_id=member,
+            stoichiometric_weight=weight,
+            essential=essential,
+            evidence_state=GliomaComplexEvidenceState.OBSERVED,
+            standardized_effect=effect,
+            standard_error=0.2,
+            quality_weight=1.0,
+        )
+        for member, weight, effect, essential in records
+    )
+    if reverse:
+        observations = tuple(reversed(observations))
+    return request.model_copy(
+        update={"feature_specs": (specification,), "typed_observations": observations}
+    )
+
+
+def test_typed_glioma_complex_fit_is_evidence_driven_and_replay_bound() -> None:
+    engine = m0902.M0902RepresentationConstructor()
+    built = engine.construct(_typed_request())
+    replay = engine.construct(_typed_request(reverse=True))
+
+    assert built.result.status.value == "constructed"
+    feature = built.result.features[0]
+    assert feature.model_family == "glioma-complex-stoichiometric-irls/1.0.0"
+    assert feature.evidence_count == len(built.result.request.typed_observations)
+    assert feature.lower_bound is not None
+    assert feature.upper_bound is not None
+    assert feature.lower_bound <= feature.values[0] <= feature.upper_bound
+    assert feature.top_drivers
+    assert feature.ablation_effects
+    assert built.canonical_bytes == replay.canonical_bytes
+    assert engine.verify(built.result, built.canonical_bytes)
+
+
+def test_typed_complex_solver_backtracks_objective_increase(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    original = engine_module._typed_objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == FIRST_CANDIDATE_CALL else value
+
+    monkeypatch.setattr(engine_module, "_typed_objective", objective)
+    fitted = engine_module._fit_typed_complexes(
+        _typed_request().typed_observations,
+        max_iterations=64,
+    )
+    assert fitted is not None
+    assert calls > FIRST_CANDIDATE_CALL
+    assert all(
+        after <= before + engine_module._TYPED_OBJECTIVE_TOLERANCE
+        for before, after in pairwise(fitted[4])
+    )
+
+
+def test_typed_missing_evidence_abstains_without_negative_feature() -> None:
+    request = _typed_request()
+    missing = request.typed_observations[0].model_copy(
+        update={
+            "evidence_state": GliomaComplexEvidenceState.MISSING,
+            "standardized_effect": None,
+            "standard_error": None,
+            "quality_weight": 0.0,
+        }
+    )
+    request = request.model_copy(
+        update={"typed_observations": (missing, *request.typed_observations[1:])}
+    )
+    result = m0902.M0902RepresentationConstructor().construct(request).result
+    assert result.status.value == "abstained"
+    assert result.features == ()
+    assert result.abstention_reason is not None
+
+
+def test_typed_duplicate_member_and_unresolved_feature_are_rejected() -> None:
+    request = _typed_request()
+    duplicate = request.typed_observations[0].model_copy(
+        update={"observation_id": "observation.duplicate"}
+    )
+    duplicate_payload = request.model_dump(mode="python")
+    duplicate_payload["typed_observations"] = (*request.typed_observations, duplicate)
+    with pytest.raises(ValueError, match="unique per member"):
+        ConstructComplexActivityRepresentationRequest.model_validate(duplicate_payload)
+    unknown = request.typed_observations[0].model_copy(update={"feature_id": "feature.unknown"})
+    unknown_payload = request.model_dump(mode="python")
+    unknown_payload["typed_observations"] = (unknown, *request.typed_observations[1:])
+    with pytest.raises(ValueError, match="bind requested features"):
+        ConstructComplexActivityRepresentationRequest.model_validate(unknown_payload)
+
+
+def test_typed_complex_initialization_projects_observed_center_to_censor_bound() -> None:
+    request = _typed_request()
+    observed = request.typed_observations[0]
+    censored = observed.model_copy(
+        update={
+            "evidence_state": GliomaComplexEvidenceState.LEFT_CENSORED,
+            "standardized_effect": None,
+            "censoring_limit": -0.2,
+        }
+    )
+
+    assert engine_module._initial_typed_complex_state((observed, censored)) == pytest.approx(-0.2)
+
+
+def test_typed_complex_initialization_downweights_failed_member_replicate() -> None:
+    terms = (
+        (0.2, 0.2, 1.0, 1.0),
+        (0.3, 0.2, 1.0, 1.0),
+        (4.0, 0.2, 1.0, 1.0),
+    )
+
+    center = engine_module._robust_initial_complex_center(terms)
+    arithmetic_mean = sum(term[0] for term in terms) / len(terms)
+
+    assert center < _ROBUST_CENTER_MAX
+    assert arithmetic_mean > _ARITHMETIC_MEAN_MIN
+    assert engine_module._initial_complex_measurement_objective(
+        center, terms
+    ) <= engine_module._initial_complex_measurement_objective(arithmetic_mean, terms)
+
+
+def test_typed_censor_only_complex_initialization_is_neutral_for_positive_limit() -> None:
+    request = _typed_request()
+    censored = request.typed_observations[0].model_copy(
+        update={
+            "evidence_state": GliomaComplexEvidenceState.LEFT_CENSORED,
+            "standardized_effect": None,
+            "censoring_limit": 0.2,
+        }
+    )
+
+    assert engine_module._initial_typed_complex_state((censored,)) == pytest.approx(0.0)
+
+
+def test_typed_censor_influence_is_zero_when_complex_is_below_limit() -> None:
+    observed = _typed_request().typed_observations[0]
+    censored = observed.model_copy(
+        update={
+            "evidence_state": GliomaComplexEvidenceState.LEFT_CENSORED,
+            "censoring_limit": 0.2,
+        }
+    )
+
+    assert engine_module._typed_censor_activation(0.0, censored) == pytest.approx(0.0)
+    assert engine_module._typed_censor_activation(0.3, censored) == pytest.approx(1.0)

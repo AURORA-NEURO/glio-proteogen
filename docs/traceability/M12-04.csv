@@ -11,3 +11,4 @@ M12-04-R09,dossier:4151-4156,Abstain on unsupported or missing evidence and requ
 M12-04-R10,dossier:4156-4160,Preserve provenance and replay recovery,canonical request/result digest and seven control records,tests/contract/test_m12_04_deep.py::test_tampered_digest_is_rejected_and_replay_can_be_disabled,G4
 M12-04-R11,dossier:4160-4165,Verify synthetic truth and negative controls before promotion,fixture evaluator and explicit provisional evidence boundary,evals/m12_04/run.py,G1
 M12-04-R12,dossier:4165-4171,Meet contract functional robustness uncertainty and safety tests,30 focused tests plus branch-enabled coverage,pytest scoped coverage command,G0/G1/G3/G4
+M12-04-R13,research-additive,Fit biomarker-panel mechanism activity from typed signed evidence rather than fixed posterior formulas,Huber-ridge coordinate descent with censored-loss handling and deterministic bootstrap,tests/contract/test_m12_04_deep.py::test_typed_glioma_panel_graph_fits_and_replays,G1/G3

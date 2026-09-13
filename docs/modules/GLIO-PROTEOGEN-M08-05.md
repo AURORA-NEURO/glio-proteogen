@@ -36,6 +36,10 @@ carry interval bounds, support score, applied constraint IDs, evidence reference
 not-estimable uncertainty dimensions, provenance/control records, and limitations. Results are
 canonical JSON and replay verification checks both content bytes and result digest.
 
+Both lanes preserve left-censor semantics. A detection limit is an exact upper bound: positive
+censor-only evidence keeps the neutral feasible state, and a bound contributes to a robust update
+only when the current latent value exceeds it. No half-error surrogate is used as a measured effect.
+
 ## Interfaces and evidence
 
 FastAPI exposes strict schema, validate, and integrate routes. Typer exposes `export-schema`,

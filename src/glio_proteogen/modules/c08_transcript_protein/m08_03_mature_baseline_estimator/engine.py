@@ -4,13 +4,19 @@ from __future__ import annotations
 
 import statistics
 from collections.abc import Mapping
-from typing import Final
+from dataclasses import dataclass
+from hashlib import sha256
+from math import exp
+from typing import Final, cast
 
+import numpy as np
 from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m08_03 import (
     M0803_CONTRACT_VERSION,
     M0803_EVIDENCE_CLAIM,
+    M0803_GLIOMA_MODEL_FAMILY,
+    M0803_MAX_BOOTSTRAP_REPLICATES,
     M0803_MAX_CANONICAL_REQUEST_BYTES,
     M0803_PARENT,
     BaselineDiagnostic,
@@ -20,8 +26,13 @@ from glio_proteogen.contracts.m08_03 import (
     BaselineFindingCode,
     BaselineMethod,
     EstimateProteinSubtypeBaselineRequest,
+    GliomaEvidenceState,
+    GliomaProgram,
+    GliomaProgramLabel,
     ProteinSubtypeBaselineEstimate,
     ProteinSubtypeBaselineResult,
+    TypedBaselineObservation,
+    TypedProgramState,
     canonical_request_digest,
     result_payload_digest,
 )
@@ -43,6 +54,38 @@ _REQUEST_ADAPTER: Final = TypeAdapter(EstimateProteinSubtypeBaselineRequest)
 _RESULT_ADAPTER: Final = TypeAdapter(ProteinSubtypeBaselineResult)
 _ZERO_DIGEST: Final = "sha256:" + ("0" * 64)
 _MIDPOINT: Final = 0.5
+_TYPED_HUBER_K: Final = 1.5
+_TYPED_RIDGE: Final = 0.08
+_TYPED_RELATION_WEIGHT: Final = 0.35
+_TYPED_MAX_ITERATIONS: Final = 128
+_TYPED_TOLERANCE: Final = 1e-8
+_TYPED_OBJECTIVE_TOLERANCE: Final = 1e-12
+_TYPED_BACKTRACKING_STEPS: Final = 18
+_TYPED_BACKTRACKING_FACTOR: Final = 0.5
+_TYPED_DAMPING: Final = 0.65
+_TYPED_BOOTSTRAP_LOW: Final = 0.05
+_TYPED_BOOTSTRAP_HIGH: Final = 0.95
+_TYPED_MAX_EFFECT: Final = 8.0
+_TYPED_STATE_THRESHOLD: Final = 0.25
+_TYPED_MIN_PROGRAMS: Final = 2
+_TYPED_CONVERGENCE_CUTOFF: Final = 1e-5
+_TYPED_EDGES: Final = (
+    (GliomaProgram.RTK_PI3K_AKT_MTOR, GliomaProgram.PROLIFERATION, 1.0),
+    (GliomaProgram.P53_CELL_CYCLE, GliomaProgram.PROLIFERATION, -1.0),
+    (GliomaProgram.IDH_HIF1A, GliomaProgram.MESENCHYMAL, -1.0),
+    (GliomaProgram.RTK_PI3K_AKT_MTOR, GliomaProgram.MESENCHYMAL, 1.0),
+    (GliomaProgram.MESENCHYMAL, GliomaProgram.PROLIFERATION, 1.0),
+)
+
+
+@dataclass(frozen=True, slots=True)
+class _TypedFit:
+    values: dict[GliomaProgram, float]
+    objective: float
+    iterations: int
+    maximum_update: float
+    trace_digest: str
+    objective_trace: tuple[float, ...]
 
 
 class M0803BaselineAuthorizationError(PermissionError):
@@ -129,9 +172,14 @@ def _uncertainty() -> UncertaintyProfile:
 
 
 def _evidence(request: EstimateProteinSubtypeBaselineRequest) -> tuple[EvidenceReference, ...]:
-    return tuple(
+    artifact_evidence = tuple(
         EvidenceReference(reference=artifact, role="evidence", claim=M0803_EVIDENCE_CLAIM)
         for artifact in request.source_artifacts
+    )
+    return artifact_evidence + tuple(
+        evidence
+        for observation in request.program_observations
+        for evidence in observation.evidence
     )
 
 
@@ -173,6 +221,11 @@ def _provenance(
         input_digests=(
             request.representation_result.digest,
             *(artifact.digest for artifact in request.source_artifacts),
+            *(
+                evidence.reference.digest
+                for observation in request.program_observations
+                for evidence in observation.evidence
+            ),
             request_digest,
         ),
         configuration_digest=sha256_digest(request.configuration),
@@ -184,7 +237,7 @@ def _provenance(
     )
 
 
-def _limitations() -> tuple[Limitation, ...]:
+def _limitations(*, measured: bool = False) -> tuple[Limitation, ...]:
     return (
         Limitation(
             code="transparent_baseline",
@@ -201,6 +254,20 @@ def _limitations() -> tuple[Limitation, ...]:
         Limitation(
             code="provisional_abi",
             statement="M08-02 handoff, feature catalogue, and estimator ABI remain provisional.",
+        ),
+        *(
+            (
+                Limitation(
+                    code="typed_glioma_research_only",
+                    statement=(
+                        "Typed program states are research diagnostics over caller-supplied "
+                        "protein evidence, not clinical subtype probabilities or treatment "
+                        "guidance."
+                    ),
+                ),
+            )
+            if measured
+            else ()
         ),
     )
 
@@ -238,8 +305,483 @@ def _estimate_signal(request: EstimateProteinSubtypeBaselineRequest) -> float:
     return statistics.median(signals)
 
 
+def _huber_loss(residual: float, scale: float) -> float:
+    standardized = abs(residual) / max(scale, 1e-9)
+    return (
+        0.5 * standardized**2
+        if standardized <= _TYPED_HUBER_K
+        else _TYPED_HUBER_K * standardized - 0.5 * _TYPED_HUBER_K**2
+    )
+
+
+def _typed_value(
+    observation: TypedBaselineObservation,
+    overrides: Mapping[str, float] | None,
+) -> float:
+    if overrides is not None and observation.observation_id in overrides:
+        return overrides[observation.observation_id]
+    if observation.state is GliomaEvidenceState.LEFT_CENSORED:
+        return float(cast("float", observation.censoring_limit))
+    return float(cast("float", observation.standardized_effect))
+
+
+def _initial_typed_program_value(
+    observations: tuple[TypedBaselineObservation, ...],
+    overrides: Mapping[str, float] | None,
+) -> float:
+    """Initialize a program from observed effects and feasible censor bounds."""
+
+    observed = tuple(
+        item for item in observations if item.state is GliomaEvidenceState.OBSERVED
+    )
+    limits = tuple(
+        float(item.censoring_limit)
+        for item in observations
+        if item.state is GliomaEvidenceState.LEFT_CENSORED
+        and item.censoring_limit is not None
+    )
+    if observed:
+        weighted = sorted(
+            (
+                _typed_value(item, overrides),
+                item.quality_weight / max(float(item.standard_error or 1.0) ** 2, 1e-9),
+            )
+            for item in observed
+        )
+        cutoff = 0.5 * sum(weight for _, weight in weighted)
+        cumulative = 0.0
+        center = 0.0
+        for candidate, weight in weighted:
+            cumulative += weight
+            if cumulative >= cutoff:
+                center = candidate
+                break
+        value = min(center, *limits) if limits else center
+    elif limits:
+        value = min(0.0, *limits)
+    else:
+        value = 0.0
+    return float(max(-_TYPED_MAX_EFFECT, min(_TYPED_MAX_EFFECT, value)))
+
+
+def _typed_fit_graph(  # noqa: C901, PLR0912, PLR0915
+    request: EstimateProteinSubtypeBaselineRequest,
+    overrides: Mapping[str, float] | None = None,
+) -> _TypedFit:
+    """Fit the signed glioma program graph with frozen-parent robust IRLS.
+
+    Every sweep computes all program proposals from one parent snapshot.  The
+    accepted step is then checked against the full Huber objective and reduced
+    deterministically when necessary.  This preserves graph-order invariance
+    while keeping the trace tied to objective-safe iterates.
+    """
+
+    observations = tuple(
+        observation
+        for observation in request.program_observations
+        if observation.state
+        in {GliomaEvidenceState.OBSERVED, GliomaEvidenceState.LEFT_CENSORED}
+        and observation.quality_weight > 0.0
+    )
+    values = dict.fromkeys(GliomaProgram, 0.0)
+    for program in GliomaProgram:
+        grouped = tuple(item for item in observations if item.program is program)
+        if grouped:
+            values[program] = _initial_typed_program_value(grouped, overrides)
+    trace: list[str] = []
+    objective_trace: list[float] = []
+    objective = float("inf")
+    maximum_update = float("inf")
+    iterations = 0
+    for iteration in range(_TYPED_MAX_ITERATIONS):
+        iterations = iteration + 1
+        previous = values.copy()
+        baseline_objective = _typed_objective(request, previous, overrides)
+        proposal = previous.copy()
+        for program in GliomaProgram:
+            numerator = 0.0
+            denominator = _TYPED_RIDGE
+            for observation in observations:
+                if observation.program is not program:
+                    continue
+                observed = _typed_value(observation, overrides)
+                residual = previous[program] - observed
+                if (
+                    observation.state is GliomaEvidenceState.LEFT_CENSORED
+                    and residual <= 0.0
+                ):
+                    continue
+                precision = observation.quality_weight / max(
+                    float(observation.standard_error or 1.0) ** 2, 1e-9
+                )
+                influence = min(
+                    1.0,
+                    _TYPED_HUBER_K
+                    / max(1.0, abs(residual) / max(float(observation.standard_error or 1.0), 1e-9)),
+                )
+                weight = precision * influence
+                numerator += weight * observed
+                denominator += weight
+            for source, target, sign in _TYPED_EDGES:
+                if target is program:
+                    residual = previous[program] - sign * previous[source]
+                    influence = min(1.0, _TYPED_HUBER_K / max(1.0, abs(residual)))
+                    weight = _TYPED_RELATION_WEIGHT * influence
+                    numerator += weight * sign * previous[source]
+                    denominator += weight
+                elif source is program:
+                    residual = previous[program] - sign * previous[target]
+                    influence = min(1.0, _TYPED_HUBER_K / max(1.0, abs(residual)))
+                    weight = _TYPED_RELATION_WEIGHT * influence
+                    numerator += weight * sign * previous[target]
+                    denominator += weight
+            program_proposal = numerator / denominator
+            proposal[program] = max(
+                -_TYPED_MAX_EFFECT,
+                min(
+                    _TYPED_MAX_EFFECT,
+                    _TYPED_DAMPING * program_proposal
+                    + (1.0 - _TYPED_DAMPING) * previous[program],
+                ),
+            )
+        candidate_objective = _typed_objective(request, proposal, overrides)
+        accepted = proposal
+        objective = candidate_objective
+        if candidate_objective > baseline_objective + _TYPED_OBJECTIVE_TOLERANCE:
+            direction = {
+                program: proposal[program] - previous[program] for program in GliomaProgram
+            }
+            step = _TYPED_BACKTRACKING_FACTOR
+            accepted = previous
+            objective = baseline_objective
+            for _ in range(_TYPED_BACKTRACKING_STEPS):
+                trial = {
+                    program: max(
+                        -_TYPED_MAX_EFFECT,
+                        min(
+                            _TYPED_MAX_EFFECT,
+                            previous[program] + step * direction[program],
+                        ),
+                    )
+                    for program in GliomaProgram
+                }
+                trial_objective = _typed_objective(request, trial, overrides)
+                if trial_objective <= baseline_objective + _TYPED_OBJECTIVE_TOLERANCE:
+                    accepted = trial
+                    objective = trial_objective
+                    break
+                step *= _TYPED_BACKTRACKING_FACTOR
+        values = accepted
+        maximum_update = max(abs(values[p] - previous[p]) for p in GliomaProgram)
+        objective_trace.append(float(objective))
+        trace.append(
+            ",".join(f"{program.value}={values[program]:.10f}" for program in GliomaProgram)
+            + f";baseline={baseline_objective:.10f};candidate={candidate_objective:.10f}"
+            + f";accepted={objective:.10f}"
+        )
+        if maximum_update <= _TYPED_TOLERANCE:
+            break
+    trace_digest = "sha256:" + sha256("|".join(trace).encode("utf-8")).hexdigest()
+    return _TypedFit(
+        values=values,
+        objective=objective,
+        iterations=iterations,
+        maximum_update=maximum_update,
+        trace_digest=trace_digest,
+        objective_trace=tuple(objective_trace),
+    )
+
+
+def _typed_objective(
+    request: EstimateProteinSubtypeBaselineRequest,
+    values: Mapping[GliomaProgram, float],
+    overrides: Mapping[str, float] | None,
+) -> float:
+    total = _TYPED_RIDGE * sum(value * value for value in values.values())
+    for observation in request.program_observations:
+        if observation.state not in {
+            GliomaEvidenceState.OBSERVED,
+            GliomaEvidenceState.LEFT_CENSORED,
+        } or observation.quality_weight <= 0.0:
+            continue
+        residual = values[observation.program] - _typed_value(observation, overrides)
+        if observation.state is GliomaEvidenceState.LEFT_CENSORED and residual <= 0.0:
+            continue
+        total += observation.quality_weight * _huber_loss(
+            residual,
+            float(observation.standard_error or 1.0),
+        )
+    total += _TYPED_RELATION_WEIGHT * sum(
+        _huber_loss(values[target] - sign * values[source], 1.0)
+        for source, target, sign in _TYPED_EDGES
+    )
+    return float(total)
+
+
+def _typed_label(lower: float, upper: float) -> GliomaProgramLabel:
+    if lower > _TYPED_STATE_THRESHOLD:
+        return GliomaProgramLabel.ACTIVATED
+    if upper < -_TYPED_STATE_THRESHOLD:
+        return GliomaProgramLabel.SUPPRESSED
+    if lower >= -_TYPED_STATE_THRESHOLD and upper <= _TYPED_STATE_THRESHOLD:
+        return GliomaProgramLabel.NEUTRAL
+    return GliomaProgramLabel.INDETERMINATE
+
+
+def _typed_program_states(
+    request: EstimateProteinSubtypeBaselineRequest,
+    request_digest: str,
+    fit: _TypedFit,
+) -> tuple[TypedProgramState, ...]:
+    active = tuple(
+        observation
+        for observation in request.program_observations
+        if observation.state
+        in {GliomaEvidenceState.OBSERVED, GliomaEvidenceState.LEFT_CENSORED}
+        and observation.quality_weight > 0.0
+    )
+    seed = int(request_digest.removeprefix("sha256:")[:16], 16)
+    replicates = max(
+        1,
+        min(
+            M0803_MAX_BOOTSTRAP_REPLICATES,
+            request.configuration.bootstrap_replicates,
+        ),
+    )
+    draws: dict[GliomaProgram, list[float]] = {program: [] for program in GliomaProgram}
+    rng = np.random.default_rng(seed)
+    for _ in range(replicates):
+        overrides = {
+            observation.observation_id: _typed_value(observation, None)
+            + float(rng.normal(0.0, observation.standard_error or 1.0))
+            for observation in active
+            if observation.state is GliomaEvidenceState.OBSERVED
+        }
+        replicate = _typed_fit_graph(request, overrides)
+        for program in GliomaProgram:
+            draws[program].append(float(np.tanh(replicate.values[program])))
+    states: list[TypedProgramState] = []
+    evidence_counts = {
+        program: sum(1 for observation in active if observation.program is program)
+        for program in GliomaProgram
+    }
+    for program in GliomaProgram:
+        center = float(np.tanh(fit.values[program]))
+        if evidence_counts[program] == 0:
+            center = 0.0
+            lower, upper = -1.0, 1.0
+            label = GliomaProgramLabel.INDETERMINATE
+        else:
+            lower, upper = np.quantile(
+                np.asarray(draws[program], dtype=np.float64),
+                (_TYPED_BOOTSTRAP_LOW, _TYPED_BOOTSTRAP_HIGH),
+            )
+            lower = max(-1.0, min(1.0, float(lower)))
+            upper = max(-1.0, min(1.0, float(upper)))
+            center = max(lower, min(upper, center))
+            label = _typed_label(lower, upper)
+        states.append(
+            TypedProgramState(
+                program=program,
+                state=round(center, 8),
+                lower_bound=round(lower, 8),
+                upper_bound=round(upper, 8),
+                label=label,
+                evidence_count=evidence_counts[program],
+                stability=round(max(0.0, 1.0 - (upper - lower) / 2.0), 8),
+            )
+        )
+    return tuple(states)
+
+
+def _typed_uncertainty(states: tuple[TypedProgramState, ...]) -> UncertaintyProfile:
+    measured = tuple(item for item in states if item.evidence_count > 0)
+    width = statistics.fmean(item.upper_bound - item.lower_bound for item in measured) / 2.0
+    unstable = round(max(0.0, min(1.0, width)), 8)
+    estimate = UncertaintyEstimate(
+        state=EstimateState.ESTIMATED,
+        probability=unstable,
+        rationale="Bootstrap interval width is reported as repeat-fit instability propensity.",
+    )
+    not_estimable = UncertaintyEstimate(
+        state=EstimateState.NOT_ESTIMABLE,
+        rationale="No owner-locked calibration maps this research interval to probability.",
+    )
+    return UncertaintyProfile(
+        measurement=estimate,
+        sampling=estimate,
+        parameter=not_estimable,
+        model_form=not_estimable,
+        identification=not_estimable,
+        support=estimate,
+        transport=not_estimable,
+        sensitivity_notes=(
+            "Intervals are deterministic digest-seeded bootstrap repeat-fit diagnostics.",
+            "Missing and unsupported program evidence is not converted into negative state.",
+        ),
+    )
+
+
+def _typed_estimate(
+    request: EstimateProteinSubtypeBaselineRequest,
+    request_digest: str,
+) -> tuple[ProteinSubtypeBaselineEstimate, _TypedFit, UncertaintyProfile] | None:
+    supported_programs = {
+        observation.program
+        for observation in request.program_observations
+        if observation.state
+        in {GliomaEvidenceState.OBSERVED, GliomaEvidenceState.LEFT_CENSORED}
+        and observation.quality_weight > 0.0
+    }
+    if (
+        len(supported_programs) < _TYPED_MIN_PROGRAMS
+        or GliomaProgram.PROLIFERATION not in supported_programs
+    ):
+        return None
+    fit = _typed_fit_graph(request)
+    if fit.maximum_update > _TYPED_CONVERGENCE_CUTOFF:
+        return None
+    states = _typed_program_states(request, request_digest, fit)
+    proliferation = fit.values[GliomaProgram.PROLIFERATION]
+    score = 1.0 / (1.0 + exp(-proliferation))
+    evidence = _evidence(request)
+    return (
+        ProteinSubtypeBaselineEstimate(
+            predicted_subtype=(
+                "glioma-proliferative-program-supported"
+                if proliferation >= 0.0
+                else "glioma-proliferative-program-suppressed"
+            ),
+            score=round(score, 8),
+            calibration_reference=request.configuration.uncertainty_artifact,
+            model_family=M0803_GLIOMA_MODEL_FAMILY,
+            program_states=states,
+            evidence=evidence,
+        ),
+        fit,
+        _typed_uncertainty(states),
+    )
+
+
+def _typed_result(
+    request: EstimateProteinSubtypeBaselineRequest,
+) -> ProteinSubtypeBaselineResult:
+    """Execute the explicit research-only glioma program graph lane."""
+
+    request_digest = canonical_request_digest(request)
+    typed_model = M0803_GLIOMA_MODEL_FAMILY
+    diagnostics: list[BaselineDiagnostic] = [
+        _diagnostic(
+            "typed.inputs",
+            BaselineDiagnosticStatus.PASS
+            if request.program_observations
+            else BaselineDiagnosticStatus.NOT_EVALUABLE,
+            (
+                "typed glioma program observations are present"
+                if request.program_observations
+                else "typed glioma model requires program observations"
+            ),
+        ),
+        _diagnostic(
+            "typed.configuration",
+            BaselineDiagnosticStatus.PASS
+            if request.configuration.model_family == typed_model
+            else BaselineDiagnosticStatus.NOT_EVALUABLE,
+            (
+                "locked glioma signed-program model family selected"
+                if request.configuration.model_family == typed_model
+                else "program observations cannot be evaluated by the selected model family"
+            ),
+        ),
+    ]
+    finding_list: list[BaselineFindingCode] = []
+    fit_result = (
+        _typed_estimate(request, request_digest)
+        if request.configuration.model_family == typed_model
+        else None
+    )
+    if fit_result is None:
+        diagnostics.append(
+            _diagnostic(
+                "typed.solver",
+                BaselineDiagnosticStatus.NOT_EVALUABLE,
+                (
+                    "typed glioma graph needs at least two supported programs including "
+                    "proliferation and a converged fit"
+                ),
+            )
+        )
+        finding_list.append(
+            BaselineFindingCode.INCOMPLETE_INPUTS
+            if request.configuration.model_family == typed_model
+            else BaselineFindingCode.PROVISIONAL_ABI_PENDING_REVIEW
+        )
+        estimate = None
+        uncertainty = _uncertainty()
+        status = BaselineEstimateStatus.ABSTAINED
+        support = SupportDecision(
+            status=SupportStatus.REVIEW_REQUIRED,
+            reason_code="m0803_typed_graph_not_evaluable",
+            rationale=(
+                "Typed glioma program evidence is incomplete or the selected model family "
+                "is not authorized for this lane."
+            ),
+        )
+        abstention_reason = (
+            "Typed glioma baseline abstained because its signed program graph lacked "
+            "sufficient supported evidence or a locked model family."
+        )
+        fit = None
+    else:
+        estimate, fit, uncertainty = fit_result
+        diagnostics.append(
+            _diagnostic(
+                "typed.solver",
+                BaselineDiagnosticStatus.PASS,
+                "signed glioma program graph converged under robust coordinate descent",
+            )
+        )
+        status = BaselineEstimateStatus.ESTIMATED
+        support = SupportDecision(
+            status=SupportStatus.SUPPORTED,
+            reason_code="m0803_typed_glioma_graph_supported",
+            rationale=(
+                "Supported protein evidence fit the signed glioma program graph with "
+                "deterministic bootstrap intervals."
+            ),
+        )
+        abstention_reason = None
+    payload: dict[str, object] = {
+        "result_id": f"result.{request_digest.removeprefix('sha256:')}",
+        "result_version": M0803_CONTRACT_VERSION,
+        "request_digest": request_digest,
+        "result_digest": _ZERO_DIGEST,
+        "request": request,
+        "status": status,
+        "estimate": estimate,
+        "diagnostics": tuple(diagnostics),
+        "findings": tuple(dict.fromkeys(finding_list)),
+        "abstention_reason": abstention_reason,
+        "parent_target": M0803_PARENT,
+        "emits_parent": False,
+        "support_decision": support,
+        "uncertainty": uncertainty,
+        "provenance": _provenance(request, request_digest),
+        "evidence": _evidence(request),
+        "typed_model": typed_model,
+        "solver_iterations": fit.iterations if fit is not None else None,
+        "solver_objective": round(fit.objective, 8) if fit is not None else None,
+        "objective_trace_digest": fit.trace_digest if fit is not None else None,
+        "limitations": _limitations(measured=fit is not None),
+        "human_review_required": status is BaselineEstimateStatus.ABSTAINED,
+    }
+    constructed = ProteinSubtypeBaselineResult.model_construct(**payload)  # type: ignore[arg-type]
+    payload["result_digest"] = result_payload_digest(constructed)
+    return _RESULT_ADAPTER.validate_python(payload, strict=True)
+
+
 class M0803BaselineEngine:
-    """Compute a transparent mean-based baseline without raw-source traversal."""
+    """Compute the transparent baseline or the opt-in typed glioma graph fit."""
 
     __slots__ = ()
 
@@ -255,6 +797,11 @@ class M0803BaselineEngine:
     ) -> ProteinSubtypeBaselineResult:
         if not isinstance(request, EstimateProteinSubtypeBaselineRequest):
             raise TypeError("M08-03 requires a validated request")  # noqa: TRY003
+        if (
+            request.configuration.model_family == M0803_GLIOMA_MODEL_FAMILY
+            or request.program_observations
+        ):
+            return _typed_result(request)
         request_digest = canonical_request_digest(request)
         diagnostics: list[BaselineDiagnostic] = []
         findings: list[BaselineFindingCode] = []

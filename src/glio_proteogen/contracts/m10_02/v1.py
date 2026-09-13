@@ -10,6 +10,7 @@ review.
 from __future__ import annotations
 
 from enum import StrEnum
+from math import isfinite
 from typing import Final, Literal
 
 from pydantic import Field, field_validator, model_validator
@@ -55,6 +56,11 @@ M1002_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
 M1002_EVIDENCE_CLAIM: Final = (
     "Caller-declared M10-02 representation evidence; issuer authority is not authenticated."
 )
+M1002_MAX_TYPED_OBSERVATIONS: Final = 512
+M1002_MAX_TYPED_EFFECT: Final = 20.0
+M1002_DEFAULT_BOOTSTRAP_REPLICATES: Final = 64
+M1002_MAX_BOOTSTRAP_REPLICATES: Final = 256
+M1002_GLIOMA_MODEL_FAMILY: Final = "glioma-dosage-translation-phospho-irls/1.0.0"
 
 
 class RepresentationMethod(StrEnum):
@@ -101,6 +107,104 @@ class RepresentationDiagnosticStatus(StrEnum):
 class RepresentationConstructionStatus(StrEnum):
     CONSTRUCTED = "constructed"
     ABSTAINED = "abstained"
+
+
+class GliomaRepresentationEvidenceState(StrEnum):
+    """Whether a typed glioma multi-omic measurement is usable by the fit."""
+
+    OBSERVED = "observed"
+    LEFT_CENSORED = "left_censored"
+    MISSING = "missing"
+    UNSUPPORTED = "unsupported"
+
+
+class GliomaProgram(StrEnum):
+    """Curated glioma programs used as coefficient priors, not diagnoses."""
+
+    RTK_PI3K_AKT_MTOR = "RTK_PI3K_AKT_MTOR"
+    P53_CELL_CYCLE = "P53_CELL_CYCLE"
+    IDH_HIF1A = "IDH_HIF1A"
+    MESENCHYMAL_INVASION = "MESENCHYMAL_INVASION"
+    OLIGODENDROGLIAL_LINEAGE = "OLIGODENDROGLIAL_LINEAGE"
+
+
+class GliomaRepresentationObservation(FrozenModel):
+    """Typed, bounded gene-level evidence for the research representation lane.
+
+    Effects are standardized against a caller-declared reference.  The model
+    estimates protein activity from transcript, copy-number dosage, and (when
+    available) phosphosite evidence; missing values never become zeros.
+    """
+
+    observation_id: Identifier
+    input_feature_id: Identifier
+    gene: NonEmptyStr
+    program: GliomaProgram
+    state: GliomaRepresentationEvidenceState
+    transcript_effect: float | None = Field(
+        default=None, ge=-M1002_MAX_TYPED_EFFECT, le=M1002_MAX_TYPED_EFFECT
+    )
+    protein_effect: float | None = Field(
+        default=None, ge=-M1002_MAX_TYPED_EFFECT, le=M1002_MAX_TYPED_EFFECT
+    )
+    copy_number_effect: float | None = Field(
+        default=None, ge=-M1002_MAX_TYPED_EFFECT, le=M1002_MAX_TYPED_EFFECT
+    )
+    phosphosite_effect: float | None = Field(
+        default=None, ge=-M1002_MAX_TYPED_EFFECT, le=M1002_MAX_TYPED_EFFECT
+    )
+    transcript_standard_error: float | None = Field(default=None, gt=0.0, le=M1002_MAX_TYPED_EFFECT)
+    protein_standard_error: float | None = Field(default=None, gt=0.0, le=M1002_MAX_TYPED_EFFECT)
+    censor_limit: float | None = Field(
+        default=None, ge=-M1002_MAX_TYPED_EFFECT, le=M1002_MAX_TYPED_EFFECT
+    )
+    quality_weight: float = Field(default=1.0, ge=0.0, le=1.0)
+    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1002_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def typed_shape_is_closed(self) -> GliomaRepresentationObservation:
+        values = (
+            self.transcript_effect,
+            self.protein_effect,
+            self.copy_number_effect,
+            self.phosphosite_effect,
+        )
+        if any(value is not None and not isfinite(value) for value in values):
+            raise ValueError("typed glioma effects must be finite")
+        active = self.state in {
+            GliomaRepresentationEvidenceState.OBSERVED,
+            GliomaRepresentationEvidenceState.LEFT_CENSORED,
+        }
+        if active:
+            if self.protein_standard_error is None or self.quality_weight <= 0.0:
+                raise ValueError(
+                    "active typed evidence requires protein error and positive quality"
+                )
+            if self.state is GliomaRepresentationEvidenceState.OBSERVED:
+                if self.protein_effect is None or self.censor_limit is not None:
+                    raise ValueError(
+                        "observed evidence requires a protein effect without censor limit"
+                    )
+            elif self.protein_effect is None and self.censor_limit is None:
+                raise ValueError("left-censored evidence requires a protein effect or censor limit")
+            elif self.protein_effect is not None and self.censor_limit is not None:
+                raise ValueError("left-censored evidence cannot carry both effect and censor limit")
+        elif (
+            any(
+                value is not None
+                for value in (
+                    *values,
+                    self.transcript_standard_error,
+                    self.protein_standard_error,
+                    self.censor_limit,
+                )
+            )
+            or self.quality_weight != 0.0
+        ):
+            raise ValueError("missing or unsupported typed evidence cannot carry a value")
+        if any(item.role != "evidence" for item in self.evidence):
+            raise ValueError("typed glioma evidence must use the evidence role")
+        return self
 
 
 class FeatureLineage(FrozenModel):
@@ -277,9 +381,19 @@ class RepresentationFeature(FrozenModel):
     mask_id: Identifier | None = None
     covariate_ids: tuple[Identifier, ...] = Field(default=(), max_length=M1002_MAX_COVARIATES)
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1002_MAX_EVIDENCE)
+    gene: NonEmptyStr | None = None
+    program: GliomaProgram | None = None
+    channel: NonEmptyStr | None = None
+    evidence_count: int = Field(default=0, ge=0, le=M1002_MAX_TYPED_OBSERVATIONS)
+    stability: float | None = Field(default=None, ge=0.0, le=1.0)
+    discordance: float | None = Field(default=None, ge=0.0)
+    top_drivers: tuple[NonEmptyStr, ...] = Field(default=(), max_length=8)
+    ablation_effects: tuple[NonEmptyStr, ...] = Field(default=(), max_length=8)
+    lower_bound: float | None = None
+    upper_bound: float | None = None
 
     @model_validator(mode="after")
-    def value_shape_is_closed(self) -> RepresentationFeature:
+    def value_shape_is_closed(self) -> RepresentationFeature:  # noqa: PLR0912
         present = sum(
             (
                 self.scalar_value is not None,
@@ -323,6 +437,13 @@ class RepresentationFeature(FrozenModel):
             raise ValueError("non-observed feature cannot claim applied scaling or mask")
         if len(self.covariate_ids) != len(set(self.covariate_ids)):
             raise ValueError("feature covariate identifiers must be unique")
+        if (self.lower_bound is None) != (self.upper_bound is None):
+            raise ValueError("feature interval bounds must be provided together")
+        if self.lower_bound is not None and self.upper_bound is not None:
+            if not isfinite(self.lower_bound) or not isfinite(self.upper_bound):
+                raise ValueError("feature interval bounds must be finite")
+            if self.lower_bound > self.upper_bound:
+                raise ValueError("feature lower bound must not exceed upper bound")
         return self
 
 
@@ -372,6 +493,26 @@ class RepresentationDiagnostic(FrozenModel):
     status: RepresentationDiagnosticStatus
     message: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1002_MAX_EVIDENCE)
+    objective_trace: tuple[float, ...] = Field(default=(), max_length=256)
+    iterations: int = Field(default=0, ge=0, le=256)
+    converged: bool | None = None
+
+    @model_validator(mode="after")
+    def objective_trace_is_finite_and_monotonic(self) -> RepresentationDiagnostic:
+        if any(not isfinite(value) for value in self.objective_trace):
+            raise ValueError("diagnostic objective trace must be finite")
+        if any(
+            current > previous + 1e-9
+            for previous, current in zip(
+                self.objective_trace, self.objective_trace[1:], strict=False
+            )
+        ):
+            raise ValueError("diagnostic objective trace must not increase")
+        if self.objective_trace and self.iterations == 0:
+            raise ValueError(
+                "diagnostic iterations are required when an objective trace is present"
+            )
+        return self
 
 
 class ConstructProteinRnaRepresentationRequest(FrozenModel):
@@ -388,6 +529,14 @@ class ConstructProteinRnaRepresentationRequest(FrozenModel):
     )
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M1002_MAX_EVIDENCE
+    )
+    glioma_observations: tuple[GliomaRepresentationObservation, ...] = Field(
+        default=(), max_length=M1002_MAX_TYPED_OBSERVATIONS
+    )
+    bootstrap_replicates: int = Field(
+        default=M1002_DEFAULT_BOOTSTRAP_REPLICATES,
+        ge=16,
+        le=M1002_MAX_BOOTSTRAP_REPLICATES,
     )
     supersedes_result_digest: Sha256Digest | None = None
 
@@ -423,6 +572,24 @@ class ConstructProteinRnaRepresentationRequest(FrozenModel):
             for transformation in self.configuration.transformations
         ):
             raise ValueError("transformation output feature identifiers must be globally unique")
+        observation_ids = tuple(item.observation_id for item in self.glioma_observations)
+        if len(observation_ids) != len(set(observation_ids)):
+            raise ValueError("typed glioma observation identifiers must be unique")
+        input_ids_for_observations = tuple(
+            item.input_feature_id for item in self.glioma_observations
+        )
+        if len(input_ids_for_observations) != len(set(input_ids_for_observations)):
+            raise ValueError("typed glioma observations must bind one-to-one to input features")
+        if any(item not in input_ids for item in input_ids_for_observations):
+            raise ValueError("typed glioma observation references an unknown input feature")
+        typed_evidence_digests = {
+            evidence.reference.digest
+            for observation in self.glioma_observations
+            for evidence in observation.evidence
+        }
+        source_digests = {artifact.digest for artifact in self.source_artifacts}
+        if len(typed_evidence_digests | source_digests) > M1002_MAX_EVIDENCE:
+            raise ValueError("combined typed glioma evidence exceeds the bounded evidence limit")
         return self
 
 
@@ -451,6 +618,7 @@ class ProteinRnaRepresentationResult(FrozenModel):
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1002_MAX_EVIDENCE)
     limitations: tuple[Limitation, ...] = Field(min_length=1, max_length=32)
     human_review_required: bool = False
+    model_family: NonEmptyStr | None = None
 
     @model_validator(mode="after")
     def result_is_closed(self) -> ProteinRnaRepresentationResult:
@@ -490,9 +658,12 @@ class ProteinRnaRepresentationResult(FrozenModel):
 
 __all__ = [
     "M1002_CONTRACT_VERSION",
+    "M1002_DEFAULT_BOOTSTRAP_REPLICATES",
     "M1002_EVIDENCE_CLAIM",
     "M1002_GATE",
+    "M1002_GLIOMA_MODEL_FAMILY",
     "M1002_M1001_SCHEMA_MEDIA_TYPE",
+    "M1002_MAX_BOOTSTRAP_REPLICATES",
     "M1002_MAX_CANONICAL_REQUEST_BYTES",
     "M1002_MAX_CANONICAL_RESULT_BYTES",
     "M1002_MAX_COVARIATES",
@@ -500,6 +671,8 @@ __all__ = [
     "M1002_MAX_EVIDENCE",
     "M1002_MAX_FEATURES",
     "M1002_MAX_TRANSFORMATIONS",
+    "M1002_MAX_TYPED_EFFECT",
+    "M1002_MAX_TYPED_OBSERVATIONS",
     "M1002_MODULE_ID",
     "M1002_OPERATION",
     "M1002_OUTPUT_MEDIA_TYPE",
@@ -512,6 +685,9 @@ __all__ = [
     "CovariateDefinition",
     "CovariateRole",
     "FeatureLineage",
+    "GliomaProgram",
+    "GliomaRepresentationEvidenceState",
+    "GliomaRepresentationObservation",
     "MaskPolicy",
     "ProteinRnaRepresentationResult",
     "RepresentationConfiguration",

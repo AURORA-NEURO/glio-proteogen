@@ -44,6 +44,7 @@ from glio_proteogen.kernel.models import (
     UpstreamDecisionState,
 )
 from glio_proteogen.modules.c06_protein_abundance.m06_04_probabilistic_advanced_estimator import (
+    M0604_GLIOMA_PROGRAM_IRLS_OPTIMIZER,
     M0604_PROXY_OPTIMIZER,
     M0604ProbabilisticEstimatorEngine,
     ProbabilisticEstimatorAuthorizationError,
@@ -128,13 +129,15 @@ def _context(*, denied: bool = False) -> ExecutionContext:
     )
 
 
-def _schema(*, categorical: bool = False) -> FormalProteinStateSchema:
+def _schema(
+    *, categorical: bool = False, feature_ids: tuple[str, ...] = ("protein.abundance",)
+) -> FormalProteinStateSchema:
     return FormalProteinStateSchema(
         schema_id="schema.m0604.synthetic",
         version="1.0.0",
-        features=(
+        features=tuple(
             FormalStateFeatureDefinition(
-                feature_id="protein.abundance",
+                feature_id=feature_id,
                 version="1.0.0",
                 value_kind=(
                     FormalStateFeatureValueKind.CATEGORICAL
@@ -148,12 +151,62 @@ def _schema(*, categorical: bool = False) -> FormalProteinStateSchema:
                 ),
                 domain_lower=None if categorical else 0.0,
                 allowed_categories=("low", "high") if categorical else (),
-            ),
+            )
+            for feature_id in feature_ids
         ),
     )
 
 
 def build_scenario_request(request_case: str) -> dict[str, object]:
+    if request_case == "glioma_program":
+        feature_ids = ("protein.egfr", "protein.pik3ca", "protein.tp53", "protein.mki67")
+        schema = _schema(feature_ids=feature_ids)
+        value_map = dict(zip(feature_ids, (2.4, 2.0, 0.3, 2.2), strict=True))
+        values = tuple(
+            FormalStateFeatureValue(
+                feature_id=feature_id,
+                state=FormalStateMissingness.OBSERVED,
+                unit="normalized",
+                scalar_value=value_map[feature_id],
+            )
+            for feature_id in feature_ids
+        )
+        configuration = ProbabilisticEstimatorConfiguration(
+            configuration_id="configuration.m0604.synthetic.glioma",
+            version="1.0.0",
+            estimator_family=ProbabilisticEstimatorFamily.MECHANISM_GUIDED,
+            state_schema_id=schema.schema_id,
+            state_schema_version=schema.version,
+            objective="fit coupled glioma abundance programs",
+            priors=(
+                ProbabilisticPrior(
+                    prior_id="prior.glioma.programs",
+                    version="1.0.0",
+                    kind=ProbabilisticPriorKind.NORMAL,
+                    parameters=(0.0, 1.0),
+                ),
+            ),
+            constraints=(
+                EstimatorConstraint(
+                    constraint_id="constraint.nonnegative",
+                    expression="protein.abundance >= 0",
+                    hard=True,
+                ),
+            ),
+            optimizer=M0604_GLIOMA_PROGRAM_IRLS_OPTIMIZER,
+            seed=7,
+            max_iterations=100,
+            reference=_artifact("configuration.glioma"),
+        )
+        return {
+            "request_id": "request.m0604.synthetic.glioma",
+            "context": _context(),
+            "state_schema": schema,
+            "feature_values": values,
+            "representation_artifact": _artifact("representation.glioma"),
+            "configuration": configuration,
+            "source_artifacts": (_artifact("source.glioma"),),
+        }
     categorical = request_case == "categorical"
     schema = _schema(categorical=categorical)
     value = FormalStateFeatureValue(

@@ -1,5 +1,6 @@
 requirement,evidence,verification,owner,status
 responsibility:mature-baseline-estimator,docs/modules/GLIO-PROTEOGEN-M09-03.md,transparent baseline emits only complex-activity estimate,Bioinformatics,implemented-provisional
+model:typed-glioma-baseline,contracts/m09_03/v1.py and engine.py,quality/standard-error weighted Huber IRLS over five signed glioma programs with one-sided censoring and stratified bootstrap,Bioinformatics,implemented-research
 boundary:no-kinase-all-omics-treatment-subtype,engine.py plus module docs,prohibited ownership claims rejected and documented,Bioinformatics,implemented
 inputs:locked-preprocessing-tuning-uncertainty,contract and manifest,distinct content-addressed references and evidence are required,Bioinformatics,implemented
 controls:consent-identity-quality-support-intended-use,engine preflight and provenance tests,denied control fails closed,Bioinformatics,verified-local

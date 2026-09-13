@@ -18,6 +18,13 @@ The owner is ML engineering, safety class S2, gate G2.
 - Numeric responses are deterministic perturbed-minus-baseline values with an
   explicit software envelope and assumptions. They are not biological calibration,
   causal effects, or treatment recommendations.
+- Typed responses additionally carry numerical measurement/topology
+  leave-one-family-out ablation deltas from the robust signed graph fit; these
+  diagnostics are not causal effect sizes.
+- Typed IRLS initialization is censor-aware: observed deltas seed a
+  quality-weighted location projected onto tightest left-censor bounds, while
+  censor-only programs start at the ridge-neutral feasible value. Detection
+  limits are never silently reinterpreted as observed effects.
 - Mechanism-stress scenarios require rationale containing an explicit negative-control
   gate. Missing, malformed, unsupported, or out-of-envelope material abstains.
 - Kinase activity, generic all-omics fusion, treatment recommendation, identity

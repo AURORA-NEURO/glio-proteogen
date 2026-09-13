@@ -34,6 +34,14 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _at_most(value: object, limit: float) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and float(value) <= limit
+
+
+def _at_least(value: object, limit: float) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and float(value) >= limit
+
+
 def verify(root: Path, wheel: Path | None = None, sdist: Path | None = None) -> dict[str, object]:
     evidence = root / "release-evidence" / "m20_05"
     evaluation = _load(evidence / "evaluation.json")
@@ -51,10 +59,10 @@ def verify(root: Path, wheel: Path | None = None, sdist: Path | None = None) -> 
         and evaluation.get("adversarial_passed_count") == evaluation.get("adversarial_case_count"),
         "benchmark": benchmark.get("passed") is True
         and benchmark.get("iterations") == BENCHMARK_ITERATIONS
-        and benchmark.get("mean_ns", MEAN_BUDGET_NS + 1) <= MEAN_BUDGET_NS
-        and benchmark.get("p95_ns", P95_BUDGET_NS + 1) <= P95_BUDGET_NS,
+        and _at_most(benchmark.get("mean_ns"), MEAN_BUDGET_NS)
+        and _at_most(benchmark.get("p95_ns"), P95_BUDGET_NS),
         "coverage": coverage.get("branch_enabled") is True
-        and coverage.get("coverage_percent", 0) >= MIN_COVERAGE
+        and _at_least(coverage.get("coverage_percent"), MIN_COVERAGE)
         and coverage.get("passed") is True,
     }
     if wheel is not None and sdist is not None:
@@ -75,11 +83,12 @@ def verify(root: Path, wheel: Path | None = None, sdist: Path | None = None) -> 
             and package.get("isolated_import") is True
         )
         if checks["package"]:
+            expected_member_count = (
+                wheel_record.get("member_count") if isinstance(wheel_record, dict) else None
+            )
             try:
                 with ZipFile(wheel) as archive:
-                    checks["wheel_members"] = len(archive.namelist()) == wheel_record.get(
-                        "member_count"
-                    )
+                    checks["wheel_members"] = len(archive.namelist()) == expected_member_count
             except (BadZipFile, OSError):
                 checks["wheel_members"] = False
     return {"module_id": MODULE, "checks": checks, "passed": all(checks.values())}

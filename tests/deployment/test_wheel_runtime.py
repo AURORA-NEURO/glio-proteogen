@@ -14,7 +14,7 @@ WHEEL_GLOB = "glio_proteogen-*.whl"
 
 
 @pytest.mark.package_artifact
-def test_built_wheel_imports_asgi_and_all_module_families() -> None:
+def test_built_wheel_imports_asgi_and_all_module_families(tmp_path: Path) -> None:
     wheels = sorted((REPOSITORY_ROOT / "dist").glob(WHEEL_GLOB))
     if not wheels:
         pytest.skip("build the wheel before running package-artifact tests")
@@ -22,6 +22,7 @@ def test_built_wheel_imports_asgi_and_all_module_families() -> None:
     wheel = wheels[-1]
     environment = os.environ.copy()
     environment["PYTHONPATH"] = str(wheel)
+    environment["GLIO_PROTEOGEN_DATABASE_PATH"] = str(tmp_path / "events.sqlite3")
     probe = (
         "import importlib, pkgutil, glio_proteogen; "
         "names=[m.name for m in pkgutil.walk_packages(glio_proteogen.__path__, "

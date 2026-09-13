@@ -45,6 +45,13 @@
       "outcome": "validation_rejected",
       "expected_status": null,
       "expected_support": null
+    },
+    {
+      "case_id": "coupled_glioma_program_graph_estimates",
+      "request_case": "glioma_program",
+      "outcome": "result",
+      "expected_status": "estimated",
+      "expected_support": "supported"
     }
   ]
 }

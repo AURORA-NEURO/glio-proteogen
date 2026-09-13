@@ -21,6 +21,8 @@ from fastapi.testclient import TestClient
 
 from glio_proteogen import deployment as deployment_module
 from glio_proteogen.adapters import api as api_module
+from glio_proteogen.adapters import research_readiness as research_readiness_module
+from glio_proteogen.adapters.research_readiness import ResearchReadinessCheck
 from glio_proteogen.deployment import DeploymentSettings, create_deployment_app
 from tests.m01_01_support import FIXTURE_DIRECTORY, load_json
 
@@ -28,6 +30,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 HTTP_OK = 200
+HTTP_SERVICE_UNAVAILABLE = 503
 TEST_PORT = 8123
 
 
@@ -108,6 +111,40 @@ def test_deployment_app_creates_storage_and_exposes_probes(tmp_path: Path) -> No
         assert client.get("/readyz").status_code == HTTP_OK
 
     assert database.exists()
+
+
+def test_readiness_fails_closed_when_research_profile_is_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    def unavailable_profile() -> None:
+        raise RuntimeError("private scientific profile failure")  # noqa: TRY003
+
+    monkeypatch.setattr(
+        research_readiness_module,
+        "RESEARCH_READINESS_CHECKS",
+        (
+            ResearchReadinessCheck(
+                lane_id="gbm-factor-graph",
+                profile_routes=("/v1/research/gbm-factor-graph/profile",),
+                check=unavailable_profile,
+            ),
+        ),
+    )
+    app = create_deployment_app(
+        DeploymentSettings(
+            database_path=tmp_path / "readiness" / "events.sqlite3",
+            environment="test",
+        )
+    )
+
+    with TestClient(app) as client:
+        assert client.get("/livez").status_code == HTTP_OK
+        readiness = client.get("/readyz")
+
+    assert readiness.status_code == HTTP_SERVICE_UNAVAILABLE
+    assert readiness.json() == {"detail": "research lane is not ready: gbm-factor-graph"}
+    assert "private scientific profile failure" not in readiness.text
 
 
 def test_deployment_catalog_reports_mounted_model_routes_and_limits(tmp_path: Path) -> None:
@@ -360,7 +397,12 @@ def test_asgi_main_passes_resolved_settings_to_uvicorn(
     }
 
 
-def test_asgi_file_execution_bootstraps_src_root(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_asgi_file_execution_bootstraps_src_root(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "asgi-probe" / "events.sqlite3"
+    monkeypatch.setenv("GLIO_PROTEOGEN_DATABASE_PATH", str(database))
     asgi = importlib.import_module("glio_proteogen.asgi")
     source = Path(asgi.__file__).resolve()
     source_root = source.parents[1]
@@ -370,3 +412,4 @@ def test_asgi_file_execution_bootstraps_src_root(monkeypatch: pytest.MonkeyPatch
 
     assert namespace["_SOURCE_ROOT"] == source_root
     assert namespace["app"] is not None
+    assert namespace["app"].state.deployment["database_path"] == str(database)

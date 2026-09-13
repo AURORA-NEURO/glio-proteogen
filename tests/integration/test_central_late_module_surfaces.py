@@ -48,7 +48,9 @@ CLI_USAGE_ERROR = 2
 
 def test_central_surfaces_register_every_implemented_late_adapter(tmp_path: Path) -> None:
     api = create_app(tmp_path / "events.sqlite")
-    route_paths = {getattr(route, "path", "") for route in api.routes}
+    # FastAPI stores included routers as nested registrations.  The generated
+    # OpenAPI document is the public, recursively flattened operation surface.
+    route_paths = set(api.openapi()["paths"])
     assert route_paths >= _LATE_MODULE_ROUTES
 
     runner = CliRunner()

@@ -8,7 +8,10 @@ from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m11_03.v1 import (
     M1103_CONTRACT_VERSION,
+    M1103_DEFAULT_BOOTSTRAP_REPLICATES,
     M1103_GATE,
+    M1103_GLIOMA_MODEL_FAMILY,
+    M1103_MAX_BOOTSTRAP_REPLICATES,
     M1103_MAX_CANONICAL_REQUEST_BYTES,
     M1103_MODULE_ID,
     M1103_OUTPUT_MEDIA_TYPE,
@@ -79,6 +82,12 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "topologyInvariantsRequired": True,
         "unitInvariantsRequired": True,
         "negativeControlGatingExplicit": True,
+        "typedGliomaMechanisticModel": True,
+        "gliomaModelFamily": M1103_GLIOMA_MODEL_FAMILY,
+        "robustEstimator": "median_mad_huber_signed_relation_coordinate_descent",
+        "bootstrapReplicatesDefault": M1103_DEFAULT_BOOTSTRAP_REPLICATES,
+        "bootstrapReplicatesMaximum": M1103_MAX_BOOTSTRAP_REPLICATES,
+        "missingUnsupportedExcluded": True,
     }
     if name == "request":
         schema["x-glio-contract"]["maxRequestBytes"] = M1103_MAX_CANONICAL_REQUEST_BYTES

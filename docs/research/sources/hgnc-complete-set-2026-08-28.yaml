@@ -1,0 +1,65 @@
+schema: glio-source-admission/1.0
+source_id: hgnc-complete-set-2026-08-28
+status: admitted_feature_identity_mapping_only
+retrieval_date: 2026-08-30
+
+record:
+  authority: HUGO Gene Nomenclature Committee
+  resource: HGNC complete approved dataset
+  url: https://storage.googleapis.com/public-download-files/hgnc/tsv/tsv/hgnc_complete_set.txt
+  documentation: https://hgnc.genenames.org/download/
+
+artifact:
+  name: hgnc_complete_set.txt
+  size_bytes: 16948224
+  sha256: sha256:854162118530e929f06249f3349465dd5fe0515fcccf0347f463e833609c1270
+  source_md5: acc6344dd46eb2942627a16e0d735fb8
+  etag: acc6344dd46eb2942627a16e0d735fb8
+  google_storage_generation: 1787936540031704
+  last_modified_utc: 2026-08-28T17:02:20Z
+  row_count: 45045
+
+license:
+  spdx: CC0-1.0
+  url: https://hgnc.genenames.org/about/license/
+  attribution: "HGNC (RRID:SCR_002827)"
+
+gbmap_mapping_audit:
+  source_feature_count: 5000
+  source_feature_order_digest: sha256:d2dc362629740745fa216ac5d955f98f6eaaeb49941cf1abdbc3f0439660c577
+  exact_current_approved_symbol_count: 4862
+  exact_current_approved_with_ensembl_count: 4856
+  unique_previous_or_alias_symbol_count: 62
+  ambiguous_previous_or_alias_symbol_count: 0
+  unresolved_legacy_symbol_count: 76
+  stable_hgnc_mapping_count: 4924
+  stable_hgnc_mapping_fraction: 0.9848
+  duplicate_stable_identity_entry_count: 1
+  unique_model_eligible_hgnc_count: 4923
+
+crosswalk_artifact:
+  schema: gbmap-hgnc-feature-crosswalk/1.0.0
+  path: src/glio_proteogen/research/gbmap_deconvolution/data/gbmap_hgnc_feature_crosswalk.v2.json
+  size_bytes: 614548
+  sha256: sha256:0eeb117902a412527463466258558f4f7baf6229bb457e2e9f64f1082e63e798
+  content_digest: sha256:c9749bc80c9542e37dfacf384be3c2080b2c0edf32e291f65997e867a6b8a02a
+  donor_data_retained: false
+  expression_data_retained: false
+  model_parameters_retained: false
+  runtime_mount_permitted: false
+
+mapping_policy:
+  primary_stable_identifier: hgnc_id
+  secondary_identifier: ensembl_gene_id_when_present
+  exact_approved_symbol_preferred: true
+  unique_previous_or_alias_symbol_permitted_with_provenance: true
+  ambiguous_alias_mapping_permitted: false
+  unresolved_feature_in_model_permitted: false
+  silent_symbol_rewrite_permitted: false
+  raw_hgnc_snapshot_bundled: false
+
+claim_ceiling: feature_identity_crosswalk_source_only
+
+blockers:
+  - apply the locked model-eligible index set before every fold-local marker selection
+  - verify selected training features retain sufficient mapped support in every fold

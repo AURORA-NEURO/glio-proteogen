@@ -3,6 +3,8 @@
 # Test status codes and dossier control counts are intentionally literal.
 # ruff: noqa: PLR2004
 
+from itertools import pairwise
+
 import pytest
 from evals.m10_04.run import build_request
 from pydantic import ValidationError
@@ -15,6 +17,7 @@ from glio_proteogen.contracts.m10_04 import (
     PosteriorEstimateKind,
     ProbabilisticEstimatorConfiguration,
     ProbabilisticEstimatorFamily,
+    ProbabilisticObservation,
     ProbabilisticPrior,
     ProbabilisticPriorKind,
     ProbabilisticResultStatus,
@@ -28,6 +31,7 @@ from glio_proteogen.kernel.models import (
     SupportStatus,
 )
 from glio_proteogen.modules.c10_pathway_proteotype_factors.m10_04_probabilistic_advanced_estimator import (  # noqa: E501
+    M1004_GLIOMA_IRLS_OPTIMIZER,
     M1004Plugin,
     M1004ProbabilisticEstimatorAuthorizationError,
     M1004ProbabilisticEstimatorEngine,
@@ -35,6 +39,9 @@ from glio_proteogen.modules.c10_pathway_proteotype_factors.m10_04_probabilistic_
     M1004Service,
     estimate_protein_rna_discordance_probabilistic,
     preflight_probabilistic_estimator_authorization,
+)
+from glio_proteogen.modules.c10_pathway_proteotype_factors.m10_04_probabilistic_advanced_estimator import (  # noqa: E501
+    engine as engine_module,
 )
 from glio_proteogen.modules.c10_pathway_proteotype_factors.m10_04_probabilistic_advanced_estimator.plugin import (  # noqa: E501
     ValidatedM1004Request,
@@ -53,6 +60,235 @@ def test_estimator_publishes_safe_abstention_with_complete_controls() -> None:
     assert len(result.provenance.control_decisions) == 7
     assert {item.role for item in result.evidence} == {"evidence"}
     assert result.emits_parent is False
+
+
+def test_measured_observation_publishes_robust_posterior() -> None:
+    request = build_request().model_copy(
+        update={
+            "observations": (
+                ProbabilisticObservation(
+                    feature_id="prior.discordance",
+                    value=0.8,
+                    standard_error=0.2,
+                    quality_weight=0.9,
+                ),
+            )
+        }
+    )
+    service = M1004Service()
+    result = service.execute(request)
+    assert result.status is ProbabilisticResultStatus.ESTIMATED
+    assert len(result.estimates) == 1
+    estimate = result.estimates[0]
+    assert estimate.kind is PosteriorEstimateKind.INTERVAL
+    assert estimate.lower_bound <= estimate.estimate_value <= estimate.upper_bound
+    assert result.diagnostics[0].status is OptimizationDiagnosticStatus.CONVERGED
+    assert result.support_decision.status is SupportStatus.SUPPORTED
+    assert result.human_review_required is False
+    assert service.verify(result).model_dump_json() == result.model_dump_json()
+
+
+def test_measured_observation_requires_declared_prior() -> None:
+    with pytest.raises(ValidationError, match="unresolved prior"):
+        M1004Service().execute(
+            build_request().model_copy(
+                update={
+                    "observations": (
+                        ProbabilisticObservation(
+                            feature_id="prior.unknown",
+                            value=0.8,
+                            standard_error=0.2,
+                        ),
+                    )
+                }
+            )
+        )
+
+
+def test_locked_glioma_factor_fit_uses_signed_program_edges_and_replays() -> None:
+    base = build_request()
+    genes = (("egfr", 1.2), ("pik3ca", 0.8), ("tp53", -0.5), ("mki67", 1.0))
+    priors = tuple(
+        ProbabilisticPrior(
+            prior_id=f"prior.{gene}",
+            version="0.1.0",
+            kind=ProbabilisticPriorKind.NORMAL,
+            parameters=(0.0, 1.0),
+        )
+        for gene, _value in genes
+    )
+    request = base.model_copy(
+        update={
+            "configuration": base.configuration.model_copy(
+                update={"optimizer": M1004_GLIOMA_IRLS_OPTIMIZER, "priors": priors}
+            ),
+            "observations": tuple(
+                ProbabilisticObservation(
+                    feature_id=f"prior.{gene}",
+                    value=value,
+                    standard_error=0.2,
+                    quality_weight=0.9,
+                )
+                for gene, value in genes
+            ),
+        }
+    )
+    service = M1004Service()
+    result = service.execute(request)
+    assert result.status is ProbabilisticResultStatus.ESTIMATED
+    assert len(result.estimates) == len(genes)
+    diagnostic = result.diagnostics[0]
+    assert diagnostic.model_family == "glioma-proteotype-factor-irls/1.0.0"
+    assert diagnostic.iteration_count > 1
+    assert diagnostic.objective_value is not None
+    assert diagnostic.objective_value > 0
+    assert service.verify(result).model_dump_json() == result.model_dump_json()
+
+
+def test_locked_glioma_factor_solver_backtracks_objective_increase(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    base = build_request()
+    genes = (("egfr", 1.2), ("pik3ca", 0.8), ("tp53", -0.5), ("mki67", 1.0))
+    priors = tuple(
+        ProbabilisticPrior(
+            prior_id=f"prior.{gene}",
+            version="0.1.0",
+            kind=ProbabilisticPriorKind.NORMAL,
+            parameters=(0.0, 1.0),
+        )
+        for gene, _value in genes
+    )
+    request = base.model_copy(
+        update={
+            "configuration": base.configuration.model_copy(
+                update={"optimizer": M1004_GLIOMA_IRLS_OPTIMIZER, "priors": priors}
+            ),
+            "observations": tuple(
+                ProbabilisticObservation(
+                    feature_id=f"prior.{gene}",
+                    value=value,
+                    standard_error=0.2,
+                    quality_weight=0.9,
+                )
+                for gene, value in genes
+            ),
+        }
+    )
+    original = engine_module._glioma_factor_objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == 2 else value
+
+    monkeypatch.setattr(engine_module, "_glioma_factor_objective", objective)
+    fit = engine_module._fit_glioma_factor_graph(request)
+    assert fit is not None
+    assert calls > 2
+    assert all(
+        after <= before + engine_module._GLIOMA_OBJECTIVE_TOLERANCE
+        for before, after in pairwise(fit.objective_trace)
+    )
+
+
+def test_locked_glioma_factor_fit_abstains_without_program_support() -> None:
+    base = build_request()
+    genes = ("egfr", "pik3ca", "unknown_a", "unknown_b")
+    priors = tuple(
+        ProbabilisticPrior(
+            prior_id=f"prior.{gene}",
+            version="0.1.0",
+            kind=ProbabilisticPriorKind.NORMAL,
+            parameters=(0.0, 1.0),
+        )
+        for gene in genes
+    )
+    request = base.model_copy(
+        update={
+            "configuration": base.configuration.model_copy(
+                update={"optimizer": M1004_GLIOMA_IRLS_OPTIMIZER, "priors": priors}
+            ),
+            "observations": tuple(
+                ProbabilisticObservation(
+                    feature_id=f"prior.{gene}", value=0.4, standard_error=0.2
+                )
+                for gene in genes
+            ),
+        }
+    )
+    result = M1004Service().execute(request)
+    assert result.status is ProbabilisticResultStatus.ABSTAINED
+    assert result.estimates == ()
+    assert result.human_review_required is True
+
+
+@pytest.mark.parametrize("feature_id", ["protein.MKI-67", "gene.MKI_67", "protein.HIF-1A"])
+def test_glioma_marker_mapping_normalizes_hyphenated_symbols(feature_id: str) -> None:
+    program = engine_module._glioma_program_for_feature(feature_id)
+
+    assert program in {"PROLIFERATION", "IDH_HIF1A"}
+
+
+@pytest.mark.parametrize(
+    ("feature_id", "expected"),
+    [
+        ("protein.DNMT1", "IDH_HIF1A"),
+        ("protein.NF1", "MESENCHYMAL_PROGRAM"),
+        ("protein.CEBPB", "MESENCHYMAL_PROGRAM"),
+    ],
+)
+def test_glioma_marker_mapping_uses_canonical_symbols_and_explicit_pleiotropic_priority(
+    feature_id: str, expected: str
+) -> None:
+    assert engine_module._glioma_program_for_feature(feature_id) == expected
+
+
+def test_glioma_marker_mapping_rejects_dnmt1_typo() -> None:
+    assert engine_module._glioma_program_for_feature("protein.DMT1") is None
+
+
+def test_non_normal_prior_abstains_without_negative_inference() -> None:
+    request = build_request().model_copy(
+        update={
+            "configuration": build_request().configuration.model_copy(
+                update={
+                    "priors": (
+                        build_request().configuration.priors[0].model_copy(
+                            update={"kind": ProbabilisticPriorKind.LOG_NORMAL}
+                        ),
+                    )
+                }
+            ),
+            "observations": (
+                ProbabilisticObservation(
+                    feature_id="prior.discordance", value=0.8, standard_error=0.2
+                ),
+            ),
+        }
+    )
+    result = M1004Service().execute(request)
+    assert result.status is ProbabilisticResultStatus.ABSTAINED
+    assert result.estimates == ()
+    assert result.support_decision.status is SupportStatus.REVIEW_REQUIRED
+
+
+def test_observation_rejects_nonfinite_and_counter_evidence() -> None:
+    with pytest.raises(ValidationError):
+        ProbabilisticObservation(feature_id="feature.nan", value=float("nan"), standard_error=1.0)
+    with pytest.raises(ValidationError):
+        ProbabilisticObservation(
+            feature_id="feature.role",
+            value=0.0,
+            standard_error=1.0,
+            evidence=(
+                EvidenceReference(
+                    reference=build_request().source_artifacts[0],
+                    role="counter_evidence",
+                    claim="wrong role",
+                ),
+            ),
+        )
 
 
 def test_verify_can_skip_replay_but_still_checks_digest() -> None:

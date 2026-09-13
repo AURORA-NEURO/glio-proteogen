@@ -6,14 +6,17 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 from typing import Any, Final
 
 from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m14_02 import (
     ApplicableMechanism,
+    ContextDimension,
     ContextFinding,
     ContextFindingCode,
+    ContextObservation,
     ContextObservationStatus,
     ContextStratificationStatus,
     MechanismApplicability,
@@ -57,6 +60,130 @@ _METHOD_LABELS: Final = {
     "cn_to_protein_regression": "CN-to-protein residual baseline",
     "orthogonal_consensus_negative_control": "Orthogonal context consensus",
 }
+
+
+@dataclass(frozen=True)
+class _GliomaContextRule:
+    """One explicit GBM context-to-mechanism mapping.
+
+    M14-02 receives typed context observations rather than raw omics.  These
+    rules therefore do not pretend to fit a hidden classifier; they make the
+    permitted glioma vocabulary executable and auditable.  A rule can fire only
+    for a supported observation and its evidence is carried into the mechanism
+    record.
+    """
+
+    dimension: ContextDimension
+    aliases: frozenset[str]
+    mechanism_id: str
+    label: str
+    rationale: str
+
+
+_GLIOMA_CONTEXT_RULES: Final[tuple[_GliomaContextRule, ...]] = (
+    _GliomaContextRule(
+        ContextDimension.SUBTYPE,
+        frozenset({"mes", "mes1", "mes2", "mes-like", "mesenchymal", "mesenchymal-like"}),
+        "mechanism.glioma.mesenchymal-inflammatory",
+        "Mesenchymal/inflammatory GBM program",
+        (
+            "Mesenchymal-like tumor-cell context is consistent with inflammatory and "
+            "extracellular-matrix remodeling."
+        ),
+    ),
+    _GliomaContextRule(
+        ContextDimension.SUBTYPE,
+        frozenset({"ac", "ac-like", "astrocyte-like", "astrocytic"}),
+        "mechanism.glioma.astrocytic-glial",
+        "Astrocytic/glial GBM program",
+        (
+            "Astrocytic-like context is consistent with glial homeostasis and "
+            "astrocyte-associated proteomic programs."
+        ),
+    ),
+    _GliomaContextRule(
+        ContextDimension.SUBTYPE,
+        frozenset({"opc", "opc-like", "oligodendrocyte", "oligodendrocyte-progenitor"}),
+        "mechanism.glioma.opc-developmental",
+        "OPC-like developmental program",
+        (
+            "OPC-like context is consistent with oligodendrocyte-progenitor "
+            "differentiation and myelination programs."
+        ),
+    ),
+    _GliomaContextRule(
+        ContextDimension.SUBTYPE,
+        frozenset({"npc", "npc-like", "neural-progenitor", "neural-progenitor-like"}),
+        "mechanism.glioma.neural-progenitor",
+        "Neural-progenitor GBM program",
+        (
+            "Neural-progenitor-like context is consistent with neuronal development "
+            "and synaptic signaling programs."
+        ),
+    ),
+    _GliomaContextRule(
+        ContextDimension.BIOLOGICAL_CONTEXT,
+        frozenset({"hypoxia", "hypoxic", "low-oxygen", "oxygen-deprived", "necrotic"}),
+        "mechanism.glioma.hypoxia-angiogenesis",
+        "Hypoxia/angiogenesis microenvironment",
+        (
+            "Hypoxic or necrotic context is consistent with oxygen stress and "
+            "vascular remodeling programs."
+        ),
+    ),
+    _GliomaContextRule(
+        ContextDimension.BIOLOGICAL_CONTEXT,
+        frozenset(
+            {"immune-inflamed", "myeloid-rich", "microglial", "macrophage-rich", "t-cell-inflamed"}
+        ),
+        "mechanism.glioma.myeloid-immune",
+        "Myeloid/immune-inflamed microenvironment",
+        (
+            "Immune or myeloid-rich context is consistent with microglial/macrophage "
+            "inflammatory programs."
+        ),
+    ),
+    _GliomaContextRule(
+        ContextDimension.BIOLOGICAL_CONTEXT,
+        frozenset({"angiogenic", "vascular", "vascularized", "endothelial-rich"}),
+        "mechanism.glioma.vascular-remodeling",
+        "Vascular remodeling microenvironment",
+        (
+            "Vascular context is consistent with endothelial and extracellular-matrix "
+            "remodeling programs."
+        ),
+    ),
+    _GliomaContextRule(
+        ContextDimension.BIOLOGICAL_CONTEXT,
+        frozenset({"proliferative", "cell-cycle", "cycling", "replicative"}),
+        "mechanism.glioma.proliferative-cell-cycle",
+        "Proliferative/cell-cycle program",
+        (
+            "Proliferative context is consistent with DNA-replication and cell-cycle "
+            "proteomic programs."
+        ),
+    ),
+    _GliomaContextRule(
+        ContextDimension.TERRITORY,
+        frozenset({"enhancing-core", "enhancing", "necrotic-core", "tumor-core"}),
+        "mechanism.glioma.core-hypoxic-vascular",
+        "Enhancing-core hypoxic/vascular niche",
+        (
+            "Enhancing or necrotic core territory is consistent with hypoxic and "
+            "vascular niche remodeling."
+        ),
+    ),
+    _GliomaContextRule(
+        ContextDimension.TERRITORY,
+        frozenset({"infiltrative-edge", "infiltrative-margin", "tumor-margin", "invasion-front"}),
+        "mechanism.glioma.invasive-edge",
+        "Infiltrative tumor-edge program",
+        (
+            "Infiltrative edge territory is consistent with extracellular-matrix "
+            "interaction and migration programs."
+        ),
+    ),
+)
 _PROHIBITED_PROXY_TOKENS: Final = (
     "kinase",
     "all-omics",
@@ -185,6 +312,54 @@ def _finding(
     return ContextFinding(finding_id=finding_id, code=code, message=message, evidence=evidence[:1])
 
 
+def _normalized_context_token(value: str) -> str:
+    """Normalize a caller-declared context label without fuzzy matching."""
+
+    token = value.casefold().replace("_", "-")
+    return "-".join(part for part in token.split() if part)
+
+
+def _domain_mechanisms(
+    observations: tuple[ContextObservation, ...],
+) -> tuple[ApplicableMechanism, ...]:
+    """Apply the locked GBM context vocabulary to supported observations.
+
+    Matching is exact after case/underscore/whitespace normalization.  This is
+    intentionally conservative: an unknown label remains usable for generic
+    context stratification but never gets silently assigned a biology program.
+    """
+
+    matched: dict[str, tuple[_GliomaContextRule, ContextObservation]] = {}
+    for observation in observations:
+        if observation.status is not ContextObservationStatus.SUPPORTED:
+            continue
+        values = (observation.normalized_value, observation.value)
+        for value in values:
+            if value is None:
+                continue
+            token = _normalized_context_token(value)
+            for rule in _GLIOMA_CONTEXT_RULES:
+                if rule.dimension is observation.dimension and token in rule.aliases:
+                    matched.setdefault(rule.mechanism_id, (rule, observation))
+    output: list[ApplicableMechanism] = []
+    for mechanism_id in sorted(matched):
+        rule, observation = matched[mechanism_id]
+        observed = observation.normalized_value or observation.value
+        output.append(
+            ApplicableMechanism(
+                mechanism_id=rule.mechanism_id,
+                label=rule.label,
+                applicability=MechanismApplicability.APPLICABLE,
+                rationale=(
+                    f"{rule.rationale} Matched supported "
+                    f"{observation.dimension.value}='{observed}'."
+                ),
+                evidence=observation.evidence,
+            )
+        )
+    return tuple(output)
+
+
 class M1402ContextStratifier:
     """Stateless deterministic context profile and mechanism applicability engine."""
 
@@ -230,15 +405,20 @@ class M1402ContextStratifier:
                 evidence=evidence,
             )
             method = typed.policy.configuration.method
-            mechanisms = (
-                ApplicableMechanism(
-                    mechanism_id=f"mechanism.{method}",
-                    label=_METHOD_LABELS[method],
-                    applicability=MechanismApplicability.APPLICABLE,
-                    rationale="Declared context dimensions satisfy the locked stratifier policy.",
-                    evidence=evidence[:1],
-                ),
-            )
+            mechanisms = _domain_mechanisms(typed.observations)
+            if not mechanisms:
+                mechanisms = (
+                    ApplicableMechanism(
+                        mechanism_id=f"mechanism.{method}",
+                        label=_METHOD_LABELS[method],
+                        applicability=MechanismApplicability.APPLICABLE,
+                        rationale=(
+                            "Declared context dimensions satisfy the locked stratifier policy; "
+                            "no known GBM context label was asserted."
+                        ),
+                        evidence=evidence[:1],
+                    ),
+                )
             findings = (
                 _finding(
                     "finding.provisional-abi",

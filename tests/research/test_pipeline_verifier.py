@@ -9,12 +9,22 @@ from typing import TYPE_CHECKING
 from zipfile import ZipFile
 
 import pytest
+import tools.current_candidate_receipt as candidate_receipts
+import tools.emit_research_pipeline_evidence as evidence_emitter
+import tools.verify_research_pipeline as pipeline_verifier
 from tools.verify_research_pipeline import (
     VerificationError,
     _require_installed_research_runtime,
     _verify_benchmark_record,
     _verify_package,
     verify,
+)
+
+from tests.tooling.test_current_candidate_receipt import (
+    COMMIT,
+    PROFILE,
+    _artifacts,
+    _receipt_file,
 )
 
 if TYPE_CHECKING:
@@ -36,6 +46,22 @@ def _write_mutation(tmp_path: Path, mutate: Callable[[dict[str, object]], None])
 
 def test_research_evidence_verifier_accepts_locked_record() -> None:
     verify(_EVIDENCE, allow_metadata_only=True)
+
+
+def test_research_evidence_emitter_can_target_a_fresh_workflow_file(tmp_path: Path) -> None:
+    original = _EVIDENCE.read_bytes()
+    output = tmp_path / "current-evaluation.json"
+
+    evidence_emitter.refresh(output=output, template=_EVIDENCE)
+
+    emitted = json.loads(output.read_text(encoding="utf-8"))
+    assert emitted["evaluation"]["passed"] is True
+    assert emitted["cohort_evaluation"]["passed"] is True
+    assert emitted["precursor_policy_evaluation"]["passed"] is True
+    assert emitted["mzidentml_provenance_evaluation"]["passed"] is True
+    assert emitted["fdr_quant_group_invariants_evaluation"]["passed"] is True
+    assert emitted["benchmark"]["iterations"] == len(emitted["benchmark"]["samples_ns"])
+    assert _EVIDENCE.read_bytes() == original
 
 
 def test_research_evaluation_receipt_binds_source_fixture() -> None:
@@ -208,3 +234,43 @@ def test_research_package_verifier_binds_artifact_size_hash_and_members(tmp_path
     artifact.write_bytes(artifact.read_bytes() + b"tamper")
     with pytest.raises(VerificationError, match=r"size|SHA-256"):
         _verify_package(artifact, receipt)
+
+
+def test_research_pipeline_accepts_explicit_current_candidate_receipt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    wheel, sdist, replay_wheel, replay_sdist = _artifacts(tmp_path)
+    receipt = _receipt_file(tmp_path, wheel, sdist, replay_wheel, replay_sdist)
+    monkeypatch.setattr(candidate_receipts, "_profile_identity", lambda: PROFILE)
+    monkeypatch.setattr(pipeline_verifier, "_require_installed_research_runtime", lambda: None)
+
+    verify(
+        _EVIDENCE,
+        wheel,
+        sdist,
+        candidate_receipt=receipt,
+        expected_source_commit=COMMIT,
+    )
+
+
+def test_research_pipeline_candidate_mode_still_rejects_historical_fixture_drift(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    wheel, sdist, replay_wheel, replay_sdist = _artifacts(tmp_path)
+    receipt = _receipt_file(tmp_path, wheel, sdist, replay_wheel, replay_sdist)
+    monkeypatch.setattr(candidate_receipts, "_profile_identity", lambda: PROFILE)
+    monkeypatch.setattr(pipeline_verifier, "_require_installed_research_runtime", lambda: None)
+    package = json.loads(_PACKAGE.read_text(encoding="utf-8"))
+    package["verification"]["fixture_sha256"] = "0" * 64
+    historical = tmp_path / "historical.json"
+    historical.write_text(json.dumps(package), encoding="utf-8")
+
+    with pytest.raises(VerificationError, match="package fixture digest"):
+        verify(
+            _EVIDENCE,
+            wheel,
+            sdist,
+            package_evidence=historical,
+            candidate_receipt=receipt,
+            expected_source_commit=COMMIT,
+        )

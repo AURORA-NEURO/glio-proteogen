@@ -13,7 +13,10 @@ if __package__ in {None, ""}:
     if str(_PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(_PROJECT_ROOT))
 
-from tests.modules.c09_complex_activity.test_m09_02_constructor import _request
+from tests.modules.c09_complex_activity.test_m09_02_constructor import (
+    _request,
+    _typed_request,
+)
 
 from glio_proteogen.modules.c09_complex_activity import (
     m09_02_representation_feature_constructor as m0902,
@@ -32,6 +35,10 @@ class EvaluationReport:
     tamper_rejected: bool
     deterministic: bool
     lineage_complete: bool
+    typed_status: str
+    typed_model_family: str | None
+    typed_replay_verified: bool
+    typed_objective_trace_verified: bool
     passed: bool
 
 
@@ -50,6 +57,12 @@ def evaluate() -> EvaluationReport:
         feature.lineage.leakage_safe and feature.lineage.source_fields
         for feature in supported.result.features
     )
+    typed = engine.construct(_typed_request())
+    typed_replay = engine.verify(typed.result, typed.canonical_bytes)
+    typed_trace = bool(typed.result.optimization_diagnostics) and all(
+        item.objective_trace_digest is not None
+        for item in typed.result.optimization_diagnostics
+    )
     return EvaluationReport(
         module_id="GLIO-PROTEOGEN-M09-02",
         contract_version="0.1.0-provisional",
@@ -61,6 +74,10 @@ def evaluate() -> EvaluationReport:
         tamper_rejected=not tampered,
         deterministic=supported.canonical_bytes == repeat.canonical_bytes,
         lineage_complete=lineage_complete,
+        typed_status=typed.result.status.value,
+        typed_model_family=typed.result.model_family,
+        typed_replay_verified=typed_replay,
+        typed_objective_trace_verified=typed_trace,
         passed=(
             supported.result.status.value == "constructed"
             and unsupported.result.status.value == "abstained"
@@ -70,6 +87,10 @@ def evaluate() -> EvaluationReport:
             and not tampered
             and supported.canonical_bytes == repeat.canonical_bytes
             and lineage_complete
+            and typed.result.status.value == "constructed"
+            and typed.result.model_family == "glioma-complex-stoichiometric-irls/1.0.0"
+            and typed_replay
+            and typed_trace
         ),
     )
 

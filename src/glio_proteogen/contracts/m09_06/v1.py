@@ -9,6 +9,7 @@ provisional.
 
 from __future__ import annotations
 
+import math
 from enum import StrEnum
 from typing import Final, Literal
 
@@ -20,6 +21,7 @@ from glio_proteogen.contracts.m09_06.canonical import (
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
+    EstimateState,
     EvidenceReference,
     ExecutionContext,
     FrozenModel,
@@ -57,6 +59,10 @@ M0906_P95_BUDGET_NS: Final = 3_000_000_000
 M0906_NOMINAL_COVERAGE: Final = 0.9
 M0906_MIN_COVERAGE: Final = 0.85
 M0906_MAX_COVERAGE: Final = 0.95
+M0906_MIN_REPLICATES: Final = 8
+M0906_MAX_REPLICATES: Final = 256
+M0906_BOOTSTRAP_REPLICATES: Final = 64
+M0906_GLIOMA_MODEL_FAMILY: Final = "glioma-complex-activity-uncertainty-irls/1.0.0"
 M0906_EVIDENCE_CLAIM: Final = (
     "Caller-declared M09-05 integrator and uncertainty evidence; issuer authority "
     "is not authenticated."
@@ -71,6 +77,45 @@ class UncertaintyDimension(StrEnum):
     IDENTIFICATION = "identification"
     SUPPORT = "support"
     TRANSPORT = "transport"
+
+
+class ComplexUncertaintyObservation(FrozenModel):
+    """Repeated bounded uncertainty propensities for one complex dimension.
+
+    Scores are instability propensities from repeated member-level fits. The
+    member support counts expose a complex bottleneck explicitly instead of
+    allowing an absent essential subunit to disappear into an aggregate score.
+    """
+
+    observation_id: Identifier
+    dimension: UncertaintyDimension
+    scores: tuple[float, ...] = Field(
+        min_length=M0906_MIN_REPLICATES,
+        max_length=M0906_MAX_REPLICATES,
+    )
+    coverage_hits: tuple[bool, ...] = Field(
+        min_length=M0906_MIN_REPLICATES,
+        max_length=M0906_MAX_REPLICATES,
+    )
+    quality_weight: float = Field(gt=0.0, le=1.0)
+    member_count: int = Field(default=1, ge=1, le=2_048)
+    supported_member_count: int = Field(default=1, ge=0, le=2_048)
+    evidence: tuple[EvidenceReference, ...] = Field(
+        min_length=1,
+        max_length=M0906_MAX_EVIDENCE,
+    )
+
+    @model_validator(mode="after")
+    def observation_shape_is_closed(self) -> ComplexUncertaintyObservation:
+        if len(self.scores) != len(self.coverage_hits):
+            raise ValueError("complex uncertainty scores and coverage hits must align")
+        if any(not math.isfinite(value) or not 0.0 <= value <= 1.0 for value in self.scores):
+            raise ValueError("complex uncertainty scores must be finite values in [0, 1]")
+        if self.supported_member_count > self.member_count:
+            raise ValueError("supported member count cannot exceed member count")
+        if any(item.role != "evidence" for item in self.evidence):
+            raise ValueError("complex uncertainty evidence must use the evidence role")
+        return self
 
 
 class SensitivityEnvelopeStatus(StrEnum):
@@ -107,7 +152,33 @@ class UncertaintyComponent(FrozenModel):
     dimension: UncertaintyDimension
     estimate: UncertaintyEstimate
     rationale: NonEmptyStr
+    lower_bound: float | None = Field(default=None, ge=0.0, le=1.0)
+    upper_bound: float | None = Field(default=None, ge=0.0, le=1.0)
+    replicate_count: int | None = Field(default=None, ge=1, le=M0906_MAX_REPLICATES)
+    stability: float | None = Field(default=None, ge=0.0, le=1.0)
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0906_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def component_shape_is_closed(self) -> UncertaintyComponent:
+        values = (self.lower_bound, self.upper_bound, self.stability)
+        if any(value is not None and not math.isfinite(value) for value in values):
+            raise ValueError("uncertainty component diagnostics must be finite")
+        if (self.lower_bound is None) != (self.upper_bound is None):
+            raise ValueError("uncertainty component bounds must be provided together")
+        if (
+            self.lower_bound is not None
+            and self.upper_bound is not None
+            and self.lower_bound > self.upper_bound
+        ):
+            raise ValueError("uncertainty component bounds are not ordered")
+        if self.estimate.state is not EstimateState.ESTIMATED and any(
+            value is not None
+            for value in (self.lower_bound, self.upper_bound, self.replicate_count, self.stability)
+        ):
+            raise ValueError("non-estimated uncertainty cannot carry measured diagnostics")
+        if any(item.role != "evidence" for item in self.evidence):
+            raise ValueError("uncertainty component evidence must use the evidence role")
+        return self
 
 
 class UncertaintyDecomposition(FrozenModel):
@@ -226,12 +297,21 @@ class DecomposeComplexActivityUncertaintyRequest(FrozenModel):
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M0906_MAX_EVIDENCE
     )
+    uncertainty_observations: tuple[ComplexUncertaintyObservation, ...] = Field(
+        default=(), max_length=M0906_MAX_COMPONENTS
+    )
     supersedes_result_digest: Sha256Digest | None = None
 
     @model_validator(mode="after")
     def request_is_bound(self) -> DecomposeComplexActivityUncertaintyRequest:
         if self.integrator_result.media_type != M0906_M0905_RESULT_MEDIA_TYPE:
             raise ValueError("uncertainty request must bind the provisional M09-05 result")
+        observation_ids = tuple(item.observation_id for item in self.uncertainty_observations)
+        if len(observation_ids) != len(set(observation_ids)):
+            raise ValueError("complex uncertainty observations must have unique identifiers")
+        dimensions = tuple(item.dimension for item in self.uncertainty_observations)
+        if len(dimensions) != len(set(dimensions)):
+            raise ValueError("complex uncertainty observations must cover each dimension once")
         return self
 
 
@@ -290,9 +370,11 @@ class ComplexActivityUncertaintyDecompositionResult(FrozenModel):
 
 __all__ = [
     "M0906_BENCHMARK_ITERATIONS",
+    "M0906_BOOTSTRAP_REPLICATES",
     "M0906_CONTRACT_VERSION",
     "M0906_EVIDENCE_CLAIM",
     "M0906_GATE",
+    "M0906_GLIOMA_MODEL_FAMILY",
     "M0906_M0905_RESULT_MEDIA_TYPE",
     "M0906_MAX_CANONICAL_REQUEST_BYTES",
     "M0906_MAX_CANONICAL_RESULT_BYTES",
@@ -300,8 +382,10 @@ __all__ = [
     "M0906_MAX_COVERAGE",
     "M0906_MAX_EVIDENCE",
     "M0906_MAX_FINDINGS",
+    "M0906_MAX_REPLICATES",
     "M0906_MEAN_BUDGET_NS",
     "M0906_MIN_COVERAGE",
+    "M0906_MIN_REPLICATES",
     "M0906_MODULE_ID",
     "M0906_NOMINAL_COVERAGE",
     "M0906_OPERATION",
@@ -312,6 +396,7 @@ __all__ = [
     "M0906_PROVISIONAL_ABI",
     "M0906_SAFETY_CLASS",
     "ComplexActivityUncertaintyDecompositionResult",
+    "ComplexUncertaintyObservation",
     "DecomposeComplexActivityUncertaintyRequest",
     "DecomposeComplexActivityUncertaintyVerification",
     "SensitivityEnvelope",

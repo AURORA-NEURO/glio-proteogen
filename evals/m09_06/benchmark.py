@@ -15,7 +15,7 @@ if __package__ in {None, ""}:
     if str(_PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(_PROJECT_ROOT))
 
-from tests.modules.c09_complex_stoichiometry.test_m09_06_uncertainty import _request
+from tests.modules.c09_complex_stoichiometry.test_m09_06_uncertainty import _typed_request
 
 from glio_proteogen.contracts.m09_06 import (
     M0906_BENCHMARK_ITERATIONS,
@@ -48,7 +48,7 @@ class BenchmarkReport:
 def benchmark(iterations: int = M0906_BENCHMARK_ITERATIONS) -> BenchmarkReport:
     if iterations <= 0:
         raise ValueError("iterations must be positive")  # noqa: TRY003
-    request = _request()
+    request = _typed_request()
     service = M0906Service()
     expected = service.execute(request)
     samples: list[int] = []
@@ -64,7 +64,10 @@ def benchmark(iterations: int = M0906_BENCHMARK_ITERATIONS) -> BenchmarkReport:
     return BenchmarkReport(
         module_id="GLIO-PROTEOGEN-M09-06",
         contract_version="0.1.0-provisional",
-        workload="seven-dimension uncertainty decomposition and sensitivity envelope",
+        workload=(
+            "typed glioma complex-member uncertainty IRLS, bottleneck penalty, "
+            "and sensitivity envelope"
+        ),
         timed_boundary="M0906Service.execute",
         iterations=iterations,
         mean_ns=fmean(samples),

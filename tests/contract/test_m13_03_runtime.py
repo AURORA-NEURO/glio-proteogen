@@ -4,22 +4,27 @@ from __future__ import annotations
 
 import warnings
 from datetime import UTC, datetime
+from itertools import pairwise
 from typing import Any
 
 import pytest
 from pydantic import ValidationError
 
+import glio_proteogen.modules.c11_protein_native_subtype.m13_03_mechanistic_feature_constructor.engine as m1303_engine  # noqa: E501
 from glio_proteogen.contracts.m13_03 import (
     M1303_M1302_INPUT_MEDIA_TYPE,
     ConstructProteotypeMechanisticFeaturesRequest,
     MechanisticConstructionStatus,
     MechanisticDiagnosticStatus,
+    MechanisticEntityKind,
+    MechanisticEvidenceState,
     MechanisticFeature,
     MechanisticFeatureConfiguration,
     MechanisticFeatureDiagnostic,
     MechanisticFeatureKind,
     MechanisticFeatureLineage,
     MechanisticFeatureObject,
+    MechanisticObservation,
     MechanisticRelation,
     MechanisticRelationKind,
     MechanisticValueKind,
@@ -45,6 +50,12 @@ from glio_proteogen.kernel.models import (
 from glio_proteogen.modules.c11_protein_native_subtype import (
     m13_03_mechanistic_feature_constructor as m1303,
 )
+from glio_proteogen.modules.c11_protein_native_subtype.m13_03_mechanistic_feature_constructor.engine import (  # noqa: E501
+    _ENTITY_INDEX,
+    _initial_values,
+    _ObservationTerm,
+    _signed_observation_balance,
+)
 
 M1303Plugin = m1303.M1303Plugin
 M1303Service = m1303.M1303Service
@@ -52,6 +63,9 @@ MechanisticFeatureAuthorizationError = m1303.MechanisticFeatureAuthorizationErro
 construct_proteotype_mechanistic_features = m1303.construct_proteotype_mechanistic_features
 preflight_mechanistic_feature_authorization = m1303.preflight_mechanistic_feature_authorization
 verify_mechanistic_feature_replay = m1303.verify_mechanistic_feature_replay
+_MAX_EFFECT = 20.0
+_CENSORED_LIMIT = 0.2
+_FIRST_CANDIDATE_OBJECTIVE_CALL = 2
 
 
 def artifact(label: str, media_type: str = "application/json") -> ArtifactReference:
@@ -130,6 +144,68 @@ def request(
         upstream_result=artifact("upstream", M1303_M1302_INPUT_MEDIA_TYPE),
         configuration=configuration,
         source_artifacts=(artifact(source_label),),
+        observations=(
+            MechanisticObservation(
+                observation_id="observation.egfr",
+                entity_id="EGFR",
+                entity_kind=MechanisticEntityKind.PROTEIN,
+                state=MechanisticEvidenceState.OBSERVED,
+                standardized_effect=1.4,
+                standard_error=0.2,
+                quality_weight=0.95,
+                provenance_digest=artifact("observation.egfr").digest,
+            ),
+            MechanisticObservation(
+                observation_id="observation.pten",
+                entity_id="PTEN",
+                entity_kind=MechanisticEntityKind.PROTEIN,
+                state=MechanisticEvidenceState.OBSERVED,
+                standardized_effect=-0.6,
+                standard_error=0.25,
+                quality_weight=0.9,
+                provenance_digest=artifact("observation.pten").digest,
+            ),
+            MechanisticObservation(
+                observation_id="observation.tp53",
+                entity_id="TP53",
+                entity_kind=MechanisticEntityKind.PROTEIN,
+                state=MechanisticEvidenceState.OBSERVED,
+                standardized_effect=0.7,
+                standard_error=0.3,
+                quality_weight=0.85,
+                provenance_digest=artifact("observation.tp53").digest,
+            ),
+            MechanisticObservation(
+                observation_id="observation.hif1a",
+                entity_id="HIF1A",
+                entity_kind=MechanisticEntityKind.PROTEIN,
+                state=MechanisticEvidenceState.OBSERVED,
+                standardized_effect=0.4,
+                standard_error=0.35,
+                quality_weight=0.8,
+                provenance_digest=artifact("observation.hif1a").digest,
+            ),
+            MechanisticObservation(
+                observation_id="observation.olig2",
+                entity_id="OLIG2",
+                entity_kind=MechanisticEntityKind.PROTEIN,
+                state=MechanisticEvidenceState.OBSERVED,
+                standardized_effect=0.8,
+                standard_error=0.3,
+                quality_weight=0.85,
+                provenance_digest=artifact("observation.olig2").digest,
+            ),
+            MechanisticObservation(
+                observation_id="observation.rb1",
+                entity_id="RB1",
+                entity_kind=MechanisticEntityKind.PROTEIN,
+                state=MechanisticEvidenceState.OBSERVED,
+                standardized_effect=-0.5,
+                standard_error=0.3,
+                quality_weight=0.8,
+                provenance_digest=artifact("observation.rb1").digest,
+            ),
+        ),
     )
 
 
@@ -146,6 +222,209 @@ def test_supported_request_constructs_interpretable_feature_object() -> None:
     assert result.parent_target == "proteotype"
     assert result.emits_parent is False
     assert result.human_review_required
+
+
+def test_typed_glioma_graph_responds_to_signed_evidence_not_artifact_digest() -> None:
+    baseline = construct_proteotype_mechanistic_features(request())
+    high_egfr = request().model_copy(
+        update={
+            "observations": tuple(
+                item.model_copy(update={"standardized_effect": 3.0})
+                if item.entity_id == "EGFR"
+                else item
+                for item in request().observations
+            )
+        }
+    )
+    changed = construct_proteotype_mechanistic_features(high_egfr)
+    assert baseline.feature_object is not None
+    assert changed.feature_object is not None
+    baseline_rtk = next(
+        item.scalar_value
+        for item in baseline.feature_object.features
+        if item.feature_id == "feature.pathway.rtk_pi3k_akt_mtor"
+    )
+    changed_rtk = next(
+        item.scalar_value
+        for item in changed.feature_object.features
+        if item.feature_id == "feature.pathway.rtk_pi3k_akt_mtor"
+    )
+    assert changed_rtk is not None
+    assert baseline_rtk is not None
+    assert changed_rtk > baseline_rtk
+    assert changed.result_digest != baseline.result_digest
+
+
+def test_typed_graph_is_order_invariant_and_bootstrap_interval_is_replayable() -> None:
+    candidate = request()
+    reversed_request = candidate.model_copy(
+        update={"observations": tuple(reversed(candidate.observations))}
+    )
+    first = construct_proteotype_mechanistic_features(candidate)
+    second = construct_proteotype_mechanistic_features(reversed_request)
+    assert first.model_dump(mode="json") == second.model_dump(mode="json")
+    assert first.feature_object is not None
+    state = next(
+        item
+        for item in first.feature_object.features
+        if item.feature_id == "feature.state.interval"
+    )
+    assert state.lower_bound is not None
+    assert state.upper_bound is not None
+    assert state.lower_bound <= state.upper_bound
+
+
+def test_signed_graph_fit_backtracks_non_monotone_objective(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    terms = m1303_engine._active_observations(request().observations)
+    original = m1303_engine._objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == _FIRST_CANDIDATE_OBJECTIVE_CALL else value
+
+    monkeypatch.setattr(m1303_engine, "_objective", objective)
+    fit = m1303_engine._fit(terms)
+
+    assert fit.converged
+    assert calls > _FIRST_CANDIDATE_OBJECTIVE_CALL
+    assert all(
+        after <= before + m1303_engine._OBJECTIVE_TOLERANCE
+        for before, after in pairwise(fit.objective_trace)
+    )
+
+
+def test_bootstrap_interval_reflects_replicate_evidence() -> None:
+    candidate = request()
+    replicate = candidate.observations[0].model_copy(
+        update={
+            "observation_id": "observation.egfr.replicate",
+            "standardized_effect": 2.2,
+            "standard_error": 0.45,
+        }
+    )
+    result = construct_proteotype_mechanistic_features(
+        candidate.model_copy(update={"observations": (*candidate.observations, replicate)})
+    )
+    assert result.feature_object is not None
+    interval = next(
+        item
+        for item in result.feature_object.features
+        if item.feature_id == "feature.state.interval"
+    )
+    assert interval.lower_bound is not None
+    assert interval.upper_bound is not None
+    assert interval.upper_bound > interval.lower_bound
+
+
+def test_left_censored_and_missing_evidence_never_becomes_a_negative_score() -> None:
+    candidate = request()
+    censored = candidate.observations[0].model_copy(
+        update={
+            "state": MechanisticEvidenceState.LEFT_CENSORED,
+            "standardized_effect": 0.1,
+        }
+    )
+    missing = candidate.observations[1].model_copy(
+        update={
+            "state": MechanisticEvidenceState.MISSING,
+            "standardized_effect": None,
+            "standard_error": None,
+            "quality_weight": 0.0,
+        }
+    )
+    result = construct_proteotype_mechanistic_features(
+        candidate.model_copy(
+            update={"observations": (censored, missing, *candidate.observations[2:])}
+        )
+    )
+    assert result.status is MechanisticConstructionStatus.CONSTRUCTED
+    assert result.feature_object is not None
+    assert all(
+        feature.scalar_value is None or feature.scalar_value >= -_MAX_EFFECT
+        for feature in result.feature_object.features
+    )
+
+
+def test_left_censored_initialization_respects_upper_bound_not_exact_location() -> None:
+    terms = (
+        _ObservationTerm(
+            entity_id="EGFR",
+            state=MechanisticEvidenceState.LEFT_CENSORED,
+            value=_CENSORED_LIMIT,
+            standard_error=0.3,
+            quality_weight=0.9,
+        ),
+    )
+    initial = _initial_values(terms)
+    assert initial[_ENTITY_INDEX["EGFR"]] == pytest.approx(0.0)
+
+    mixed = _initial_values(
+        (
+            _ObservationTerm(
+                entity_id="EGFR",
+                state=MechanisticEvidenceState.OBSERVED,
+                value=1.5,
+                standard_error=0.2,
+                quality_weight=0.9,
+            ),
+            terms[0],
+        )
+    )
+    assert mixed[_ENTITY_INDEX["EGFR"]] <= _CENSORED_LIMIT
+
+
+def test_regulation_balance_ignores_censor_limits_as_measurements() -> None:
+    observed = _ObservationTerm(
+        entity_id="EGFR",
+        state=MechanisticEvidenceState.OBSERVED,
+        value=1.0,
+        standard_error=0.2,
+        quality_weight=1.0,
+    )
+    censored = _ObservationTerm(
+        entity_id="PTEN",
+        state=MechanisticEvidenceState.LEFT_CENSORED,
+        value=-8.0,
+        standard_error=0.2,
+        quality_weight=1.0,
+    )
+    assert _signed_observation_balance((observed, censored)) == pytest.approx(1.0)
+    assert _signed_observation_balance((censored,)) == pytest.approx(0.0)
+
+
+def test_opaque_or_fully_missing_requests_abstain_instead_of_fabricating_features() -> None:
+    candidate = request()
+    empty = construct_proteotype_mechanistic_features(
+        candidate.model_copy(update={"observations": ()})
+    )
+    missing = tuple(
+        item.model_copy(
+            update={
+                "state": MechanisticEvidenceState.UNSUPPORTED,
+                "standardized_effect": None,
+                "standard_error": None,
+                "quality_weight": 0.0,
+            }
+        )
+        for item in candidate.observations
+    )
+    unsupported = construct_proteotype_mechanistic_features(
+        candidate.model_copy(update={"observations": missing})
+    )
+    assert empty.status is MechanisticConstructionStatus.ABSTAINED
+    assert unsupported.status is MechanisticConstructionStatus.ABSTAINED
+    assert empty.feature_object is None
+    assert unsupported.feature_object is None
+
+
+def test_unresolved_glioma_entity_is_rejected_by_request_contract() -> None:
+    payload = request().model_dump(mode="python")
+    payload["observations"][0]["entity_id"] = "NOT_A_GLIOMA_ENTITY"
+    with pytest.raises(ValidationError, match="unresolved glioma entities"):
+        ConstructProteotypeMechanisticFeaturesRequest.model_validate(payload)
 
 
 @pytest.mark.parametrize("label", ["unsupported.upstream", "missing.evidence", "ood.state"])
@@ -374,7 +653,14 @@ def test_contract_configuration_object_request_and_result_closures() -> None:
     with pytest.raises(ValidationError, match="feature ids"):
         MechanisticFeatureObject.model_validate(duplicate_features.model_dump(mode="python"))
     no_pathway = result.feature_object.model_copy(
-        update={"features": result.feature_object.features[1:]}
+        update={
+            "features": tuple(
+                feature
+                for feature in result.feature_object.features
+                if feature.kind is not MechanisticFeatureKind.PATHWAY
+            ),
+            "relations": (),
+        }
     )
     with pytest.raises(ValidationError, match="pathway feature"):
         MechanisticFeatureObject.model_validate(no_pathway.model_dump(mode="python"))

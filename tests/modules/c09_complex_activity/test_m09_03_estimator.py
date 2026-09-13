@@ -4,14 +4,19 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import UTC, datetime
+from itertools import pairwise
 
 import pytest
 
+import glio_proteogen.modules.c09_complex_activity.m09_03_mature_baseline_estimator.engine as engine_module  # noqa: E501
 from glio_proteogen.contracts.m09_03 import (
     BaselineMethod,
     BaselineRunConfiguration,
     ComplexActivityBaselineEstimate,
     EstimateComplexActivityBaselineRequest,
+    GliomaBaselineEvidenceState,
+    GliomaBaselineObservation,
+    GliomaBaselineProgram,
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
@@ -31,6 +36,9 @@ from glio_proteogen.modules.c09_complex_activity import (
 
 _DIGEST = "sha256:" + ("a" * 64)
 _M0902_MEDIA_TYPE = "application/vnd.glio-proteogen.m09-02+json"
+_FIRST_CANDIDATE_CALL = 2
+_ROBUST_CENTER_MAX = 0.5
+_ARITHMETIC_MEAN_MIN = 1.0
 
 
 def _artifact(name: str, media_type: str = "application/json") -> ArtifactReference:
@@ -103,6 +111,35 @@ def _request(*, marker: str | None = None) -> EstimateComplexActivityBaselineReq
     )
 
 
+def _typed_observations() -> tuple[GliomaBaselineObservation, ...]:
+    return (
+        GliomaBaselineObservation(
+            observation_id="observation.egfr",
+            feature_id="protein.egfr",
+            program=GliomaBaselineProgram.RTK_PI3K_AKT_MTOR,
+            evidence_state=GliomaBaselineEvidenceState.OBSERVED,
+            standardized_effect=1.2,
+            standard_error=0.2,
+        ),
+        GliomaBaselineObservation(
+            observation_id="observation.tp53",
+            feature_id="protein.tp53",
+            program=GliomaBaselineProgram.P53_DNA_REPAIR,
+            evidence_state=GliomaBaselineEvidenceState.OBSERVED,
+            standardized_effect=-0.7,
+            standard_error=0.3,
+        ),
+        GliomaBaselineObservation(
+            observation_id="observation.ccnd1",
+            feature_id="protein.ccnd1",
+            program=GliomaBaselineProgram.CELL_CYCLE,
+            evidence_state=GliomaBaselineEvidenceState.LEFT_CENSORED,
+            censoring_limit=0.1,
+            standard_error=0.2,
+        ),
+    )
+
+
 def test_estimator_is_deterministic_and_replay_bound() -> None:
     engine = m0903.M0903BaselineEstimator()
     first = engine.construct(_request())
@@ -112,6 +149,151 @@ def test_estimator_is_deterministic_and_replay_bound() -> None:
     assert first.result.estimate is not None
     assert engine.verify(first.result, first.canonical_bytes)
     assert first.result.uncertainty.transport.state.value == "estimated"
+
+
+def test_typed_glioma_baseline_fits_program_relations_and_bootstrap() -> None:
+    request = _request().model_copy(update={"typed_observations": _typed_observations()})
+    engine = m0903.M0903BaselineEstimator()
+    first = engine.construct(request)
+    second = engine.construct(request)
+    assert first.canonical_bytes == second.canonical_bytes
+    assert first.result.status.value == "estimated"
+    assert first.result.estimate is not None
+    assert first.result.estimate.model_family == "glioma-complex-baseline-huber/1.0.0"
+    assert first.result.estimate.evidence_count == len(_typed_observations())
+    assert first.result.estimate.lower_bound is not None
+    assert first.result.estimate.upper_bound is not None
+    assert first.result.estimate.top_drivers
+    assert first.result.estimate.ablation_effects
+    assert first.result.optimization_diagnostics[0].status.value == "converged"
+    assert first.result.optimization_diagnostics[0].objective_trace_digest is not None
+    assert engine.verify(first.result, first.canonical_bytes, request)
+
+
+def test_typed_baseline_solver_backtracks_objective_increasing_sweep(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    original = engine_module._typed_objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == _FIRST_CANDIDATE_CALL else value
+
+    monkeypatch.setattr(engine_module, "_typed_objective", objective)
+    fitted = engine_module._fit_typed_states(_typed_observations(), max_iterations=128)
+    assert fitted is not None
+    _states, _objective, _iterations, _gap, trace = fitted
+    assert calls > _FIRST_CANDIDATE_CALL
+    assert all(
+        after <= before + engine_module._TYPED_OBJECTIVE_TOLERANCE
+        for before, after in pairwise(trace)
+    )
+
+
+def test_typed_baseline_is_input_order_invariant_and_missing_is_neutral() -> None:
+    observations = _typed_observations()
+    request = _request().model_copy(update={"typed_observations": observations})
+    reordered = _request().model_copy(update={"typed_observations": tuple(reversed(observations))})
+    engine = m0903.M0903BaselineEstimator()
+    assert engine.construct(request).canonical_bytes == engine.construct(reordered).canonical_bytes
+    missing = GliomaBaselineObservation(
+        observation_id="observation.missing",
+        feature_id="protein.missing",
+        evidence_state=GliomaBaselineEvidenceState.MISSING,
+        quality_weight=0.0,
+    )
+    with_missing = _request().model_copy(update={"typed_observations": (*observations, missing)})
+    baseline = engine.construct(request).result
+    neutral = engine.construct(with_missing).result
+    assert baseline.estimate is not None
+    assert neutral.estimate is not None
+    assert baseline.estimate.score == neutral.estimate.score
+    assert neutral.estimate.evidence_count == baseline.estimate.evidence_count
+
+
+def test_typed_initialization_uses_observed_effects_and_censor_bounds() -> None:
+    observed = _typed_observations()[0].model_copy(
+        update={"program": GliomaBaselineProgram.CELL_CYCLE}
+    )
+    censored = _typed_observations()[2]
+    high_bound = censored.model_copy(update={"censoring_limit": -0.2})
+
+    assert engine_module._initial_typed_state((observed, high_bound)) == pytest.approx(-0.2)
+
+
+def test_typed_initialization_downweights_failed_program_replicate() -> None:
+    terms = (
+        (0.2, 0.2, 1.0),
+        (0.3, 0.2, 1.0),
+        (4.0, 0.2, 1.0),
+    )
+
+    center = engine_module._robust_initial_baseline_center(terms)
+    arithmetic_mean = sum(term[0] for term in terms) / len(terms)
+
+    assert center < _ROBUST_CENTER_MAX
+    assert arithmetic_mean > _ARITHMETIC_MEAN_MIN
+    assert engine_module._initial_baseline_measurement_objective(
+        center, terms
+    ) <= engine_module._initial_baseline_measurement_objective(arithmetic_mean, terms)
+
+
+def test_typed_censor_only_initialization_is_neutral_when_bound_is_positive() -> None:
+    censored = _typed_observations()[2]
+
+    assert engine_module._initial_typed_state((censored,)) == pytest.approx(0.0)
+
+
+def test_typed_censor_influence_is_zero_when_state_is_feasible() -> None:
+    observed = _typed_observations()[0]
+    censored = observed.model_copy(
+        update={
+            "evidence_state": GliomaBaselineEvidenceState.LEFT_CENSORED,
+            "censoring_limit": 0.2,
+        }
+    )
+
+    assert engine_module._typed_censor_activation(0.0, censored) == pytest.approx(0.0)
+    assert engine_module._typed_censor_activation(0.3, censored) == pytest.approx(1.0)
+
+
+def test_typed_baseline_abstains_when_program_support_is_insufficient() -> None:
+    observations = (
+        GliomaBaselineObservation(
+            observation_id="observation.egfr.1",
+            feature_id="protein.egfr",
+            program=GliomaBaselineProgram.RTK_PI3K_AKT_MTOR,
+            evidence_state=GliomaBaselineEvidenceState.OBSERVED,
+            standardized_effect=1.2,
+            standard_error=0.2,
+        ),
+        GliomaBaselineObservation(
+            observation_id="observation.egfr.2",
+            feature_id="protein.erbb2",
+            program=GliomaBaselineProgram.RTK_PI3K_AKT_MTOR,
+            evidence_state=GliomaBaselineEvidenceState.OBSERVED,
+            standardized_effect=0.8,
+            standard_error=0.2,
+        ),
+        GliomaBaselineObservation(
+            observation_id="observation.egfr.3",
+            feature_id="protein.erbb3",
+            program=GliomaBaselineProgram.RTK_PI3K_AKT_MTOR,
+            evidence_state=GliomaBaselineEvidenceState.OBSERVED,
+            standardized_effect=1.0,
+            standard_error=0.2,
+        ),
+    )
+    result = (
+        m0903.M0903BaselineEstimator()
+        .construct(_request().model_copy(update={"typed_observations": observations}))
+        .result
+    )
+    assert result.status.value == "abstained"
+    assert result.estimate is None
+    assert result.optimization_diagnostics[0].status.value == "not_evaluable"
+    assert result.human_review_required is True
 
 
 @pytest.mark.parametrize("marker", ["missing", "unsupported", "ood", "not_evaluable", "conflict"])

@@ -9,6 +9,7 @@ scaffolding only; every ABI symbol is provisional.
 from __future__ import annotations
 
 from enum import StrEnum
+from math import isfinite
 from typing import Final, Literal
 
 from pydantic import Field, model_validator
@@ -46,6 +47,7 @@ M0705_MAX_FEATURES: Final = 512
 M0705_MAX_CONSTRAINTS: Final = 512
 M0705_MAX_EVALUATIONS: Final = M0705_MAX_CONSTRAINTS
 M0705_MAX_ABLATIONS: Final = M0705_MAX_CONSTRAINTS
+M0705_MAX_DIAGNOSTICS: Final = M0705_MAX_CONSTRAINTS
 M0705_MAX_EVIDENCE: Final = 32
 M0705_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M0705_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
@@ -54,6 +56,11 @@ M0705_ADVANCED_ESTIMATOR_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m07
 M0705_EVIDENCE_CLAIM: Final = (
     "Caller-declared proteotype constraint evidence; issuer authority is not authenticated."
 )
+M0705_MAX_TYPED_OBSERVATIONS: Final = 512
+M0705_MAX_TYPED_EFFECT: Final = 20.0
+M0705_DEFAULT_BOOTSTRAP_REPLICATES: Final = 64
+M0705_MAX_BOOTSTRAP_REPLICATES: Final = 256
+M0705_GLIOMA_MODEL_FAMILY: Final = "glioma-dosage-mechanism-irls/1.0.0"
 
 
 class ProteotypeConstraintKind(StrEnum):
@@ -82,6 +89,27 @@ class ProteotypeConstraintEvaluationOutcome(StrEnum):
 class ProteotypeConstraintIntegrationStatus(StrEnum):
     INTEGRATED = "integrated"
     ABSTAINED = "abstained"
+
+
+class GliomaDosageProgram(StrEnum):
+    RTK_PI3K_AKT_MTOR = "RTK_PI3K_AKT_MTOR"
+    P53_DNA_REPAIR = "P53_DNA_REPAIR"
+    IDH_HIF1A = "IDH_HIF1A"
+    HYPOXIA_ANGIOGENESIS = "HYPOXIA_ANGIOGENESIS"
+    CELL_CYCLE = "CELL_CYCLE"
+
+
+class DosageEvidenceState(StrEnum):
+    OBSERVED = "observed"
+    LEFT_CENSORED = "left_censored"
+    MISSING = "missing"
+    UNSUPPORTED = "unsupported"
+
+
+class DosageOptimizationStatus(StrEnum):
+    CONVERGED = "converged"
+    NOT_CONVERGED = "not_converged"
+    NOT_EVALUABLE = "not_evaluable"
 
 
 class ProteotypeConstraintReplayReason(StrEnum):
@@ -134,6 +162,64 @@ class ProteotypeMechanismConstraintSet(FrozenModel):
         return self
 
 
+class GliomaDosageObservation(FrozenModel):
+    """Explicit copy-number/proteotype effect used by the typed dosage lane."""
+
+    observation_id: Identifier
+    feature_id: Identifier
+    program: GliomaDosageProgram | None = None
+    evidence_state: DosageEvidenceState
+    standardized_effect: float | None = Field(
+        default=None, ge=-M0705_MAX_TYPED_EFFECT, le=M0705_MAX_TYPED_EFFECT
+    )
+    standard_error: float | None = Field(default=None, gt=0.0, le=M0705_MAX_TYPED_EFFECT)
+    quality_weight: float = Field(default=1.0, ge=0.0, le=1.0)
+    censoring_limit: float | None = Field(
+        default=None, ge=-M0705_MAX_TYPED_EFFECT, le=M0705_MAX_TYPED_EFFECT
+    )
+    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0705_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def observation_shape_is_closed(self) -> GliomaDosageObservation:
+        for name, value in (
+            ("standardized_effect", self.standardized_effect),
+            ("standard_error", self.standard_error),
+            ("quality_weight", self.quality_weight),
+            ("censoring_limit", self.censoring_limit),
+        ):
+            if value is not None and not isfinite(value):
+                raise ValueError(f"{name} must be finite")
+        if self.evidence_state is DosageEvidenceState.OBSERVED:
+            if (
+                self.program is None
+                or self.standardized_effect is None
+                or self.standard_error is None
+                or self.censoring_limit is not None
+                or self.quality_weight <= 0.0
+            ):
+                raise ValueError("observed dosage evidence requires program, effect, and error")
+        elif self.evidence_state is DosageEvidenceState.LEFT_CENSORED:
+            if (
+                self.program is None
+                or self.censoring_limit is None
+                or self.standard_error is None
+                or self.standardized_effect is not None
+                or self.quality_weight <= 0.0
+            ):
+                raise ValueError("left-censored dosage evidence requires program, limit, and error")
+        elif (
+            self.program is not None
+            or self.standardized_effect is not None
+            or self.standard_error is not None
+            or self.censoring_limit is not None
+            or self.quality_weight != 0.0
+        ):
+            raise ValueError("missing or unsupported dosage evidence cannot carry a value")
+        if any(item.role != "evidence" for item in self.evidence):
+            raise ValueError("typed dosage evidence must use the evidence role")
+        return self
+
+
 class ProteotypeConstraintEvaluation(FrozenModel):
     constraint_id: Identifier
     outcome: ProteotypeConstraintEvaluationOutcome
@@ -166,6 +252,11 @@ class ProteotypeConstraintAwareEstimate(FrozenModel):
     estimate_value: float = Field(allow_inf_nan=False)
     lower_bound: float | None = Field(default=None, allow_inf_nan=False)
     upper_bound: float | None = Field(default=None, allow_inf_nan=False)
+    evidence_count: int = Field(default=0, ge=0, le=M0705_MAX_TYPED_OBSERVATIONS)
+    stability: float | None = Field(default=None, ge=0.0, le=1.0)
+    discordance: float | None = Field(default=None, ge=0.0, le=1.0)
+    top_drivers: tuple[NonEmptyStr, ...] = Field(default=(), max_length=8)
+    model_family: NonEmptyStr | None = None
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0705_MAX_EVIDENCE)
 
     @model_validator(mode="after")
@@ -175,6 +266,30 @@ class ProteotypeConstraintAwareEstimate(FrozenModel):
                 raise ValueError("constraint-aware estimate bounds are not ordered")
             if not self.lower_bound <= self.estimate_value <= self.upper_bound:
                 raise ValueError("constraint-aware estimate must lie within its bounds")
+        return self
+
+
+class DosageOptimizationDiagnostic(FrozenModel):
+    """Replay-visible solver diagnostics for the typed dosage fit."""
+
+    diagnostic_id: Identifier
+    status: DosageOptimizationStatus
+    objective: NonEmptyStr
+    iteration_count: int = Field(ge=0)
+    objective_value: float | None = None
+    convergence_gap: float | None = Field(default=None, ge=0.0)
+    objective_trace_digest: Sha256Digest | None = None
+    model_family: NonEmptyStr | None = None
+    message: NonEmptyStr
+    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0705_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def diagnostic_shape_is_closed(self) -> DosageOptimizationDiagnostic:
+        if self.status is DosageOptimizationStatus.CONVERGED:
+            if self.objective_value is None or self.convergence_gap is None:
+                raise ValueError("converged dosage diagnostic requires objective and gap")
+        elif self.objective_value is not None and self.convergence_gap is None:
+            raise ValueError("objective value requires a convergence gap")
         return self
 
 
@@ -191,6 +306,15 @@ class IntegrateProteotypeConstraintsRequest(FrozenModel):
     feature_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M0705_MAX_EVIDENCE
     )
+    typed_observations: tuple[GliomaDosageObservation, ...] = Field(
+        default=(), max_length=M0705_MAX_TYPED_OBSERVATIONS
+    )
+    max_iterations: int = Field(default=128, gt=0, le=10_000)
+    bootstrap_replicates: int = Field(
+        default=M0705_DEFAULT_BOOTSTRAP_REPLICATES,
+        ge=16,
+        le=M0705_MAX_BOOTSTRAP_REPLICATES,
+    )
     supersedes_result_digest: Sha256Digest | None = None
 
     @model_validator(mode="after")
@@ -201,6 +325,13 @@ class IntegrateProteotypeConstraintsRequest(FrozenModel):
             raise ValueError("request must bind the provisional M07-04 result media type")
         if self.representation_result.artifact_id == self.advanced_estimator_result.artifact_id:
             raise ValueError("representation and estimator handoffs must remain distinct")
+        if self.typed_observations:
+            observation_ids = tuple(item.observation_id for item in self.typed_observations)
+            if len(observation_ids) != len(set(observation_ids)):
+                raise ValueError("typed dosage observation ids must be unique")
+            feature_ids = tuple(item.feature_id for item in self.typed_observations)
+            if len(feature_ids) != len(set(feature_ids)):
+                raise ValueError("typed dosage feature ids must be unique")
         return self
 
 
@@ -223,6 +354,10 @@ class IntegrateProteotypeConstraintsResult(FrozenModel):
     ablations: tuple[ProteotypeConstraintAblation, ...] = Field(
         default=(), max_length=M0705_MAX_ABLATIONS
     )
+    optimization_diagnostics: tuple[DosageOptimizationDiagnostic, ...] = Field(
+        default=(), max_length=M0705_MAX_DIAGNOSTICS
+    )
+    model_family: NonEmptyStr | None = None
     abstention_reason: NonEmptyStr | None = None
     parent_target: Literal["proteotype"] = M0705_PARENT
     emits_parent: Literal[False] = False
@@ -253,6 +388,9 @@ class IntegrateProteotypeConstraintsResult(FrozenModel):
             raise ValueError("constraint ablations must be unique")
         if set(ablation_ids) != soft_ids:
             raise ValueError("every soft constraint requires ablation evidence")
+        optimization_ids = tuple(item.diagnostic_id for item in self.optimization_diagnostics)
+        if len(optimization_ids) != len(set(optimization_ids)):
+            raise ValueError("dosage optimization diagnostic ids must be unique")
         hard_violated = any(
             constraints[item.constraint_id].hardness is ProteotypeConstraintHardness.HARD
             and item.outcome is ProteotypeConstraintEvaluationOutcome.VIOLATED
@@ -300,21 +438,32 @@ class IntegrateProteotypeConstraintsVerification(FrozenModel):
 __all__ = [
     "M0705_ADVANCED_ESTIMATOR_MEDIA_TYPE",
     "M0705_CONTRACT_VERSION",
+    "M0705_DEFAULT_BOOTSTRAP_REPLICATES",
     "M0705_EVIDENCE_CLAIM",
     "M0705_GATE",
+    "M0705_GLIOMA_MODEL_FAMILY",
     "M0705_MAX_ABLATIONS",
+    "M0705_MAX_BOOTSTRAP_REPLICATES",
     "M0705_MAX_CANONICAL_REQUEST_BYTES",
     "M0705_MAX_CANONICAL_RESULT_BYTES",
     "M0705_MAX_CONSTRAINTS",
+    "M0705_MAX_DIAGNOSTICS",
     "M0705_MAX_EVALUATIONS",
     "M0705_MAX_EVIDENCE",
     "M0705_MAX_FEATURES",
+    "M0705_MAX_TYPED_EFFECT",
+    "M0705_MAX_TYPED_OBSERVATIONS",
     "M0705_MODULE_ID",
     "M0705_OPERATION",
     "M0705_OUTPUT_MEDIA_TYPE",
     "M0705_OWNER",
     "M0705_PARENT",
     "M0705_SAFETY_CLASS",
+    "DosageEvidenceState",
+    "DosageOptimizationDiagnostic",
+    "DosageOptimizationStatus",
+    "GliomaDosageObservation",
+    "GliomaDosageProgram",
     "IntegrateProteotypeConstraintsRequest",
     "IntegrateProteotypeConstraintsResult",
     "IntegrateProteotypeConstraintsVerification",

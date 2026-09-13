@@ -58,6 +58,11 @@ M0904_EVIDENCE_CLAIM: Final = (
     "Caller-declared M09-03 baseline and probabilistic-estimator evidence; "
     "issuer authority is not authenticated."
 )
+M0904_MAX_TYPED_OBSERVATIONS: Final = 256
+M0904_MAX_TYPED_EFFECT: Final = 8.0
+M0904_DEFAULT_BOOTSTRAP_REPLICATES: Final = 64
+M0904_MAX_BOOTSTRAP_REPLICATES: Final = 256
+M0904_GLIOMA_MODEL_FAMILY: Final = "glioma-complex-stoichiometric-irls/1.0.0"
 
 # Posterior and optimisation values are part of the signed replay surface.
 # Reject non-finite values at the contract boundary instead of normalising them
@@ -104,6 +109,32 @@ class ProbabilisticResultStatus(StrEnum):
     ABSTAINED = "abstained"
 
 
+class ComplexEvidenceState(StrEnum):
+    """How one member-level measurement contributes to a typed complex fit."""
+
+    OBSERVED = "observed"
+    LEFT_CENSORED = "left_censored"
+    MISSING = "missing"
+    UNSUPPORTED = "unsupported"
+
+
+class ComplexMemberRole(StrEnum):
+    """Stoichiometric role of a protein inside the declared complex."""
+
+    ESSENTIAL = "essential"
+    SUPPORTING = "supporting"
+
+
+class GliomaComplexProgram(StrEnum):
+    """Glioma-relevant complexes grouped by a reviewable biological program."""
+
+    RTK_PI3K_AKT_MTOR = "RTK_PI3K_AKT_MTOR"
+    P53_DNA_REPAIR = "P53_DNA_REPAIR"
+    CHROMATIN_REMODELING = "CHROMATIN_REMODELING"
+    HYPOXIA_ANGIOGENESIS = "HYPOXIA_ANGIOGENESIS"
+    CELL_CYCLE = "CELL_CYCLE"
+
+
 class ProbabilisticPrior(FrozenModel):
     prior_id: Identifier
     version: SemanticVersion
@@ -117,6 +148,64 @@ class EstimatorConstraint(FrozenModel):
     expression: NonEmptyStr
     hard: bool
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0904_MAX_EVIDENCE)
+
+
+class ComplexMemberObservation(FrozenModel):
+    """Explicit member-level evidence for the typed glioma complex lane.
+
+    The compatibility ABI only carries artifact references.  This additive
+    observation makes the scientific path operate on actual standardized
+    effects, standard errors, member roles, and stoichiometric weights while
+    preserving missing and unsupported states as non-observations.
+    """
+
+    observation_id: Identifier
+    complex_id: Identifier
+    member_id: Identifier
+    program: GliomaComplexProgram | None = None
+    member_role: ComplexMemberRole = ComplexMemberRole.SUPPORTING
+    evidence_state: ComplexEvidenceState | None = None
+    standardized_effect: float | None = Field(
+        default=None, ge=-M0904_MAX_TYPED_EFFECT, le=M0904_MAX_TYPED_EFFECT
+    )
+    standard_error: float | None = Field(default=None, gt=0.0, le=M0904_MAX_TYPED_EFFECT)
+    quality_weight: float = Field(default=1.0, ge=0.0, le=1.0)
+    stoichiometric_weight: float = Field(default=1.0, gt=0.0, le=16.0)
+    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0904_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def typed_observation_shape_is_closed(self) -> ComplexMemberObservation:
+        typed = self.evidence_state is not None or self.standardized_effect is not None
+        if not typed:
+            if self.standard_error is not None or self.program is not None:
+                raise ValueError("typed complex measurements require an effect and evidence state")
+            return self
+        if self.evidence_state is None:
+            raise ValueError("typed complex effects require evidence_state")
+        active = self.evidence_state in {
+            ComplexEvidenceState.OBSERVED,
+            ComplexEvidenceState.LEFT_CENSORED,
+        }
+        if active:
+            if (
+                self.standardized_effect is None
+                or self.standard_error is None
+                or self.program is None
+            ):
+                raise ValueError(
+                    "active complex evidence requires program, effect, and standard error"
+                )
+            if self.quality_weight <= 0.0:
+                raise ValueError("active complex evidence requires positive quality weight")
+        elif (
+            self.standardized_effect is not None
+            or self.standard_error is not None
+            or self.quality_weight != 0.0
+        ):
+            raise ValueError("missing or unsupported complex evidence cannot carry a value")
+        if any(item.role != "evidence" for item in self.evidence):
+            raise ValueError("complex member evidence must use the evidence role")
+        return self
 
 
 class ProbabilisticEstimatorConfiguration(FrozenModel):
@@ -133,6 +222,11 @@ class ProbabilisticEstimatorConfiguration(FrozenModel):
     optimizer: NonEmptyStr
     seed: int = Field(ge=0)
     max_iterations: int = Field(gt=0, le=10_000_000)
+    bootstrap_replicates: int = Field(
+        default=M0904_DEFAULT_BOOTSTRAP_REPLICATES,
+        ge=16,
+        le=M0904_MAX_BOOTSTRAP_REPLICATES,
+    )
     reference: ArtifactReference
     locked: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0904_MAX_EVIDENCE)
@@ -155,6 +249,11 @@ class PosteriorEstimate(FrozenModel):
     upper_bound: FiniteFloat | None = None
     category: NonEmptyStr | None = None
     posterior_mass: FiniteFloat | None = Field(default=None, ge=0.0, le=1.0)
+    evidence_count: int = Field(default=0, ge=0, le=M0904_MAX_TYPED_OBSERVATIONS)
+    stability: FiniteFloat | None = Field(default=None, ge=0.0, le=1.0)
+    discordance: FiniteFloat | None = Field(default=None, ge=0.0, le=1.0)
+    top_drivers: tuple[NonEmptyStr, ...] = Field(default=(), max_length=8)
+    ablation_effects: tuple[NonEmptyStr, ...] = Field(default=(), max_length=8)
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0904_MAX_EVIDENCE)
 
     @model_validator(mode="after")
@@ -186,6 +285,8 @@ class OptimizationDiagnostic(FrozenModel):
     objective_value: FiniteFloat | None = None
     convergence_gap: FiniteFloat | None = Field(default=None, ge=0.0)
     message: NonEmptyStr
+    model_family: NonEmptyStr | None = None
+    objective_trace_digest: Sha256Digest | None = None
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0904_MAX_EVIDENCE)
 
     @model_validator(mode="after")
@@ -231,12 +332,24 @@ class EstimateComplexActivityProbabilisticRequest(FrozenModel):
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M0904_MAX_EVIDENCE
     )
+    typed_observations: tuple[ComplexMemberObservation, ...] = Field(
+        default=(), max_length=M0904_MAX_TYPED_OBSERVATIONS
+    )
     supersedes_result_digest: Sha256Digest | None = None
 
     @model_validator(mode="after")
     def request_is_bound(self) -> EstimateComplexActivityProbabilisticRequest:
         if self.baseline_result.media_type != M0904_BASELINE_MEDIA_TYPE:
             raise ValueError("probabilistic request must bind the provisional M09-03 baseline")
+        if self.typed_observations:
+            observation_ids = tuple(item.observation_id for item in self.typed_observations)
+            if len(observation_ids) != len(set(observation_ids)):
+                raise ValueError("typed complex observation identifiers must be unique")
+            member_keys = tuple(
+                (item.complex_id, item.member_id) for item in self.typed_observations
+            )
+            if len(member_keys) != len(set(member_keys)):
+                raise ValueError("typed complex member identifiers must be unique per complex")
         return self
 
 
@@ -297,12 +410,18 @@ class EstimateComplexActivityProbabilisticResult(FrozenModel):
         return self
 
 
-def expected_uncertainty() -> UncertaintyProfile:
+def expected_uncertainty(*, typed: bool = False) -> UncertaintyProfile:
     """Return explicit non-estimable uncertainty for safe provisional abstention."""
 
     estimate = UncertaintyEstimate(
-        state=EstimateState.NOT_ESTIMABLE,
-        rationale="The provisional M09-04 scaffold has no owner-confirmed calibration.",
+        state=EstimateState.ESTIMATED if typed else EstimateState.NOT_ESTIMABLE,
+        probability=0.9 if typed else None,
+        rationale=(
+            "Typed glioma complex member effects were fitted with robust stoichiometric IRLS "
+            "and deterministic bootstrap perturbations."
+            if typed
+            else "The provisional M09-04 scaffold has no owner-confirmed calibration."
+        ),
     )
     return UncertaintyProfile(
         measurement=estimate,
@@ -313,7 +432,15 @@ def expected_uncertainty() -> UncertaintyProfile:
         support=estimate,
         transport=estimate,
         sensitivity_notes=(
-            "Posterior coverage is not claimed until locked benchmark evidence is available.",
+            (
+                "Bootstrap intervals are deterministic research diagnostics; calibrated clinical "
+                "coverage is not claimed."
+                if typed
+                else (
+                    "Posterior coverage is not claimed until locked benchmark evidence is "
+                    "available."
+                )
+            ),
         ),
     )
 
@@ -390,6 +517,11 @@ def expected_provenance(
                     request_digest,
                     request.baseline_result.digest,
                     *(item.digest for item in request.source_artifacts),
+                    *(
+                        evidence.reference.digest
+                        for observation in request.typed_observations
+                        for evidence in observation.evidence
+                    ),
                 }
             )
         ),
@@ -405,8 +537,11 @@ def expected_provenance(
 __all__ = [
     "M0904_BASELINE_MEDIA_TYPE",
     "M0904_CONTRACT_VERSION",
+    "M0904_DEFAULT_BOOTSTRAP_REPLICATES",
     "M0904_EVIDENCE_CLAIM",
     "M0904_GATE",
+    "M0904_GLIOMA_MODEL_FAMILY",
+    "M0904_MAX_BOOTSTRAP_REPLICATES",
     "M0904_MAX_CANONICAL_REQUEST_BYTES",
     "M0904_MAX_CANONICAL_RESULT_BYTES",
     "M0904_MAX_CONSTRAINTS",
@@ -414,6 +549,8 @@ __all__ = [
     "M0904_MAX_ESTIMATES",
     "M0904_MAX_EVIDENCE",
     "M0904_MAX_PRIORS",
+    "M0904_MAX_TYPED_EFFECT",
+    "M0904_MAX_TYPED_OBSERVATIONS",
     "M0904_MODULE_ID",
     "M0904_OPERATION",
     "M0904_OUTPUT_MEDIA_TYPE",
@@ -421,11 +558,15 @@ __all__ = [
     "M0904_PARENT",
     "M0904_PROVISIONAL_ABI",
     "M0904_SAFETY_CLASS",
+    "ComplexEvidenceState",
+    "ComplexMemberObservation",
+    "ComplexMemberRole",
     "EstimateComplexActivityProbabilisticRequest",
     "EstimateComplexActivityProbabilisticResult",
     "EstimateComplexActivityProbabilisticVerification",
     "EstimatorConstraint",
     "FiniteFloat",
+    "GliomaComplexProgram",
     "OptimizationDiagnostic",
     "OptimizationDiagnosticStatus",
     "PosteriorEstimate",

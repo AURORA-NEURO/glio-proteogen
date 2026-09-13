@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 from evals.m02_01.run import build_scenario_request
 
+from benchmarks._module_validation import run_pytest_benchmark
 from glio_proteogen.contracts.m02_01 import ConformanceDisposition
 from glio_proteogen.modules.c02_identification_qc.m02_01_protocol_metadata import (
     evaluate_conformance,
@@ -51,3 +52,14 @@ def test_representative_public_batch_validator_latency(
     statistics = benchmark_stats.stats
     assert statistics is not None
     assert statistics.mean <= MEAN_BUDGET_SECONDS
+
+
+def run_benchmark(iterations: int = 10) -> dict[str, object]:
+    """Run the locked representative metadata batch workload."""
+
+    return run_pytest_benchmark(
+        module_id="GLIO-PROTEOGEN-M02-01",
+        workload=test_representative_public_batch_validator_latency,
+        iterations=iterations,
+        mean_budget_seconds=MEAN_BUDGET_SECONDS,
+    )

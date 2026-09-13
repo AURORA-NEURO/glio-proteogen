@@ -58,6 +58,11 @@ M1003_EVIDENCE_CLAIM: Final = (
     "Caller-declared protein-RNA baseline and benchmark evidence; issuer authority "
     "is not authenticated."
 )
+M1003_MAX_TYPED_OBSERVATIONS: Final = 512
+M1003_MAX_TYPED_EFFECT: Final = 20.0
+M1003_DEFAULT_BOOTSTRAP_REPLICATES: Final = 64
+M1003_MAX_BOOTSTRAP_REPLICATES: Final = 256
+M1003_GLIOMA_MODEL_FAMILY: Final = "glioma-protein-rna-discordance-programs/1.0.0"
 
 
 class BaselineEstimatorFamily(StrEnum):
@@ -83,6 +88,25 @@ class BaselineDiagnosticStatus(StrEnum):
 class BaselineResultStatus(StrEnum):
     ESTIMATED = "estimated"
     ABSTAINED = "abstained"
+
+
+class DiscordanceEvidenceState(StrEnum):
+    """How a paired protein/RNA observation contributes to the fit."""
+
+    OBSERVED = "observed"
+    LEFT_CENSORED = "left_censored"
+    MISSING = "missing"
+    UNSUPPORTED = "unsupported"
+
+
+class GliomaDiscordanceProgram(StrEnum):
+    """Glioma programs used for hierarchical protein/RNA discordance shrinkage."""
+
+    RTK_PI3K_AKT_MTOR = "RTK_PI3K_AKT_MTOR"
+    P53_CELL_CYCLE = "P53_CELL_CYCLE"
+    IDH_HIF1A = "IDH_HIF1A"
+    MESENCHYMAL_PROGRAM = "MESENCHYMAL_PROGRAM"
+    PROLIFERATION = "PROLIFERATION"
 
 
 class BaselineReplayReason(StrEnum):
@@ -112,6 +136,60 @@ class BaselineTuningSpec(FrozenModel):
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1003_MAX_EVIDENCE)
 
 
+class TypedProteinRnaObservation(FrozenModel):
+    """Explicit paired protein/RNA effects for the research discordance lane."""
+
+    observation_id: Identifier
+    feature_id: Identifier
+    program: GliomaDiscordanceProgram | None = None
+    evidence_state: DiscordanceEvidenceState
+    protein_effect: float | None = Field(
+        default=None, ge=-M1003_MAX_TYPED_EFFECT, le=M1003_MAX_TYPED_EFFECT
+    )
+    rna_effect: float | None = Field(
+        default=None, ge=-M1003_MAX_TYPED_EFFECT, le=M1003_MAX_TYPED_EFFECT
+    )
+    protein_standard_error: float | None = Field(
+        default=None, gt=0.0, le=M1003_MAX_TYPED_EFFECT
+    )
+    rna_standard_error: float | None = Field(default=None, gt=0.0, le=M1003_MAX_TYPED_EFFECT)
+    quality_weight: float = Field(default=1.0, ge=0.0, le=1.0)
+    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1003_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def paired_measurement_shape_is_closed(self) -> TypedProteinRnaObservation:
+        active = self.evidence_state in {
+            DiscordanceEvidenceState.OBSERVED,
+            DiscordanceEvidenceState.LEFT_CENSORED,
+        }
+        if active:
+            if (
+                self.program is None
+                or self.protein_effect is None
+                or self.rna_effect is None
+                or self.protein_standard_error is None
+                or self.rna_standard_error is None
+            ):
+                raise ValueError(
+                    "active paired evidence requires program, protein/RNA effects, and "
+                    "standard errors"
+                )
+            if self.quality_weight <= 0.0:
+                raise ValueError("active paired evidence requires positive quality weight")
+        elif (
+            self.program is not None
+            or self.protein_effect is not None
+            or self.rna_effect is not None
+            or self.protein_standard_error is not None
+            or self.rna_standard_error is not None
+            or self.quality_weight != 0.0
+        ):
+            raise ValueError("missing or unsupported paired evidence cannot carry a value")
+        if any(item.role != "evidence" for item in self.evidence):
+            raise ValueError("paired protein/RNA evidence must use the evidence role")
+        return self
+
+
 class BaselineConfiguration(FrozenModel):
     """Locked estimator, preprocessing, tuning, and uncertainty declaration."""
 
@@ -124,6 +202,11 @@ class BaselineConfiguration(FrozenModel):
     )
     tuning: BaselineTuningSpec
     uncertainty_method: NonEmptyStr
+    bootstrap_replicates: int = Field(
+        default=M1003_DEFAULT_BOOTSTRAP_REPLICATES,
+        ge=16,
+        le=M1003_MAX_BOOTSTRAP_REPLICATES,
+    )
     reference: ArtifactReference
     locked: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1003_MAX_EVIDENCE)
@@ -151,6 +234,11 @@ class BaselineEstimate(FrozenModel):
     upper_bound: float | None = None
     category: NonEmptyStr | None = None
     support_score: float = Field(ge=0.0, le=1.0)
+    evidence_count: int = Field(default=0, ge=0, le=M1003_MAX_TYPED_OBSERVATIONS)
+    stability: float | None = Field(default=None, ge=0.0, le=1.0)
+    discordance: float | None = Field(default=None, ge=0.0, le=1.0)
+    top_drivers: tuple[NonEmptyStr, ...] = Field(default=(), max_length=8)
+    ablation_effects: tuple[NonEmptyStr, ...] = Field(default=(), max_length=8)
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1003_MAX_EVIDENCE)
 
     @model_validator(mode="after")
@@ -188,6 +276,8 @@ class BaselineDiagnostic(FrozenModel):
     metric_name: NonEmptyStr
     metric_value: float | None = None
     message: NonEmptyStr
+    model_family: NonEmptyStr | None = None
+    objective_trace_digest: Sha256Digest | None = None
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1003_MAX_EVIDENCE)
 
     @model_validator(mode="after")
@@ -228,12 +318,24 @@ class EstimateProteinRnaDiscordanceBaselineRequest(FrozenModel):
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M1003_MAX_EVIDENCE
     )
+    typed_observations: tuple[TypedProteinRnaObservation, ...] = Field(
+        default=(), max_length=M1003_MAX_TYPED_OBSERVATIONS
+    )
     supersedes_result_digest: Sha256Digest | None = None
 
     @model_validator(mode="after")
     def request_is_bound(self) -> EstimateProteinRnaDiscordanceBaselineRequest:
         if self.formal_state_result.media_type != M1003_BASELINE_MEDIA_TYPE:
             raise ValueError("baseline request must bind the provisional M10-01 result")
+        if self.typed_observations:
+            observation_ids = tuple(item.observation_id for item in self.typed_observations)
+            if len(observation_ids) != len(set(observation_ids)):
+                raise ValueError("typed protein/RNA observation identifiers must be unique")
+            feature_ids = tuple(item.feature_id for item in self.typed_observations)
+            if len(feature_ids) != len(set(feature_ids)):
+                raise ValueError("typed protein/RNA feature identifiers must be unique")
+            if not set(feature_ids).issubset(self.configuration.target_feature_ids):
+                raise ValueError("typed protein/RNA features must be configured targets")
         return self
 
 
@@ -295,8 +397,11 @@ __all__ = [
     "M1003_BASELINE_MEDIA_TYPE",
     "M1003_BENCHMARK_ITERATIONS",
     "M1003_CONTRACT_VERSION",
+    "M1003_DEFAULT_BOOTSTRAP_REPLICATES",
     "M1003_EVIDENCE_CLAIM",
     "M1003_GATE",
+    "M1003_GLIOMA_MODEL_FAMILY",
+    "M1003_MAX_BOOTSTRAP_REPLICATES",
     "M1003_MAX_CANONICAL_REQUEST_BYTES",
     "M1003_MAX_CANONICAL_RESULT_BYTES",
     "M1003_MAX_DIAGNOSTICS",
@@ -304,6 +409,8 @@ __all__ = [
     "M1003_MAX_EVIDENCE",
     "M1003_MAX_PREPROCESSING_STEPS",
     "M1003_MAX_TARGETS",
+    "M1003_MAX_TYPED_EFFECT",
+    "M1003_MAX_TYPED_OBSERVATIONS",
     "M1003_MEAN_BUDGET_NS",
     "M1003_MODULE_ID",
     "M1003_OPERATION",
@@ -323,7 +430,10 @@ __all__ = [
     "BaselineReplayReason",
     "BaselineResultStatus",
     "BaselineTuningSpec",
+    "DiscordanceEvidenceState",
     "EstimateProteinRnaDiscordanceBaselineRequest",
     "EstimateProteinRnaDiscordanceBaselineVerification",
+    "GliomaDiscordanceProgram",
     "ProteinRnaDiscordanceBaselineResult",
+    "TypedProteinRnaObservation",
 ]

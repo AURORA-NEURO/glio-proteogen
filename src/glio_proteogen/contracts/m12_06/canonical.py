@@ -19,7 +19,29 @@ def _dump(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
 
 
 def normalized_request(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
-    return _dump(value)
+    document = _dump(value)
+    # Scenario ordering is transport noise; IDs define the semantic order for
+    # typed replay and make equivalent JSON requests share one digest.
+    scenarios = document.get("scenarios")
+    if isinstance(scenarios, list):
+        normalized_scenarios: list[Any] = []
+        for item in scenarios:
+            if isinstance(item, dict):
+                normalized = dict(item)
+                for field in ("baseline_measurements", "perturbed_measurements"):
+                    measurements = normalized.get(field)
+                    if isinstance(measurements, list):
+                        normalized[field] = sorted(measurements)
+                normalized_scenarios.append(normalized)
+            else:
+                normalized_scenarios.append(item)
+        document["scenarios"] = sorted(
+            normalized_scenarios,
+            key=lambda item: (
+                str(item.get("scenario_id", "")) if isinstance(item, dict) else str(item)
+            ),
+        )
+    return document
 
 
 def canonical_request_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:

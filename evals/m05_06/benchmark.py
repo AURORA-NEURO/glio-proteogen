@@ -62,9 +62,11 @@ class NonDeterministicBenchmarkError(RuntimeError):
     """A timed harmonization result disagreed with its untimed warmup."""
 
 
-def run_benchmark() -> BenchmarkReport:
-    """Build outside timing, warm once, then time exactly 25 public calls."""
+def run_benchmark(iterations: int = M0506_BENCHMARK_ITERATIONS) -> BenchmarkReport:
+    """Build outside timing, warm once, then time the bounded public workload."""
 
+    if iterations < 1:
+        raise ValueError("iterations must be positive")  # noqa: TRY003
     scenario = build_scenario("clear")
     warmup = harmonize_ptm_localization_analysis(scenario.request)
     if (
@@ -76,7 +78,7 @@ def run_benchmark() -> BenchmarkReport:
         raise InvalidRepresentativeWorkloadError
 
     samples: list[int] = []
-    for _ in range(M0506_BENCHMARK_ITERATIONS):
+    for _ in range(iterations):
         started = perf_counter_ns()
         result = harmonize_ptm_localization_analysis(scenario.request)
         elapsed = perf_counter_ns() - started
@@ -93,7 +95,7 @@ def run_benchmark() -> BenchmarkReport:
         contract_version=M0506_CONTRACT_VERSION,
         workload="genuine_m05_05_replay_one_target_eight_factor_harmonization",
         timed_boundary="harmonize_ptm_localization_analysis_only",
-        iterations=M0506_BENCHMARK_ITERATIONS,
+        iterations=iterations,
         warmup_count=M0506_BENCHMARK_WARMUPS,
         stage_count=len(warmup.transformation_manifest.stages),
         request_bytes=request_bytes,
@@ -109,7 +111,7 @@ def run_benchmark() -> BenchmarkReport:
         p95_budget_ns=M0506_P95_BUDGET_NS,
         passed=(
             request_bytes <= M0506_MAX_CANONICAL_REQUEST_BYTES
-            and len(samples) == M0506_BENCHMARK_ITERATIONS
+            and len(samples) == iterations
             and mean <= M0506_MEAN_BUDGET_NS
             and p95 <= M0506_P95_BUDGET_NS
         ),

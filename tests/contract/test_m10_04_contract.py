@@ -52,6 +52,8 @@ def test_schema_inventory_is_strict_and_provisional() -> None:
         assert metadata["optimizationDiagnosticsRequired"] is True
         assert metadata["failureHandlingExplicit"] is True
         assert metadata["unsupportedToNegative"] is False
+        assert metadata["researchOnly"] is True
+        assert metadata["gliomaModelFamily"] == "glioma-proteotype-factor-irls/1.0.0"
     assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M1004_OUTPUT_MEDIA_TYPE
     assert schemas["request"]["x-glio-contract"]["baselineInputMediaType"] == (
         M1004_BASELINE_MEDIA_TYPE

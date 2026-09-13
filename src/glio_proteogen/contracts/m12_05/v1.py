@@ -56,6 +56,10 @@ M1205_MAX_DIAGNOSTICS: Final = 64
 M1205_MAX_DIMENSIONS: Final = 16
 M1205_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M1205_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
+M1205_MAX_EFFECT: Final = 20.0
+M1205_DEFAULT_BOOTSTRAP_REPLICATES: Final = 64
+M1205_MAX_BOOTSTRAP_REPLICATES: Final = 256
+M1205_GLIOMA_MODEL_FAMILY: Final = "glioma-temporal-program-graph/1.0.0"
 
 
 class TrajectoryDimension(StrEnum):
@@ -73,6 +77,7 @@ class EvolutionModelFamily(StrEnum):
     MECHANISTIC = "mechanistic"
     FOUNDATION_ASSISTED = "foundation_assisted"
     MIXTURE_OF_EXPERTS = "mixture_of_experts"
+    GLIOMA_TEMPORAL_PROGRAM_GRAPH = M1205_GLIOMA_MODEL_FAMILY
 
 
 class TrajectoryStatus(StrEnum):
@@ -95,6 +100,25 @@ class LongitudinalDiagnosticCode(StrEnum):
     PROVISIONAL_ABI_PENDING_REVIEW = "provisional_abi_pending_review"
 
 
+class LongitudinalEvidenceState(StrEnum):
+    """How a typed time-point measurement contributes to the temporal fit."""
+
+    OBSERVED = "observed"
+    LEFT_CENSORED = "left_censored"
+    MISSING = "missing"
+    UNSUPPORTED = "unsupported"
+
+
+class GliomaTrajectoryProgram(StrEnum):
+    """Reviewable glioma programs used as temporal latent-state coordinates."""
+
+    RTK_PI3K_AKT_MTOR = "RTK_PI3K_AKT_MTOR"
+    P53_CELL_CYCLE = "P53_CELL_CYCLE"
+    IDH_HIF1A = "IDH_HIF1A"
+    MESENCHYMAL_PROGRAM = "MESENCHYMAL_PROGRAM"
+    PROLIFERATION = "PROLIFERATION"
+
+
 class TimePointObservation(FrozenModel):
     """One immutable, ordered observation used by the longitudinal model."""
 
@@ -105,6 +129,45 @@ class TimePointObservation(FrozenModel):
     treatment_era: NonEmptyStr
     feature_artifact: ArtifactReference
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1205_MAX_EVIDENCE)
+    program: GliomaTrajectoryProgram | None = None
+    evidence_state: LongitudinalEvidenceState | None = None
+    standardized_effect: float | None = Field(
+        default=None, ge=-M1205_MAX_EFFECT, le=M1205_MAX_EFFECT
+    )
+    standard_error: float | None = Field(default=None, gt=0.0, le=M1205_MAX_EFFECT)
+    quality_weight: float = Field(default=1.0, ge=0.0, le=1.0)
+
+    @model_validator(mode="after")
+    def typed_measurement_shape_is_closed(self) -> TimePointObservation:
+        typed = self.evidence_state is not None or self.standardized_effect is not None
+        if not typed:
+            if self.standard_error is not None or self.program is not None:
+                raise ValueError("typed temporal measurements require an effect and evidence state")
+            return self
+        if self.evidence_state is None:
+            raise ValueError("typed temporal effects require evidence_state")
+        active = self.evidence_state in {
+            LongitudinalEvidenceState.OBSERVED,
+            LongitudinalEvidenceState.LEFT_CENSORED,
+        }
+        if active:
+            if (
+                self.standardized_effect is None
+                or self.standard_error is None
+                or self.program is None
+            ):
+                raise ValueError(
+                    "observed temporal evidence requires program, effect, and standard error"
+                )
+            if self.quality_weight <= 0.0:
+                raise ValueError("active temporal evidence requires positive quality weight")
+        elif (
+            self.standardized_effect is not None
+            or self.standard_error is not None
+            or self.quality_weight != 0.0
+        ):
+            raise ValueError("missing or unsupported temporal evidence cannot carry a value")
+        return self
 
 
 class EvolutionModelConfiguration(FrozenModel):
@@ -115,6 +178,11 @@ class EvolutionModelConfiguration(FrozenModel):
     model_reference: ArtifactReference
     locked: Literal[True] = True
     future_leakage_blocked: Literal[True] = True
+    bootstrap_replicates: int = Field(
+        default=M1205_DEFAULT_BOOTSTRAP_REPLICATES,
+        ge=16,
+        le=M1205_MAX_BOOTSTRAP_REPLICATES,
+    )
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1205_MAX_EVIDENCE)
 
 
@@ -141,6 +209,27 @@ class TrajectoryState(FrozenModel):
     posterior_probability: float = Field(ge=0.0, le=1.0)
     observation_ids: tuple[Identifier, ...] = Field(min_length=1, max_length=M1205_MAX_OBSERVATIONS)
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M1205_MAX_EVIDENCE)
+    standardized_state: float | None = Field(
+        default=None, ge=-M1205_MAX_EFFECT, le=M1205_MAX_EFFECT
+    )
+    lower_bound: float | None = Field(default=None, ge=-M1205_MAX_EFFECT, le=M1205_MAX_EFFECT)
+    upper_bound: float | None = Field(default=None, ge=-M1205_MAX_EFFECT, le=M1205_MAX_EFFECT)
+    evidence_count: int = Field(default=0, ge=0, le=M1205_MAX_OBSERVATIONS)
+    stability: float | None = Field(default=None, ge=0.0, le=1.0)
+    discordance: float | None = Field(default=None, ge=0.0, le=1.0)
+    top_drivers: tuple[NonEmptyStr, ...] = Field(default=(), max_length=8)
+
+    @model_validator(mode="after")
+    def typed_state_interval_is_closed(self) -> TrajectoryState:
+        lower_bound = self.lower_bound
+        upper_bound = self.upper_bound
+        bounds = (lower_bound, upper_bound)
+        if any(value is not None for value in bounds):
+            if self.standardized_state is None or lower_bound is None or upper_bound is None:
+                raise ValueError("typed trajectory state requires a complete state interval")
+            if lower_bound > upper_bound:
+                raise ValueError("trajectory state interval must be ordered")
+        return self
 
 
 class ChangePoint(FrozenModel):
@@ -152,6 +241,9 @@ class ChangePoint(FrozenModel):
     posterior_probability: float | None = Field(default=None, ge=0.0, le=1.0)
     rationale: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1205_MAX_EVIDENCE)
+    effect_delta: float | None = Field(default=None, ge=-M1205_MAX_EFFECT, le=M1205_MAX_EFFECT)
+    lower_bound: float | None = Field(default=None, ge=-M1205_MAX_EFFECT, le=M1205_MAX_EFFECT)
+    upper_bound: float | None = Field(default=None, ge=-M1205_MAX_EFFECT, le=M1205_MAX_EFFECT)
 
     @model_validator(mode="after")
     def detected_shape_is_closed(self) -> ChangePoint:
@@ -176,6 +268,10 @@ class LongitudinalDiagnostic(FrozenModel):
     code: LongitudinalDiagnosticCode
     message: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1205_MAX_EVIDENCE)
+    solver_iterations: int | None = Field(default=None, ge=0, le=1000)
+    solver_objective: float | None = Field(default=None, ge=0.0, le=1e9)
+    solver_max_update: float | None = Field(default=None, ge=0.0, le=M1205_MAX_EFFECT)
+    objective_trace_digest: Sha256Digest | None = None
 
 
 class ModelBiomarkerPanelLongitudinalEvolutionRequest(FrozenModel):
@@ -243,9 +339,7 @@ class BiomarkerPanelLongitudinalEvolutionResult(FrozenModel):
     human_review_required: bool = False
 
     @model_validator(mode="after")
-    def result_is_closed(  # noqa: PLR0912 - explicit contract closure branches are intentional.
-        self,
-    ) -> BiomarkerPanelLongitudinalEvolutionResult:
+    def result_is_closed(self) -> BiomarkerPanelLongitudinalEvolutionResult:  # noqa: PLR0912
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
         expected_result_id = f"result.{self.request_digest.removeprefix('sha256:')}"
@@ -300,15 +394,20 @@ class BiomarkerPanelLongitudinalEvolutionResult(FrozenModel):
         return self
 
 
-def expected_uncertainty(*, supported: bool) -> UncertaintyProfile:
+def expected_uncertainty(*, supported: bool, typed: bool = False) -> UncertaintyProfile:
     """Construct all seven uncertainty dimensions without hiding abstention."""
 
     estimate = UncertaintyEstimate(
         state=EstimateState.ESTIMATED if supported else EstimateState.NOT_ESTIMABLE,
         probability=0.9 if supported else None,
         rationale=(
-            "The locked trajectory grammar and ordered caller-declared observations are "
-            "inside the provisional support domain."
+            (
+                "The robust typed glioma temporal fit, deterministic perturbation intervals, "
+                "and ordered observations are inside the provisional support domain."
+                if typed
+                else "The locked trajectory grammar and ordered caller-declared observations "
+                "are inside the provisional support domain."
+            )
             if supported
             else (
                 "Temporal history, upstream support, or model configuration was not safely "
@@ -325,8 +424,14 @@ def expected_uncertainty(*, supported: bool) -> UncertaintyProfile:
         support=estimate,
         transport=estimate,
         sensitivity_notes=(
-            "The trajectory is deterministic over caller-declared observations; artifact "
-            "contents are opaque and never traversed.",
+            (
+                "Typed intervals are generated from deterministic request-digest-seeded "
+                "perturbations; they quantify measurement and model sensitivity, not clinical "
+                "risk."
+                if typed
+                else "The trajectory is deterministic over caller-declared observations; "
+                "artifact contents are opaque and never traversed."
+            ),
             "Nominal coverage is provisional and requires locked external calibration evidence.",
         ),
     )
@@ -415,13 +520,17 @@ def expected_provenance(
 
 __all__ = [
     "M1205_CONTRACT_VERSION",
+    "M1205_DEFAULT_BOOTSTRAP_REPLICATES",
     "M1205_GATE",
+    "M1205_GLIOMA_MODEL_FAMILY",
     "M1205_M1204_RESULT_MEDIA_TYPE",
+    "M1205_MAX_BOOTSTRAP_REPLICATES",
     "M1205_MAX_CANONICAL_REQUEST_BYTES",
     "M1205_MAX_CANONICAL_RESULT_BYTES",
     "M1205_MAX_CHANGE_POINTS",
     "M1205_MAX_DIAGNOSTICS",
     "M1205_MAX_DIMENSIONS",
+    "M1205_MAX_EFFECT",
     "M1205_MAX_EVIDENCE",
     "M1205_MAX_OBSERVATIONS",
     "M1205_MAX_STATES",
@@ -437,8 +546,10 @@ __all__ = [
     "ChangePointStatus",
     "EvolutionModelConfiguration",
     "EvolutionModelFamily",
+    "GliomaTrajectoryProgram",
     "LongitudinalDiagnostic",
     "LongitudinalDiagnosticCode",
+    "LongitudinalEvidenceState",
     "ModelBiomarkerPanelLongitudinalEvolutionRequest",
     "TimePointObservation",
     "TrajectoryDimension",

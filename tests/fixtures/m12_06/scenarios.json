@@ -7,6 +7,7 @@
     {"case_id": "out_of_envelope_abstains", "kind": "out_of_bounds", "expected_status": "abstained"},
     {"case_id": "consent_denied", "kind": "denied:consent", "expected_status": "authorization_rejected"},
     {"case_id": "identity_denied", "kind": "denied:identity_lineage", "expected_status": "authorization_rejected"},
-    {"case_id": "support_denied", "kind": "denied:support", "expected_status": "authorization_rejected"}
+    {"case_id": "support_denied", "kind": "denied:support", "expected_status": "authorization_rejected"},
+    {"case_id": "typed_glioma_graph", "kind": "typed_glioma_graph", "expected_status": "simulated"}
   ]
 }

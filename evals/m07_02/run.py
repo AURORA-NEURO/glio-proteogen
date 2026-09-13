@@ -13,8 +13,12 @@ if __package__ in {None, ""}:
     if str(_PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(_PROJECT_ROOT))
 
-from tests.modules.c07_copy_number.test_m07_02_representation import _request
+from tests.modules.c07_copy_number.test_m07_02_representation import (
+    _request,
+    _typed_observations,
+)
 
+from glio_proteogen.contracts.m07_02 import M0702_GLIOMA_MODEL_FAMILY
 from glio_proteogen.modules.c07_copy_number.m07_02_representation_feature_constructor import (
     M0702RepresentationEngine,
 )
@@ -31,6 +35,10 @@ class EvaluationReport:
     lineage_complete: bool
     replay_verified: bool
     deterministic: bool
+    typed_status: str
+    typed_model_family: str | None
+    typed_replay_verified: bool
+    typed_deterministic: bool
     passed: bool
 
 
@@ -44,6 +52,12 @@ def evaluate() -> EvaluationReport:
     )
     duplicate = engine.construct(duplicate_request)
     replay = engine.verify(first.result, first.canonical_bytes)
+    typed_request = _request().model_copy(
+        update={"typed_observations": _typed_observations(), "bootstrap_replicates": 16}
+    )
+    typed_first = engine.construct(typed_request)
+    typed_second = engine.construct(typed_request)
+    typed_replay = engine.verify(typed_first.result, typed_first.canonical_bytes)
     lineage_complete = all(
         feature.lineage.feature_id == feature.feature_id
         and feature.lineage.leakage_safe
@@ -60,6 +74,10 @@ def evaluate() -> EvaluationReport:
         lineage_complete=lineage_complete,
         replay_verified=replay.verified,
         deterministic=first.canonical_bytes == second.canonical_bytes,
+        typed_status=typed_first.result.status.value,
+        typed_model_family=typed_first.result.model_family,
+        typed_replay_verified=typed_replay.verified,
+        typed_deterministic=typed_first.canonical_bytes == typed_second.canonical_bytes,
         passed=(
             first.result.status.value == "constructed"
             and leakage.result.status.value == "abstained"
@@ -67,6 +85,10 @@ def evaluate() -> EvaluationReport:
             and lineage_complete
             and replay.verified
             and first.canonical_bytes == second.canonical_bytes
+            and typed_first.result.status.value == "constructed"
+            and typed_first.result.model_family == M0702_GLIOMA_MODEL_FAMILY
+            and typed_replay.verified
+            and typed_first.canonical_bytes == typed_second.canonical_bytes
         ),
     )
 

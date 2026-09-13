@@ -43,6 +43,13 @@ from glio_proteogen.kernel.models import (
 from glio_proteogen.modules.c11_protein_native_subtype import (
     m11_06_perturbation_sensitivity_simulator as m1106,
 )
+from glio_proteogen.modules.c11_protein_native_subtype.m11_06_perturbation_sensitivity_simulator import (  # noqa: E501
+    engine as m1106_engine,
+)
+from glio_proteogen.modules.c11_protein_native_subtype.m11_06_perturbation_sensitivity_simulator.engine import (  # noqa: E501
+    _huber_location,
+    _median_abs,
+)
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -53,6 +60,7 @@ _HTTP_NOT_FOUND = 404
 _HTTP_OK = 200
 _HTTP_UNPROCESSABLE = 422
 _HTTP_UNSUPPORTED_MEDIA = 415
+_MINIMUM_OBJECTIVE_CALLS = 2
 M1106AuthorizationError = m1106.M1106AuthorizationError
 M1106ReplayVerificationError = m1106.M1106ReplayVerificationError
 M1106SensitivityEngine = m1106.M1106SensitivityEngine
@@ -123,6 +131,8 @@ def _perturbation(
         baseline_value=baseline,
         perturbed_value=perturbed,
         rationale="Stress-test a declared protein-native variant-peptide response.",
+        baseline_measurements=(0.92, 1.00, 1.08),
+        perturbed_measurements=(1.10, 1.20, 1.27),
         alternative_prior=(
             _artifact(f"prior.{name}") if kind is PerturbationKind.ALTERNATIVE_PRIOR else None
         ),
@@ -141,7 +151,7 @@ def _request(
     config = SensitivitySimulationConfiguration(
         configuration_id="config.m1106",
         version="1.0.0",
-        model_family="deterministic-bounded-reference",
+        model_family="robust-replicate-finite-difference",
         reference_artifact=_artifact("config.reference"),
         maximum_scenarios=8,
         negative_control_artifact=_artifact("control.negative") if negative_control else None,
@@ -174,6 +184,59 @@ def test_supported_surface_is_bounded_and_replayable() -> None:
     assert len(result.provenance.control_decisions) == _CONTROL_COUNT
     verified = M1106SensitivityEngine().verify(result)
     assert verified.model_dump(mode="json") == result.model_dump(mode="json")
+
+
+def test_typed_sensitivity_reports_effect_and_bootstrap_uncertainty() -> None:
+    request = _request()
+    result = M1106SensitivityEngine().register(request)
+    assert result.surface is not None
+    response = result.surface.responses[0]
+    assert response.raw_effect_delta is not None
+    assert response.raw_effect_delta > 0.0
+    assert response.sensitivity_standard_error is not None
+    assert response.replicate_count == (
+        len(request.perturbations[0].baseline_measurements)
+        + len(request.perturbations[0].perturbed_measurements)
+    )
+    assert response.lower_bound is not None
+    assert response.response_value is not None
+    assert response.upper_bound is not None
+    assert -1.0 <= response.lower_bound <= response.response_value <= response.upper_bound <= 1.0
+    replay = M1106SensitivityEngine().register(request)
+    assert replay.model_dump(mode="json") == result.model_dump(mode="json")
+
+
+def test_huber_scale_uses_midpoint_median_for_even_residuals() -> None:
+    assert _median_abs((-3.0, -1.0, 2.0, 10.0)) == pytest.approx(2.5)
+
+
+def test_huber_location_rejects_nonfinite_proposals(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = 0
+
+    def nonfinite_proposal(*_args: object) -> float:
+        nonlocal calls
+        calls += 1
+        return 0.0 if calls == 1 else float("nan")
+
+    monkeypatch.setattr(m1106_engine, "_huber_objective", nonfinite_proposal)
+    estimate, standard_error = _huber_location((0.0, 1.0, 2.0))
+
+    assert estimate == pytest.approx(1.0)
+    assert standard_error > 0.0
+    assert calls > _MINIMUM_OBJECTIVE_CALLS
+
+
+def test_typed_sensitivity_abstains_without_minimum_replicates() -> None:
+    request = _request()
+    incomplete = request.perturbations[0].model_copy(
+        update={"baseline_measurements": (), "perturbed_measurements": ()}
+    )
+    result = M1106SensitivityEngine().register(
+        request.model_copy(update={"perturbations": (incomplete,)})
+    )
+    assert result.status is SensitivitySimulationStatus.ABSTAINED
+    assert "input_incomplete" in {finding.value for finding in result.findings}
+    assert result.surface is None
 
 
 @pytest.mark.parametrize(

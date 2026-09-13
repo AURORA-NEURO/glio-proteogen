@@ -22,30 +22,48 @@ from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
 )
 
 _ITERATIONS = 100
+_MEAN_BUDGET_NS = 2_000_000_000
+_P95_BUDGET_NS = 3_000_000_000
 
 
 class _BenchmarkError(RuntimeError):
     pass
 
 
-def main() -> int:
+def run_benchmark(iterations: int = _ITERATIONS) -> dict[str, object]:
+    if iterations < 1:
+        raise ValueError("iterations must be positive")  # noqa: TRY003
     request = _request()
     service = m1405.M1405Service()
     service.construct(request)
-    samples: list[float] = []
-    for _ in range(_ITERATIONS):
-        started = time.perf_counter()
+    samples: list[int] = []
+    for _ in range(iterations):
+        started = time.perf_counter_ns()
         result = service.construct(request)
-        samples.append(time.perf_counter() - started)
+        samples.append(time.perf_counter_ns() - started)
         if result.status.value != "modeled":
             raise _BenchmarkError
-    report = {
+    ordered = sorted(samples)
+    p95 = ordered[max(0, (iterations * 95 + 99) // 100 - 1)]
+    average = int(statistics.mean(samples))
+    return {
         "module_id": "GLIO-PROTEOGEN-M14-05",
-        "iterations": _ITERATIONS,
-        "mean_seconds": statistics.fmean(samples),
-        "best_seconds": min(samples),
+        "iterations": iterations,
+        "mean_seconds": average / 1_000_000_000,
+        "best_seconds": min(samples) / 1_000_000_000,
+        "mean_ns": average,
+        "median_ns": int(statistics.median(samples)),
+        "p95_ns": p95,
+        "max_ns": max(samples),
+        "mean_budget_ns": _MEAN_BUDGET_NS,
+        "p95_budget_ns": _P95_BUDGET_NS,
+        "passed": average <= _MEAN_BUDGET_NS and p95 <= _P95_BUDGET_NS,
         "scope": "public ordered caller-declared metadata replay only",
     }
+
+
+def main() -> int:
+    report = run_benchmark()
     sys.stdout.write(json.dumps(report, sort_keys=True) + "\n")
     return 0
 

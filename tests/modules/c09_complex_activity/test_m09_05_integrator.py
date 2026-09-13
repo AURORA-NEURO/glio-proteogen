@@ -5,17 +5,22 @@
 
 import json
 from datetime import UTC, datetime
+from itertools import pairwise
 from typing import cast
 
+import numpy as np
 import pytest
 
+import glio_proteogen.modules.c09_complex_activity.m09_05_mechanism_constraint_integrator.engine as engine_module
 from glio_proteogen.contracts.m09_05 import (
     M0905_BASELINE_MEDIA_TYPE,
     ConstraintAwareEstimate,
     ConstraintEstimateKind,
     ConstraintEvaluationStatus,
+    ConstraintEvidenceObservation,
     ConstraintIntegratorPolicy,
     ConstraintIntegratorStatus,
+    ConstraintObservationState,
     ConstraintReplayReason,
     ConstraintSatisfactionReport,
     ConstraintSeverity,
@@ -30,6 +35,7 @@ from glio_proteogen.kernel.models import (
     ConsentReference,
     ConsentState,
     ContextReferences,
+    EstimateState,
     ExecutionContext,
     IdentityLineageReference,
     IdentityLineageState,
@@ -133,6 +139,136 @@ def test_supported_integration_is_deterministic_and_replayable() -> None:
     assert first.result.satisfaction_report[0].status is ConstraintEvaluationStatus.SATISFIED
     assert first.canonical_bytes == second.canonical_bytes
     assert engine.verify(first.result, first.canonical_bytes).verified
+
+
+def test_measured_complex_members_drive_intervals_and_censoring() -> None:
+    request = _request("conservation_hold").model_copy(
+        update={
+            "observations": (
+                ConstraintEvidenceObservation(
+                    feature_id="feature.1",
+                    value=0.7,
+                    standard_error=0.1,
+                    quality_weight=0.9,
+                ),
+                ConstraintEvidenceObservation(
+                    feature_id="feature.2",
+                    state=ConstraintObservationState.LEFT_CENSORED,
+                    standard_error=0.1,
+                    censoring_limit=0.4,
+                    quality_weight=0.8,
+                ),
+            )
+        }
+    )
+    result = M0905ConstraintIntegrator().integrate(request).result
+    estimates = {item.feature_id: item for item in result.estimates}
+
+    assert estimates["feature.1"].estimate_value == 0.7
+    assert estimates["feature.2"].upper_bound == 0.4
+    assert result.uncertainty.measurement.state is EstimateState.ESTIMATED
+
+
+def test_legacy_censor_only_complex_member_stays_neutral_for_positive_limit() -> None:
+    request = _request("conservation_hold").model_copy(
+        update={
+            "observations": (
+                ConstraintEvidenceObservation(
+                    feature_id="feature.2",
+                    state=ConstraintObservationState.LEFT_CENSORED,
+                    standard_error=0.1,
+                    censoring_limit=0.4,
+                    quality_weight=0.8,
+                ),
+            )
+        }
+    )
+
+    fitted = engine_module._fit_observations(request)
+
+    assert fitted["feature.2"][0] == pytest.approx(0.0)
+    assert fitted["feature.2"][2] == pytest.approx(0.4)
+
+
+def test_soft_numeric_complex_constraint_reports_ablation() -> None:
+    request = _request("conservation_hold")
+    constraint = request.policy.constraints[0].model_copy(
+        update={
+            "expression": "feature.1 >= 0.8",
+            "severity": ConstraintSeverity.SOFT,
+        }
+    )
+    request = request.model_copy(
+        update={
+            "policy": request.policy.model_copy(update={"constraints": (constraint,)}),
+            "observations": (
+                ConstraintEvidenceObservation(
+                    feature_id="feature.1",
+                    value=0.2,
+                    standard_error=0.1,
+                ),
+                ConstraintEvidenceObservation(
+                    feature_id="feature.2",
+                    value=0.0,
+                    standard_error=0.1,
+                ),
+            ),
+        }
+    )
+    result = M0905ConstraintIntegrator().integrate(request).result
+
+    assert result.status is ConstraintIntegratorStatus.ESTIMATED
+    report = result.satisfaction_report[0]
+    assert report.status is ConstraintEvaluationStatus.VIOLATED
+    assert report.ablation_effect is not None
+    assert result.estimates[0].estimate_value is not None
+    assert result.estimates[0].estimate_value > 0.2
+
+
+def test_missing_and_unsupported_members_are_not_negative_activity() -> None:
+    request = _request("feature.1 >= 0.8").model_copy(
+        update={
+            "observations": (
+                ConstraintEvidenceObservation(
+                    feature_id="feature.1",
+                    state=ConstraintObservationState.UNSUPPORTED,
+                ),
+                ConstraintEvidenceObservation(
+                    feature_id="feature.2",
+                    state=ConstraintObservationState.MISSING,
+                ),
+            )
+        }
+    )
+    result = M0905ConstraintIntegrator().integrate(request).result
+
+    assert result.status is ConstraintIntegratorStatus.ABSTAINED
+    assert not result.estimates
+    assert result.satisfaction_report[0].status is ConstraintEvaluationStatus.NOT_EVALUABLE
+    assert "no observed" in (result.abstention_reason or "")
+
+
+def test_hard_numeric_complex_constraint_abstains() -> None:
+    request = _request("feature.1 >= 0.8").model_copy(
+        update={
+            "observations": (
+                ConstraintEvidenceObservation(
+                    feature_id="feature.1",
+                    value=0.2,
+                    standard_error=0.1,
+                ),
+                ConstraintEvidenceObservation(
+                    feature_id="feature.2",
+                    value=0.0,
+                    standard_error=0.1,
+                ),
+            )
+        }
+    )
+    result = M0905ConstraintIntegrator().integrate(request).result
+
+    assert result.status is ConstraintIntegratorStatus.ABSTAINED
+    assert result.satisfaction_report[0].status is ConstraintEvaluationStatus.VIOLATED
 
 
 def test_request_bound_replay_rejects_resigned_constraint_mutation() -> None:
@@ -440,3 +576,174 @@ def test_contract_negative_closures_cover_bindings_and_statuses() -> None:
     )
     with pytest.raises(ValueError, match="abstained result"):
         IntegrateComplexActivityConstraintsResult.model_validate(invalid_abstained)
+
+
+def _typed_request() -> IntegrateComplexActivityConstraintsRequest:
+    """Build a compact glioma typed request for the additive constraint lane."""
+
+    from glio_proteogen.contracts.m09_05 import (
+        GliomaComplexConstraintObservation,
+        GliomaConstraintEvidenceState,
+        GliomaConstraintMemberRole,
+        GliomaConstraintProgram,
+    )
+
+    typed = (
+        GliomaComplexConstraintObservation(
+            observation_id="typed.egfr",
+            complex_id="complex.rtk",
+            member_id="EGFR",
+            program=GliomaConstraintProgram.RTK_PI3K_AKT_MTOR,
+            member_role=GliomaConstraintMemberRole.ESSENTIAL,
+            evidence_state=GliomaConstraintEvidenceState.OBSERVED,
+            standardized_effect=0.62,
+            standard_error=0.08,
+            quality_weight=0.95,
+        ),
+        GliomaComplexConstraintObservation(
+            observation_id="typed.pik3ca",
+            complex_id="complex.rtk",
+            member_id="PIK3CA",
+            program=GliomaConstraintProgram.RTK_PI3K_AKT_MTOR,
+            member_role=GliomaConstraintMemberRole.SUPPORTING,
+            evidence_state=GliomaConstraintEvidenceState.OBSERVED,
+            standardized_effect=0.58,
+            standard_error=0.1,
+            quality_weight=0.9,
+            stoichiometric_weight=2.0,
+        ),
+        GliomaComplexConstraintObservation(
+            observation_id="typed.mtor",
+            complex_id="complex.rtk",
+            member_id="MTOR",
+            program=GliomaConstraintProgram.RTK_PI3K_AKT_MTOR,
+            member_role=GliomaConstraintMemberRole.SUPPORTING,
+            evidence_state=GliomaConstraintEvidenceState.LEFT_CENSORED,
+            standard_error=0.12,
+            censoring_limit=0.35,
+            quality_weight=0.8,
+        ),
+    )
+    base = _request("conservation_hold")
+    constraint = base.policy.constraints[0].model_copy(
+        update={"expression": "complex.rtk >= 0.3"}
+    )
+    return base.model_copy(
+        update={
+            "policy": base.policy.model_copy(
+                update={"constraints": (constraint,), "bootstrap_replicates": 16}
+            ),
+            "typed_observations": typed,
+        }
+    )
+
+
+def test_typed_glioma_constraint_fit_is_real_and_replayable() -> None:
+    from glio_proteogen.contracts.m09_05 import M0905_GLIOMA_MODEL_FAMILY
+
+    engine = M0905ConstraintIntegrator()
+    first = engine.integrate(_typed_request())
+    second = engine.integrate(_typed_request())
+
+    assert first.result.status is ConstraintIntegratorStatus.ESTIMATED
+    assert first.result.model_family == M0905_GLIOMA_MODEL_FAMILY
+    assert first.result.diagnostics[0].status.value == "converged"
+    assert first.result.diagnostics[0].objective_trace_digest is not None
+    assert first.result.estimates[0].evidence_count == 3
+    assert first.result.estimates[0].ablation_effects
+    assert first.result.estimates[0].estimate_value is not None
+    assert first.result.estimates[0].estimate_value >= 0.3
+    assert first.canonical_bytes == second.canonical_bytes
+    assert engine.verify(first.result, first.canonical_bytes, _typed_request()).verified
+
+
+def test_typed_complex_solver_backtracks_objective_increasing_sweep(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    original = engine_module._typed_objective
+    calls = 0
+
+    def objective(*args, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal calls
+        calls += 1
+        value = original(*args, **kwargs)
+        return value + 100.0 if calls == 2 else value
+
+    monkeypatch.setattr(engine_module, "_typed_objective", objective)
+    request = _typed_request()
+    fit = engine_module._fit_typed_latent(
+        tuple(sorted(request.typed_observations, key=lambda item: item.observation_id)),
+        ((">=", 0.3, 1.0),),
+        max_iterations=request.policy.max_iterations,
+        tolerance=request.policy.conflict_tolerance,
+    )
+    assert fit is not None
+    _latent, _offsets, _objective, _iterations, _gap, trace = fit
+    assert calls > 2
+    assert all(
+        after <= before + engine_module._TYPED_OBJECTIVE_TOLERANCE
+        for before, after in pairwise(trace)
+    )
+
+
+def test_typed_glioma_missing_is_not_negative_and_hard_constraint_abstains() -> None:
+    from glio_proteogen.contracts.m09_05 import (
+        GliomaComplexConstraintObservation,
+        GliomaConstraintEvidenceState,
+        GliomaConstraintMemberRole,
+    )
+
+    base = _typed_request()
+    missing = GliomaComplexConstraintObservation(
+        observation_id="typed.missing",
+        complex_id="complex.empty",
+        member_id="TP53",
+        member_role=GliomaConstraintMemberRole.ESSENTIAL,
+        evidence_state=GliomaConstraintEvidenceState.MISSING,
+        quality_weight=0.0,
+    )
+    result = M0905ConstraintIntegrator().integrate(
+        base.model_copy(update={"typed_observations": (missing,)})
+    ).result
+    assert result.status is ConstraintIntegratorStatus.ABSTAINED
+    assert not result.estimates
+
+    hard = base.policy.constraints[0].model_copy(
+        update={"expression": "EGFR <= -0.9", "severity": ConstraintSeverity.HARD}
+    )
+    result = M0905ConstraintIntegrator().integrate(
+        base.model_copy(update={"policy": base.policy.model_copy(update={"constraints": (hard,)})})
+    ).result
+    assert result.status is ConstraintIntegratorStatus.ABSTAINED
+    assert "hard constraint" in (result.abstention_reason or "")
+
+
+def test_typed_glioma_input_order_does_not_change_digest() -> None:
+    request = _typed_request()
+    reordered = request.model_copy(
+        update={"typed_observations": tuple(reversed(request.typed_observations))}
+    )
+    engine = M0905ConstraintIntegrator()
+    assert engine.integrate(request).canonical_bytes == engine.integrate(reordered).canonical_bytes
+
+
+def test_typed_censor_limit_is_a_bound_not_a_surrogate_target() -> None:
+    from glio_proteogen.contracts.m09_05 import GliomaConstraintEvidenceState
+
+    censor = _typed_request().typed_observations[2]
+
+    assert censor.evidence_state is GliomaConstraintEvidenceState.LEFT_CENSORED
+    assert engine_module._typed_target(censor) == pytest.approx(censor.censoring_limit)
+
+
+def test_typed_complex_initialization_projects_observed_center_to_censor_bound() -> None:
+    observations = _typed_request().typed_observations
+    values = np.asarray(
+        [engine_module._typed_target(item) for item in observations], dtype=np.float64
+    )
+    weights = np.asarray(
+        [item.quality_weight * item.stoichiometric_weight for item in observations],
+        dtype=np.float64,
+    )
+
+    assert engine_module._initial_typed_latent(observations, values, weights) == pytest.approx(
+        0.35
+    )

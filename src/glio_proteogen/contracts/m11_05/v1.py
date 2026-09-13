@@ -9,6 +9,7 @@ future-leakage checks, uncertainty, evidence, and safe abstention.
 from __future__ import annotations
 
 from enum import StrEnum
+from math import isfinite
 from typing import Final, Literal
 
 from pydantic import AwareDatetime, Field, model_validator
@@ -87,6 +88,15 @@ class TrajectoryStatus(StrEnum):
     ABSTAINED = "abstained"
 
 
+class LongitudinalObservationState(StrEnum):
+    """Measurement state for a typed proteoform/variant-peptide time point."""
+
+    OBSERVED = "observed"
+    LEFT_CENSORED = "left_censored"
+    MISSING = "missing"
+    UNSUPPORTED = "unsupported"
+
+
 class ChangePointStatus(StrEnum):
     DETECTED = "detected"
     NOT_DETECTED = "not_detected"
@@ -102,7 +112,14 @@ class LongitudinalDiagnosticCode(StrEnum):
 
 
 class TimePointObservation(FrozenModel):
-    """One immutable, ordered observation used by the longitudinal model."""
+    """One immutable, ordered observation used by the longitudinal model.
+
+    ``feature_artifact`` remains the immutable lineage handle.  The optional
+    typed measurement fields make the computational lane usable without
+    dereferencing arbitrary payloads: values are standardized proteomic
+    effects (log2 fold-change relative to the subject's baseline), with assay
+    uncertainty and an explicit censoring/missingness state.
+    """
 
     observation_id: Identifier
     sequence: int = Field(ge=0, le=M1105_MAX_OBSERVATIONS)
@@ -110,7 +127,37 @@ class TimePointObservation(FrozenModel):
     territory: NonEmptyStr
     treatment_era: NonEmptyStr
     feature_artifact: ArtifactReference
+    measurement_state: LongitudinalObservationState = LongitudinalObservationState.UNSUPPORTED
+    effect: float | None = Field(default=None, ge=-100.0, le=100.0)
+    standard_error: float | None = Field(default=None, gt=0.0, le=100.0)
+    quality_weight: float = Field(default=1.0, ge=0.0, le=1.0)
+    censoring_limit: float | None = Field(default=None, ge=-100.0, le=100.0)
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1105_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def measurement_shape_is_closed(self) -> TimePointObservation:
+        numeric = (self.effect, self.standard_error, self.quality_weight, self.censoring_limit)
+        if any(number is not None and not isfinite(number) for number in numeric):
+            raise ValueError("longitudinal measurements must contain finite numbers")
+        if self.measurement_state is LongitudinalObservationState.OBSERVED:
+            if (
+                self.effect is None
+                or self.standard_error is None
+                or self.censoring_limit is not None
+            ):
+                raise ValueError("observed measurement requires effect and standard error only")
+        elif self.measurement_state is LongitudinalObservationState.LEFT_CENSORED:
+            if self.effect is not None or self.censoring_limit is None:
+                raise ValueError(
+                    "left-censored measurement requires a censoring limit and no effect"
+                )
+        elif (
+            self.effect is not None
+            or self.standard_error is not None
+            or self.censoring_limit is not None
+        ):
+            raise ValueError("missing or unsupported measurement cannot carry numeric values")
+        return self
 
 
 class EvolutionModelConfiguration(FrozenModel):
@@ -147,6 +194,27 @@ class TrajectoryState(FrozenModel):
     posterior_probability: float = Field(ge=0.0, le=1.0)
     observation_ids: tuple[Identifier, ...] = Field(min_length=1, max_length=M1105_MAX_OBSERVATIONS)
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M1105_MAX_EVIDENCE)
+    effect_estimate: float | None = Field(default=None, ge=-100.0, le=100.0)
+    effect_lower: float | None = Field(default=None, ge=-100.0, le=100.0)
+    effect_upper: float | None = Field(default=None, ge=-100.0, le=100.0)
+    measurement_count: int = Field(default=0, ge=0, le=M1105_MAX_OBSERVATIONS)
+
+    @model_validator(mode="after")
+    def effect_interval_is_closed(self) -> TrajectoryState:
+        numeric = (self.effect_estimate, self.effect_lower, self.effect_upper)
+        if any(number is not None and not isfinite(number) for number in numeric):
+            raise ValueError("trajectory effect interval must contain finite numbers")
+        if (self.effect_lower is None) != (self.effect_upper is None):
+            raise ValueError("trajectory effect interval requires both bounds")
+        if (
+            self.effect_lower is not None
+            and self.effect_upper is not None
+            and self.effect_lower > self.effect_upper
+        ):
+            raise ValueError("trajectory effect interval bounds must be ordered")
+        if self.effect_estimate is None and self.measurement_count:
+            raise ValueError("measured trajectory state requires an effect estimate")
+        return self
 
 
 class ChangePoint(FrozenModel):
@@ -299,12 +367,17 @@ def _uncertainty_estimate(
     )
 
 
-def expected_uncertainty(*, supported: bool) -> UncertaintyProfile:
+def expected_uncertainty(*, supported: bool, measured: bool = False) -> UncertaintyProfile:
     """Return the fixed seven-dimension uncertainty envelope for M11-05."""
 
     probability = 0.9 if supported else None
     rationale = (
-        "Deterministic provisional trajectory baseline; calibrated uncertainty is pending."
+        (
+            "Robust weighted trajectory fit with deterministic change-point scoring; "
+            "external calibration is pending."
+            if measured
+            else "Deterministic provisional trajectory baseline; calibrated uncertainty is pending."
+        )
         if supported
         else "Trajectory uncertainty is not estimable after safe abstention."
     )
@@ -399,6 +472,7 @@ __all__ = [
     "EvolutionModelFamily",
     "LongitudinalDiagnostic",
     "LongitudinalDiagnosticCode",
+    "LongitudinalObservationState",
     "ModelVariantPeptideLongitudinalEvolutionRequest",
     "TimePointObservation",
     "TrajectoryDimension",

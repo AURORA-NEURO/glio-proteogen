@@ -53,6 +53,12 @@ def _object(value: object, label: str) -> dict[str, object]:
     return value
 
 
+def _number(value: object, label: str) -> float:
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return float(value)
+    raise ReleaseEvidenceError(f"{label} is not numeric")
+
+
 def verify(
     wheel: Path,
     sdist: Path,
@@ -88,7 +94,7 @@ def verify(
         or coverage.get("covered_statements") != 693
         or coverage.get("branches") != 150
         or coverage.get("covered_branches") != 130
-        or float(coverage.get("branch_coverage_percent", 0)) < 95.0
+        or _number(coverage.get("branch_coverage_percent"), "branch coverage") < 95.0
     ):
         raise ReleaseEvidenceError("coverage evidence does not meet the locked gate")
     for evidence_path in (benchmark_evidence, evaluation_evidence):

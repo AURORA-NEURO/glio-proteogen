@@ -1,5 +1,10 @@
 # GLIO-PROTEOGEN
 
+Repository code and bundled research-data derivatives do not necessarily share
+one license. Source-specific attribution, license, and transformation notices
+are recorded in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and in each
+research artifact's provenance block.
+
 GLIO-PROTEOGEN is a clean-room, contract-driven research platform for resolving glioma
 biology at the protein, proteoform, complex, and pathway levels while preserving genomic
 context, transcript-protein disagreement, uncertainty, provenance, and treatment history.
@@ -15,8 +20,259 @@ See [CLEAN_ROOM.md](CLEAN_ROOM.md) for the construction boundary and
 ## Scientific boundary
 
 GLIO-PROTEOGEN may emit a proteogenomic state, proteotype, or protein-level subtype object.
-It does **not** own kinase-state inference, generic all-omics fusion, or treatment
-recommendations. Missing or unsupported evidence is never converted into a negative finding.
+Governed M16 does **not** own kinase-state inference, generic all-omics fusion, or treatment
+recommendations. The separate `glio-ecgi/1.0.0` research lane may emit explicitly experimental,
+local kinase estimates from caller-supplied phosphosite topology; those estimates never become
+governed or prescriptive claims. Missing or unsupported evidence is never converted into a
+negative finding. The separate `gbm-proteomic-axes/1.0.0` lane runs seven exact, published
+glioblastoma protein-abundance ensembles for continuous KRAS-like, MYC-like, hypoxia, Verhaak,
+and EGFR program scores. Those outputs remain bulk-proteome research evidence rather than cell
+fractions, diagnoses, or treatment predictions. The `neftel-protein-programs/1.0.0` lane maps
+standardized bulk-protein contrasts to the exact eight Neftel Table S2 programs with robust
+location, independent rank enrichment, deterministic permutations, FDR control, bootstrap
+intervals, marker-family ablations, and explicit coverage-based abstention. It does not relabel
+bulk tissue as single cells or infer cellular fractions.
+The `sphinks-gbm-master-kinase-concordance/1.0.0` lane compares standardized
+phosphosite contrasts with 24 subtype-specific master-kinase signatures from
+Migliozzi et al. using one-sided robust location, residue-stratified competitive
+permutations, fixed-family FDR control, bootstrap uncertainty, and ablations. It
+is independently authored concordance evidence—not an exact SPHINKS port,
+calibrated kinase activity, subtype probability, or treatment guidance.
+The `migliozzi-gbm-functional-proteotype/1.0.0` lane jointly fits relative GPM,
+MTC, NEU, and PPR concordance coordinates from exact Table 2d protein
+signatures, with one-sided censoring, fixed-family rank evidence, deterministic
+bootstrap uncertainty, and source/driver ablations. Table 2e pathways remain
+source-cohort context only; the lane does not infer a categorical subtype,
+sample pathway activity, or a clinical state. See
+[`docs/research/gbm-functional-proteotype.md`](docs/research/gbm-functional-proteotype.md).
+The additive `/v2/research/modules/m10/functional-proteotype` facade exposes
+that exact fitted request/result/replay contract at the M10 research boundary,
+with explicit eight-module responsibility mappings and no change to governed
+M10 routes or digests. See
+[`docs/research/m10-functional-proteotype-facade.md`](docs/research/m10-functional-proteotype-facade.md).
+The `kncc-gbm-longitudinal-concordance/1.0.0` lane scores ordered protein
+profiles against a de-identified axis fitted from 104 strict matched
+primary/recurrent PDC000514 GBM pairs. It uses patient-grouped nested
+cross-validation, one-sided censor constraints, coupled measurement and
+coefficient uncertainty, exact source and driver ablations, and exploratory
+heteroscedastic-Huber PELT. Its output is source-cohort concordance—not a tumor
+evolution, recurrence, prognosis, or treatment-response determination.
+The additive
+`/v2/research/modules/m15/longitudinal-recurrence-proteotype` facade exposes
+that exact request/result/replay contract at the M15 research boundary. It can
+replace only synthetic or digest-derived longitudinal scores and does not
+predict recurrence, infer clonal evolution, or change governed M15 routes or
+digests. See
+[`docs/research/m15-longitudinal-recurrence-facade.md`](docs/research/m15-longitudinal-recurrence-facade.md).
+
+The `kncc-paired-phosphosite-transition/1.0.0` research lane is fitted from 88
+strict PDC000515 primary/recurrent pairs with patient-grouped nested validation,
+composite-site preservation, exact source locks, and a conservative SPHINKS
+site/peptide crosswalk. It is exposed through stateless API, CLI, and workbench
+interfaces with exact replay. Feature-selection instability and the absence of
+independent interval calibration keep estimable outputs `LIMITED`; protein
+adjustment, phosphosite occupancy, kinase inference, and cross-assay fusion are
+explicitly not fitted. See
+[`docs/research/longitudinal-gbm-phosphosite-foundation.md`](docs/research/longitudinal-gbm-phosphosite-foundation.md).
+
+The `kncc-gbm-longitudinal-kinase-transition/1.0.0` lane evaluates those same
+PDC000515 transitions against the fixed 24-signature SPHINKS family using
+training-only robust fits, residue/composite-stratified competitive nulls,
+fixed-family FDR control, and patient bootstrap uncertainty. It reports
+same-assay signature-transition concordance only. It is neither an independent
+validation source nor biochemical, causal, or treatment-relevant kinase
+activity, and every estimable result remains `LIMITED`.
+
+The `kncc-reactome-conditional-transition/1.0.0` lane uses 104 strict
+PDC000514 primary/recurrent GBM pairs to fit one global recurrence-concordance
+coordinate and 10 Reactome V97 membership coordinates residualized against that
+global axis. Its fixed, repository-authored glioma panel is evaluated with eight
+held-patient folds and five held-gene folds, solved with bound-aware robust
+ridge inference, and packaged with 256 patient-bootstrap source fits. Runtime
+results separate measurement and fitted-source uncertainty, preserve one-sided
+censoring, expose request-specific reconstruction and structural ablations, and
+force overlap-confounded PI3K/AKT evidence to `LIMITED`. These coordinates are
+not pathway activation, flux, causal tumor evolution, prognosis, or treatment
+evidence. See
+[`docs/research/kncc-reactome-conditional-transition-model.md`](docs/research/kncc-reactome-conditional-transition-model.md).
+
+The `kncc-reactome-complex-transition/1.0.0` lane fits 28 separate,
+missing-aware robust rank-one coordinates to exact Reactome V97 participant
+sets across 11 pilot GBM signaling and stress domains. This is a prespecified
+repository-authored pilot panel informed by public glioma biology and the
+PDC000514 source paper. It was selected without reading abundance arrays during
+import, but is not demonstrated outcome-independent. The locked source artifact
+contains aggregate factors learned from the same 104 strict PDC000514
+paired-patient transitions, with patient-grouped held-member
+evaluation, request-derived measurement and fitted-source bootstrap
+uncertainty, one-sided censoring, and four source/member/family ablations. The
+held-member factor model improves mean standardized MAE over its training-center
+baseline by 20.30% with 72.55% direction accuracy across 14,988 evaluations.
+Those metrics support participant-set member-transition concordance only—not
+physical assembly, biochemical activity, stoichiometry, essentiality, causal
+biology, recurrence prediction, or clinical use. See
+[`docs/research/longitudinal-gbm-complex-transition.md`](docs/research/longitudinal-gbm-complex-transition.md).
+The additive
+`/v2/research/modules/m09/complex-transition-concordance` facade exposes that
+exact fitted request/result/replay contract at the M09 research boundary. It
+may replace only participant-set transition-concordance stand-ins and cannot
+promote them into assembly, stoichiometry, essentiality, activity, causality,
+prognosis, or treatment claims. Governed M09 routes and digests remain
+unchanged. See
+[`docs/research/m09-complex-transition-facade.md`](docs/research/m09-complex-transition-facade.md).
+
+The `kncc-neftel-program-transition/1.0.0` lane fits a global protein-transition
+axis and eight conditional program coordinates from 104 strict matched
+PDC000514 primary/recurrent GBM pairs, using the exact Neftel Table S2 MES2,
+MES1, AC, OPC, NPC1, NPC2, G1/S, and G2/M marker sets. Its deterministic
+Huber-IRLS/ridge fit uses patient-grouped outer folds, held-marker evaluation,
+128 patient-bootstrap refits, one-sided censoring, fitted-source and measurement
+uncertainty, and structural ablations. The fitted dictionary improves on the
+global-only comparator but not the simpler equal-membership marker baseline;
+therefore every numerical coordinate is explicitly `LIMITED`. These outputs are
+same-cohort bulk-protein transition concordance, not single-cell states, cell
+fractions, tumor evolution, or clinical evidence. See
+[`docs/research/longitudinal-gbm-neftel-transition.md`](docs/research/longitudinal-gbm-neftel-transition.md).
+
+The `glio-ecgi-kncc-gbm-transition/1.0.0` surface composes that exact
+PDC000514 Reactome engine with the exact PDC000515 SPHINKS
+signature-transition engine as two numerically independent result blocks,
+executed deterministically in serial. Its locked factor-graph inventory has 41
+nodes and 39 annotation-only containment edges, with zero numerical cross-block
+edges. It preserves both child receipts without cross-modal fusion or feedback.
+This is an integrated presentation and replay surface, not a new independent
+fitted model: Reactome outputs remain
+source-cohort concordance rather than activation or flux, and SPHINKS outputs
+remain same-source-cohort signature-transition concordance rather than kinase
+activity or causality. See
+[`docs/research/kncc-gbm-factor-graph.md`](docs/research/kncc-gbm-factor-graph.md).
+
+The `cptac-gbm-cis-dosage/1.0.0` local tool fits five-fold, fold-local Huber
+models of `RNA ~ CNV` and `protein ~ CNV + RNA` from exact-hash CPTAC GBM
+supplements, then exposes only compact gene-level cohort evidence and exact
+replay. Because supplement redistribution terms are not yet admitted, users
+must build the artifact from their own exact source copies. The artifact is not
+bundled, no public HTTP route is mounted, patient values are never accepted by
+the query runtime, and the decomposition is observational rather than causal.
+An unmounted
+`m07-cptac-gbm-cis-dosage-cohort-evidence/1.0.0` facade now marks this exact
+model as the only honest research substitution for M07-04's
+scalar-copy/interval-midpoint declaration proxy. It preserves the local-only
+artifact boundary and exact receipts; no public M07 route exists while source
+redistribution terms remain unresolved. See
+[`docs/research/m07-cis-dosage-facade.md`](docs/research/m07-cis-dosage-facade.md).
+
+The separate `cptac-gbm-transcript-protein-discordance/1.0.0` local tool
+cross-fits `Protein ~ RNA + CNV` against matched RNA-only, CNV-only, and
+training-median comparators for predeclared genes in the same exact CPTAC GBM
+cohort. It uses fold-local Huber IRLS, held-out metrics, and 128 deterministic
+patient-bootstrap refits to report only cohort-level positive, inverse,
+indeterminate, or no-incremental-RNA conditional-association patterns. No
+fitted artifact is bundled, no public HTTP route is mounted, and query requests
+cannot contain patient measurements. Every estimable result is capped
+`LIMITED`; the output is neither biological buffering nor an iProFun
+reproduction. See
+[`docs/research/cptac-gbm-transcript-protein-discordance.md`](docs/research/cptac-gbm-transcript-protein-discordance.md).
+
+The `gbm-rna-tumor-purity/1.0.0` lane is an exact NumPy port of the published
+GBMPurity 5,829→32→16→1 neural model. It accepts raw bulk RNA counts only under
+a primary IDH-wildtype GBM attestation, preserves the source 80% gene-overlap
+gate and preprocessing, exposes exact active-ReLU local contributions, and
+replays every receipt. It estimates one malignant-cell fraction; it does not
+infer immune composition or convert protein evidence into cell fractions. The
+single released model has no calibrated ensemble, so uncertainty is explicitly
+unavailable rather than synthesized. See
+[`docs/research/gbm-rna-purity.md`](docs/research/gbm-rna-purity.md).
+
+A separate GBmap-derived GBM composition candidate now has a real
+source-independent fitting and inference core: canonical donor/label
+pseudobulk aggregation, fold-local stable-marker selection, leakage-safe
+whole-study and within-study donor validation, hierarchical
+Dirichlet-multinomial signature fitting, adaptive-unknown simplex inference,
+calibrated mismatch diagnostics, and an end-to-end training-only candidate
+selection protocol. It remains deliberately
+`development_unfitted`: the approximately 9 GB admitted source has not been
+downloaded, SHA-256 verified, or fitted, no model artifact is claimed, and no
+HTTP or CLI runtime is mounted. Its offline extractor is locked to the legacy
+AnnData CSR layout, all 338,564 cells, 5,000 source feature keys, 20 exact
+`CellID` states, and a leakage-safe 17-batch→16-study mapping. The authoritative
+Zenodo file contains 113 raw patient categories while the curated CELLxGENE
+asset and final supplement report 110; a complete 113→110 donor crosswalk and
+full-file SHA-256 were mandatory gates. The donor gate is now closed from
+primary metadata: the three PW032 source samples group to PW032, while the
+original Pombo patient table and reporting summary establish `R4 n.c.` as an
+additional R4 biospecimen. Both raw R4 labels remain preserved while their
+grouped donor key is R4. Exact artifact download, full SHA-256 review,
+extraction, fitting, and held-out calibration still remain.
+See
+[`docs/research/gbmap-deconvolution-source-admission.md`](docs/research/gbmap-deconvolution-source-admission.md).
+
+## Research evidence-graph workbench
+
+The default UI is a linked scientific workbench for the deterministic Evidence-Conserving Graph
+Inference engine, the published GBM proteomic-axis models, the Neftel-derived bulk-protein
+program model, the SPHINKS-derived master-kinase concordance model, the Migliozzi
+functional-proteotype concordance model, the exact published GBMPurity RNA model, and the
+source-fitted KNCC longitudinal GBM protein, phosphosite, kinase-signature, and
+Reactome conditional-transition models, the 28-participant-set Reactome
+complex-transition factor model, the fitted KNCC/Neftel conditional-transition
+model, together with the non-fitted KNCC two-block factor-graph composition. It
+includes versioned synthetic demos,
+structured request editing, graph and
+uncertainty inspection, kinase enrichment, proteomic-axis coverage and tree-path explanations,
+program-level q-values and marker support, all 24 master-kinase signatures and subtype
+aggregates, constrained GPM/MTC/NEU/PPR intervals, functional-proteotype q-values,
+driver/ablation explanations, source-only pathway context, GBMPurity feature coverage,
+hidden-layer activation traces and exact local ReLU-path contributions, downloadable receipts,
+and backend replay verification.
+Longitudinal results add interval-supported transitions, source-linked drivers,
+source-processing and leave-one-driver-out ablations, change-point stability,
+and a phosphosite-specific decomposition of measurement, coefficient, and
+interaction uncertainty with exact covariance closure. The Reactome lane adds
+global-versus-conditional coordinate views, held-gene reconstruction evidence,
+overlap and unique-member support, and fitted-source/measurement uncertainty
+without relabeling membership concordance as pathway activity. The KNCC
+complex-transition lane adds missing-aware robust member factors, patient-grouped
+held-member evaluation, measurement/source uncertainty decomposition, and four
+source/topology ablations without relabeling participant-set concordance as
+physical complex assembly or activity. The KNCC/Neftel transition lane adds
+global-versus-program conditional coordinates, exact-marker coverage,
+measurement/source uncertainty, and explicit evidence-grade limitations after
+its fitted dictionary failed to beat equal membership. The KNCC
+factor-graph view presents both exact child result families and their
+content-bound receipts while keeping the two numerical calculations separate.
+The original generic OpenAPI explorer remains available at `/api-console`.
+
+Start the UI and API together:
+
+```bash
+docker compose up --build --wait
+```
+
+Then open <http://localhost:3000>. The API remains on <http://localhost:8000>. Research requests
+and results are synchronous and are never persisted server-side. See
+[`docs/research/evidence-conserving-graph-inference.md`](docs/research/evidence-conserving-graph-inference.md),
+[`docs/research/gbm-proteomic-axes.md`](docs/research/gbm-proteomic-axes.md),
+[`docs/research/neftel-protein-programs.md`](docs/research/neftel-protein-programs.md),
+[`docs/research/gbm-master-kinase-concordance.md`](docs/research/gbm-master-kinase-concordance.md),
+[`docs/research/gbm-functional-proteotype.md`](docs/research/gbm-functional-proteotype.md),
+[`docs/research/m10-functional-proteotype-facade.md`](docs/research/m10-functional-proteotype-facade.md),
+[`docs/research/gbm-rna-purity.md`](docs/research/gbm-rna-purity.md),
+[`docs/research/longitudinal-gbm-protein-concordance.md`](docs/research/longitudinal-gbm-protein-concordance.md),
+[`docs/research/m15-longitudinal-recurrence-facade.md`](docs/research/m15-longitudinal-recurrence-facade.md),
+[`docs/research/longitudinal-gbm-phosphosite-foundation.md`](docs/research/longitudinal-gbm-phosphosite-foundation.md),
+[`docs/research/longitudinal-gbm-kinase-transition.md`](docs/research/longitudinal-gbm-kinase-transition.md),
+[`docs/research/kncc-reactome-conditional-transition-model.md`](docs/research/kncc-reactome-conditional-transition-model.md),
+[`docs/research/longitudinal-gbm-complex-transition.md`](docs/research/longitudinal-gbm-complex-transition.md),
+[`docs/research/m09-complex-transition-facade.md`](docs/research/m09-complex-transition-facade.md),
+[`docs/research/longitudinal-gbm-neftel-transition.md`](docs/research/longitudinal-gbm-neftel-transition.md),
+[`docs/research/kncc-gbm-factor-graph.md`](docs/research/kncc-gbm-factor-graph.md),
+[`docs/research/cptac-gbm-cis-dosage.md`](docs/research/cptac-gbm-cis-dosage.md), and
+[`docs/research/cptac-gbm-transcript-protein-discordance.md`](docs/research/cptac-gbm-transcript-protein-discordance.md)
+for the algorithms, source provenance, limits, uncertainty semantics, and replay guarantees.
+The distinction between real research inference, governed workflow plumbing, and the strict
+numerical-stand-in replacement queue is recorded in
+[`docs/research/glioma-model-maturity.md`](docs/research/glioma-model-maturity.md).
 
 ## Current modules
 
@@ -167,6 +423,8 @@ uv sync
 uv run ruff check .
 uv run mypy src
 uv run pytest
+uv run python tools/verify_module_validation.py
+uv run python tools/verify_module_validation.py --run-evaluators --evaluator-timeout-seconds 300
 uv run python -m evals.m01_01.run
 uv run python -m evals.m01_02.run
 uv run python -m evals.m01_03.run

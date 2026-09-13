@@ -9,7 +9,7 @@ symbols are provisional pending Platform engineering owner confirmation.
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Final, Literal
+from typing import Annotated, Final, Literal
 
 from pydantic import Field, model_validator
 
@@ -53,12 +53,18 @@ M1304_MAX_ASSUMPTIONS: Final = 64
 M1304_MAX_ALTERNATIVES: Final = 64
 M1304_MAX_EVIDENCE: Final = 64
 M1304_MAX_FINDINGS: Final = 64
+M1304_MAX_OBSERVATIONS: Final = 512
+M1304_MAX_RELATIONS: Final = 1_024
+M1304_DEFAULT_BOOTSTRAP_REPLICATES: Final = 64
+M1304_MAX_BOOTSTRAP_REPLICATES: Final = 256
+M1304_GLIOMA_MODEL_FAMILY: Final = "glioma-proteotype-mechanism-evidence-graph/1.0.0"
 M1304_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M1304_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
 M1304_EVIDENCE_CLAIM: Final = (
     "Caller-declared M13-01 hypothesis and M13-04 mechanism-inference evidence; "
     "issuer authority is not authenticated."
 )
+FiniteFloat = Annotated[float, Field(allow_inf_nan=False)]
 
 
 class MechanismEstimateKind(StrEnum):
@@ -69,6 +75,66 @@ class MechanismEstimateKind(StrEnum):
 class MechanismInferenceStatus(StrEnum):
     INFERRED = "inferred"
     ABSTAINED = "abstained"
+
+
+class MechanismObservationState(StrEnum):
+    OBSERVED = "observed"
+    LEFT_CENSORED = "left_censored"
+    MISSING = "missing"
+    UNSUPPORTED = "unsupported"
+
+
+class MechanismRelationKind(StrEnum):
+    ACTIVATES = "activates"
+    INHIBITS = "inhibits"
+    COUPLES = "couples"
+
+
+class MechanismObservation(FrozenModel):
+    """Typed glioma proteotype evidence with explicit non-observation states."""
+
+    observation_id: Identifier
+    mechanism_id: Identifier
+    label: NonEmptyStr
+    standardized_effect: FiniteFloat | None = None
+    standard_error: FiniteFloat | None = Field(default=None, gt=0.0)
+    quality_weight: FiniteFloat = Field(default=1.0, ge=0.0, le=1.0)
+    state: MechanismObservationState = MechanismObservationState.OBSERVED
+    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1304_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def observation_shape_is_closed(self) -> MechanismObservation:
+        measured = self.standardized_effect is not None or self.standard_error is not None
+        if self.state in {
+            MechanismObservationState.OBSERVED,
+            MechanismObservationState.LEFT_CENSORED,
+        } and (self.standardized_effect is None or self.standard_error is None):
+            raise ValueError("observed or censored mechanism evidence requires effect and error")
+        if (
+            self.state
+            in {
+                MechanismObservationState.MISSING,
+                MechanismObservationState.UNSUPPORTED,
+            }
+            and measured
+        ):
+            raise ValueError("missing or unsupported mechanism evidence cannot carry a value")
+        return self
+
+
+class MechanismRelation(FrozenModel):
+    relation_id: Identifier
+    source_mechanism_id: Identifier
+    target_mechanism_id: Identifier
+    kind: MechanismRelationKind
+    weight: FiniteFloat = Field(default=1.0, ge=-1.0, le=1.0)
+    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1304_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def relation_is_closed(self) -> MechanismRelation:
+        if self.source_mechanism_id == self.target_mechanism_id:
+            raise ValueError("mechanism relation cannot be a self-loop")
+        return self
 
 
 class MechanismFindingCode(StrEnum):
@@ -84,6 +150,12 @@ class MechanismInferenceConfiguration(FrozenModel):
     method: NonEmptyStr
     model_reference: ArtifactReference
     calibration_reference: ArtifactReference
+    model_family: NonEmptyStr | None = None
+    bootstrap_replicates: int = Field(
+        default=M1304_DEFAULT_BOOTSTRAP_REPLICATES,
+        ge=16,
+        le=M1304_MAX_BOOTSTRAP_REPLICATES,
+    )
     locked: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1304_MAX_EVIDENCE)
 
@@ -95,9 +167,9 @@ class MechanismEstimate(FrozenModel):
     mechanism_id: Identifier
     label: NonEmptyStr
     kind: MechanismEstimateKind
-    posterior_probability: float | None = Field(default=None, ge=0.0, le=1.0)
-    lower_bound: float | None = Field(default=None, ge=0.0, le=1.0)
-    upper_bound: float | None = Field(default=None, ge=0.0, le=1.0)
+    posterior_probability: FiniteFloat | None = Field(default=None, ge=0.0, le=1.0)
+    lower_bound: FiniteFloat | None = Field(default=None, ge=0.0, le=1.0)
+    upper_bound: FiniteFloat | None = Field(default=None, ge=0.0, le=1.0)
     state_value: NonEmptyStr | None = None
     assumptions: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=M1304_MAX_ASSUMPTIONS)
     alternatives: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=M1304_MAX_ALTERNATIVES)
@@ -143,12 +215,31 @@ class InferProteotypeMechanismRequest(FrozenModel):
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M1304_MAX_EVIDENCE
     )
+    typed_observations: tuple[MechanismObservation, ...] = Field(
+        default=(), max_length=M1304_MAX_OBSERVATIONS
+    )
+    typed_relations: tuple[MechanismRelation, ...] = Field(
+        default=(), max_length=M1304_MAX_RELATIONS
+    )
     supersedes_result_digest: Sha256Digest | None = None
 
     @model_validator(mode="after")
     def request_is_bound(self) -> InferProteotypeMechanismRequest:
         if self.hypothesis_registry_result.media_type != M1304_M1301_RESULT_MEDIA_TYPE:
             raise ValueError("mechanism request must bind the provisional M13-01 result")
+        observation_ids = tuple(item.observation_id for item in self.typed_observations)
+        if len(observation_ids) != len(set(observation_ids)):
+            raise ValueError("mechanism observation ids must be unique")
+        relation_ids = tuple(item.relation_id for item in self.typed_relations)
+        if len(relation_ids) != len(set(relation_ids)):
+            raise ValueError("mechanism relation ids must be unique")
+        known = {item.mechanism_id for item in self.typed_observations}
+        for relation in self.typed_relations:
+            if (
+                relation.source_mechanism_id not in known
+                or relation.target_mechanism_id not in known
+            ):
+                raise ValueError("mechanism relation references an unknown mechanism")
         return self
 
 
@@ -173,6 +264,11 @@ class ProteotypeMechanismInferenceResult(FrozenModel):
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1304_MAX_EVIDENCE)
     limitations: tuple[Limitation, ...] = Field(min_length=1, max_length=32)
     human_review_required: bool = False
+    typed_model: bool = False
+    model_profile: NonEmptyStr | None = None
+    solver_iterations: int = Field(default=0, ge=0)
+    solver_objective: FiniteFloat | None = Field(default=None, ge=0.0)
+    converged: bool = True
 
     @model_validator(mode="after")
     def result_is_closed(self) -> ProteotypeMechanismInferenceResult:
@@ -315,16 +411,21 @@ def expected_provenance(
 
 __all__ = [
     "M1304_CONTRACT_VERSION",
+    "M1304_DEFAULT_BOOTSTRAP_REPLICATES",
     "M1304_EVIDENCE_CLAIM",
     "M1304_GATE",
+    "M1304_GLIOMA_MODEL_FAMILY",
     "M1304_M1301_RESULT_MEDIA_TYPE",
     "M1304_MAX_ALTERNATIVES",
     "M1304_MAX_ASSUMPTIONS",
+    "M1304_MAX_BOOTSTRAP_REPLICATES",
     "M1304_MAX_CANONICAL_REQUEST_BYTES",
     "M1304_MAX_CANONICAL_RESULT_BYTES",
     "M1304_MAX_ESTIMATES",
     "M1304_MAX_EVIDENCE",
     "M1304_MAX_FINDINGS",
+    "M1304_MAX_OBSERVATIONS",
+    "M1304_MAX_RELATIONS",
     "M1304_MODULE_ID",
     "M1304_OPERATION",
     "M1304_OUTPUT_MEDIA_TYPE",
@@ -339,6 +440,10 @@ __all__ = [
     "MechanismFindingCode",
     "MechanismInferenceConfiguration",
     "MechanismInferenceStatus",
+    "MechanismObservation",
+    "MechanismObservationState",
+    "MechanismRelation",
+    "MechanismRelationKind",
     "ProteotypeMechanismInferenceResult",
     "expected_provenance",
     "expected_uncertainty",

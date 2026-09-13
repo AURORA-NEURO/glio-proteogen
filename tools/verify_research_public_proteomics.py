@@ -1,4 +1,4 @@
-# ruff: noqa: T201, TRY003
+# ruff: noqa: E402, T201, TRY003
 """Verify checksum-bound evidence for the additive public-proteomics foundation."""
 
 from __future__ import annotations
@@ -18,6 +18,16 @@ _FIXTURE_MANIFEST = _ROOT / "research" / "fixtures" / "pdc" / "pdc000204.manifes
 _EXPECTED_SOURCE_DATE_EPOCH = 315532800
 _REQUIRED_WHEEL_MEMBER = "glio_proteogen/research/public_proteomics/pdc.py"
 _REQUIRED_SDIST_MEMBER = "src/glio_proteogen/research/public_proteomics/pdc.py"
+
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+
+from tools.current_candidate_receipt import (
+    artifact_receipt,
+)
+from tools.current_candidate_receipt import (
+    verify_receipt as verify_candidate_receipt,
+)
 
 
 class VerificationError(ValueError):
@@ -118,23 +128,67 @@ def _verify_reproducibility(evidence: dict[str, object]) -> None:
         raise VerificationError("package reproducibility hashes do not match receipts")
 
 
-def verify(wheel: Path, sdist: Path) -> None:
+def _verify_historical_inventory(evidence: dict[str, object]) -> None:
+    """Validate immutable historical inventories without rebinding current bytes."""
+
+    for label in ("wheel", "sdist"):
+        record = evidence.get(label)
+        if not isinstance(record, dict):
+            raise VerificationError(f"historical {label} receipt is malformed")
+        inventory = record.get("member_inventory")
+        if not isinstance(inventory, dict):
+            raise VerificationError(f"historical {label} member inventory is missing")
+        members = inventory.get("members")
+        if not isinstance(members, list) or any(not isinstance(item, str) for item in members):
+            raise VerificationError(f"historical {label} member inventory is malformed")
+        _verify_member_inventory(record, members)
+
+
+def verify(
+    wheel: Path,
+    sdist: Path,
+    *,
+    candidate_receipt: Path | None = None,
+    expected_source_commit: str | None = None,
+) -> None:
     """Verify the two final artifacts, fixture, and evidence records."""
 
     package = _read_json(_EVIDENCE / "package.json")
     _verify_fixture()
     _verify_reproducibility(package)
-    _verify_package(wheel, package)
-    _verify_package(sdist, package)
+    _verify_historical_inventory(package)
+    if candidate_receipt is None:
+        _verify_package(wheel, package)
+        _verify_package(sdist, package)
+    else:
+        receipt = verify_candidate_receipt(
+            candidate_receipt,
+            wheel,
+            sdist,
+            expected_source_commit=expected_source_commit,
+        )
+        candidate: dict[str, object] = {
+            "sdist": artifact_receipt(receipt, "sdist"),
+            "wheel": artifact_receipt(receipt, "wheel"),
+        }
+        _verify_package(wheel, candidate)
+        _verify_package(sdist, candidate)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("wheel", type=Path)
     parser.add_argument("sdist", type=Path)
+    parser.add_argument("--candidate-receipt", type=Path)
+    parser.add_argument("--expected-source-commit")
     args = parser.parse_args()
     try:
-        verify(args.wheel, args.sdist)
+        verify(
+            args.wheel,
+            args.sdist,
+            candidate_receipt=args.candidate_receipt,
+            expected_source_commit=args.expected_source_commit,
+        )
     except (OSError, KeyError, TypeError, ValueError, tarfile.TarError):
         print("research public-proteomics release verification failed", file=sys.stderr)
         return 1

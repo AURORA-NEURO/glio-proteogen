@@ -26,6 +26,20 @@ evidence, erase disagreement, convert unsupported evidence to a negative
 finding, infer kinase activity, perform generic all-omics fusion, or recommend
 treatment.
 
+Typed effect observations use their supplied assay standard errors and quality
+weights in the robust trajectory fit, whose MAD scale uses midpoint medians for
+even residual counts. For a left-censored point whose assay
+error is omitted, the runtime derives a fallback from the median observed error
+within that same history (averaging the two middle values when the count is
+even). This keeps the censoring loss one-sided without inventing a fixed
+precision. If a history is censored-only and provides no uncertainty basis, the
+typed lane abstains; missing and unsupported points remain excluded.
+
+The typed location starts from observed effects only and projects the robust
+center onto the tightest detection bound. Censored points retain their exact
+upper limit throughout the loss, rather than being shifted into surrogate
+negative measurements.
+
 ## Contract and runtime closure
 
 - Eight strict JSON Schema 2020-12 exports carry explicit provisional metadata.

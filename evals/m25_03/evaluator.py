@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import sys
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from typing import Final
 
 from glio_proteogen.contracts.m25_03 import (
@@ -103,17 +104,27 @@ def evaluate() -> tuple[EvaluationCheck, ...]:
     return tuple(checks)
 
 
+def run_evaluator() -> dict[str, object]:
+    """Return a self-identifying, fail-closed machine evaluator receipt."""
+
+    checks = evaluate()
+    return {
+        "module_id": "GLIO-PROTEOGEN-M25-03",
+        "passed": all(check.passed for check in checks),
+        "checks": [asdict(check) for check in checks],
+    }
+
+
 def main() -> int:
     """Print a compact evaluator report and return a process status."""
 
-    checks = evaluate()
-    for check in checks:
-        sys.stdout.write(f"{check.name}: {'PASS' if check.passed else 'FAIL'} ({check.detail})\n")
-    return 0 if all(check.passed for check in checks) else 1
+    report = run_evaluator()
+    sys.stdout.write(json.dumps(report, sort_keys=True) + "\n")
+    return 0 if report["passed"] else 1
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
 
 
-__all__ = ["EVALUATOR_VERSION", "EvaluationCheck", "evaluate", "main"]
+__all__ = ["EVALUATOR_VERSION", "EvaluationCheck", "evaluate", "main", "run_evaluator"]

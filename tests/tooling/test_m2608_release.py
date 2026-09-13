@@ -7,7 +7,15 @@ from hashlib import sha256
 from pathlib import Path
 
 import pytest
+import tools.current_candidate_receipt as candidate_receipts
 from tools.verify_m2608_release import M2608ReleaseVerificationError, verify_release
+
+from tests.tooling.test_current_candidate_receipt import (
+    COMMIT,
+    PROFILE,
+    _artifacts,
+    _receipt_file,
+)
 
 EVIDENCE = Path(__file__).parents[2] / "release-evidence" / "m26_08"
 FIXTURE = Path(__file__).parents[2] / "tests" / "fixtures" / "m26_08" / "scenarios.json"
@@ -114,4 +122,70 @@ def test_m2608_release_rejects_receipt_for_different_artifact(tmp_path: Path) ->
             EVIDENCE / "package.json",
             FIXTURE,
             wheel=wheel,
+        )
+
+
+def test_m2608_release_uses_explicit_current_candidate_receipt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    wheel, sdist, replay_wheel, replay_sdist = _artifacts(tmp_path)
+    receipt = _receipt_file(tmp_path, wheel, sdist, replay_wheel, replay_sdist)
+    monkeypatch.setattr(candidate_receipts, "_profile_identity", lambda: PROFILE)
+
+    report = verify_release(
+        EVIDENCE / "evaluation.json",
+        EVIDENCE / "benchmark.json",
+        EVIDENCE / "package.json",
+        FIXTURE,
+        wheel=wheel,
+        sdist=sdist,
+        candidate_receipt=receipt,
+        expected_source_commit=COMMIT,
+    )
+
+    assert report["candidate_receipt"] == str(receipt)
+
+
+def test_m2608_candidate_mode_still_rejects_tampered_historical_evidence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    wheel, sdist, replay_wheel, replay_sdist = _artifacts(tmp_path)
+    receipt = _receipt_file(tmp_path, wheel, sdist, replay_wheel, replay_sdist)
+    monkeypatch.setattr(candidate_receipts, "_profile_identity", lambda: PROFILE)
+    historical = json.loads((EVIDENCE / "package.json").read_text(encoding="utf-8"))
+    historical["isolated_import_passed"] = False
+    forged = tmp_path / "historical.json"
+    forged.write_text(json.dumps(historical), encoding="utf-8")
+
+    with pytest.raises(M2608ReleaseVerificationError, match="isolated_import_passed"):
+        verify_release(
+            EVIDENCE / "evaluation.json",
+            EVIDENCE / "benchmark.json",
+            forged,
+            FIXTURE,
+            wheel=wheel,
+            sdist=sdist,
+            candidate_receipt=receipt,
+            expected_source_commit=COMMIT,
+        )
+
+
+def test_m2608_candidate_mode_rejects_artifact_drift(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    wheel, sdist, replay_wheel, replay_sdist = _artifacts(tmp_path)
+    receipt = _receipt_file(tmp_path, wheel, sdist, replay_wheel, replay_sdist)
+    monkeypatch.setattr(candidate_receipts, "_profile_identity", lambda: PROFILE)
+    wheel.write_bytes(wheel.read_bytes() + b"drift")
+
+    with pytest.raises(M2608ReleaseVerificationError, match="current candidate"):
+        verify_release(
+            EVIDENCE / "evaluation.json",
+            EVIDENCE / "benchmark.json",
+            EVIDENCE / "package.json",
+            FIXTURE,
+            wheel=wheel,
+            sdist=sdist,
+            candidate_receipt=receipt,
+            expected_source_commit=COMMIT,
         )

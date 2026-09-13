@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "A contract-driven, protein-centric glioma research platform"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
-license = { text = "Proprietary" }
+license = { text = "Proprietary; bundled research-data derivatives retain their stated third-party licenses (see THIRD_PARTY_NOTICES.md)" }
 authors = [{ name = "AURORA-NEURO" }]
 classifiers = [
   "Development Status :: 2 - Pre-Alpha",
@@ -19,6 +19,7 @@ classifiers = [
 dependencies = [
   "defusedxml>=0.7.1,<1",
   "fastapi>=0.141.1,<1",
+  "numpy==2.5.2",
   "pydantic>=2.13.4,<3",
   "typer>=0.27.1,<1",
   "uvicorn>=0.52.1,<1",
@@ -43,23 +44,44 @@ dev = [
   "types-defusedxml>=0.7.0,<1",
   "types-jsonschema>=4.23",
 ]
+source = [
+  "h5py==3.16.0",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/glio_proteogen"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"THIRD_PARTY_NOTICES.md" = "glio_proteogen/THIRD_PARTY_NOTICES.md"
 
 [tool.hatch.build.targets.sdist]
 exclude = [
   "/.coverage*",
   "/.tmp-*",
+  "/coverage.xml",
+  "/coverage-*.json",
+  "/coverage-*.xml",
+  "/current-candidate-receipt.json",
   "/dist-*",
   "/dist",
   "/evidence",
   "/docs/evidence",
+  "/docs/release-evidence",
   "/glio-proteogen-evidence.tar.gz",
+  "/module-validation.json",
+  "/research-state-performance.json",
   "/release-build-*",
   "/.m*-build-*",
   "/.m*-isolated-*",
   "/release-evidence",
+  "/tests",
+  "/ui/.next",
+  "/ui/coverage",
+  "/ui/node_modules",
+  "/ui/playwright-report",
+  "/ui/test-results",
+  "/ui/tests",
+  "/ui/tsconfig.tsbuildinfo",
   "/worktrees",
 ]
 

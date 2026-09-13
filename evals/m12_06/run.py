@@ -16,6 +16,7 @@ if __package__ in {None, ""}:
         sys.path.insert(0, str(_PROJECT_ROOT))
 
 from glio_proteogen.contracts.m12_06 import (
+    M1206_GLIOMA_MODEL_FAMILY,
     PerturbationKind,
     PerturbationPolicy,
     PerturbationScenario,
@@ -179,6 +180,27 @@ def build_request(
     )
 
 
+def build_typed_request() -> SimulateBiomarkerPanelPerturbationRequest:
+    """Build a synthetic glioma assay request for the robust typed lane."""
+
+    request = build_request()
+    scenario = request.scenarios[0].model_copy(
+        update={
+            "baseline_measurements": (0.80, 0.90, 1.00, 1.02),
+            "perturbed_measurements": (1.10, 1.18, 1.22, 1.30),
+        }
+    )
+    configuration = request.policy.configuration.model_copy(
+        update={"model_family": M1206_GLIOMA_MODEL_FAMILY}
+    )
+    return request.model_copy(
+        update={
+            "scenarios": (scenario,),
+            "policy": request.policy.model_copy(update={"configuration": configuration}),
+        }
+    )
+
+
 def _fixture() -> dict[str, object]:
     return cast("dict[str, object]", json.loads(SCENARIO_PATH.read_text(encoding="utf-8")))
 
@@ -193,16 +215,19 @@ def run_evaluation() -> dict[str, object]:
         case_id = cast("str", case["case_id"])
         kind = cast("str", case["kind"])
         try:
-            request = (
-                build_request(denied=kind.removeprefix("denied:"))
-                if kind.startswith("denied:")
-                else build_request(
-                    status=PerturbationStatus.UNSUPPORTED
-                    if kind == "unsupported"
-                    else PerturbationStatus.SUPPORTED,
-                    value=1.2 if kind == "out_of_bounds" else 0.3,
+            if kind == "typed_glioma_graph":
+                request = build_typed_request()
+            else:
+                request = (
+                    build_request(denied=kind.removeprefix("denied:"))
+                    if kind.startswith("denied:")
+                    else build_request(
+                        status=PerturbationStatus.UNSUPPORTED
+                        if kind == "unsupported"
+                        else PerturbationStatus.SUPPORTED,
+                        value=1.2 if kind == "out_of_bounds" else 0.3,
+                    )
                 )
-            )
             result = service.execute(request)
             expected = cast("str", case["expected_status"])
             checks.append(
@@ -212,7 +237,7 @@ def run_evaluation() -> dict[str, object]:
                     f"status={result.status.value};expected={expected}",
                 )
             )
-            if kind == "supported":
+            if kind in {"supported", "typed_glioma_graph"}:
                 replay_ok = service.verify(request, result) == result
                 checks.append(
                     EvalCheck(f"{case_id}:replay", replay_ok, "exact request/result replay")
@@ -252,7 +277,7 @@ def main(argv: list[str] | None = None) -> int:
     return 0 if report["passed"] else 1
 
 
-__all__ = ["build_request", "main", "run_evaluation"]
+__all__ = ["build_request", "build_typed_request", "main", "run_evaluation"]
 
 if __name__ == "__main__":
     raise SystemExit(main())

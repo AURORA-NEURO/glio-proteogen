@@ -10,26 +10,36 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping
+from dataclasses import dataclass
 from typing import Any, Final, cast
 
+import numpy as np
 from pydantic import BaseModel
 
 from glio_proteogen.contracts.m10_02 import (
     M1002_CONTRACT_VERSION,
     M1002_EVIDENCE_CLAIM,
+    M1002_GLIOMA_MODEL_FAMILY,
     M1002_MAX_CANONICAL_REQUEST_BYTES,
+    M1002_MAX_TYPED_EFFECT,
     M1002_MODULE_ID,
     M1002_PARENT,
     AnalysisRepresentation,
     ConstructProteinRnaRepresentationRequest,
     FeatureLineage,
+    GliomaProgram,
+    GliomaRepresentationEvidenceState,
+    GliomaRepresentationObservation,
     ProteinRnaRepresentationResult,
     RepresentationConstructionStatus,
     RepresentationDiagnostic,
     RepresentationDiagnosticStatus,
     RepresentationFeature,
+    RepresentationFeatureValueKind,
     RepresentationInputFeature,
+    RepresentationMethod,
     RepresentationMissingness,
+    TransformationStep,
     canonical_request_digest,
     result_payload_digest,
 )
@@ -59,6 +69,42 @@ _PROHIBITED_MESSAGE: Final[str] = (
 _SUPPORTED_OPERATIONS: Final[frozenset[str]] = frozenset(
     {"identity", "copy", "log1p", "standardize", "robust_scale", "cn_to_protein"}
 )
+_GLIOMA_MAX_ITERATIONS: Final = 128
+_GLIOMA_TOLERANCE: Final = 1e-5
+_GLIOMA_OBJECTIVE_TOLERANCE: Final = 1e-10
+_GLIOMA_BACKTRACKING_STEPS: Final = 24
+_GLIOMA_BACKTRACKING_FACTOR: Final = 0.5
+_GLIOMA_DAMPING: Final = 0.62
+_GLIOMA_RIDGE: Final = 0.12
+_GLIOMA_PRIOR_STRENGTH: Final = 0.20
+_GLIOMA_HUBER_K: Final = 1.5
+_GLIOMA_BOOTSTRAP_SCALE: Final = 0.5
+_GLIOMA_PRIORS: Final[dict[GliomaProgram, tuple[float, float, float]]] = {
+    GliomaProgram.RTK_PI3K_AKT_MTOR: (0.55, 0.20, 0.35),
+    GliomaProgram.P53_CELL_CYCLE: (0.65, 0.15, 0.20),
+    GliomaProgram.IDH_HIF1A: (0.60, 0.25, 0.15),
+    GliomaProgram.MESENCHYMAL_INVASION: (0.50, 0.20, 0.30),
+    GliomaProgram.OLIGODENDROGLIAL_LINEAGE: (0.62, 0.18, 0.20),
+}
+
+
+@dataclass(frozen=True, slots=True)
+class _GliomaFit:
+    observation: GliomaRepresentationObservation
+    beta: tuple[float, float, float]
+    predicted: float
+    protein_for_dosage: float
+    discordance: float
+    lower: float
+    upper: float
+    stability: float
+    evidence_count: int
+    top_drivers: tuple[str, ...]
+    ablation_effects: tuple[str, ...]
+    objective: float
+    iterations: int
+    converged: bool
+    objective_trace: tuple[float, ...]
 
 
 class RepresentationAuthorizationError(PermissionError):
@@ -172,9 +218,13 @@ def _validate_serialized_json_request(
 
 
 def _evidence(request: ConstructProteinRnaRepresentationRequest) -> tuple[EvidenceReference, ...]:
+    artifacts = {artifact.digest: artifact for artifact in request.source_artifacts}
+    for observation in request.glioma_observations:
+        for item in observation.evidence:
+            artifacts[item.reference.digest] = item.reference
     return tuple(
-        EvidenceReference(reference=artifact, role="evidence", claim=M1002_EVIDENCE_CLAIM)
-        for artifact in request.source_artifacts
+        EvidenceReference(reference=artifacts[digest], role="evidence", claim=M1002_EVIDENCE_CLAIM)
+        for digest in sorted(artifacts)
     )
 
 
@@ -247,7 +297,7 @@ def _provenance(
         module_id=M1002_MODULE_ID,
         module_version=M1002_CONTRACT_VERSION,
         generated_at=request.context.occurred_at,
-        input_digests=tuple(artifact.digest for artifact in request.source_artifacts),
+        input_digests=tuple(item.reference.digest for item in _evidence(request)),
         configuration_digest=config_digest,
         consent_decision_id=refs.consent.decision_id,
         consent_state=refs.consent.state,
@@ -359,13 +409,395 @@ def _construct_representation(
     return representation, tuple(diagnostics)
 
 
-def _result(
+def _typed_row(observation: GliomaRepresentationObservation) -> tuple[np.ndarray, np.ndarray]:
+    """Return a predictor row and presence mask without imputing biology."""
+
+    values = (
+        observation.transcript_effect,
+        observation.copy_number_effect,
+        observation.phosphosite_effect,
+    )
+    return (
+        np.asarray([value if value is not None else 0.0 for value in values], dtype=float),
+        np.asarray([value is not None for value in values], dtype=bool),
+    )
+
+
+def _typed_objective(  # noqa: PLR0913,PLR0917
+    beta: np.ndarray,
+    matrix: np.ndarray,
+    present: np.ndarray,
+    targets: np.ndarray,
+    censored: np.ndarray,
+    limits: np.ndarray,
+    weights: np.ndarray,
+    prior: np.ndarray,
+) -> float:
+    predictions = matrix @ beta
+    residuals = np.where(censored, np.maximum(predictions - limits, 0.0), targets - predictions)
+    scaled = np.abs(residuals) / _GLIOMA_HUBER_K
+    huber = np.where(
+        scaled <= 1.0,
+        0.5 * residuals**2,
+        _GLIOMA_HUBER_K * (np.abs(residuals) - 0.5 * _GLIOMA_HUBER_K),
+    )
+    # A missing modality contributes no data term.  It is not replaced with a
+    # negative observation; ridge/prior terms still keep the fit bounded.
+    observed_rows = np.any(present, axis=1)
+    return float(
+        np.sum(weights[observed_rows] * huber[observed_rows])
+        + _GLIOMA_RIDGE * np.sum(beta**2)
+        + _GLIOMA_PRIOR_STRENGTH * np.sum((beta - prior) ** 2)
+    )
+
+
+def _fit_program(  # noqa: C901,PLR0912,PLR0915
+    observations: tuple[GliomaRepresentationObservation, ...],
+    *,
+    request_digest: str,
+    bootstrap_replicates: int,
+) -> tuple[_GliomaFit, ...]:
+    active = tuple(
+        item
+        for item in observations
+        if item.state
+        in {
+            GliomaRepresentationEvidenceState.OBSERVED,
+            GliomaRepresentationEvidenceState.LEFT_CENSORED,
+        }
+    )
+    if not active:
+        return ()
+    matrix = np.vstack([_typed_row(item)[0] for item in active])
+    present = np.vstack([_typed_row(item)[1] for item in active])
+    targets = np.asarray([item.protein_effect or 0.0 for item in active], dtype=float)
+    censored = np.asarray(
+        [item.state is GliomaRepresentationEvidenceState.LEFT_CENSORED for item in active],
+        dtype=bool,
+    )
+    limits = np.asarray(
+        [item.censor_limit if item.censor_limit is not None else 0.0 for item in active],
+        dtype=float,
+    )
+    quality = np.asarray([item.quality_weight for item in active], dtype=float)
+    standard_error = np.asarray(
+        [
+            item.protein_standard_error if item.protein_standard_error is not None else 1.0
+            for item in active
+        ],
+        dtype=float,
+    )
+    fits: list[_GliomaFit] = []
+    for program in sorted({item.program for item in active}, key=lambda item: item.value):
+        indices = tuple(index for index, item in enumerate(active) if item.program is program)
+        x = matrix[list(indices)]
+        mask = present[list(indices)]
+        y = targets[list(indices)]
+        c = censored[list(indices)]
+        censor_limits = limits[list(indices)]
+        w = quality[list(indices)] / np.maximum(standard_error[list(indices)] ** 2, 1e-6)
+        prior = np.asarray(_GLIOMA_PRIORS[program], dtype=float)
+        beta = prior.copy()
+        objective = _typed_objective(beta, x, mask, y, c, censor_limits, w, prior)
+        if not np.isfinite(objective):
+            continue
+        trace: list[float] = [round(objective, 12)]
+        converged = False
+        for _iteration in range(1, _GLIOMA_MAX_ITERATIONS + 1):
+            previous_beta = beta.copy()
+            previous_objective = objective
+            predictions = x @ previous_beta
+            residuals = np.where(c, np.maximum(predictions - censor_limits, 0.0), y - predictions)
+            robust = np.minimum(1.0, _GLIOMA_HUBER_K / np.maximum(np.abs(residuals), 1e-9))
+            step = beta.copy()
+            for column in range(3):
+                usable = mask[:, column]
+                if not np.any(usable):
+                    continue
+                weighted = w * robust * usable
+                denominator = float(
+                    np.sum(weighted * x[:, column] ** 2) + _GLIOMA_RIDGE + _GLIOMA_PRIOR_STRENGTH
+                )
+                gradient_residual = np.where(
+                    c,
+                    np.maximum(predictions - censor_limits, 0.0),
+                    predictions - y,
+                )
+                gradient = float(
+                    np.sum(weighted * x[:, column] * gradient_residual)
+                    + _GLIOMA_RIDGE * previous_beta[column]
+                    + _GLIOMA_PRIOR_STRENGTH * (previous_beta[column] - prior[column])
+                )
+                step[column] = previous_beta[column] - gradient / denominator
+            candidate = previous_beta + _GLIOMA_DAMPING * (step - previous_beta)
+            candidate = np.clip(candidate, -M1002_MAX_TYPED_EFFECT, M1002_MAX_TYPED_EFFECT)
+            candidate_objective = _typed_objective(
+                candidate, x, mask, y, c, censor_limits, w, prior
+            )
+            if not np.isfinite(candidate_objective) or (
+                candidate_objective > previous_objective + _GLIOMA_OBJECTIVE_TOLERANCE
+            ):
+                accepted = False
+                step_size = 1.0
+                for _ in range(_GLIOMA_BACKTRACKING_STEPS):
+                    step_size *= _GLIOMA_BACKTRACKING_FACTOR
+                    trial = np.clip(
+                        previous_beta + step_size * (candidate - previous_beta),
+                        -M1002_MAX_TYPED_EFFECT,
+                        M1002_MAX_TYPED_EFFECT,
+                    )
+                    trial_objective = _typed_objective(
+                        trial, x, mask, y, c, censor_limits, w, prior
+                    )
+                    if np.isfinite(trial_objective) and (
+                        trial_objective
+                        <= previous_objective + _GLIOMA_OBJECTIVE_TOLERANCE
+                    ):
+                        candidate = trial
+                        candidate_objective = trial_objective
+                        accepted = True
+                        break
+                if not accepted:
+                    candidate = previous_beta
+                    candidate_objective = previous_objective
+            gap = float(np.max(np.abs(candidate - previous_beta)))
+            beta = candidate
+            objective = candidate_objective
+            trace.append(round(objective, 12))
+            if (
+                gap <= _GLIOMA_TOLERANCE
+                or abs(previous_objective - objective) <= _GLIOMA_TOLERANCE
+            ):
+                converged = True
+                break
+        seed_digest = sha256_digest({"request": request_digest, "program": program.value})
+        seed = int(seed_digest.removeprefix("sha256:")[:16], 16) & ((1 << 63) - 1)
+        rng = np.random.default_rng(seed)
+        bootstrap_predictions: dict[str, list[float]] = {
+            item.observation_id: [] for item in active if item.program is program
+        }
+        for _ in range(bootstrap_replicates):
+            sampled = rng.integers(0, len(indices), size=len(indices))
+            perturb = rng.normal(
+                0.0, _GLIOMA_BOOTSTRAP_SCALE * np.maximum(standard_error[list(indices)], 1e-3)
+            )
+            boot_beta = prior.copy()
+            sampled_censored = c[sampled]
+            sampled_targets = y[sampled] + np.where(~sampled_censored, perturb, 0.0)
+            sampled_limits = censor_limits[sampled] + np.where(
+                sampled_censored, perturb, 0.0
+            )
+            bx, bm, by, bc, boot_limits, bw = (
+                x[sampled],
+                mask[sampled],
+                sampled_targets,
+                sampled_censored,
+                sampled_limits,
+                w[sampled],
+            )
+            for _ in range(24):
+                pred = bx @ boot_beta
+                res = np.where(bc, np.maximum(pred - boot_limits, 0.0), by - pred)
+                robust = np.minimum(1.0, _GLIOMA_HUBER_K / np.maximum(np.abs(res), 1e-9))
+                for column in range(3):
+                    usable = bm[:, column]
+                    if not np.any(usable):
+                        continue
+                    ww = bw * robust * usable
+                    denominator = float(
+                        np.sum(ww * bx[:, column] ** 2) + _GLIOMA_RIDGE + _GLIOMA_PRIOR_STRENGTH
+                    )
+                    gradient_residual = np.where(
+                        bc,
+                        np.maximum(pred - boot_limits, 0.0),
+                        pred - by,
+                    )
+                    gradient = float(
+                        np.sum(ww * bx[:, column] * gradient_residual)
+                        + _GLIOMA_RIDGE * boot_beta[column]
+                        + _GLIOMA_PRIOR_STRENGTH * (boot_beta[column] - prior[column])
+                    )
+                    boot_beta[column] -= 0.4 * gradient / denominator
+            for local_index, original_index in enumerate(indices):
+                if active[original_index].program is program:
+                    bootstrap_predictions[active[original_index].observation_id].append(
+                        float(x[local_index] @ boot_beta)
+                    )
+        for _local_index, original_index in enumerate(indices):
+            item = active[original_index]
+            row = matrix[original_index]
+            predicted = float(row @ beta)
+            samples = np.asarray(bootstrap_predictions[item.observation_id], dtype=float)
+            if samples.size:
+                lower, upper = (float(np.quantile(samples, q)) for q in (0.05, 0.95))
+                stability = float(np.mean(np.sign(samples) == (1.0 if predicted >= 0.0 else -1.0)))
+            else:
+                lower = upper = predicted
+                stability = 0.0
+            contributions = row * beta
+            names = ("transcript", "copy_number", "phosphosite")
+            ordered = sorted(
+                range(3), key=lambda column: (-abs(float(contributions[column])), column)
+            )
+            drivers = tuple(names[column] for column in ordered if present[original_index, column])
+            ablation_values = {
+                names[column]: abs(
+                    predicted - float((row * np.where(np.arange(3) == column, 0.0, beta)).sum())
+                )
+                for column in ordered
+                if present[original_index, column]
+            }
+            ablations = tuple(
+                f"without_{names[column]}={ablation_values[names[column]]:.4f}"
+                for column in ordered
+                if present[original_index, column]
+            )
+            beta_values: tuple[float, float, float] = (
+                float(beta[0]),
+                float(beta[1]),
+                float(beta[2]),
+            )
+            if item.protein_effect is None and item.censor_limit is not None:
+                discordance = max(predicted - item.censor_limit, 0.0)
+                protein_for_dosage = predicted
+            else:
+                discordance = abs(float(item.protein_effect or 0.0) - predicted)
+                protein_for_dosage = float(item.protein_effect or 0.0)
+            fits.append(
+                _GliomaFit(
+                    observation=item,
+                    beta=beta_values,
+                    predicted=predicted,
+                    protein_for_dosage=protein_for_dosage,
+                    discordance=discordance,
+                    lower=lower,
+                    upper=upper,
+                    stability=stability,
+                    evidence_count=len(indices),
+                    top_drivers=drivers[:3],
+                    ablation_effects=ablations[:3],
+                    objective=objective,
+                    iterations=_iteration,
+                    converged=converged,
+                    objective_trace=tuple(trace),
+                )
+            )
+    return tuple(sorted(fits, key=lambda item: item.observation.observation_id))
+
+
+def _construct_glioma_representation(
+    request: ConstructProteinRnaRepresentationRequest,
+    request_digest: str,
+) -> tuple[AnalysisRepresentation, tuple[RepresentationDiagnostic, ...]]:
+    fits = _fit_program(
+        tuple(sorted(request.glioma_observations, key=lambda item: item.observation_id)),
+        request_digest=request_digest,
+        bootstrap_replicates=request.bootstrap_replicates,
+    )
+    if not fits:
+        raise _MissingInputError
+    evidence = _evidence(request)
+    features: list[RepresentationFeature] = []
+    transformations: list[Any] = []
+    diagnostics: list[RepresentationDiagnostic] = []
+    for fit in fits:
+        observation = fit.observation
+        transformation_id = (
+            f"transform.glioma.{observation.gene.lower()}.{observation.observation_id}"
+        )
+        output_ids = tuple(
+            f"{observation.input_feature_id}.{channel}"
+            for channel in ("translation_index", "protein_discordance", "dosage_residual")
+        )
+        transformations.append(
+            TransformationStep(
+                transformation_id=transformation_id,
+                operation="glioma_mechanistic_irls",
+                input_feature_ids=(observation.input_feature_id,),
+                output_feature_ids=output_ids,
+                fit_scope="none",
+            )
+        )
+        lineage = FeatureLineage(
+            feature_id=output_ids[0],
+            source_artifacts=request.source_artifacts,
+            transformation_ids=(transformation_id,),
+            evidence=evidence,
+        )
+        values = (
+            (fit.predicted, "translation_index", fit.lower, fit.upper),
+            (fit.discordance, "protein_discordance", 0.0, max(fit.upper - fit.lower, 0.0)),
+            (
+                float(
+                    fit.protein_for_dosage - fit.beta[1] * (observation.copy_number_effect or 0.0)
+                ),
+                "dosage_residual",
+                None,
+                None,
+            ),
+        )
+        for output_id, (value, channel, lower, upper) in zip(output_ids, values, strict=True):
+            features.append(
+                RepresentationFeature(
+                    feature_id=output_id,
+                    value_kind=RepresentationFeatureValueKind.SCALAR,
+                    state=RepresentationMissingness.OBSERVED,
+                    unit="standardized_effect",
+                    scalar_value=float(value),
+                    lineage=lineage.model_copy(update={"feature_id": output_id}),
+                    evidence=evidence,
+                    gene=observation.gene,
+                    program=observation.program,
+                    channel=channel,
+                    evidence_count=fit.evidence_count,
+                    stability=fit.stability,
+                    discordance=fit.discordance,
+                    top_drivers=fit.top_drivers,
+                    ablation_effects=fit.ablation_effects,
+                    lower_bound=lower,
+                    upper_bound=upper,
+                )
+            )
+        diagnostics.append(
+            RepresentationDiagnostic(
+                diagnostic_id=f"diagnostic.{observation.observation_id}",
+                status=RepresentationDiagnosticStatus.PASS
+                if fit.converged
+                else RepresentationDiagnosticStatus.WARNING,
+                message=(
+                    f"{observation.program.value} dosage/translation/phospho IRLS converged in "
+                    f"{fit.iterations} iterations; objective trace is monotonic"
+                    if fit.converged
+                    else "glioma IRLS reached the iteration budget; interval is review-only"
+                ),
+                evidence=evidence,
+                objective_trace=fit.objective_trace,
+                iterations=fit.iterations,
+                converged=fit.converged,
+            )
+        )
+    return (
+        AnalysisRepresentation(
+            representation_id=f"representation.m1002.glioma.{request_digest.removeprefix('sha256:')}",
+            version=M1002_CONTRACT_VERSION,
+            method=RepresentationMethod.LEARNED_MECHANISTIC,
+            features=tuple(features),
+            transformations=tuple(transformations),
+            covariates=request.configuration.covariates,
+            evidence=evidence,
+        ),
+        tuple(diagnostics),
+    )
+
+
+def _result(  # noqa: PLR0913
     request: ConstructProteinRnaRepresentationRequest,
     *,
     request_digest: str,
     representation: AnalysisRepresentation | None,
     diagnostics: tuple[RepresentationDiagnostic, ...],
     abstention_reason: str | None,
+    model_family: str | None = None,
 ) -> ProteinRnaRepresentationResult:
     abstained = representation is None
     status = (
@@ -392,13 +824,22 @@ def _result(
             statement="The parent protein-RNA discordance output is not emitted here.",
         ),
     )
+    bound_request = request
+    if request.glioma_observations:
+        bound_request = request.model_copy(
+            update={
+                "glioma_observations": tuple(
+                    sorted(request.glioma_observations, key=lambda item: item.observation_id)
+                )
+            }
+        )
     payload: dict[str, object] = {
         "output_type": "protein_rna_analysis_representation",
         "result_id": f"result.m1002.{request_digest.removeprefix('sha256:')}",
         "result_version": M1002_CONTRACT_VERSION,
         "request_digest": request_digest,
         "result_digest": _ZERO_DIGEST,
-        "request": request,
+        "request": bound_request,
         "status": status,
         "representation": representation,
         "diagnostics": diagnostics,
@@ -411,6 +852,7 @@ def _result(
         "evidence": _evidence(request),
         "limitations": limitations,
         "human_review_required": abstained,
+        "model_family": model_family,
     }
     # Calculate against a validation-free model so nested datetime and enum
     # serialization exactly matches the result validator's canonical boundary.
@@ -422,7 +864,12 @@ def _result(
 def _execute(request: ConstructProteinRnaRepresentationRequest) -> ProteinRnaRepresentationResult:
     request_digest = canonical_request_digest(request)
     try:
-        representation, diagnostics = _construct_representation(request)
+        if request.glioma_observations:
+            representation, diagnostics = _construct_glioma_representation(request, request_digest)
+            model_family = M1002_GLIOMA_MODEL_FAMILY
+        else:
+            representation, diagnostics = _construct_representation(request)
+            model_family = None
     except RepresentationInputError as error:
         diagnostics = (
             RepresentationDiagnostic(
@@ -438,6 +885,7 @@ def _execute(request: ConstructProteinRnaRepresentationRequest) -> ProteinRnaRep
             representation=None,
             diagnostics=diagnostics,
             abstention_reason=str(error),
+            model_family=M1002_GLIOMA_MODEL_FAMILY if request.glioma_observations else None,
         )
     return _result(
         request,
@@ -445,6 +893,7 @@ def _execute(request: ConstructProteinRnaRepresentationRequest) -> ProteinRnaRep
         representation=representation,
         diagnostics=diagnostics,
         abstention_reason=None,
+        model_family=model_family,
     )
 
 

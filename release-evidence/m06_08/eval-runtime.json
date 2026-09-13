@@ -1,9 +1,14 @@
 {
-  "check_count": 8,
+  "check_count": 9,
   "checks": [
     {
       "detail": "abstention carries evidence, typed support status, limitations, uncertainty, and review",
       "id": "safe_abstention_has_required_evidence_closure",
+      "passed": true
+    },
+    {
+      "detail": "explicit evidence and digest-linked reconstruction produce a replayable bundle",
+      "id": "evidence_backed_bundle_is_published",
       "passed": true
     },
     {
