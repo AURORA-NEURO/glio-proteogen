@@ -246,6 +246,19 @@ an inference endpoint; topology projection, protein-adjusted phosphosite
 factors, nested case-group evaluation, and redistribution approval remain
 admission blockers below.
 
+The companion `tools/fit_cptac_gbm_complex_factors.py` now performs the first
+source-fitted topology projection against the admitted Reactome complex panel.
+It reads only the unshared protein block, restricts each factor to exact source
+member genes, and fits a missing-aware alternating Huber rank-one factor with
+equal-membership ridge, damping, monotone objective backtracking, and
+nonnegative orientation. A live private fit converged for 27 of the 28 selected
+complexes; the remaining complex has fewer than three source protein members and
+is omitted rather than padded. The output is a 29 KiB aggregate-loading receipt
+with objective traces and source digests, never sample scores or matrix cells.
+These are source-cohort concordance factors—not complex assembly or pathway
+activity—and they remain caller-side until nested case-group evaluation,
+protein-adjusted phosphosite factors, and redistribution approval pass.
+
 ## Model family and bounded graph semantics
 
 The only admissible family is a missing-aware robust confirmatory set-factor

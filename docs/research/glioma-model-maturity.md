@@ -1447,13 +1447,16 @@ inventory. See
    aliquots (100 primary tumors, 10 solid-tissue normals; one disqualified tumor)
    across both assay maps. A caller-side feature adapter now computes robust
    qualified-tumor/normal contrasts for 10,977 protein and 41,580 atomic
-   phosphosite rows with explicit support and abstention, but emits no packaged
-   model. The numerical lane remains design-only and admission-blocked pending
-   processing/uncertainty semantics, topology projection, licensing, and
-   evaluation; it must learn edge-family reliability inside nested case-group
-   folds while retaining the real robust ECGI solver, explicit topology/modality
-   ablations, and an internal-concordance-only ceiling. Exact byte locks,
-   grouping, endpoints, leakage controls, gates, and blockers are specified in
+   phosphosite rows with explicit support and abstention. A caller-side robust
+   Huber rank-one projection now converges for 27 of the 28 selected Reactome
+   complexes using exact source member genes, but emits no packaged model or
+   sample scores. The numerical lane remains design-only and admission-blocked
+   pending processing/uncertainty semantics, protein-adjusted phosphosite
+   factors, licensing, and evaluation; it must learn edge-family reliability
+   inside nested case-group folds while retaining the real robust ECGI solver,
+   explicit topology/modality ablations, and an internal-concordance-only
+   ceiling. Exact byte locks, grouping, endpoints, leakage controls, gates, and
+   blockers are specified in
    [`cptac-gbm-matched-evidence-graph-design.md`](cptac-gbm-matched-evidence-graph-design.md).
 3. **Glioma immunopeptidomic presentation.** Bind exact HLA alleles and pinned
    pretrained processing/binding/presentation models, with allele support,
