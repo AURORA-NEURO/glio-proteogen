@@ -419,6 +419,12 @@ remain inside its quantized interval. This is fitted sampling uncertainty only;
 it does not stand in for histologic, donor, batch, or external calibration
 uncertainty.
 
+When this child lane is connected to `gbm-microenvironment-graph/1.0.0`, its
+complete lineage and unknown-mass intervals are additionally propagated through
+the centered-log-ratio projection as log-ratio variance. Incomplete interval
+receipts are ignored rather than silently treated as precise, keeping source
+fit uncertainty visible without making a histologic cell-fraction claim.
+
 ## Completed M06-04 coupled glioma abundance lane
 
 The additive M06-04 runtime now includes the locked

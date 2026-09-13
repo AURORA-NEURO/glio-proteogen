@@ -161,6 +161,8 @@ _COMPOSITION_STANDARD_ERROR_CAP: Final = 20.0
 _COMPOSITION_QUALITY_WEIGHT: Final = 0.75
 _COMPOSITION_EPSILON: Final = 1e-6
 _COMPOSITION_PROJECTION_POLICY: Final = "rna_composition_centered_log_ratio_to_all_channels_v1"
+_COMPOSITION_INTERVAL_UNCERTAINTY_POLICY: Final = "bootstrap_interval_width_to_clr_standard_error_v1"
+_COMPOSITION_INTERVAL_Z: Final = 3.29
 _COMPOSITION_GRAPH_REFERENCE_MAP: Final = (
     ("myeloid", "myeloid"),
     ("t_cell", "t_cell"),
@@ -214,6 +216,14 @@ class MicroenvironmentGraphProfile(FrozenModel):
     composition_projection_policy: Literal[
         "rna_composition_centered_log_ratio_to_all_channels_v1"
     ] = _COMPOSITION_PROJECTION_POLICY
+    composition_interval_uncertainty_policy: Literal[
+        "bootstrap_interval_width_to_clr_standard_error_v1"
+    ] = _COMPOSITION_INTERVAL_UNCERTAINTY_POLICY
+    composition_interval_z: float = Field(
+        default=_COMPOSITION_INTERVAL_Z,
+        ge=_COMPOSITION_INTERVAL_Z,
+        le=_COMPOSITION_INTERVAL_Z,
+    )
     composition_standard_error_floor: float = Field(
         default=_COMPOSITION_STANDARD_ERROR_FLOOR,
         ge=_COMPOSITION_STANDARD_ERROR_FLOOR,
@@ -429,6 +439,8 @@ def microenvironment_graph_profile() -> MicroenvironmentGraphProfile:
         "source_rank_quality_supported": 0.85,
         "source_rank_quality_limited": 0.40,
         "composition_projection_policy": _COMPOSITION_PROJECTION_POLICY,
+        "composition_interval_uncertainty_policy": _COMPOSITION_INTERVAL_UNCERTAINTY_POLICY,
+        "composition_interval_z": _COMPOSITION_INTERVAL_Z,
         "composition_standard_error_floor": _COMPOSITION_STANDARD_ERROR_FLOOR,
         "composition_standard_error_cap": _COMPOSITION_STANDARD_ERROR_CAP,
         "composition_quality_weight": _COMPOSITION_QUALITY_WEIGHT,
@@ -463,6 +475,8 @@ def microenvironment_graph_profile() -> MicroenvironmentGraphProfile:
         source_rank_quality_supported=0.85,
         source_rank_quality_limited=0.40,
         composition_projection_policy=_COMPOSITION_PROJECTION_POLICY,
+        composition_interval_uncertainty_policy=_COMPOSITION_INTERVAL_UNCERTAINTY_POLICY,
+        composition_interval_z=_COMPOSITION_INTERVAL_Z,
         composition_standard_error_floor=_COMPOSITION_STANDARD_ERROR_FLOOR,
         composition_standard_error_cap=_COMPOSITION_STANDARD_ERROR_CAP,
         composition_quality_weight=_COMPOSITION_QUALITY_WEIGHT,
@@ -672,6 +686,37 @@ def _composition_observations(
         1.0,
         float(sum(request.counts)) + float(request.concentration),
     )
+    # A bootstrap interval is a source of uncertainty, not another point
+    # estimate.  When the child receipt contains a complete interval set, map
+    # its nominal 90% width into log-ratio variance and add it to the
+    # count/depth delta-method variance.  Partial intervals are ignored
+    # entirely so an incomplete uncertainty receipt cannot look artificially
+    # precise.
+    interval_variances: dict[str, float] = {}
+    if (
+        result.bootstrap_replicates_used >= 8
+        and len(result.weight_intervals) == len(result.known_weights)
+        and result.unknown_mass_lower_bound is not None
+        and result.unknown_mass_upper_bound is not None
+    ):
+        for weight, interval in zip(result.known_weights, result.weight_intervals, strict=True):
+            width = max(0.0, float(interval.upper_bound) - float(interval.lower_bound))
+            standard_error = width / _COMPOSITION_INTERVAL_Z
+            probability = max(float(weight.rna_weight), _COMPOSITION_EPSILON)
+            interval_variances[str(weight.reference_id)] = (standard_error / probability) ** 2
+        unknown_width = max(
+            0.0,
+            float(result.unknown_mass_upper_bound) - float(result.unknown_mass_lower_bound),
+        )
+        unknown_se = unknown_width / _COMPOSITION_INTERVAL_Z
+        interval_variances["__unknown_mass__"] = (
+            unknown_se / max(float(result.unknown_mass), _COMPOSITION_EPSILON)
+        ) ** 2
+    clr_mean_variance = (
+        math.fsum(interval_variances.values()) / (len(all_weights) ** 2)
+        if interval_variances and len(interval_variances) == len(all_weights)
+        else 0.0
+    )
     observations: list[EvidenceObservation] = []
     for item in mapped:
         probability = max(float(item.rna_weight), _COMPOSITION_EPSILON)
@@ -680,6 +725,8 @@ def _composition_observations(
             0.0,
             (1.0 - min(probability, 1.0 - _COMPOSITION_EPSILON)) / (effective_depth * probability),
         )
+        interval_variance = interval_variances.get(str(item.reference_id), 0.0)
+        clr_variance = delta_variance + interval_variance + clr_mean_variance
         graph_program = reference_to_graph[item.reference_id]
         observations.append(
             EvidenceObservation(
@@ -690,7 +737,7 @@ def _composition_observations(
                 standardized_effect=clr_effect,
                 standard_error=max(
                     profile.composition_standard_error_floor,
-                    min(profile.composition_standard_error_cap, math.sqrt(delta_variance)),
+                    min(profile.composition_standard_error_cap, math.sqrt(clr_variance)),
                 ),
                 quality_weight=_COMPOSITION_QUALITY_WEIGHT,
                 provenance_digest=result.result_digest,

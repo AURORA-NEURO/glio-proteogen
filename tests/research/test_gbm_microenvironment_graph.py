@@ -78,6 +78,42 @@ def test_profile_binds_both_child_engines() -> None:
     assert profile.composition_standard_error_floor == 0.25
     assert profile.composition_standard_error_cap == 20.0
     assert profile.composition_quality_weight == 0.75
+    assert (
+        profile.composition_interval_uncertainty_policy
+        == "bootstrap_interval_width_to_clr_standard_error_v1"
+    )
+    assert profile.composition_interval_z == 3.29
+
+
+def test_composition_bootstrap_intervals_inflate_clr_uncertainty() -> None:
+    """Composition uncertainty must reach the graph as uncertainty, not a point shift."""
+
+    request = synthetic_microenvironment_graph_request()
+    assert request.composition_request is not None
+    point_request = request.composition_request
+    bootstrap_request = point_request.model_copy(update={"bootstrap_replicates": 8})
+    point_result = runtime.analyze_gbm_mixture(point_request)
+    bootstrap_result = runtime.analyze_gbm_mixture(bootstrap_request)
+
+    point_observations = {
+        str(item.observation_id): item
+        for item in runtime._composition_observations(point_request, point_result)
+    }
+    bootstrap_observations = {
+        str(item.observation_id): item
+        for item in runtime._composition_observations(bootstrap_request, bootstrap_result)
+    }
+    assert bootstrap_result.bootstrap_replicates_used == 8
+    assert set(point_observations) == set(bootstrap_observations)
+    assert all(
+        bootstrap_observations[observation_id].standard_error
+        >= point_observations[observation_id].standard_error
+        for observation_id in point_observations
+    )
+    assert all(
+        observation.standard_error is not None and observation.standard_error <= 20.0
+        for observation in bootstrap_observations.values()
+    )
 
 
 def test_profile_declares_lower_weight_molecular_context_edges() -> None:
