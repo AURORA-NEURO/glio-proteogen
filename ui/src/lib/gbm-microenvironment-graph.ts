@@ -33,6 +33,7 @@ const PROFILE_FIELDS = new Set([
   "source_engine",
   "graph_engine",
   "auxiliary_source_engine",
+  "auxiliary_source_profile_digest",
   "composition_source_engine",
   "composition_source_profile_digest",
   "source_profile_digest",
@@ -185,7 +186,7 @@ export function validateMicroenvironmentGraphProfile(profile: JsonObject): strin
   if (profile.missing_families_are_not_negative !== true || profile.cell_fraction_claim_permitted !== false || profile.clinical_use_permitted !== false) {
     errors.push("profile must preserve missingness and forbid cell-fraction and clinical claims.");
   }
-  for (const field of ["source_profile_digest", "graph_profile_digest", "composition_source_profile_digest", "topology_digest", "profile_digest"]) requireDigest(profile[field], `profile.${field}`, errors);
+  for (const field of ["source_profile_digest", "graph_profile_digest", "auxiliary_source_profile_digest", "composition_source_profile_digest", "topology_digest", "profile_digest"]) requireDigest(profile[field], `profile.${field}`, errors);
   return errors;
 }
 

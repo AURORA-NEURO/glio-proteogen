@@ -108,6 +108,7 @@ function profile(): Record<string, unknown> {
     source_engine: "neftel-bulk-protein-programs/1.0.0",
     graph_engine: "glio-ecgi/1.0.0",
     auxiliary_source_engine: "gbm-proteomic-axes/1.0.0",
+    auxiliary_source_profile_digest: DIGEST,
     composition_source_engine: "gbm-rna-composition/0.1.0",
     composition_source_profile_digest: DIGEST,
     source_profile_digest: DIGEST,
@@ -194,6 +195,7 @@ describe("GBM microenvironment graph UI contract", () => {
     const request = { profile_id: GBM_MICROENVIRONMENT_GRAPH_PROFILE_ID, sample_id: "sample-2", source_request: sourceRequest() };
     expect(validateMicroenvironmentGraphRequest(request).join("\n")).toContain("must match");
     expect(validateMicroenvironmentGraphProfile({ ...profile(), clinical_use_permitted: true }).join("\n")).toContain("forbid");
+    expect(validateMicroenvironmentGraphProfile(Object.fromEntries(Object.entries(profile()).filter(([key]) => key !== "auxiliary_source_profile_digest"))).join("\n")).toContain("auxiliary_source_profile_digest");
   });
 
   it("normalizes nested graph and source receipts without inventing a flat result", () => {
