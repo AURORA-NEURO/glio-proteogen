@@ -582,7 +582,7 @@ const LANE_COPY: Record<WorkbenchMode, LaneCopy> = {
     heroEyebrow: "GLIO / GBM MICROENVIRONMENT EVIDENCE GRAPH",
     heroLead: "Trace glioma microenvironment programs.",
     heroBoundary: "Keep cell-fraction claims out.",
-    heroIntro: "A source-locked Neftel protein-program bridge into a signed GBM microenvironment graph. Mesenchymal-like and OPC-like evidence is projected into hypoxia, angiogenic, myeloid, T-cell, endothelial, and opposing OPC relationships; unsupported families remain missing, never negative.",
+    heroIntro: "A source-locked Neftel protein-program bridge into a signed GBM microenvironment graph. Mesenchymal-like, OPC-like, neural-progenitor-like, astrocyte-like, and cell-cycle evidence is projected into direct GBM state nodes plus hypoxia, angiogenic, myeloid, T-cell, endothelial, and opposing OPC relationships; unsupported families remain missing, never negative.",
     inputTitle: "Microenvironment graph request",
     emptyMark: "ME",
     emptyTitle: "The GBM microenvironment bridge is ready for evidence.",
@@ -1571,7 +1571,7 @@ export default function ResearchWorkbench() {
   const neftelTransitionStats = parsedEditor ? neftelTransitionRequestStats(parsedEditor) : { timePoints: 0, transitions: 0, observations: 0, active: 0, genes: 0 };
   const complexTransitionStats = parsedEditor ? complexTransitionRequestStats(parsedEditor) : { timePoints: 0, transitions: 0, observations: 0, active: 0, genes: 0 };
   const factorGraphStats = parsedEditor ? factorGraphRequestStats(parsedEditor) : { reactomeTimePoints: 0, reactomeActive: 0, kinaseTimePoints: 0, kinaseActive: 0, childTransitions: 0 };
-  const microenvironmentStats = parsedEditor ? microenvironmentGraphRequestStats(parsedEditor) : { observations: 0, active: 0, programs: 7 };
+  const microenvironmentStats = parsedEditor ? microenvironmentGraphRequestStats(parsedEditor) : { observations: 0, active: 0, programs: 14 };
   const presentationStats = parsedEditor ? presentationRequestStats(parsedEditor) : { peptides: 0, informative: 0, alleles: 0, models: 0 };
   const microenvironment = useMemo(() => mode === "gbm-microenvironment-graph" && result
     ? normalizeMicroenvironmentGraphResult(result)
@@ -2287,8 +2287,8 @@ export default function ResearchWorkbench() {
             </> : mode === "gbm-microenvironment-graph" ? <>
               <div><dt>Source bridge</dt><dd>Neftel Table S2 protein programs</dd></div>
               <div><dt>Secondary evidence</dt><dd>7 published GBM proteomic axes</dd></div>
-              <div><dt>Graph programs</dt><dd>7 signed GBM microenvironment nodes</dd></div>
-              <div><dt>Projected families</dt><dd>MES-like · OPC-like only</dd></div>
+              <div><dt>Graph programs</dt><dd>14 signed GBM state nodes</dd></div>
+              <div><dt>Projected families</dt><dd>MES · OPC · neural · astrocyte · cell cycle</dd></div>
               <div><dt>Claim ceiling</dt><dd className="warn">no cell fractions · research only</dd></div>
             </> : mode === "immunopeptidomic-presentation" ? <>
               <div><dt>Scoring model</dt><dd>allele PSSM + processing logit</dd></div>
@@ -2411,7 +2411,7 @@ export default function ResearchWorkbench() {
             {mode === "gbm-functional-proteotype" && <strong>GPM, MTC, NEU, and PPR are jointly constrained source-cohort concordance axes—not patient subtype labels, probabilities, winners, diagnoses, or treatment assignments. Table 2e pathways are context only and never sample pathway activity.</strong>}
             {mode === "gbm-rna-purity" && <strong>Only exact primary IDH-wildtype GBM bulk RNA-seq raw counts are in scope. The output is one published-model malignant-cell-fraction estimate—not histology, immune composition, diagnosis, prognosis, or treatment guidance.</strong>}
             {mode === "gbm-rna-composition" && <strong>Counts and reference signatures are caller supplied. Unknown mass is retained as an unexplained RNA channel; weights are not GBmap or histologic cell fractions.</strong>}
-            {mode === "gbm-microenvironment-graph" && <strong>MES-like and OPC-like bulk-program location and rank evidence is projected into a signed graph. This lane does not estimate cell fractions, cellular abundance, diagnosis, prognosis, or treatment response.</strong>}
+            {mode === "gbm-microenvironment-graph" && <strong>MES-like, OPC-like, neural-progenitor-like, astrocyte-like, and cell-cycle bulk-program location and rank evidence is projected into a signed graph. This lane does not estimate cell fractions, cellular abundance, diagnosis, prognosis, or treatment response.</strong>}
             {mode === "immunopeptidomic-presentation" && <strong>Presentation probabilities require licensed caller-supplied HLA/processing coefficients. They are not NetMHC predictions, proof of surface display, T-cell recognition, neoantigen ranking, or treatment guidance.</strong>}
             {mode === "longitudinal-gbm" && <strong>Transition direction means source-cohort T2−T1 concordance—not patient evolution, recurrence prediction, prognosis, or treatment guidance.</strong>}
             {mode === "longitudinal-gbm-phospho" && <strong>Raw phosphosite concordance is not occupancy, kinase activity, protein/phosphosite fusion, recurrence prediction, or clinical guidance. Composite source site groups remain indivisible.</strong>}
@@ -2609,7 +2609,7 @@ export default function ResearchWorkbench() {
             <div className="panel-stack">
               <div className="summary-grid">
                 <article><span>GRAPH STATES</span><b>{states.length}</b><small>{supportedCount} estimated · {states.filter((state) => state.support === "abstained").length} abstained</small></article>
-                <article><span>MES / OPC SOURCE</span><b>{microenvironmentSupportedFamilyCount(microenvironment.sourceResult)} / 2</b><small>supported Neftel families projected</small></article>
+                <article><span>NEFTEL SOURCE FAMILIES</span><b>{microenvironmentSupportedFamilyCount(microenvironment.sourceResult)} / 5</b><small>supported source families projected</small></article>
                 <article><span>MEAN STABILITY</span><b>{formatNumber(states.length ? states.reduce((sum, state) => sum + (state.stability ?? 0), 0) / states.length : null)}</b><small>deterministic graph bootstrap</small></article>
                 <article><span>GRAPH Q ≤ 0.10</span><b>{stateGroups.kinase.filter((state) => state.qValue !== null && state.qValue <= 0.1).length}</b><small>experimental kinase enrichment</small></article>
               </div>

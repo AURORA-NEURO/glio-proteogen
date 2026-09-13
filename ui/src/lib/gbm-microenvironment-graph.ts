@@ -113,11 +113,21 @@ export type MicroenvironmentGraphRequestStats = {
   programs: number;
 };
 
+const GRAPH_PROGRAM_COUNT = 14;
+const PROJECTED_SOURCE_FAMILIES = [
+  "mesenchymal_like",
+  "oligodendrocyte_progenitor_like",
+  "neural_progenitor_like",
+  "astrocyte_like",
+  "cell_cycle",
+] as const;
+const PROJECTED_SOURCE_FAMILY_SET = new Set<string>(PROJECTED_SOURCE_FAMILIES);
+
 export function microenvironmentGraphRequestStats(request: JsonObject): MicroenvironmentGraphRequestStats {
   const source = nestedSourceRequest(request);
-  if (!source) return { observations: 0, active: 0, programs: 12 };
+  if (!source) return { observations: 0, active: 0, programs: GRAPH_PROGRAM_COUNT };
   const stats = neftelRequestStats(source);
-  return { observations: stats.observations, active: stats.active, programs: 12 };
+  return { observations: stats.observations, active: stats.active, programs: GRAPH_PROGRAM_COUNT };
 }
 
 export function validateMicroenvironmentGraphProfile(profile: JsonObject): string[] {
@@ -148,8 +158,8 @@ export function validateMicroenvironmentGraphProfile(profile: JsonObject): strin
   if (profile.source_rank_standard_error_floor !== 0.10) errors.push("profile.source_rank_standard_error_floor must equal 0.10.");
   if (profile.source_location_quality_supported !== 1.0 || profile.source_location_quality_limited !== 0.5) errors.push("profile source location quality weights are invalid.");
   if (profile.source_rank_quality_supported !== 0.85 || profile.source_rank_quality_limited !== 0.40) errors.push("profile source rank quality weights are invalid.");
-  if (!Array.isArray(profile.supported_source_families) || profile.supported_source_families.join(",") !== "mesenchymal_like,oligodendrocyte_progenitor_like") {
-    errors.push("profile.supported_source_families must contain the two supported GBM families in profile order.");
+  if (!Array.isArray(profile.supported_source_families) || JSON.stringify(profile.supported_source_families) !== JSON.stringify(PROJECTED_SOURCE_FAMILIES)) {
+    errors.push("profile.supported_source_families must contain the five supported GBM families in profile order.");
   }
   if (profile.missing_families_are_not_negative !== true || profile.cell_fraction_claim_permitted !== false || profile.clinical_use_permitted !== false) {
     errors.push("profile must preserve missingness and forbid cell-fraction and clinical claims.");
@@ -287,7 +297,9 @@ export function microenvironmentStateCount(result: JsonObject | null): number {
 
 export function microenvironmentSupportedFamilyCount(result: JsonObject | null): number {
   if (!result) return 0;
-  return normalizeNeftelPrograms(result).filter((program) => program.support !== "abstained").length;
+  return normalizeNeftelPrograms(result).filter(
+    (program) => PROJECTED_SOURCE_FAMILY_SET.has(program.id) && program.support !== "abstained",
+  ).length;
 }
 
 export function microenvironmentGraphRequestDigest(request: JsonObject): string | null {

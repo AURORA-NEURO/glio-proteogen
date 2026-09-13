@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   GBM_MICROENVIRONMENT_GRAPH_PROFILE_ID,
   microenvironmentGraphRequestStats,
+  microenvironmentSupportedFamilyCount,
   normalizeMicroenvironmentGraphResult,
   validateMicroenvironmentGraphProfile,
   validateMicroenvironmentGraphRequest,
@@ -77,7 +78,13 @@ function profile(): Record<string, unknown> {
     source_location_quality_limited: 0.5,
     source_rank_quality_supported: 0.85,
     source_rank_quality_limited: 0.40,
-    supported_source_families: ["mesenchymal_like", "oligodendrocyte_progenitor_like"],
+    supported_source_families: [
+      "mesenchymal_like",
+      "oligodendrocyte_progenitor_like",
+      "neural_progenitor_like",
+      "astrocyte_like",
+      "cell_cycle",
+    ],
     missing_families_are_not_negative: true,
     cell_fraction_claim_permitted: false,
     clinical_use_permitted: false,
@@ -94,7 +101,7 @@ describe("GBM microenvironment graph UI contract", () => {
       axis_request: null,
     };
     expect(validateMicroenvironmentGraphRequest(request)).toEqual([]);
-    expect(microenvironmentGraphRequestStats(request)).toEqual({ observations: 1, active: 1, programs: 12 });
+    expect(microenvironmentGraphRequestStats(request)).toEqual({ observations: 1, active: 1, programs: 14 });
   });
 
   it("keeps the secondary axis receipt optional for source-only requests", () => {
@@ -155,6 +162,7 @@ describe("GBM microenvironment graph UI contract", () => {
     const { axis_result: _axisResult, ...sourceOnlyResult } = result;
     expect(validateMicroenvironmentGraphResult(sourceOnlyResult, request, bridgeProfile)).toEqual([]);
     expect(validateMicroenvironmentGraphResult({ ...sourceOnlyResult, axis_result: null }, request, bridgeProfile)).toEqual([]);
+    expect(microenvironmentSupportedFamilyCount(neftelAnalysisResult)).toBe(1);
     const headers = { get: (name: string) => ({
       "X-GLIO-Profile-Digest": result.profile_digest,
       "X-GLIO-Request-Digest": result.request_digest,
