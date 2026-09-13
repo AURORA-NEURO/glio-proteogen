@@ -1473,7 +1473,10 @@ inventory. See
    projection now optionally binds the deterministic source-factor bootstrap
    receipt and attaches validated loading-cosine intervals to all 28 complex
    and six pathway nodes without changing topology weights or inventing sample
-   uncertainty. Digest mismatches and incomplete interval maps fail closed. The
+   uncertainty. Digest mismatches and incomplete interval maps fail closed. Its
+   robust gene-collapsed cross-modal diagnostic centers at cosine 0.8203 across
+   23 complexes and 0.8221 across five pathways; it is metadata-only and does
+   not create numerical edges or occupancy claims. The
    deterministic synthetic oracle now recovers 6/6 signed latent directions
    under 10% missingness and two gross outliers (cosine 0.9756) and recovers a
    protein-adjustment slope within 0.014 absolute error on replay. This is an

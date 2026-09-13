@@ -336,6 +336,14 @@ uncertainty attachment is metadata only: it does not add edges, alter the
 measurement uncertainty. A missing, mismatched, or incomplete bootstrap
 receipt fails closed instead of silently producing a partially annotated graph.
 
+The projection also computes a separate robust cross-modal diagnostic by
+collapsing atomic adjusted-phosphosite loadings to their parent genes before
+comparing them with protein-factor loadings. Its locked receipt has support 23
+complexes (center cosine `0.82029083`, scale `0.24876932`) and five pathways
+(center cosine `0.82205696`, scale `0.21110668`). This is an agreement summary,
+not a numerical graph edge, calibration claim, or evidence that phosphosite
+signal represents occupancy or kinase activity.
+
 The deterministic oracle `tools/evaluate_cptac_gbm_synthetic_oracle.py` closes
 the first scientific test loop without touching private source bytes. It builds
 a signed six-member glioma-like latent factor with 10% missing cells and two

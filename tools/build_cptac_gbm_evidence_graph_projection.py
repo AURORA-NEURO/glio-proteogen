@@ -256,6 +256,57 @@ def _cosine(left: list[float], right: list[float]) -> float | None:
     return float(np.dot(left_array, right_array) / denominator)
 
 
+def _site_loading_by_gene(factor: dict[str, object]) -> dict[str, float]:
+    """Collapse atomic site loadings by parent gene for diagnostics only."""
+
+    phosphosite = factor.get("phosphosite")
+    features: object = (
+        phosphosite.get("features", phosphosite.get("phosphosite_features"))
+        if isinstance(phosphosite, dict)
+        else factor.get("phosphosite_features")
+    )
+    if not isinstance(features, list):
+        return {}
+    by_gene: dict[str, list[float]] = {}
+    for feature in features:
+        if not isinstance(feature, dict):
+            continue
+        gene = feature.get("gene")
+        loading = feature.get("loading")
+        if isinstance(gene, str) and isinstance(loading, (int, float)):
+            by_gene.setdefault(gene, []).append(float(loading))
+    return {gene: float(np.median(values)) for gene, values in by_gene.items() if values}
+
+
+def _cross_modal_diagnostics(
+    complex_factors: dict[str, dict[str, object]],
+    pathway_factors: dict[str, dict[str, object]],
+) -> dict[str, object]:
+    """Compare protein and adjusted-site loading directions without adding edges."""
+
+    scores: dict[str, list[float]] = {"complex": [], "pathway": []}
+    for family, factors in (("complex", complex_factors), ("pathway", pathway_factors)):
+        for factor in factors.values():
+            if factor.get("state") != "observed":
+                continue
+            protein = _loading_map(factor)
+            site = _site_loading_by_gene(factor)
+            shared = sorted(set(protein) & set(site))
+            score = _cosine(
+                [protein[gene] for gene in shared],
+                [site[gene] for gene in shared],
+            )
+            if score is not None:
+                scores[family].append(score)
+    return {
+        family: {
+            "diagnostic": "robust cosine of protein and gene-collapsed adjusted-site loadings",
+            **_robust_summary(values),
+        }
+        for family, values in scores.items()
+    }
+
+
 def _edge_family_diagnostics(
     bindings: tuple[ReactomeComplexBinding, ...],
     complex_factors: dict[str, dict[str, object]],
@@ -453,6 +504,10 @@ def _build_projection(
         "site_parent_semantics": "annotation_only",
         "kinase_substrate_source": "absent; no kinase edges projected",
     }
+    diagnostics = _edge_family_diagnostics(bindings, complex_factors, pathway_factors)
+    diagnostics["protein_to_phosphosite"] = _cross_modal_diagnostics(
+        complex_factors, pathway_factors
+    )
     result: dict[str, object] = {
         "schema_version": MODEL_ID,
         "algorithm_profile": profile,
@@ -466,9 +521,7 @@ def _build_projection(
         "topology_digest": topology_digest,
         "topology": topology,
         "edge_family_counts": edge_family_counts,
-        "edge_family_diagnostics": _edge_family_diagnostics(
-            bindings, complex_factors, pathway_factors
-        ),
+        "edge_family_diagnostics": diagnostics,
         "ablations": ablations,
         "phosphosite_projection": site_projection,
         "semantics": {
