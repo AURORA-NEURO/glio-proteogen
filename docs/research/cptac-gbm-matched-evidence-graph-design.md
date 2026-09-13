@@ -278,6 +278,21 @@ kinase activity. This is a caller-side source adapter, not a released model or
 runtime endpoint; processing semantics, nested case-group evaluation, topology
 projection, and redistribution approval remain blockers.
 
+The follow-on `tools/fit_cptac_gbm_multimodal_factors.py` consumes those
+in-process residuals and fits a paired protein/phosphosite factor for each of
+the 28 exact Reactome complex bindings. Protein loadings use the source
+unshared block; phosphosite loadings use only rows with at least eight matched
+finite parent pairs and at least two parent genes. Both modalities use the
+same missing-aware alternating Huber rank-one solver with equal-membership
+ridge, damping, monotone objective checks, and deterministic orientation. A
+live private fit retained 23 of 28 complexes as jointly observed and abstained
+for five complexes whose source member or phosphosite support was insufficient.
+The 216 KiB receipt records per-site parent-fit parameters, factor loadings,
+support, and trace digests but no sample values, labels, scores, or residual
+vectors. This creates a real multimodal topology coordinate while preserving
+the claim ceiling: it is source-cohort concordance, not complex assembly,
+pathway activity, occupancy, kinase activity, or causal regulation.
+
 ## Model family and bounded graph semantics
 
 The only admissible family is a missing-aware robust confirmatory set-factor
