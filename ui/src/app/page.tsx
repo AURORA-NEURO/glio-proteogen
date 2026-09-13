@@ -584,7 +584,7 @@ const LANE_COPY: Record<WorkbenchMode, LaneCopy> = {
     heroEyebrow: "GLIO / GBM MICROENVIRONMENT EVIDENCE GRAPH",
     heroLead: "Trace glioma microenvironment programs.",
     heroBoundary: "Keep cell-fraction claims out.",
-    heroIntro: "A source-locked Neftel protein-program bridge into a signed GBM microenvironment graph. Mesenchymal-like, OPC-like, neural-progenitor-like, astrocyte-like, and cell-cycle evidence is projected into direct GBM state nodes plus hypoxia, angiogenic, myeloid, T-cell, endothelial, and opposing OPC relationships; unsupported families remain missing, never negative.",
+    heroIntro: "A source-locked Neftel protein-program bridge into a signed GBM microenvironment graph, with an optional count-native RNA composition child. Mesenchymal-like, OPC-like, neural-progenitor-like, astrocyte-like, and cell-cycle evidence is projected into direct GBM state nodes plus hypoxia, angiogenic, myeloid, T-cell, endothelial, and opposing OPC relationships; unsupported families remain missing, never negative.",
     inputTitle: "Microenvironment graph request",
     emptyMark: "ME",
     emptyTitle: "The GBM microenvironment bridge is ready for evidence.",
@@ -1603,7 +1603,7 @@ export default function ResearchWorkbench() {
   const presentationStats = parsedEditor ? presentationRequestStats(parsedEditor) : { peptides: 0, informative: 0, alleles: 0, models: 0 };
   const microenvironment = useMemo(() => mode === "gbm-microenvironment-graph" && result
     ? normalizeMicroenvironmentGraphResult(result)
-    : { graphResult: null, graphRequest: null, sourceResult: null, axisResult: null, sourcePrograms: [], axisSignatures: [] }, [mode, result]);
+    : { graphResult: null, graphRequest: null, sourceResult: null, axisResult: null, compositionResult: null, sourcePrograms: [], axisSignatures: [] }, [mode, result]);
   const states = useMemo(() => {
     if (mode === "evidence-graph" && result) return normalizeStates(result);
     if (mode === "gbm-microenvironment-graph" && microenvironment.graphResult) return normalizeStates(microenvironment.graphResult);
@@ -2428,7 +2428,7 @@ export default function ResearchWorkbench() {
             <span>{error || message}</span>
           </div>
           <div className="input-boundary">
-            <p>{mode === "gbm-rna-purity" ? "Raw-count and context contract" : mode === "gbm-rna-composition" ? "Raw-count and reference-simplex contract" : mode === "gbm-factor-graph" ? "Independent nested evidence contracts" : mode === "gbm-microenvironment-graph" ? "Nested Neftel source contract" : mode === "immunopeptidomic-presentation" ? "Caller-owned sequence and HLA model contract" : "Explicit evidence states"}</p>
+            <p>{mode === "gbm-rna-purity" ? "Raw-count and context contract" : mode === "gbm-rna-composition" ? "Raw-count and reference-simplex contract" : mode === "gbm-factor-graph" ? "Independent nested evidence contracts" : mode === "gbm-microenvironment-graph" ? "Nested Neftel + RNA composition contracts" : mode === "immunopeptidomic-presentation" ? "Caller-owned sequence and HLA model contract" : "Explicit evidence states"}</p>
             {mode === "gbm-rna-purity"
               ? <><span>raw counts</span><span>bulk RNA-seq</span><span>primary IDH-wildtype GBM</span><span>research only</span></>
               : mode === "gbm-rna-composition" ? <><span>raw counts</span><span>positive signatures</span><span>unknown mass</span><span>research only</span></>
@@ -2651,6 +2651,7 @@ export default function ResearchWorkbench() {
                 </tbody></table></div>
               </section>
               {microenvironment.axisSignatures.length > 0 && <GbmSignatureTable signatures={microenvironment.axisSignatures} />}
+              {microenvironment.compositionResult && <GbmRnaCompositionResultPanels result={microenvironment.compositionResult} />}
               <div className="mechanism-grid">
                 <JsonPanel title="Graph solver diagnostics" eyebrow="DIRECTED IRLS / BOOTSTRAP" value={microenvironment.graphResult ? objectAt(microenvironment.graphResult, ["solver"]) : null} empty="No graph solver diagnostics were returned." />
                 <JsonPanel title="Topology provenance" eyebrow="PUBLIC CONTEXT / SYNTHETIC ABSTRACTION" value={microenvironment.graphRequest ? objectAt(microenvironment.graphRequest, ["topology_provenance"]) : null} empty="No topology provenance was returned." />
@@ -2742,6 +2743,7 @@ export default function ResearchWorkbench() {
                   {observedEvidence.map((item, index) => isJsonObject(item) && <tr key={textAt(item, ["observation_id", "id"], String(index))}><td><b>{textAt(item, ["observation_id", "id"], `obs-${index + 1}`)}</b></td><td>{textAt(item, ["node_id", "entity_id"])}</td><td>{textAt(item, ["modality"], "—")}</td><td><span className="evidence-state">{textAt(item, ["state"], "—")}</span></td><td className="mono-cell">{formatSigned(numberAt(item, ["standardized_effect", "effect"]))} ± {formatNumber(numberAt(item, ["standard_error", "se"]))}</td><td className="mono-cell">{formatNumber(numberAt(item, ["quality_weight", "quality"]))}</td><td><code>{shortDigest(textAt(item, ["provenance_digest", "digest"]))}</code></td></tr>)}
                 </tbody></table></div>
               </section>
+              {microenvironment.compositionResult && request && isJsonObject(request.composition_request) && <GbmRnaCompositionEvidencePanel request={request.composition_request} result={microenvironment.compositionResult} />}
               <section className="result-panel">
                 <div className="panel-title-row"><div><p className="eyebrow">UNCERTAINTY</p><h3>Bootstrap intervals & stability</h3></div></div>
                 <div className="uncertainty-grid">{states.map((state) => <article key={`${state.kind}-${state.id}`}><div><b>{state.label}</b><span>{state.kind}</span></div><strong>{formatSigned(state.estimate)}</strong><ActivityMark state={state} /><small>{formatNumber(state.lower)} ↔ {formatNumber(state.upper)} · stability {formatNumber(state.stability)}</small></article>)}</div>
@@ -3031,6 +3033,19 @@ export default function ResearchWorkbench() {
 
           {mode === "gbm-rna-composition" && result && view === "audit" && (
             <GbmRnaCompositionAuditPanels result={result} profile={profile} verification={verification} />
+          )}
+
+          {mode === "gbm-microenvironment-graph" && result && view === "audit" && (
+            <div className="panel-stack audit-grid">
+              <section className="result-panel receipt-panel">
+                <div className="panel-title-row"><div><p className="eyebrow">DETERMINISTIC REPLAY</p><h3>Microenvironment bridge verification</h3></div>{verifying ? <button className="danger-button" onClick={cancelVerification}>Cancel verification</button> : <button className="verify-button" onClick={() => void verifyReplay()}>Recompute</button>}</div>
+                {verification ? <><div className={`verification-banner ${verification.verified === true ? "verified" : "mismatch"}`}><i />{verification.verified === true ? "Replay verified" : "Replay mismatch detected"}</div><pre>{pretty(verification)}</pre></> : <p className="panel-empty">Recompute the exact nested request to verify bridge, source, graph, RNA-composition, profile, and result digests.</p>}
+              </section>
+              <JsonPanel title="Nested RNA composition receipt" eyebrow="COUNT-NATIVE CHILD MODEL" value={microenvironment.compositionResult ? safeJson(microenvironment.compositionResult) : null} empty="This bridge request did not include an RNA composition child." />
+              <JsonPanel title="Bridge profile and provenance" eyebrow="NEFTEL / GRAPH / RNA SOURCES" value={profile ? safeJson(profile) : null} empty="The microenvironment bridge profile is unavailable." />
+              <section className="result-panel limitations-panel"><div className="panel-title-row"><div><p className="eyebrow">RESEARCH BOUNDARY</p><h3>Microenvironment interpretation limits</h3></div></div><ul>{limitations.map((item, index) => <li key={index}>{typeof item === "string" ? item : pretty(item)}</li>)}</ul><p>Protein-program graph states and the optional RNA composition child are evidence coordinates only. They do not estimate cell fractions, diagnosis, prognosis, treatment response, or treatment guidance.</p></section>
+              <JsonPanel title="Raw microenvironment bridge receipt" eyebrow="IMMUTABLE PAYLOAD" value={safeJson(result)} empty="No result is available." />
+            </div>
           )}
 
           {mode === "longitudinal-gbm" && result && view === "audit" && (

@@ -49,6 +49,25 @@ function sourceRequest(): Record<string, unknown> {
   };
 }
 
+function compositionRequest(sampleId: string): Record<string, unknown> {
+  return {
+    profile_id: "gbm-rna-composition/0.1.0",
+    sample_id: sampleId,
+    feature_ids: ["EGFR", "PTPRC"],
+    counts: [3, 2],
+    references: [{ reference_id: "myeloid", signature: [0.8, 0.2] }],
+    unknown_background: [0.5, 0.5],
+    concentration: 10,
+    lambda_mass: 0,
+    lambda_shape: 0.1,
+    initial_unknown_mass: 0.1,
+    max_iterations: 20,
+    bootstrap_replicates: 0,
+    source_digests: [DIGEST],
+    provenance_note: "caller supplied synthetic composition",
+  };
+}
+
 function profile(): Record<string, unknown> {
   return {
     profile_id: GBM_MICROENVIRONMENT_GRAPH_PROFILE_ID,
@@ -57,11 +76,14 @@ function profile(): Record<string, unknown> {
     source_engine: "neftel-bulk-protein-programs/1.0.0",
     graph_engine: "glio-ecgi/1.0.0",
     auxiliary_source_engine: "gbm-proteomic-axes/1.0.0",
+    composition_source_engine: "gbm-rna-composition/0.1.0",
+    composition_source_profile_digest: DIGEST,
     source_profile_digest: DIGEST,
     graph_profile_digest: DIGEST,
     topology_digest: DIGEST,
     projection_policy: "bulk_program_location_and_rank_to_signed_gbm_state_graph_v3",
     auxiliary_projection_policy: "independent_published_gbm_axes_as_external_observations_v2",
+    composition_projection_policy: "rna_composition_centered_log_ratio_to_all_channels_v1",
     projected_axis_signatures: [
       ["SWEET_KRAS_TARGETS_UP", "kras_targets"],
       ["HALLMARK_MYC_TARGETS_V1", "myc_targets"],
@@ -78,6 +100,10 @@ function profile(): Record<string, unknown> {
     source_location_quality_limited: 0.5,
     source_rank_quality_supported: 0.85,
     source_rank_quality_limited: 0.40,
+    composition_standard_error_floor: 0.25,
+    composition_standard_error_cap: 20.0,
+    composition_quality_weight: 0.75,
+    composition_graph_reference_map: [["myeloid", "myeloid"], ["t_cell", "t_cell"], ["endothelial", "endothelial"]],
     supported_source_families: [
       "mesenchymal_like",
       "oligodendrocyte_progenitor_like",
@@ -113,6 +139,20 @@ describe("GBM microenvironment graph UI contract", () => {
     expect(validateMicroenvironmentGraphRequest(request)).toEqual([]);
   });
 
+  it("validates the optional count-native RNA composition child", () => {
+    const request = {
+      profile_id: GBM_MICROENVIRONMENT_GRAPH_PROFILE_ID,
+      sample_id: "sample-1",
+      source_request: sourceRequest(),
+      composition_request: compositionRequest("sample-1"),
+    };
+    expect(validateMicroenvironmentGraphRequest(request)).toEqual([]);
+    expect(validateMicroenvironmentGraphRequest({
+      ...request,
+      composition_request: compositionRequest("other-sample"),
+    }).join("\n")).toContain("composition_request.sample_id");
+  });
+
   it("rejects a mismatched nested sample and fails closed on profile policy", () => {
     const request = { profile_id: GBM_MICROENVIRONMENT_GRAPH_PROFILE_ID, sample_id: "sample-2", source_request: sourceRequest() };
     expect(validateMicroenvironmentGraphRequest(request).join("\n")).toContain("must match");
@@ -130,6 +170,7 @@ describe("GBM microenvironment graph UI contract", () => {
     expect(normalized.graphRequest?.nodes).toEqual([]);
     expect(normalized.sourcePrograms).toEqual([]);
     expect(normalized.axisSignatures).toHaveLength(7);
+    expect(normalized.compositionResult).toBeNull();
   });
 
   it("admits the complete bridge receipt and replay envelope", () => {
@@ -174,6 +215,7 @@ describe("GBM microenvironment graph UI contract", () => {
       request_digest_match: true,
       source_replay_match: true,
       axis_replay_match: true,
+      composition_replay_match: true,
       graph_replay_match: true,
       result_digest_match: true,
       semantic_match: true,
