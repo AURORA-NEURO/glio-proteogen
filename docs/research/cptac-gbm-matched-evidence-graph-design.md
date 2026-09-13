@@ -377,6 +377,14 @@ emitted. These are source-cohort parameter-sensitivity intervals only; they do
 not override ECGI measurement uncertainty, supply prediction intervals, or
 justify applying the diagnostic edge multipliers.
 
+The same tool supports `--verify-receipt`. Verification recomputes the
+requested replicate count from the locked manifest, factor receipts, and source
+bytes, then reports source/profile/seed digests, the receipt digest, and full
+canonical semantic equality separately. A receipt that is internally
+self-consistent but differs from the recomputed factors therefore fails closed;
+the verifier returns no matrix values or resampling indices and remains a
+stateless caller-side check.
+
 ## Model family and bounded graph semantics
 
 The only admissible family is a missing-aware robust confirmatory set-factor

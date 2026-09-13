@@ -1,4 +1,4 @@
-# ruff: noqa: C901, E501, PLR0911, PLR0912, PLR0913, PLR2004, T201, TRY003, TRY004
+# ruff: noqa: C901, E501, PLR0911, PLR0912, PLR0913, PLR0915, PLR2004, T201, TRY003, TRY004
 """Bootstrap caller-side matched GBM factor coordinates.
 
 This tool refits only the selected source factor features under deterministic
@@ -370,7 +370,7 @@ def bootstrap_factors(
         "raw_values_emitted": False,
         "resample_indices_emitted": False,
     }
-    return {
+    payload = {
         "schema_version": MODEL_ID,
         "algorithm_profile": profile,
         "algorithm_profile_digest": "sha256:" + hashlib.sha256(_canonical_bytes(profile)).hexdigest(),
@@ -395,6 +395,106 @@ def bootstrap_factors(
             "Applied edge multipliers remain unchanged; nested held-out evaluation is still required.",
         ],
     }
+    # Bind the complete canonical payload to a receipt digest.  The digest is
+    # deliberately computed without itself so an auditor can validate a file
+    # before trusting any of its interval values.
+    payload["receipt_digest"] = "sha256:" + hashlib.sha256(_canonical_bytes(payload)).hexdigest()
+    return payload
+
+
+def _receipt_digest(payload: dict[str, object]) -> str:
+    """Return the canonical digest used by bootstrap receipts."""
+
+    digest_payload = {key: value for key, value in payload.items() if key != "receipt_digest"}
+    return "sha256:" + hashlib.sha256(_canonical_bytes(digest_payload)).hexdigest()
+
+
+def verify_bootstrap_receipt(
+    source_dir: Path,
+    manifest_path: Path,
+    complex_receipt_path: Path,
+    pathway_receipt_path: Path,
+    receipt_path: Path,
+) -> dict[str, object]:
+    """Recompute and semantically verify a source-factor bootstrap receipt.
+
+    This is intentionally caller-side and stateless: no source rows or
+    resample indices are returned.  Every integrity check is reported so a
+    receipt can be distinguished from a self-consistent but forged artifact.
+    """
+
+    report: dict[str, object] = {
+        "model_id": MODEL_ID,
+        "verified": False,
+        "checks": {},
+        "mismatches": [],
+    }
+    mismatches: list[str] = []
+    report["mismatches"] = mismatches
+    try:
+        decoded: object = json.loads(receipt_path.read_bytes())
+    except (OSError, json.JSONDecodeError, TypeError) as exc:
+        report["error"] = f"receipt could not be decoded: {type(exc).__name__}"
+        mismatches.append("receipt_json")
+        return report
+    if not isinstance(decoded, dict):
+        report["error"] = "receipt root must be an object"
+        mismatches.append("receipt_shape")
+        return report
+    provided = cast("dict[str, object]", decoded)
+    raw_replicates = provided.get("replicates_requested")
+    if isinstance(raw_replicates, bool) or not isinstance(raw_replicates, int):
+        report["error"] = "receipt replicates_requested must be an integer"
+        mismatches.append("replicates_requested")
+        return report
+    if raw_replicates < MIN_SUCCESSFUL_REPLICATES or raw_replicates > MAX_BOOTSTRAPS:
+        report["error"] = "receipt replicates_requested is outside the supported bounds"
+        mismatches.append("replicates_requested")
+        return report
+
+    try:
+        expected = bootstrap_factors(
+            source_dir,
+            manifest_path,
+            complex_receipt_path,
+            pathway_receipt_path,
+            replicates=raw_replicates,
+        )
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        report["error"] = f"recompute failed: {type(exc).__name__}"
+        mismatches.append("recompute")
+        return report
+
+    provided_digest = provided.get("receipt_digest")
+    expected_digest = cast("str", expected["receipt_digest"])
+    checks: dict[str, bool] = {
+        "schema_version": provided.get("schema_version") == expected.get("schema_version"),
+        "source_manifest_digest": provided.get("source_manifest_digest")
+        == expected.get("source_manifest_digest"),
+        "source_complex_catalog_digest": provided.get("source_complex_catalog_digest")
+        == expected.get("source_complex_catalog_digest"),
+        "factor_receipts": provided.get("factor_receipts") == expected.get("factor_receipts"),
+        "source_files": provided.get("source_files") == expected.get("source_files"),
+        "algorithm_profile": provided.get("algorithm_profile") == expected.get("algorithm_profile"),
+        "algorithm_profile_digest": provided.get("algorithm_profile_digest")
+        == expected.get("algorithm_profile_digest"),
+        "seed_material_digest": provided.get("seed_material_digest")
+        == expected.get("seed_material_digest"),
+        "receipt_digest": isinstance(provided_digest, str)
+        and provided_digest == _receipt_digest(provided),
+        "recomputed_receipt_digest": provided_digest == expected_digest,
+        "semantic_equal": _canonical_bytes(provided) == _canonical_bytes(expected),
+    }
+    for name, passed in checks.items():
+        if not passed:
+            mismatches.append(name)
+    report["checks"] = checks
+    report["provided_receipt_digest"] = provided_digest
+    report["recomputed_receipt_digest"] = expected_digest
+    report["request_digest"] = expected.get("seed_material_digest")
+    report["profile_digest"] = expected.get("algorithm_profile_digest")
+    report["verified"] = not mismatches
+    return report
 
 
 def main() -> int:
@@ -404,9 +504,27 @@ def main() -> int:
     parser.add_argument("--complex-receipt", type=Path, required=True)
     parser.add_argument("--pathway-receipt", type=Path, required=True)
     parser.add_argument("--replicates", type=int, default=DEFAULT_BOOTSTRAPS)
-    parser.add_argument("destination", type=Path)
+    parser.add_argument(
+        "--verify-receipt",
+        type=Path,
+        default=None,
+        help="Recompute and verify an existing receipt instead of writing a new one.",
+    )
+    parser.add_argument("destination", type=Path, nargs="?")
     args = parser.parse_args()
     manifest = args.manifest or args.source_dir / MANIFEST_FILENAME
+    if args.verify_receipt is not None:
+        report = verify_bootstrap_receipt(
+            args.source_dir,
+            manifest,
+            args.complex_receipt,
+            args.pathway_receipt,
+            args.verify_receipt,
+        )
+        print(json.dumps(report, sort_keys=True))
+        return 0 if report["verified"] is True else 1
+    if args.destination is None:
+        parser.error("destination is required unless --verify-receipt is supplied")
     payload = bootstrap_factors(
         args.source_dir,
         manifest,
