@@ -14,6 +14,18 @@ Pearson residual, and Aitchison residual. Non-identifiable signatures,
 non-finite values, zero-depth counts, or a non-convergent trace produce an
 abstained result without a negative composition finding.
 
+Every limited fit also carries two model-derived explanation ledgers. The
+`feature_drivers` list ranks up to twelve marker channels by absolute Pearson
+residual, retaining observed and fitted fractions, the explicit unknown
+fraction, and the dominant supplied reference contribution. This is a
+count-fit diagnostic, not a differential-expression or cell-identity claim.
+The `reference_ablations` list performs an exact leave-one-reference-out
+refit for each caller signature using the same optimizer and tolerances. It
+reports the resulting unknown-mass delta (or an explicit abstention reason)
+so downstream users can see whether a lineage coordinate is reference
+dependent instead of treating the simplex as an unexplained vector. Both
+policies are bound into the profile digest and are replay-checked.
+
 Callers may request 8–256 deterministic posterior-predictive perturbations.
 Each perturbation samples a Dirichlet composition around the fitted simplex,
 draws a multinomial count vector at the observed sequencing depth, and reruns

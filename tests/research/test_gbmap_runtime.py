@@ -49,6 +49,41 @@ def test_count_native_bootstrap_emits_ranked_weight_intervals_and_replays() -> N
     assert verify_gbm_mixture_replay(request, result)
 
 
+def test_fit_emits_marker_drivers_and_leave_one_reference_out_receipts() -> None:
+    request = synthetic_gbm_mixture_request().model_copy(update={"bootstrap_replicates": 0})
+    result = analyze_gbm_mixture(request)
+
+    assert result.support == "limited"
+    assert 1 <= len(result.feature_drivers) <= 12
+    assert len({driver.feature_id for driver in result.feature_drivers}) == len(
+        result.feature_drivers
+    )
+    feature_ids = set(result.feature_ids)
+    for driver in result.feature_drivers:
+        assert driver.feature_id in feature_ids
+        assert driver.signed_residual == pytest.approx(
+            driver.observed_fraction - driver.fitted_fraction, abs=2e-10
+        )
+        assert driver.unknown_fraction <= driver.fitted_fraction + 2e-10
+        assert math.isfinite(driver.pearson_residual)
+
+    reference_ids = {weight.reference_id for weight in result.known_weights}
+    assert {ablation.reference_id for ablation in result.reference_ablations} == reference_ids
+    assert all(ablation.full_unknown_mass == pytest.approx(result.unknown_mass, abs=2e-10)
+               for ablation in result.reference_ablations)
+    estimated = [
+        ablation for ablation in result.reference_ablations if ablation.support == "estimated"
+    ]
+    assert estimated
+    for ablation in estimated:
+        assert ablation.unknown_mass_without_reference is not None
+        assert ablation.unknown_mass_delta == pytest.approx(
+            ablation.unknown_mass_without_reference - ablation.full_unknown_mass,
+            abs=2e-10,
+        )
+    assert verify_gbm_mixture_replay(request, result)
+
+
 def test_bootstrap_replicates_use_an_eight_draw_minimum() -> None:
     payload = synthetic_gbm_mixture_request().model_dump(mode="python")
     payload["bootstrap_replicates"] = 7
@@ -92,6 +127,9 @@ def test_profile_binds_constants_and_forbids_histologic_claims() -> None:
         "fitted_dirichlet_multinomial_posterior_predictive_v1"
     )
     assert profile.max_bootstrap_replicates == 256
+    assert profile.feature_driver_policy == "pearson_residual_and_reference_contribution_v1"
+    assert profile.reference_ablation_policy == "leave_one_reference_out_exact_refit_v1"
+    assert profile.max_feature_drivers == 12
     with pytest.raises(ValueError, match="profile digest"):
         GbmMixtureProfile(profile_digest="sha256:" + "0" * 64)
 

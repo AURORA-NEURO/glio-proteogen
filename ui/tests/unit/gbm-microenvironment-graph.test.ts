@@ -87,6 +87,8 @@ function compositionResult(sampleId: string): Record<string, unknown> {
     unknown_mass_upper_bound: null,
     bootstrap_replicates_used: 0,
     weight_intervals: [],
+    feature_drivers: [],
+    reference_ablations: [],
     objective: 1.2,
     initial_objective: 2.0,
     iterations: 4,

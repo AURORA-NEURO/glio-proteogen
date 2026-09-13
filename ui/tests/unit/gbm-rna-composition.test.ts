@@ -54,6 +54,9 @@ const profile = {
   bootstrap_kkt_tolerance: 0.001,
   bootstrap_l1_step_tolerance: 1e-8,
   bootstrap_relative_objective_tolerance: 1e-10,
+  feature_driver_policy: "pearson_residual_and_reference_contribution_v1",
+  max_feature_drivers: 12,
+  reference_ablation_policy: "leave_one_reference_out_exact_refit_v1",
   profile_digest: digest,
 };
 const result = {
@@ -67,6 +70,8 @@ const result = {
   support: "limited",
   known_weights: [{ reference_id: "malignant_gbm", rna_weight: 0.9, rank: 1 }],
   weight_intervals: [],
+  feature_drivers: [],
+  reference_ablations: [],
   unknown_gene_mass: [0.05, 0.05],
   fitted_probabilities: [0.8, 0.2],
   unknown_mass: 0.1,
@@ -110,6 +115,44 @@ describe("GBM RNA composition UI contract", () => {
     expect(validateGbmMixtureResult({ ...intervalResult, weight_intervals: [{ reference_id: "other", lower_bound: 1.1, upper_bound: 0.4 }] }, request, profile).length).toBeGreaterThan(2);
     expect(validateGbmMixtureResult({ ...intervalResult, known_weights: [null], weight_intervals: [{ reference_id: "malignant_gbm", lower_bound: 0.95, upper_bound: 0.98 }] }, request, profile).length).toBeGreaterThan(0);
     expect(validateGbmMixtureResult({ ...intervalResult, unknown_mass_lower_bound: 1.1, unknown_mass_upper_bound: 1.2 }, request, profile).length).toBeGreaterThan(0);
+  });
+
+  it("admits and normalizes model-derived driver and reference sensitivity receipts", () => {
+    const explained = {
+      ...result,
+      feature_drivers: [{
+        feature_id: "EGFR",
+        observed_fraction: 0.8,
+        fitted_fraction: 0.8,
+        unknown_fraction: 0.05,
+        signed_residual: 0,
+        pearson_residual: 0,
+        dominant_reference_id: "malignant_gbm",
+        dominant_reference_fraction: 1,
+      }],
+      reference_ablations: [{
+        reference_id: "malignant_gbm",
+        full_weight: 0.9,
+        full_unknown_mass: 0.1,
+        support: "estimated",
+        remaining_known_mass: 0.9,
+        unknown_mass_without_reference: 0.1,
+        unknown_mass_delta: 0,
+        reason: null,
+      }],
+    };
+    expect(validateGbmMixtureResult(explained, request, profile)).toEqual([]);
+    expect(normalizeGbmMixtureResult(explained).featureDrivers[0]).toMatchObject({
+      id: "EGFR", dominantReference: "malignant_gbm", pearson: 0,
+    });
+    expect(normalizeGbmMixtureResult(explained).referenceAblations[0]).toMatchObject({
+      id: "malignant_gbm", support: "estimated", unknownMassDelta: 0,
+    });
+    expect(validateGbmMixtureResult({ ...explained, feature_drivers: [null] }, request, profile)).toContain("result.feature_drivers[0] must be an object.");
+    expect(validateGbmMixtureResult({ ...explained, feature_drivers: [{ ...explained.feature_drivers[0], feature_id: "other" }] }, request, profile).join("\n")).toContain("must reference result.feature_ids.");
+    expect(validateGbmMixtureResult({ ...explained, reference_ablations: [null] }, request, profile)).toContain("result.reference_ablations[0] must be an object.");
+    expect(validateGbmMixtureResult({ ...explained, reference_ablations: [{ ...explained.reference_ablations[0], reference_id: null, support: "invalid" }] }, request, profile).length).toBeGreaterThan(1);
+    expect(normalizeGbmMixtureResult({ ...explained, feature_drivers: [null], reference_ablations: [null] }).featureDrivers).toHaveLength(0);
   });
 
   it("rejects duplicate axes, malformed signatures, and unsupported receipts", () => {
