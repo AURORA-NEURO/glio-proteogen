@@ -240,6 +240,7 @@ import {
   normalizeMicroenvironmentGraphResult,
   validateMicroenvironmentGraphDemo,
   validateMicroenvironmentGraphProfile,
+  validateMicroenvironmentGraphProfileHeaders,
   validateMicroenvironmentGraphRequest,
   validateMicroenvironmentGraphResult,
   validateMicroenvironmentGraphResultHeaders,
@@ -1446,7 +1447,10 @@ export default function ResearchWorkbench() {
             ];
             if (profileErrors.length) throw new Error(`The factor-graph profile failed closed:\n${profileErrors.join("\n")}`);
           } else if (mode === "gbm-microenvironment-graph") {
-            const profileErrors = validateMicroenvironmentGraphProfile(payload);
+            const profileErrors = [
+              ...validateMicroenvironmentGraphProfile(payload),
+              ...validateMicroenvironmentGraphProfileHeaders(response.headers, payload),
+            ];
             if (profileErrors.length) throw new Error(`The microenvironment graph profile failed closed:\n${profileErrors.join("\n")}`);
           } else if (mode === "immunopeptidomic-presentation") {
             const profileErrors = validatePresentationProfile(payload);
@@ -1530,6 +1534,7 @@ export default function ResearchWorkbench() {
             const demoErrors = validateMicroenvironmentGraphDemo(
               demoResponse.value.payload,
               admittedProfile,
+              demoResponse.value.headers,
             );
             if (demoErrors.length) throw new Error(`The microenvironment graph demo failed closed:\n${demoErrors.join("\n")}`);
           } else if (mode === "immunopeptidomic-presentation") {

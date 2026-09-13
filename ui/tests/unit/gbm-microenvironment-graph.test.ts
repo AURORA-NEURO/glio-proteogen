@@ -6,6 +6,7 @@ import {
   microenvironmentSupportedFamilyCount,
   normalizeMicroenvironmentGraphResult,
   validateMicroenvironmentGraphProfile,
+  validateMicroenvironmentGraphProfileHeaders,
   validateMicroenvironmentGraphRequest,
   validateMicroenvironmentGraphDemo,
   validateMicroenvironmentGraphResult,
@@ -196,6 +197,28 @@ describe("GBM microenvironment graph UI contract", () => {
     expect(validateMicroenvironmentGraphRequest(request).join("\n")).toContain("must match");
     expect(validateMicroenvironmentGraphProfile({ ...profile(), clinical_use_permitted: true }).join("\n")).toContain("forbid");
     expect(validateMicroenvironmentGraphProfile(Object.fromEntries(Object.entries(profile()).filter(([key]) => key !== "auxiliary_source_profile_digest"))).join("\n")).toContain("auxiliary_source_profile_digest");
+  });
+
+  it("binds profile and demo headers to the admitted bridge digest", () => {
+    const bridgeProfile = profile();
+    const headers = {
+      get: (name: string) => ({
+        "X-GLIO-Profile-Digest": bridgeProfile.profile_digest,
+        "X-GLIO-Request-Digest": DIGEST,
+      }[name] ?? null),
+    };
+    expect(validateMicroenvironmentGraphProfileHeaders(headers, bridgeProfile)).toEqual([]);
+    expect(validateMicroenvironmentGraphDemo({
+      profile_id: GBM_MICROENVIRONMENT_GRAPH_PROFILE_ID,
+      sample_id: "sample-1",
+      source_request: sourceRequest(),
+    }, bridgeProfile, headers)).toEqual([]);
+    expect(validateMicroenvironmentGraphProfileHeaders({ get: () => DIGEST.replace(/a/g, "b") }, bridgeProfile).join("\n")).toContain("X-GLIO-Profile-Digest");
+    expect(validateMicroenvironmentGraphDemo({
+      profile_id: GBM_MICROENVIRONMENT_GRAPH_PROFILE_ID,
+      sample_id: "sample-1",
+      source_request: sourceRequest(),
+    }, bridgeProfile, { get: (name: string) => name === "X-GLIO-Profile-Digest" ? bridgeProfile.profile_digest : null }).join("\n")).toContain("X-GLIO-Request-Digest");
   });
 
   it("normalizes nested graph and source receipts without inventing a flat result", () => {
