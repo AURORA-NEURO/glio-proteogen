@@ -73,7 +73,13 @@ executes the count-native Dirichlet--multinomial adaptive-unknown simplex
 solver. Only caller references named `myeloid`, `t_cell`, or `endothelial` are
 projected into the graph. Their simplex weights become centered log-ratios
 against every fitted channel (including unknown mass), with a concentration /
-depth delta-method uncertainty, a profile-bound floor/cap, and
+`bootstrap_interval_width_to_clr_standard_error_v1` uncertainty when the child
+receipt includes a complete bootstrap interval set. The nominal 90% interval
+width is converted to log-ratio variance and added to the count/depth variance;
+partial interval receipts are ignored rather than treated as precise. This
+keeps source-fitting uncertainty visible in the graph without fabricating a
+cell-fraction confidence interval. The profile binds the fixed 3.29 normal
+quantile used for that conversion. The observations retain
 `transcriptomics` modality provenance. This is compositional relative evidence,
 not a histologic fraction; unrecognized references remain in the child receipt
 and abstained fits become explicit `unsupported` observations. The synthetic
