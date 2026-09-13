@@ -305,6 +305,20 @@ it explicitly records that the six-root panel is not the ten-root design target
 and that a factor is a concordance coordinate, not pathway activation, flux,
 direction, or causality.
 
+The bounded projection `tools/build_cptac_gbm_evidence_graph_projection.py`
+materializes the source-bound topology without reading patient matrices. It
+retains all 28 exact complex bindings, 164 protein-to-complex membership edges,
+and 28 direct complex-to-root pathway edges in a 171-node/192-edge graph. The
+two numerical edge families are separately ablatable and use the locked ECGI
+base weights (`0.90` and `0.80`); Reactome membership is never marked essential.
+The 458 fitted phosphosite feature projections retain their exact atomic IDs,
+parent genes, factor loading/support, and root/complex context as metadata, but
+their site-parent links are explicitly annotation-only and cannot become
+numerical edges. The receipt rejects mismatched factor source digests,
+duplicate factor IDs, unresolved complexes, and graphs over the 256-node or
+2,048-edge request bounds. Kinase-substrate edges are recorded as unsupported
+because no matched source substrate catalog was captured.
+
 ## Model family and bounded graph semantics
 
 The only admissible family is a missing-aware robust confirmatory set-factor

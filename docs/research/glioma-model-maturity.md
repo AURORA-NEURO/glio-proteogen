@@ -1462,7 +1462,12 @@ inventory. See
    loadings and trace digests only, not sample values or scores. A root-level
    pathway factor stage now fits five of the six Reactome roots represented by
    those bindings with the same two modalities; one root abstains for its
-   eight-row phosphosite support gate. The
+   eight-row phosphosite support gate. The bounded evidence-graph projection
+   now materializes 171 nodes and 192 edges from the exact source memberships,
+   with separate protein-to-complex and complex-to-pathway ablation families.
+   Four hundred fifty-eight atomic phosphosite projections are retained as
+   annotation metadata only; no numerical site-parent or kinase-substrate
+   edges are invented. The
    numerical lane remains design-only and admission-blocked pending
    processing/uncertainty semantics, topology projection, licensing, and
    evaluation; it must learn edge-family reliability
