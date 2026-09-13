@@ -328,6 +328,14 @@ selection grid exposed for later nested evaluation; applied multipliers remain
 `1.0`. This prevents source-cohort fit statistics from being mistaken for
 held-out reliability or from silently changing ECGI behavior.
 
+When the source-factor bootstrap receipt is supplied, the same projection
+attaches its validated loading-cosine intervals to the 28 complex and six
+pathway nodes and binds the bootstrap receipt digest at the graph level. The
+uncertainty attachment is metadata only: it does not add edges, alter the
+`0.90`/`0.80` topology weights, or turn source sensitivity into per-sample
+measurement uncertainty. A missing, mismatched, or incomplete bootstrap
+receipt fails closed instead of silently producing a partially annotated graph.
+
 The deterministic oracle `tools/evaluate_cptac_gbm_synthetic_oracle.py` closes
 the first scientific test loop without touching private source bytes. It builds
 a signed six-member glioma-like latent factor with 10% missing cells and two

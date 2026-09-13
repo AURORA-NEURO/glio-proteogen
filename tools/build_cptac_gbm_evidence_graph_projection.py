@@ -1,4 +1,4 @@
-# ruff: noqa: C901, E501, PLR0912, T201, TRY003, TRY004
+# ruff: noqa: C901, E501, PLR0912, PLR0913, T201, TRY003, TRY004
 """Build a bounded, source-bound evidence-graph projection for matched GBM.
 
 The projection joins exact Reactome complex memberships to the fitted protein
@@ -30,6 +30,7 @@ from glio_proteogen.research.longitudinal_gbm_complex_transition.source_catalog 
 from tools.capture_cptac_gbm_matched_source_manifest import _canonical_bytes
 
 MODEL_ID: Final = "cptac-gbm-evidence-graph-projection/1.0.0"
+BOOTSTRAP_MODEL_ID: Final = "cptac-gbm-source-factor-bootstrap/1.0.0"
 MAX_NODES: Final = 256
 MAX_EDGES: Final = 2_048
 PROTEIN_EDGE_WEIGHT: Final = 0.90
@@ -104,6 +105,51 @@ def _pathway_by_id(receipt: dict[str, object]) -> dict[str, dict[str, object]]:
             raise ValueError("pathway factor receipt has duplicate or invalid pathway IDs")
         result[pathway_id] = pathway
     return result
+
+
+def _bootstrap_intervals(
+    receipt: dict[str, object],
+    *,
+    source_manifest: str,
+    source_catalog: str,
+    complex_receipt_digest: str,
+    pathway_receipt_digest: str,
+) -> tuple[dict[str, dict[str, object]], dict[str, dict[str, object]]]:
+    """Validate and index optional source-factor bootstrap intervals."""
+
+    if receipt.get("schema_version") != BOOTSTRAP_MODEL_ID:
+        raise ValueError("bootstrap receipt has an unsupported schema version")
+    if receipt.get("source_manifest_digest") != source_manifest:
+        raise ValueError("bootstrap receipt does not share the exact source manifest digest")
+    if receipt.get("source_complex_catalog_digest") != source_catalog:
+        raise ValueError("bootstrap receipt does not share the exact source catalog digest")
+    factor_receipts = receipt.get("factor_receipts")
+    if not isinstance(factor_receipts, dict):
+        raise ValueError("bootstrap receipt is missing factor receipt digests")
+    if factor_receipts.get("complex") != complex_receipt_digest:
+        raise ValueError("bootstrap receipt complex factor digest does not match")
+    if factor_receipts.get("pathway") != pathway_receipt_digest:
+        raise ValueError("bootstrap receipt pathway factor digest does not match")
+
+    def index(key: str, identifier_key: str) -> dict[str, dict[str, object]]:
+        values = receipt.get(key)
+        if not isinstance(values, list):
+            raise ValueError(f"bootstrap receipt is missing {key}")
+        indexed: dict[str, dict[str, object]] = {}
+        for value in values:
+            if not isinstance(value, dict):
+                raise ValueError(f"bootstrap receipt contains a non-object {key[:-1]}")
+            item = cast("dict[str, object]", value)
+            identifier = item.get(identifier_key)
+            if not isinstance(identifier, str) or identifier in indexed:
+                raise ValueError(f"bootstrap receipt has duplicate or invalid {identifier_key}")
+            indexed[identifier] = {
+                field: item.get(field)
+                for field in ("protein_loading_cosine", "phosphosite_loading_cosine")
+            }
+        return indexed
+
+    return index("complexes", "complex_id"), index("pathways", "pathway_id")
 
 
 def _site_projection(
@@ -287,10 +333,23 @@ def _build_projection(
     *,
     complex_receipt_digest: str = "sha256:" + "0" * 64,
     pathway_receipt_digest: str = "sha256:" + "0" * 64,
+    bootstrap_receipt: dict[str, object] | None = None,
+    bootstrap_receipt_digest: str = "sha256:" + "0" * 64,
 ) -> dict[str, object]:
     source_manifest, source_catalog = _validate_receipt_pair(complex_receipt, pathway_receipt)
     complex_factors = _factor_by_complex(complex_receipt)
     pathway_factors = _pathway_by_id(pathway_receipt)
+    bootstrap_maps = (
+        _bootstrap_intervals(
+            bootstrap_receipt,
+            source_manifest=source_manifest,
+            source_catalog=source_catalog,
+            complex_receipt_digest=complex_receipt_digest,
+            pathway_receipt_digest=pathway_receipt_digest,
+        )
+        if bootstrap_receipt is not None
+        else None
+    )
     source_by_id = {binding.reactome_id: binding for binding in bindings}
     if set(complex_factors) - set(source_by_id):
         raise ValueError("complex receipt contains a complex outside the source catalog")
@@ -298,19 +357,29 @@ def _build_projection(
     edges: dict[str, dict[str, object]] = {}
     for binding in bindings:
         complex_node = _node_id("complex", binding.reactome_id)
-        nodes.setdefault(
-            complex_node,
-            {"node_id": complex_node, "kind": "complex", "display_name": binding.name},
-        )
+        complex_payload: dict[str, object] = {
+            "node_id": complex_node,
+            "kind": "complex",
+            "display_name": binding.name,
+        }
+        if bootstrap_maps is not None:
+            complex_interval = bootstrap_maps[0].get(binding.reactome_id)
+            if complex_interval is None:
+                raise ValueError("bootstrap receipt is missing a source complex interval")
+            complex_payload["bootstrap_uncertainty"] = complex_interval
+        nodes.setdefault(complex_node, complex_payload)
         pathway_node = _node_id("pathway", binding.anchor_pathway.top_level_pathway_id)
-        nodes.setdefault(
-            pathway_node,
-            {
-                "node_id": pathway_node,
-                "kind": "pathway",
-                "display_name": binding.anchor_pathway.top_level_pathway_name,
-            },
-        )
+        pathway_payload: dict[str, object] = {
+            "node_id": pathway_node,
+            "kind": "pathway",
+            "display_name": binding.anchor_pathway.top_level_pathway_name,
+        }
+        if bootstrap_maps is not None:
+            pathway_interval = bootstrap_maps[1].get(binding.anchor_pathway.top_level_pathway_id)
+            if pathway_interval is None:
+                raise ValueError("bootstrap receipt is missing a source pathway interval")
+            pathway_payload["bootstrap_uncertainty"] = pathway_interval
+        nodes.setdefault(pathway_node, pathway_payload)
         pathway_edge_id = _edge_id(complex_node, pathway_node, "participates_in")
         edges.setdefault(
             pathway_edge_id,
@@ -384,7 +453,7 @@ def _build_projection(
         "site_parent_semantics": "annotation_only",
         "kinase_substrate_source": "absent; no kinase edges projected",
     }
-    return {
+    result: dict[str, object] = {
         "schema_version": MODEL_ID,
         "algorithm_profile": profile,
         "algorithm_profile_digest": "sha256:" + hashlib.sha256(_canonical_bytes(profile)).hexdigest(),
@@ -425,18 +494,39 @@ def _build_projection(
             "No kinase-substrate source was captured, so kinase nodes and feedback edges are absent.",
         ],
     }
+    if bootstrap_receipt is not None:
+        result["bootstrap_uncertainty"] = {
+            "receipt_digest": bootstrap_receipt_digest,
+            "replicates_requested": bootstrap_receipt.get("replicates_requested"),
+            "sampling_unit": "exact manifest case group",
+            "interval_semantics": "loading cosine to full-source fit; source sensitivity only",
+        }
+    return result
 
 
-def build_projection(complex_receipt_path: Path, pathway_receipt_path: Path) -> dict[str, object]:
+def build_projection(
+    complex_receipt_path: Path,
+    pathway_receipt_path: Path,
+    bootstrap_receipt_path: Path | None = None,
+) -> dict[str, object]:
     complex_receipt = _receipt(complex_receipt_path)
     pathway_receipt = _receipt(pathway_receipt_path)
     source = complex_transition_source_catalog()
+    bootstrap_receipt = (
+        _receipt(bootstrap_receipt_path) if bootstrap_receipt_path is not None else None
+    )
     return _build_projection(
         complex_receipt,
         pathway_receipt,
         source.complexes,
         complex_receipt_digest=_digest_bytes(complex_receipt_path),
         pathway_receipt_digest=_digest_bytes(pathway_receipt_path),
+        bootstrap_receipt=bootstrap_receipt,
+        bootstrap_receipt_digest=(
+            _digest_bytes(bootstrap_receipt_path)
+            if bootstrap_receipt_path is not None
+            else "sha256:" + "0" * 64
+        ),
     )
 
 
@@ -444,9 +534,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--complex-receipt", type=Path, required=True)
     parser.add_argument("--pathway-receipt", type=Path, required=True)
+    parser.add_argument("--bootstrap-receipt", type=Path, default=None)
     parser.add_argument("destination", type=Path)
     args = parser.parse_args()
-    payload = build_projection(args.complex_receipt, args.pathway_receipt)
+    payload = build_projection(args.complex_receipt, args.pathway_receipt, args.bootstrap_receipt)
     args.destination.write_bytes(_canonical_bytes(payload))
     topology = cast("dict[str, object]", payload["topology"])
     print(

@@ -1470,6 +1470,10 @@ inventory. See
    edges are invented. The projection reports robust source-cohort edge-family
    diagnostics (complex-to-pathway cosine 0.9737; phosphosite-to-parent cosine
    0.8477) but applies no learned multiplier until nested evaluation. The
+   projection now optionally binds the deterministic source-factor bootstrap
+   receipt and attaches validated loading-cosine intervals to all 28 complex
+   and six pathway nodes without changing topology weights or inventing sample
+   uncertainty. Digest mismatches and incomplete interval maps fail closed. The
    deterministic synthetic oracle now recovers 6/6 signed latent directions
    under 10% missingness and two gross outliers (cosine 0.9756) and recovers a
    protein-adjustment slope within 0.014 absolute error on replay. This is an

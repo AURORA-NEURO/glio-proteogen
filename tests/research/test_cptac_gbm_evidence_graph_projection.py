@@ -86,3 +86,90 @@ def test_projection_rejects_duplicate_complex_factor_ids() -> None:
         projection._build_projection(
             complex_receipt, pathway_receipt, complex_transition_source_catalog().complexes
         )
+
+
+def test_projection_attaches_source_factor_bootstrap_intervals() -> None:
+    complex_receipt, pathway_receipt = _receipts()
+    complex_digest = "sha256:" + "a" * 64
+    pathway_digest = "sha256:" + "b" * 64
+    bootstrap_receipt = {
+        "schema_version": projection.BOOTSTRAP_MODEL_ID,
+        "source_manifest_digest": complex_receipt["source_manifest_digest"],
+        "source_complex_catalog_digest": complex_receipt["source_complex_catalog_digest"],
+        "factor_receipts": {"complex": complex_digest, "pathway": pathway_digest},
+        "replicates_requested": 64,
+        "complexes": [
+            {
+                "complex_id": factor["complex_id"],
+                "protein_loading_cosine": {
+                    "support": 64,
+                    "lower": 0.8,
+                    "median": 0.9,
+                    "upper": 1.0,
+                },
+                "phosphosite_loading_cosine": {
+                    "support": 64,
+                    "lower": 0.7,
+                    "median": 0.85,
+                    "upper": 0.98,
+                },
+            }
+            for factor in cast("list[dict[str, object]]", complex_receipt["factors"])
+        ],
+        "pathways": [
+            {
+                "pathway_id": pathway["pathway_id"],
+                "protein_loading_cosine": {
+                    "support": 64,
+                    "lower": 0.8,
+                    "median": 0.9,
+                    "upper": 1.0,
+                },
+                "phosphosite_loading_cosine": {
+                    "support": 64,
+                    "lower": 0.7,
+                    "median": 0.85,
+                    "upper": 0.98,
+                },
+            }
+            for pathway in cast("list[dict[str, object]]", pathway_receipt["pathways"])
+        ],
+    }
+    result = projection._build_projection(
+        complex_receipt,
+        pathway_receipt,
+        complex_transition_source_catalog().complexes,
+        complex_receipt_digest=complex_digest,
+        pathway_receipt_digest=pathway_digest,
+        bootstrap_receipt=bootstrap_receipt,
+        bootstrap_receipt_digest="sha256:" + "c" * 64,
+    )
+    topology = cast("dict[str, object]", result["topology"])
+    nodes = cast("list[dict[str, object]]", topology["nodes"])
+    complex_node = next(node for node in nodes if node["kind"] == "complex")
+    assert cast("dict[str, object]", complex_node["bootstrap_uncertainty"])[
+        "protein_loading_cosine"
+    ] == {"support": 64, "lower": 0.8, "median": 0.9, "upper": 1.0}
+    summary = cast("dict[str, object]", result["bootstrap_uncertainty"])
+    assert summary["replicates_requested"] == 64
+
+
+def test_projection_rejects_bootstrap_factor_digest_mismatch() -> None:
+    complex_receipt, pathway_receipt = _receipts()
+    bootstrap_receipt = {
+        "schema_version": projection.BOOTSTRAP_MODEL_ID,
+        "source_manifest_digest": complex_receipt["source_manifest_digest"],
+        "source_complex_catalog_digest": complex_receipt["source_complex_catalog_digest"],
+        "factor_receipts": {"complex": "sha256:" + "x" * 64, "pathway": "sha256:" + "b" * 64},
+        "complexes": [],
+        "pathways": [],
+    }
+    with pytest.raises(ValueError, match="complex factor digest"):
+        projection._build_projection(
+            complex_receipt,
+            pathway_receipt,
+            complex_transition_source_catalog().complexes,
+            complex_receipt_digest="sha256:" + "a" * 64,
+            pathway_receipt_digest="sha256:" + "b" * 64,
+            bootstrap_receipt=bootstrap_receipt,
+        )
