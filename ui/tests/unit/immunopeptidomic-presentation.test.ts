@@ -7,6 +7,7 @@ import {
   presentationProvenance,
   validatePresentationDemo,
   validatePresentationProfile,
+  validatePresentationProfileHeaders,
   validatePresentationRequest,
   validatePresentationResult,
   validatePresentationResultHeaders,
@@ -63,7 +64,16 @@ describe("glioma immunopeptidomic presentation UI contract", () => {
       profile_digest: digest,
     };
     expect(validatePresentationProfile(profile)).toEqual([]);
-    expect(validatePresentationDemo(request, profile)).toEqual([]);
+    const validHeaders = {
+      get: (name: string) => ({
+        "X-GLIO-Profile-Digest": profile.profile_digest,
+        "X-GLIO-Request-Digest": digest,
+      }[name] ?? null),
+    };
+    expect(validatePresentationProfileHeaders(validHeaders, profile)).toEqual([]);
+    expect(validatePresentationDemo(request, profile, validHeaders)).toEqual([]);
+    expect(validatePresentationProfileHeaders({ get: () => digest.replace(/a/g, "b") }, profile).join("\n")).toContain("X-GLIO-Profile-Digest");
+    expect(validatePresentationDemo(request, profile, { get: (name: string) => name === "X-GLIO-Profile-Digest" ? profile.profile_digest : null }).join("\n")).toContain("X-GLIO-Request-Digest");
     const result = {
       result_id: "presentation-sample-1",
       profile_id: IMMUNOPEPTIDOMIC_PRESENTATION_PROFILE_ID,

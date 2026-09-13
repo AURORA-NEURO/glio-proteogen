@@ -251,6 +251,7 @@ import {
   presentationRequestStats,
   validatePresentationDemo,
   validatePresentationProfile,
+  validatePresentationProfileHeaders,
   validatePresentationRequest,
   validatePresentationResult,
   validatePresentationResultHeaders,
@@ -1453,7 +1454,10 @@ export default function ResearchWorkbench() {
             ];
             if (profileErrors.length) throw new Error(`The microenvironment graph profile failed closed:\n${profileErrors.join("\n")}`);
           } else if (mode === "immunopeptidomic-presentation") {
-            const profileErrors = validatePresentationProfile(payload);
+            const profileErrors = [
+              ...validatePresentationProfile(payload),
+              ...validatePresentationProfileHeaders(response.headers, payload),
+            ];
             if (profileErrors.length) throw new Error(`The immunopeptidomic profile failed closed:\n${profileErrors.join("\n")}`);
           } else if (mode === "gbm-rna-composition") {
             const profileErrors = validateGbmMixtureProfile(payload);
@@ -1538,7 +1542,11 @@ export default function ResearchWorkbench() {
             );
             if (demoErrors.length) throw new Error(`The microenvironment graph demo failed closed:\n${demoErrors.join("\n")}`);
           } else if (mode === "immunopeptidomic-presentation") {
-            const demoErrors = validatePresentationDemo(demoResponse.value.payload, admittedProfile);
+            const demoErrors = validatePresentationDemo(
+              demoResponse.value.payload,
+              admittedProfile,
+              demoResponse.value.headers,
+            );
             if (demoErrors.length) throw new Error(`The immunopeptidomic demo failed closed:\n${demoErrors.join("\n")}`);
           } else if (mode === "gbm-rna-composition") {
             const demoErrors = validateGbmMixtureDemo(demoResponse.value.payload, admittedProfile, demoResponse.value.headers);
