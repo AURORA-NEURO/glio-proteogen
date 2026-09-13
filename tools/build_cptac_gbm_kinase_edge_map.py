@@ -43,8 +43,7 @@ def _site_key(gene: str, label: str) -> tuple[str, str] | None:
     if not gene or not label:
         return None
     tokens = "".join(
-        residue.lower() + position
-        for residue, position in SITE_TOKEN_PATTERN.findall(label)
+        residue.lower() + position for residue, position in SITE_TOKEN_PATTERN.findall(label)
     )
     return (gene, tokens) if tokens else None
 
@@ -128,6 +127,13 @@ def _edge_weight(mean_probability: float, mean_rho: float) -> float:
     )
 
 
+def _receipt_digest(payload: dict[str, object]) -> str:
+    """Return the canonical digest used by kinase edge-map receipts."""
+
+    digest_payload = {key: value for key, value in payload.items() if key != "receipt_digest"}
+    return "sha256:" + hashlib.sha256(_canonical_bytes(digest_payload)).hexdigest()
+
+
 def build_edge_map(
     phosphosite_path: Path,
     factor_receipt_path: Path,
@@ -139,8 +145,13 @@ def build_edge_map(
         raise ValueError("factor receipt is not a JSON object")
     factor_receipt = cast("dict[str, object]", decoded)
     factor_manifest_digest = factor_receipt.get("source_manifest_digest")
-    if not isinstance(factor_manifest_digest, str) or factor_manifest_digest != source_manifest_digest:
-        raise ValueError("factor receipt manifest digest does not match the requested source manifest")
+    if (
+        not isinstance(factor_manifest_digest, str)
+        or factor_manifest_digest != source_manifest_digest
+    ):
+        raise ValueError(
+            "factor receipt manifest digest does not match the requested source manifest"
+        )
     selected_features = _factor_feature_ids(factor_receipt)
     matched, ambiguous = _matched_sites(phosphosite_path, selected_features)
     catalog = master_kinase_catalog()
@@ -191,7 +202,8 @@ def build_edge_map(
     payload: dict[str, object] = {
         "schema_version": MODEL_ID,
         "algorithm_profile": profile,
-        "algorithm_profile_digest": "sha256:" + hashlib.sha256(_canonical_bytes(profile)).hexdigest(),
+        "algorithm_profile_digest": "sha256:"
+        + hashlib.sha256(_canonical_bytes(profile)).hexdigest(),
         "source_manifest_digest": source_manifest_digest,
         "factor_receipt_digest": _digest_file(factor_receipt_path),
         "phosphosite_source": {
@@ -217,8 +229,104 @@ def build_edge_map(
             "The receipt contains topology and source digests only; sample values, labels, and matrix cells are never emitted.",
         ],
     }
-    payload["receipt_digest"] = "sha256:" + hashlib.sha256(_canonical_bytes(payload)).hexdigest()
+    payload["receipt_digest"] = _receipt_digest(payload)
     return payload
+
+
+def verify_edge_map_receipt(
+    phosphosite_path: Path,
+    factor_receipt_path: Path,
+    *,
+    source_manifest_digest: str,
+    receipt_path: Path,
+) -> dict[str, object]:
+    """Recompute and semantically verify a source kinase edge-map receipt.
+
+    Verification is caller-side and stateless.  The report contains only
+    integrity booleans and digests; it never echoes matrix cells or sample
+    values from the CPTAC source.
+    """
+
+    report: dict[str, object] = {
+        "model_id": MODEL_ID,
+        "verified": False,
+        "checks": {},
+        "mismatches": [],
+    }
+    mismatches: list[str] = []
+    report["mismatches"] = mismatches
+    try:
+        decoded: object = json.loads(receipt_path.read_bytes())
+    except (OSError, json.JSONDecodeError, TypeError) as exc:
+        report["error"] = f"receipt could not be decoded: {type(exc).__name__}"
+        mismatches.append("receipt_json")
+        return report
+    if not isinstance(decoded, dict):
+        report["error"] = "receipt root must be an object"
+        mismatches.append("receipt_shape")
+        return report
+    provided = cast("dict[str, object]", decoded)
+    try:
+        expected = build_edge_map(
+            phosphosite_path,
+            factor_receipt_path,
+            source_manifest_digest=source_manifest_digest,
+        )
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        report["error"] = f"recompute failed: {type(exc).__name__}"
+        mismatches.append("recompute")
+        return report
+
+    provided_profile = provided.get("algorithm_profile")
+    provided_profile_digest = provided.get("algorithm_profile_digest")
+    profile_digest_self_check = (
+        isinstance(provided_profile, dict)
+        and isinstance(provided_profile_digest, str)
+        and provided_profile_digest
+        == "sha256:" + hashlib.sha256(_canonical_bytes(provided_profile)).hexdigest()
+    )
+    provided_digest = provided.get("receipt_digest")
+    expected_digest = cast("str", expected["receipt_digest"])
+    checks: dict[str, bool] = {
+        "schema_version": provided.get("schema_version") == expected.get("schema_version"),
+        "algorithm_profile": provided.get("algorithm_profile") == expected.get("algorithm_profile"),
+        "algorithm_profile_digest": provided.get("algorithm_profile_digest")
+        == expected.get("algorithm_profile_digest"),
+        "algorithm_profile_digest_self": profile_digest_self_check,
+        "source_manifest_digest": provided.get("source_manifest_digest")
+        == expected.get("source_manifest_digest"),
+        "factor_receipt_digest": provided.get("factor_receipt_digest")
+        == expected.get("factor_receipt_digest"),
+        "phosphosite_source": provided.get("phosphosite_source")
+        == expected.get("phosphosite_source"),
+        "source_kinase_catalog": provided.get("source_kinase_catalog")
+        == expected.get("source_kinase_catalog"),
+        "counts": all(
+            provided.get(key) == expected.get(key)
+            for key in (
+                "selected_feature_count",
+                "mapped_feature_count",
+                "ambiguous_site_key_count",
+                "kinase_count",
+                "edge_count",
+            )
+        ),
+        "edges": provided.get("edges") == expected.get("edges"),
+        "limitations": provided.get("limitations") == expected.get("limitations"),
+        "receipt_digest": isinstance(provided_digest, str)
+        and provided_digest == _receipt_digest(provided),
+        "recomputed_receipt_digest": provided_digest == expected_digest,
+        "semantic_equal": _canonical_bytes(provided) == _canonical_bytes(expected),
+    }
+    for name, passed in checks.items():
+        if not passed:
+            mismatches.append(name)
+    report["checks"] = checks
+    report["provided_receipt_digest"] = provided_digest
+    report["recomputed_receipt_digest"] = expected_digest
+    report["profile_digest"] = expected.get("algorithm_profile_digest")
+    report["verified"] = not mismatches
+    return report
 
 
 def main() -> int:
@@ -226,8 +334,30 @@ def main() -> int:
     parser.add_argument("--phosphosite-source", type=Path, required=True)
     parser.add_argument("--factor-receipt", type=Path, required=True)
     parser.add_argument("--source-manifest-digest", required=True)
-    parser.add_argument("destination", type=Path)
+    parser.add_argument(
+        "destination",
+        type=Path,
+        nargs="?",
+        help="Receipt destination; omit this when --verify-receipt is supplied.",
+    )
+    parser.add_argument(
+        "--verify-receipt",
+        type=Path,
+        default=None,
+        help="Recompute and verify an existing receipt instead of writing a new one.",
+    )
     args = parser.parse_args()
+    if args.verify_receipt is not None:
+        report = verify_edge_map_receipt(
+            args.phosphosite_source,
+            args.factor_receipt,
+            source_manifest_digest=args.source_manifest_digest,
+            receipt_path=args.verify_receipt,
+        )
+        print(json.dumps(report, sort_keys=True))
+        return 0 if report["verified"] is True else 1
+    if args.destination is None:
+        parser.error("destination is required unless --verify-receipt is supplied")
     payload = build_edge_map(
         args.phosphosite_source,
         args.factor_receipt,
