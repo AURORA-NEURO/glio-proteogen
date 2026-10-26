@@ -231,6 +231,15 @@ Gene-wide transient inputs can feed the existing fitting engine in a separately
 specified analysis; coverage alone does not establish model eligibility or
 biological association.
 
+The [gene-wide source-fit census](docs/research/cptac-gbm-source-fit-census.md)
+applies the existing nested reconstruction fitter to every admitted HGNC identity.
+It retains source acceptances, inherited abstentions and input-domain rejections
+in bounded receipt pages, seals all source decisions before reading external
+measurements, and keeps predictors only in transient memory. Later raw-assay
+scoring preserves separate support, point-score and conditional-interval states.
+This extends the existing reconstruction family across the source-defined gene
+axis; it does not add a biological model or establish genome-wide discoveries.
+
 The `gbm-rna-tumor-purity/1.0.0` lane is an exact NumPy port of the published
 GBMPurity 5,829→32→16→1 neural model. It accepts raw bulk RNA counts only under
 a primary IDH-wildtype GBM attestation, preserves the source 80% gene-overlap

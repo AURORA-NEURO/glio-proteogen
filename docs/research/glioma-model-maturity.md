@@ -74,6 +74,17 @@ for later analysis, with fit eligibility and biological association still
 unestablished. This adds reusable backend inputs and aggregate coverage
 catalogs; it does not add a fitted scientific-inference lane.
 
+A separately versioned [gene-wide source-fit census](cptac-gbm-source-fit-census.md)
+extends the same reconstruction family to every admitted source identity. It
+attempts the unchanged source fitter without filtering on count-capacity flags,
+preserves all inherited receipts and distinct input-domain rejections, and seals
+bounded aggregate pages before external measurement reads. Private predictors
+remain in memory for later scoring without refitting. Original panel receipts
+and complete external results must replay. Numerical acceptance, external
+support, finite scores and conditional intervals remain distinct statuses;
+this expansion does not increase the scientific-lane inventory or establish
+gene-level biological discovery, simultaneous inference or clinical validity.
+
 The mounted additive research namespace currently contains fourteen distinct,
 independently testable scientific-inference lanes plus one integrated
 composition surface. Distinctness in the fourteen-lane mounted inventory means
