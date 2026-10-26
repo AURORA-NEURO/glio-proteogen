@@ -26,6 +26,7 @@ _GOVERNED_ROOTS = (
     _SRC_ROOT / "modules" / "c05_ptm_localization",
 )
 _RESEARCH_PREFIX = "/v1/research/proteogenomic-state"
+_COHORT_REPLICATION_RESEARCH_PREFIX = "/v1/research/cohort-replication"
 _FUNCTIONAL_PROTEOTYPE_RESEARCH_PREFIX = "/v1/research/gbm-functional-proteotype"
 _GBM_RESEARCH_PREFIX = "/v1/research/gbm-proteomic-axes"
 _NEFTEL_RESEARCH_PREFIX = "/v1/research/neftel-protein-programs"
@@ -50,6 +51,7 @@ _RESEARCH_PATHS = {
     f"{prefix}/{suffix}"
     for prefix in (
         _RESEARCH_PREFIX,
+        _COHORT_REPLICATION_RESEARCH_PREFIX,
         _FUNCTIONAL_PROTEOTYPE_RESEARCH_PREFIX,
         _GBM_RESEARCH_PREFIX,
         _NEFTEL_RESEARCH_PREFIX,
@@ -123,6 +125,7 @@ def test_public_fastapi_exposes_only_the_bounded_research_surface(tmp_path: Path
             research_routes[path] = endpoint_module
     assert set(research_routes) == _RESEARCH_PATHS
     assert set(research_routes.values()) == {
+        "glio_proteogen.adapters.cohort_replication",
         "glio_proteogen.adapters.gbm_functional_proteotype",
         "glio_proteogen.adapters.gbm_master_kinases",
         "glio_proteogen.adapters.gbm_rna_purity",

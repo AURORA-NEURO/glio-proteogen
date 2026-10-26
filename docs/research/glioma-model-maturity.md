@@ -21,6 +21,16 @@ glioma predictor or completed external validation. See
 
 ## Implemented research inference
 
+The existing local CPTAC transcript--protein conditional-association feature now
+also has an [exact-source evaluation workflow](cptac-gbm-real-data-evaluation.md).
+It evaluates a frozen literature panel, exposes missingness and fold failures,
+checks training-design identification, and compares numerical iteration budgets
+on one fixed OOF support. A separately identified 240-iteration continuation
+preserves the original estimator, support thresholds, and paired bootstrap
+draws. It supplies aggregate internal evaluation rather than a new validated
+predictor, biological pattern label, or independent cohort. Source measurements
+and fitted derivatives remain local-only.
+
 The mounted additive research namespace currently contains fourteen distinct,
 independently testable scientific-inference lanes plus one integrated
 composition surface. Distinctness in the fourteen-lane mounted inventory means
