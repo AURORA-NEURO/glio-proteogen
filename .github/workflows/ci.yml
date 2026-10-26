@@ -61,26 +61,32 @@ jobs:
             src/glio_proteogen/research/cptac_gbm_external_admission \
             tools/evaluate_cptac_gbm_confirmatory_admission.py \
             tools/evaluate_cptac_gbm_provider_transfer.py \
+            tools/evaluate_cptac_gbm_transfer_sensitivity.py \
             tests/research/test_cptac_external_*.py \
-            tests/research/test_cptac_provider_transfer*.py
+            tests/research/test_cptac_provider_transfer*.py \
+            tests/research/test_cptac_transfer_sensitivity*.py
           uv run ruff format --check \
             src/glio_proteogen/research/cptac_gbm_external_admission \
             tools/evaluate_cptac_gbm_confirmatory_admission.py \
             tools/evaluate_cptac_gbm_provider_transfer.py \
+            tools/evaluate_cptac_gbm_transfer_sensitivity.py \
             tests/research/test_cptac_external_*.py \
-            tests/research/test_cptac_provider_transfer*.py
+            tests/research/test_cptac_provider_transfer*.py \
+            tests/research/test_cptac_transfer_sensitivity*.py
           uv run mypy --strict \
             src/glio_proteogen/research/cptac_gbm_external_admission \
             tools/evaluate_cptac_gbm_confirmatory_admission.py \
-            tools/evaluate_cptac_gbm_provider_transfer.py
+            tools/evaluate_cptac_gbm_provider_transfer.py \
+            tools/evaluate_cptac_gbm_transfer_sensitivity.py
           uv run coverage erase
           uv run coverage run --branch \
             --source=src/glio_proteogen/research/cptac_gbm_external_admission,tools \
             -m pytest -q -o addopts='' \
             tests/research/test_cptac_external_*.py \
-            tests/research/test_cptac_provider_transfer*.py
+            tests/research/test_cptac_provider_transfer*.py \
+            tests/research/test_cptac_transfer_sensitivity*.py
           uv run coverage report --fail-under=95 \
-            --include='src/glio_proteogen/research/cptac_gbm_external_admission/*.py,tools/evaluate_cptac_gbm_confirmatory_admission.py,tools/evaluate_cptac_gbm_provider_transfer.py'
+            --include='src/glio_proteogen/research/cptac_gbm_external_admission/*.py,tools/evaluate_cptac_gbm_confirmatory_admission.py,tools/evaluate_cptac_gbm_provider_transfer.py,tools/evaluate_cptac_gbm_transfer_sensitivity.py'
 
   ui-quality:
     runs-on: ubuntu-latest

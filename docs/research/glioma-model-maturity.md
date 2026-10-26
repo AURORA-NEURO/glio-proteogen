@@ -54,6 +54,17 @@ training uncertainty is unavailable. Different provider processing and unproved
 reference-pool equivalence prevent an aligned external-validation claim. This
 is local exploratory stress evidence, with no automatic model promotion.
 
+An additive [two-cohort sensitivity workflow](cptac-gbm-transfer-source-uncertainty.md)
+now repeats the source fitting and selection procedure under empirical patient
+resampling. It pairs each refitted model with the frozen model on identical
+external draws, preserves original folds for every copied patient, and exposes
+distinct-unit and frequency-mass diagnostics separately. Signed covariance terms
+remain visible in paired variance accounting. Original point admission remains
+fixed, while numerical refit failures and selection instability remain in the
+sensitivity evidence. This is post hoc analysis conditional on the admitted
+measurements and original folds, with unproved post-selection coverage and no
+claim to full measurement, batch, biological, or clinical uncertainty.
+
 The mounted additive research namespace currently contains fourteen distinct,
 independently testable scientific-inference lanes plus one integrated
 composition surface. Distinctness in the fourteen-lane mounted inventory means

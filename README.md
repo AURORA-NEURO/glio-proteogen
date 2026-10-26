@@ -214,6 +214,14 @@ remain part of the stress test; aligned biological or clinical validation and
 training-fit uncertainty are unestablished. Measurements and numerical results
 remain local-only.
 
+The separate [source-refit sensitivity workflow](docs/research/cptac-gbm-transfer-source-uncertainty.md)
+repeats source fitting and model selection under patient resampling, alongside
+paired external resampling. It compares refitted and frozen models on matching
+draws and reports patient reuse, weight concentration, numerical failures,
+selection stability, and signed variance accounting. This post hoc analysis
+preserves the original point results and abstentions; its empirical percentile
+ranges do not establish calibrated coverage or biological validation.
+
 The `gbm-rna-tumor-purity/1.0.0` lane is an exact NumPy port of the published
 GBMPurity 5,829→32→16→1 neural model. It accepts raw bulk RNA counts only under
 a primary IDH-wildtype GBM attestation, preserves the source 80% gene-overlap
