@@ -2,7 +2,7 @@ import { describe, expect, it, vi, afterEach } from "vitest";
 import resultFixture from "../fixtures/cohort-replication-result.json";
 import requestFixture from "../fixtures/cohort-replication-request.json";
 import {
-  assertReplicationBinding, cohortLabel, effectFor, forestDomain, formatEffect,
+  assertReplicationBinding, cohortLabel, effectFor, forestDomain, formatEffect, formatProbability, shortReceipt,
   parseReplicationProfile, parseReplicationRequest, parseReplicationResult,
   parseReplicationVerification, replicationFetch, replicationReplayEnvelope, REPLICATION_INPUT_LIMIT, REPLICATION_NETWORK_TIMEOUT_MS,
 } from "../../src/lib/cohort-replication";
@@ -46,6 +46,41 @@ describe("cross-cohort result admission", () => {
     const value = fresh(); mutate(value); expect(() => parseReplicationResult(value)).toThrow("No charts were admitted");
   });
 
+  it.each([
+    ["invalid cohort source receipt", (v: ReturnType<typeof fresh>) => { v.cohorts[0].source_sha256 = "unverifiable"; }],
+    ["invalid cohort sample count", (v: ReturnType<typeof fresh>) => { v.cohorts[0].sample_size = 1; }],
+    ["unsupported state carrying a standard error", (v: ReturnType<typeof fresh>) => { v.features[0].effects[0].standard_error = .1; }],
+    ["unrecognized effect state", (v: ReturnType<typeof fresh>) => { v.features[0].effects[0].state = "imputed"; }],
+    ["observed estimate outside the supported scale", (v: ReturnType<typeof fresh>) => { v.features[1].effects[0].estimate = 101; }],
+    ["observed effect with no standard error", (v: ReturnType<typeof fresh>) => { v.features[1].effects[0].standard_error = null; }],
+    ["observed error below the numerical floor", (v: ReturnType<typeof fresh>) => { v.features[1].effects[0].standard_error = 1e-9; }],
+    ["observed error beyond the numerical ceiling", (v: ReturnType<typeof fresh>) => { v.features[1].effects[0].standard_error = 101; }],
+    ["missing declared cohort column", (v: ReturnType<typeof fresh>) => { v.features[0].effects.pop(); }],
+    ["abstention labeled as supported", (v: ReturnType<typeof fresh>) => { v.features[0].support = "limited"; }],
+    ["estimable feature labeled as abstained", (v: ReturnType<typeof fresh>) => { v.features[1].support = "abstained"; }],
+    ["non-unit multiplicity value for abstained feature", (v: ReturnType<typeof fresh>) => { v.features[0].adjusted_p_value = .5; }],
+    ["confidence interval not containing its estimate", (v: ReturnType<typeof fresh>) => { v.features[1].random_effect!.lower = v.features[1].random_effect!.estimate + 1; }],
+    ["unrepresentable chart coordinates", (v: ReturnType<typeof fresh>) => { v.features[1].random_effect!.upper = 1e100; }],
+    ["negative residual variance", (v: ReturnType<typeof fresh>) => { v.features[1].heterogeneity!.tau_squared = -1; }],
+    ["heterogeneity degrees not reconciling with coverage", (v: ReturnType<typeof fresh>) => { v.features[1].heterogeneity!.degrees_of_freedom = 15; }],
+    ["invalid prediction method", (v: ReturnType<typeof fresh>) => { v.features[1].prediction_interval!.method = "unrecognized"; }],
+    ["extreme prediction coordinates", (v: ReturnType<typeof fresh>) => { v.features[1].prediction_interval!.upper = 1e100; }],
+    ["direction counts not reconciling with observations", (v: ReturnType<typeof fresh>) => { v.features[1].direction_agreement.positive_count = 16; }],
+    ["invalid majority fraction", (v: ReturnType<typeof fresh>) => { v.features[1].direction_agreement.majority_fraction = 2; }],
+    ["unknown direction classification", (v: ReturnType<typeof fresh>) => { v.features[1].direction_agreement.classification = "replicated"; }],
+    ["leave-one-out receipt for an unknown cohort", (v: ReturnType<typeof fresh>) => { v.features[1].leave_one_out[0].omitted_cohort_id = "outside-the-study"; }],
+    ["duplicate leave-one-out receipt", (v: ReturnType<typeof fresh>) => { v.features[1].leave_one_out[1].omitted_cohort_id = v.features[1].leave_one_out[0].omitted_cohort_id; }],
+    ["leave-one-out remaining count mismatch", (v: ReturnType<typeof fresh>) => { v.features[1].leave_one_out[0].observed_count = 2; }],
+    ["empty prespecified family", (v: ReturnType<typeof fresh>) => { v.features = []; v.family_size = 0; }],
+  ])("rejects an integrity failure: %s", (_, mutate) => {
+    const value = fresh(); mutate(value); expect(() => parseReplicationResult(value)).toThrow("No charts were admitted");
+  });
+
+  it("rejects non-object result and profile documents", () => {
+    expect(() => parseReplicationResult(null)).toThrow("No charts were admitted");
+    expect(() => parseReplicationProfile([])).toThrow("incompatible");
+  });
+
   it("rejects another request or changed scientific profile before rendering", () => {
     const result = parseReplicationResult(resultFixture);
     const p = parseReplicationProfile(profile());
@@ -57,6 +92,23 @@ describe("cross-cohort result admission", () => {
     const alteredEffect = structuredClone(requestFixture);
     alteredEffect.features[1].effects[0].estimate = 42;
     expect(() => assertReplicationBinding(alteredEffect, p, result)).toThrow("frozen request");
+  });
+
+  it("rejects changed provenance, cohort membership, and feature ownership", () => {
+    const result = parseReplicationResult(resultFixture), p = parseReplicationProfile(profile());
+    const changedProvenance = structuredClone(requestFixture);
+    changedProvenance.cohorts[0].source_sha256 = `sha256:${"c".repeat(64)}`;
+    expect(() => assertReplicationBinding(changedProvenance, p, result)).toThrow("frozen request");
+    const unknownCohort = structuredClone(requestFixture);
+    unknownCohort.cohorts[0].cohort_id = "not-in-result";
+    expect(() => assertReplicationBinding(unknownCohort, p, result)).toThrow("frozen request");
+    const changedFeature = structuredClone(requestFixture);
+    changedFeature.features[0].label = "Another feature label";
+    expect(() => assertReplicationBinding(changedFeature, p, result)).toThrow("frozen request");
+    const changedEffectOwnership = structuredClone(requestFixture);
+    changedEffectOwnership.features[0].effects[0].cohort_id = "not-in-result";
+    expect(() => assertReplicationBinding(changedEffectOwnership, p, result)).toThrow("frozen request");
+    expect(() => assertReplicationBinding({ ...requestFixture, cohorts: [] }, p, result)).toThrow("frozen request");
   });
 
   it("requires well-formed profile identities and a matching replay receipt", () => {
@@ -87,6 +139,10 @@ describe("bounded request import and display transforms", () => {
   it("keeps zero distinct from absent values and includes all intervals in chart bounds", () => {
     expect(formatEffect(null)).toBe("—"); expect(formatEffect(0)).toBe("0.00"); expect(formatEffect(.5)).toBe("+0.50");
     expect(formatEffect(-.00001)).toBe("0.00"); expect(formatEffect(.00001)).toBe("0.00");
+    expect(formatEffect(Infinity)).toBe("—"); expect(formatEffect(-.5)).toBe("-0.50");
+    expect(formatProbability(null)).toBe("—"); expect(formatProbability(0)).toBe("< 1e−300");
+    expect(formatProbability(.00001)).toBe("1.0e-5"); expect(formatProbability(.5)).toBe("0.500");
+    expect(shortReceipt("short")).toBe("short"); expect(shortReceipt(`sha256:${"a".repeat(64)}`)).toBe("sha256:aaaaa…aaaaaa");
     expect(cohortLabel({ cohort_id: "id", label: "Cohort A" })).toBe("Cohort A");
     expect(cohortLabel({ cohort_id: "id" })).toBe("id");
     const result = parseReplicationResult(resultFixture);
