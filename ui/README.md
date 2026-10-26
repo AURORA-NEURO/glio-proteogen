@@ -1,5 +1,12 @@
 # GLIO Proteogen Research Workbench
 
+The `/replication` route is a linked observatory for caller-owned aggregate
+cohort effects. It runs the backend replication evaluator and admits results
+only after deterministic replay verification. Its forest plot, coverage matrix,
+heterogeneity overview, leave-one-cohort-out view, and provenance drawer preserve
+missing and unsupported studies. The bundled demonstration is synthetic.
+See [the method and contract](../docs/research/cohort-replication.md).
+
 The home route is the research-use-only scientific workbench for twelve visible
 lanes (twelve of thirteen computational surfaces): GLIO-ECGI evidence graphs, the
 seven published GBM proteomic-axis

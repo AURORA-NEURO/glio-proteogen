@@ -133,6 +133,7 @@ from glio_proteogen.adapters.m2002 import m2002_app
 from glio_proteogen.adapters.m2003 import m2003_app
 from glio_proteogen.adapters.m2004 import m2004_app
 from glio_proteogen.adapters.neftel_programs import cli as neftel_programs_app
+from glio_proteogen.adapters.cohort_replication import cli as cohort_replication_app
 from glio_proteogen.adapters.research_state import cli as research_state_app
 from glio_proteogen.contracts.m01_01.v1 import (
     EvaluateMetadataRequest,
@@ -749,6 +750,7 @@ app = typer.Typer(no_args_is_help=True, pretty_exceptions_enable=False)
 protocol_app = typer.Typer(no_args_is_help=True, help="M01-01 protocol operations.")
 app.add_typer(protocol_app, name="protocol")
 app.add_typer(research_state_app, name="research-state")
+app.add_typer(cohort_replication_app, name="cohort-replication")
 app.add_typer(
     immunopeptidomic_presentation_app,
     name="immunopeptidomic-presentation",

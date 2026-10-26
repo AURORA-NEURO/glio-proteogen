@@ -14,6 +14,14 @@ is considered implemented only when its public contracts, executable behavior, l
 fixtures, adversarial evaluations, microbenchmarks, traceability, and safe-failure behavior
 are all present.
 
+The [cross-cohort replication observatory](docs/research/cohort-replication.md) adds
+aggregate effect synthesis, heterogeneity, fixed-family BH/BY adjustments, and
+leave-one-cohort-out sensitivity through the `/replication` workbench route,
+HTTP API, and `cohort-replication` CLI. Its demonstration uses fictitious cohorts;
+real multi-cohort validation remains a separate requirement. See the
+[glioma research expansion roadmap](docs/research/glioma-frontier-roadmap.md)
+for the next scientific and engineering gates.
+
 See [CLEAN_ROOM.md](CLEAN_ROOM.md) for the construction boundary and
 [CONTRIBUTING.md](CONTRIBUTING.md) for the module evidence workflow.
 

@@ -5,6 +5,20 @@ workflow, and release plumbing. A package being `0.1.0-provisional` does not by
 itself mean that it contains a fake model, and a passing schema or replay test
 does not make a numerical method scientifically mature.
 
+## Aggregate cross-cohort evaluation
+
+`glioma-cohort-replication/1.0.0` is an additive research evaluator, mounted at
+`/v1/research/cohort-replication` and visualized at `/replication`. It pools
+compatible caller-supplied effect/standard-error summaries with explicit
+missingness, FE/DL estimates, heterogeneity, BH/BY adjustments, and leave-one-out
+sensitivity. It verifies replay and source-content bindings but does not
+independently authenticate study disjointness, effect compatibility, or marginal
+p-value calibration. Every estimable result remains `limited`; the supplied
+cohorts are fictitious. This is a methodological capability, not a new fitted
+glioma predictor or completed external validation. See
+[method and limitations](cohort-replication.md) and the
+[expansion roadmap](glioma-frontier-roadmap.md).
+
 ## Implemented research inference
 
 The mounted additive research namespace currently contains fourteen distinct,

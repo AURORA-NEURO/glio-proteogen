@@ -2162,6 +2162,7 @@ export default function ResearchWorkbench() {
         </a>
         <nav className="workbench-links" aria-label="Primary navigation">
           <a className="active" href="/">Scientific workbench</a>
+          <a href="/replication">Cohort replication</a>
           <a href="/api-console">API console</a>
           <a href="/backend/docs" target="_blank" rel="noreferrer">OpenAPI ↗</a>
         </nav>

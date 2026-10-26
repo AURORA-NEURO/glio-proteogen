@@ -36,6 +36,8 @@ _REPO_ROOT: Final = Path(__file__).resolve().parents[2]
 _SOURCE_ROOT: Final = _REPO_ROOT / "src" / "glio_proteogen"
 _ADAPTER_ROOT: Final = _SOURCE_ROOT / "adapters"
 _RESEARCH_NAMESPACE: Final = "glio_proteogen.research"
+_COHORT_REPLICATION_ADAPTER_NAMESPACE: Final = "glio_proteogen.adapters.cohort_replication"
+_COHORT_REPLICATION_IMPLEMENTATION_NAMESPACE: Final = "glio_proteogen.research.cohort_replication"
 _RESEARCH_ADAPTER_NAMESPACE: Final = "glio_proteogen.adapters.research_state"
 _FUNCTIONAL_PROTEOTYPE_ADAPTER_NAMESPACE: Final = (
     "glio_proteogen.adapters.gbm_functional_proteotype"
@@ -59,9 +61,7 @@ _COMPLEX_TRANSITION_ADAPTER_NAMESPACE: Final = (
     "glio_proteogen.adapters.longitudinal_gbm_complex_transition"
 )
 _FACTOR_GRAPH_ADAPTER_NAMESPACE: Final = "glio_proteogen.adapters.gbm_factor_graph"
-_IMMUNOPEPTIDOMIC_ADAPTER_NAMESPACE: Final = (
-    "glio_proteogen.adapters.immunopeptidomic_presentation"
-)
+_IMMUNOPEPTIDOMIC_ADAPTER_NAMESPACE: Final = "glio_proteogen.adapters.immunopeptidomic_presentation"
 _GBM_RNA_COMPOSITION_ADAPTER_NAMESPACE: Final = "glio_proteogen.adapters.gbm_rna_composition"
 _GBM_MICROENVIRONMENT_GRAPH_ADAPTER_NAMESPACE: Final = (
     "glio_proteogen.adapters.gbm_microenvironment_graph"
@@ -118,6 +118,7 @@ _APPROVED_ADAPTER_RESEARCH_IMPORTS: Final = {
     "adapters/api.py": frozenset(
         {
             _RESEARCH_ADAPTER_NAMESPACE,
+            _COHORT_REPLICATION_ADAPTER_NAMESPACE,
             _FUNCTIONAL_PROTEOTYPE_ADAPTER_NAMESPACE,
             _GBM_ADAPTER_NAMESPACE,
             _NEFTEL_ADAPTER_NAMESPACE,
@@ -141,6 +142,7 @@ _APPROVED_ADAPTER_RESEARCH_IMPORTS: Final = {
     "adapters/cli.py": frozenset(
         {
             _RESEARCH_ADAPTER_NAMESPACE,
+            _COHORT_REPLICATION_ADAPTER_NAMESPACE,
             _FUNCTIONAL_PROTEOTYPE_ADAPTER_NAMESPACE,
             _GBM_ADAPTER_NAMESPACE,
             _NEFTEL_ADAPTER_NAMESPACE,
@@ -163,6 +165,7 @@ _APPROVED_ADAPTER_RESEARCH_IMPORTS: Final = {
     "adapters/research_readiness.py": frozenset(
         {
             _RESEARCH_ADAPTER_NAMESPACE,
+            _COHORT_REPLICATION_ADAPTER_NAMESPACE,
             _FUNCTIONAL_PROTEOTYPE_ADAPTER_NAMESPACE,
             _GBM_ADAPTER_NAMESPACE,
             _NEFTEL_ADAPTER_NAMESPACE,
@@ -182,6 +185,9 @@ _APPROVED_ADAPTER_RESEARCH_IMPORTS: Final = {
             _M11_ADAPTER_NAMESPACE,
             _M14_ADAPTER_NAMESPACE,
         }
+    ),
+    "adapters/cohort_replication.py": frozenset(
+        {_COHORT_REPLICATION_IMPLEMENTATION_NAMESPACE, _RESEARCH_IMPLEMENTATION_NAMESPACE}
     ),
     "adapters/research_state.py": frozenset({_RESEARCH_IMPLEMENTATION_NAMESPACE}),
     "adapters/gbm_functional_proteotype.py": frozenset(
@@ -241,9 +247,7 @@ _APPROVED_ADAPTER_RESEARCH_IMPORTS: Final = {
     "adapters/immunopeptidomic_presentation.py": frozenset(
         {_IMMUNOPEPTIDOMIC_IMPLEMENTATION_NAMESPACE}
     ),
-    "adapters/gbm_rna_composition.py": frozenset(
-        {_GBM_RNA_COMPOSITION_IMPLEMENTATION_NAMESPACE}
-    ),
+    "adapters/gbm_rna_composition.py": frozenset({_GBM_RNA_COMPOSITION_IMPLEMENTATION_NAMESPACE}),
     "adapters/gbm_microenvironment_graph.py": frozenset(
         {_GBM_MICROENVIRONMENT_GRAPH_IMPLEMENTATION_NAMESPACE}
     ),
@@ -295,6 +299,7 @@ _RESEARCH_CAPABILITY_MARKERS: Final = (
     "complex-transition",
     "immunopeptidomic",
 )
+_COHORT_REPLICATION_RESEARCH_PREFIX: Final = "/v1/research/cohort-replication"
 _RESEARCH_PREFIX: Final = "/v1/research/proteogenomic-state"
 _FUNCTIONAL_PROTEOTYPE_RESEARCH_PREFIX: Final = "/v1/research/gbm-functional-proteotype"
 _GBM_RESEARCH_PREFIX: Final = "/v1/research/gbm-proteomic-axes"
@@ -310,9 +315,7 @@ _COMPLEX_TRANSITION_RESEARCH_PREFIX: Final = "/v1/research/longitudinal-gbm-comp
 _FACTOR_GRAPH_RESEARCH_PREFIX: Final = "/v1/research/gbm-factor-graph"
 _IMMUNOPEPTIDOMIC_RESEARCH_PREFIX: Final = "/v1/research/immunopeptidomic-presentation"
 _GBM_RNA_COMPOSITION_RESEARCH_PREFIX: Final = "/v1/research/gbm-rna-composition"
-_GBM_MICROENVIRONMENT_GRAPH_RESEARCH_PREFIX: Final = (
-    "/v1/research/gbm-microenvironment-graph"
-)
+_GBM_MICROENVIRONMENT_GRAPH_RESEARCH_PREFIX: Final = "/v1/research/gbm-microenvironment-graph"
 _M09_RESEARCH_PREFIX: Final = "/v2/research/modules/m09/complex-transition-concordance"
 _M10_RESEARCH_PREFIX: Final = "/v2/research/modules/m10/functional-proteotype"
 _M11_RESEARCH_PREFIX: Final = "/v2/research/modules/m11/protein-native-subtype"
@@ -428,7 +431,16 @@ _CPTAC_DISCORDANCE_RESEARCH_CLI_COMMANDS: Final = {
     "cptac-gbm-transcript-protein-discordance analyze",
     "cptac-gbm-transcript-protein-discordance verify",
 }
+_COHORT_REPLICATION_RESEARCH_CLI_COMMANDS: Final = {
+    "cohort-replication profile",
+    "cohort-replication demo",
+    "cohort-replication analyze",
+    "cohort-replication verify",
+}
 _RESEARCH_CLI_CALLBACK_MODULES: Final = {
+    **dict.fromkeys(
+        _COHORT_REPLICATION_RESEARCH_CLI_COMMANDS, _COHORT_REPLICATION_ADAPTER_NAMESPACE
+    ),
     **dict.fromkeys(_RESEARCH_CLI_COMMANDS, "glio_proteogen.adapters.research_state"),
     **dict.fromkeys(
         _FUNCTIONAL_PROTEOTYPE_RESEARCH_CLI_COMMANDS,
@@ -497,6 +509,7 @@ _RESEARCH_CLI_CALLBACK_MODULES: Final = {
     ),
 }
 _RESEARCH_ROUTE_MODULES: Final = (
+    (_COHORT_REPLICATION_RESEARCH_PREFIX, _COHORT_REPLICATION_ADAPTER_NAMESPACE),
     (
         _FUNCTIONAL_PROTEOTYPE_RESEARCH_PREFIX,
         "glio_proteogen.adapters.gbm_functional_proteotype",
@@ -630,6 +643,8 @@ def _source_import_targets(source_path: Path) -> Iterator[tuple[str, int]]:
 
 def _restricted_research_namespace(target: str) -> str | None:
     for namespace in (
+        _COHORT_REPLICATION_ADAPTER_NAMESPACE,
+        _COHORT_REPLICATION_IMPLEMENTATION_NAMESPACE,
         _RESEARCH_ADAPTER_NAMESPACE,
         _FUNCTIONAL_PROTEOTYPE_ADAPTER_NAMESPACE,
         _GBM_ADAPTER_NAMESPACE,
@@ -694,6 +709,8 @@ def test_non_research_source_uses_only_the_explicit_adapter_bridge() -> None:  #
     )
     assert set(adapter_paths) <= set(boundary_paths)
     observed: dict[str, set[str]] = {
+        _COHORT_REPLICATION_ADAPTER_NAMESPACE: set(),
+        _COHORT_REPLICATION_IMPLEMENTATION_NAMESPACE: set(),
         _RESEARCH_ADAPTER_NAMESPACE: set(),
         _FUNCTIONAL_PROTEOTYPE_ADAPTER_NAMESPACE: set(),
         _GBM_ADAPTER_NAMESPACE: set(),
@@ -846,7 +863,16 @@ def test_non_research_source_uses_only_the_explicit_adapter_bridge() -> None:  #
     }
     assert observed[_CPTAC_CIS_DOSAGE_ADAPTER_NAMESPACE] == {"adapters/cli.py"}
     assert observed[_CPTAC_DISCORDANCE_ADAPTER_NAMESPACE] == {"adapters/cli.py"}
+    assert observed[_COHORT_REPLICATION_ADAPTER_NAMESPACE] == {
+        "adapters/api.py",
+        "adapters/cli.py",
+        "adapters/research_readiness.py",
+    }
+    assert observed[_COHORT_REPLICATION_IMPLEMENTATION_NAMESPACE] == {
+        "adapters/cohort_replication.py"
+    }
     assert observed[_RESEARCH_IMPLEMENTATION_NAMESPACE] == {
+        "adapters/cohort_replication.py",
         "adapters/gbm_functional_proteotype.py",
         "adapters/gbm_master_kinases.py",
         "adapters/gbm_rna_purity.py",
@@ -976,6 +1002,7 @@ def test_central_cli_has_only_the_approved_research_commands() -> None:
             assert module == _RESEARCH_CLI_CALLBACK_MODULES.get(name), (name, module)
     assert discovered_research == (
         _RESEARCH_CLI_COMMANDS
+        | _COHORT_REPLICATION_RESEARCH_CLI_COMMANDS
         | _FUNCTIONAL_PROTEOTYPE_RESEARCH_CLI_COMMANDS
         | _GBM_RESEARCH_CLI_COMMANDS
         | _NEFTEL_RESEARCH_CLI_COMMANDS
@@ -989,9 +1016,9 @@ def test_central_cli_has_only_the_approved_research_commands() -> None:
         | _COMPLEX_TRANSITION_RESEARCH_CLI_COMMANDS
         | _FACTOR_GRAPH_RESEARCH_CLI_COMMANDS
         | _IMMUNOPEPTIDOMIC_RESEARCH_CLI_COMMANDS
-            | _GBM_RNA_COMPOSITION_RESEARCH_CLI_COMMANDS
-            | _GBM_MICROENVIRONMENT_GRAPH_RESEARCH_CLI_COMMANDS
-            | _CPTAC_CIS_DOSAGE_RESEARCH_CLI_COMMANDS
+        | _GBM_RNA_COMPOSITION_RESEARCH_CLI_COMMANDS
+        | _GBM_MICROENVIRONMENT_GRAPH_RESEARCH_CLI_COMMANDS
+        | _CPTAC_CIS_DOSAGE_RESEARCH_CLI_COMMANDS
         | _CPTAC_DISCORDANCE_RESEARCH_CLI_COMMANDS
     )
 
@@ -1041,6 +1068,8 @@ def test_central_api_route_inventory_has_only_bounded_research_surface() -> None
                 f"{prefix}{suffix}"
                 for prefix in (
                     _RESEARCH_PREFIX,
+                    _COHORT_REPLICATION_RESEARCH_PREFIX,
+                    _COHORT_REPLICATION_RESEARCH_PREFIX,
                     _FUNCTIONAL_PROTEOTYPE_RESEARCH_PREFIX,
                     _GBM_RESEARCH_PREFIX,
                     _NEFTEL_RESEARCH_PREFIX,
@@ -1054,8 +1083,8 @@ def test_central_api_route_inventory_has_only_bounded_research_surface() -> None
                     _COMPLEX_TRANSITION_RESEARCH_PREFIX,
                     _FACTOR_GRAPH_RESEARCH_PREFIX,
                     _IMMUNOPEPTIDOMIC_RESEARCH_PREFIX,
-                        _GBM_RNA_COMPOSITION_RESEARCH_PREFIX,
-                        _GBM_MICROENVIRONMENT_GRAPH_RESEARCH_PREFIX,
+                    _GBM_RNA_COMPOSITION_RESEARCH_PREFIX,
+                    _GBM_MICROENVIRONMENT_GRAPH_RESEARCH_PREFIX,
                     _M09_RESEARCH_PREFIX,
                     _M10_RESEARCH_PREFIX,
                     _M11_RESEARCH_PREFIX,
@@ -1069,6 +1098,7 @@ def test_central_api_route_inventory_has_only_bounded_research_surface() -> None
         f"{prefix}{suffix}"
         for prefix in (
             _RESEARCH_PREFIX,
+            _COHORT_REPLICATION_RESEARCH_PREFIX,
             _FUNCTIONAL_PROTEOTYPE_RESEARCH_PREFIX,
             _GBM_RESEARCH_PREFIX,
             _NEFTEL_RESEARCH_PREFIX,
@@ -1082,8 +1112,8 @@ def test_central_api_route_inventory_has_only_bounded_research_surface() -> None
             _COMPLEX_TRANSITION_RESEARCH_PREFIX,
             _FACTOR_GRAPH_RESEARCH_PREFIX,
             _IMMUNOPEPTIDOMIC_RESEARCH_PREFIX,
-                _GBM_RNA_COMPOSITION_RESEARCH_PREFIX,
-                _GBM_MICROENVIRONMENT_GRAPH_RESEARCH_PREFIX,
+            _GBM_RNA_COMPOSITION_RESEARCH_PREFIX,
+            _GBM_MICROENVIRONMENT_GRAPH_RESEARCH_PREFIX,
             _M09_RESEARCH_PREFIX,
             _M10_RESEARCH_PREFIX,
             _M11_RESEARCH_PREFIX,
@@ -1124,6 +1154,7 @@ def test_central_openapi_inventory_has_only_approved_research_operations() -> No
         f"{prefix}{suffix}"
         for prefix in (
             _RESEARCH_PREFIX,
+            _COHORT_REPLICATION_RESEARCH_PREFIX,
             _FUNCTIONAL_PROTEOTYPE_RESEARCH_PREFIX,
             _GBM_RESEARCH_PREFIX,
             _NEFTEL_RESEARCH_PREFIX,

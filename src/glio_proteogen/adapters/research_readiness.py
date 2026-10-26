@@ -16,6 +16,7 @@ from typing import Final
 from fastapi import Response
 
 from glio_proteogen.adapters import (
+    cohort_replication,
     gbm_factor_graph,
     gbm_functional_proteotype,
     gbm_master_kinases,
@@ -74,6 +75,11 @@ def _profile_route(route_prefix: str) -> str:
 
 
 RESEARCH_READINESS_CHECKS: Final[tuple[ResearchReadinessCheck, ...]] = (
+    ResearchReadinessCheck(
+        lane_id="cohort-replication",
+        profile_routes=(_profile_route(cohort_replication.COHORT_REPLICATION_ROUTE_PREFIX),),
+        check=_profile_check(cohort_replication.profile),
+    ),
     ResearchReadinessCheck(
         lane_id="proteogenomic-state",
         profile_routes=(_profile_route(research_state.RESEARCH_STATE_ROUTE_PREFIX),),

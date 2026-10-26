@@ -36,6 +36,7 @@ _OPENAPI_HTTP_METHODS = frozenset(
 )
 _RESEARCH_ROUTE_PREFIXES = ("/v1/research/", "/v2/research/")
 _VALIDATED_EXAMPLES = {
+    "/v1/research/cohort-replication/analyze": "synthetic-replication-demo",
     "/v1/research/proteogenomic-state/analyze": "synthetic-glioma-demo-v1",
     "/v1/research/gbm-factor-graph/analyze": ("kncc-gbm-factor-graph-synthetic-model-derived-v1"),
     "/v1/research/gbm-functional-proteotype/analyze": (

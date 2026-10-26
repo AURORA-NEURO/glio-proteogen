@@ -18,6 +18,14 @@ from glio_proteogen.adapters import m1905 as m1905_adapter
 from glio_proteogen.adapters import m2002 as m2002_adapter
 from glio_proteogen.adapters import m2003 as m2003_adapter
 from glio_proteogen.adapters import m2004 as m2004_adapter
+from glio_proteogen.adapters.cohort_replication import (
+    COHORT_REPLICATION_REPLAY_MAX_BYTES,
+    COHORT_REPLICATION_REQUEST_MAX_BYTES,
+    COHORT_REPLICATION_RESULT_MAX_BYTES,
+    COHORT_REPLICATION_ROUTE_PREFIX,
+    install_cohort_replication_openapi,
+)
+from glio_proteogen.adapters.cohort_replication import router as cohort_replication_router
 from glio_proteogen.adapters.gbm_factor_graph import (
     GBM_FACTOR_GRAPH_REPLAY_MAX_BYTES,
     GBM_FACTOR_GRAPH_REQUEST_MAX_BYTES,
@@ -1776,6 +1784,14 @@ _MODEL_ROUTE_LIMITS: Final[dict[str, tuple[int, int | None]]] = {
 # are advertised with a limit larger than their strict parser accepts.
 _CENTRAL_ROUTE_LIMITS: Final[dict[str, tuple[int, int | None]]] = {
     **_MODEL_ROUTE_LIMITS,
+    f"{COHORT_REPLICATION_ROUTE_PREFIX}/verify": (
+        COHORT_REPLICATION_REPLAY_MAX_BYTES,
+        COHORT_REPLICATION_RESULT_MAX_BYTES,
+    ),
+    COHORT_REPLICATION_ROUTE_PREFIX: (
+        COHORT_REPLICATION_REQUEST_MAX_BYTES,
+        COHORT_REPLICATION_RESULT_MAX_BYTES,
+    ),
     f"{MIXTURE_ROUTE_PREFIX}/verify": (
         MIXTURE_REPLAY_MAX_BYTES,
         MIXTURE_RESULT_MAX_BYTES,
@@ -3564,6 +3580,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     ):
         app.include_router(model_app.router)
 
+    app.include_router(cohort_replication_router)
     app.include_router(research_state_router)
     app.include_router(immunopeptidomic_presentation_router)
     app.include_router(gbm_rna_composition_router)
@@ -5047,6 +5064,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         return m2004_adapter.schema(name)
 
     install_request_body_openapi(app)
+    install_cohort_replication_openapi(app)
     install_research_state_openapi(app)
     install_gbm_functional_proteotype_openapi(app)
     install_glioma_models_openapi(app)
