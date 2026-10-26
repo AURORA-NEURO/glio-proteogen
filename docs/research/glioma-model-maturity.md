@@ -65,6 +65,15 @@ sensitivity evidence. This is post hoc analysis conditional on the admitted
 measurements and original folds, with unproved post-selection coverage and no
 claim to full measurement, batch, biological, or clinical uncertainty.
 
+A separate [source-defined feature-space admission workflow](cptac-gbm-feature-space.md)
+removes the sixteen-gene import restriction while retaining the original panel
+as anchors. It builds an exact source HGNC axis, preserves missingness and
+identity conflicts, and applies the frozen axis to the external cohort.
+Its fold counts and simple training-variation diagnostics are prerequisites
+for later analysis, with fit eligibility and biological association still
+unestablished. This adds reusable backend inputs and aggregate coverage
+catalogs; it does not add a fitted scientific-inference lane.
+
 The mounted additive research namespace currently contains fourteen distinct,
 independently testable scientific-inference lanes plus one integrated
 composition surface. Distinctness in the fourteen-lane mounted inventory means

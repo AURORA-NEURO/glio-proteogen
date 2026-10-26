@@ -222,6 +222,15 @@ selection stability, and signed variance accounting. This post hoc analysis
 preserves the original point results and abstentions; its empirical percentile
 ranges do not establish calibrated coverage or biological validation.
 
+The [source-defined feature-space workflow](docs/research/cptac-gbm-feature-space.md)
+extends exact RNA, copy-number and protein admission beyond the original panel.
+It preserves an HGNC identity axis chosen from the source cohort, projects
+external measurements onto that same axis, and reports joint availability,
+identity conflicts, observed zeros, count capacity and training variation.
+Gene-wide transient inputs can feed the existing fitting engine in a separately
+specified analysis; coverage alone does not establish model eligibility or
+biological association.
+
 The `gbm-rna-tumor-purity/1.0.0` lane is an exact NumPy port of the published
 GBMPurity 5,829→32→16→1 neural model. It accepts raw bulk RNA counts only under
 a primary IDH-wildtype GBM attestation, preserves the source 80% gene-overlap
