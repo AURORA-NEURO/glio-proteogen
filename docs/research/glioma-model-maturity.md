@@ -85,6 +85,14 @@ support, finite scores and conditional intervals remain distinct statuses;
 this expansion does not increase the scientific-lane inventory or establish
 gene-level biological discovery, simultaneous inference or clinical validity.
 
+The separately identified [census execution profile](cptac-gbm-census-execution.md)
+adds bounded Windows progress replacement retries with exact replay of the
+inherited numerical artifacts. It recomputes source fits and external results;
+a baseline is comparison evidence, not a predictor cache. New execution
+provenance is separate from inherited numerical request seeds, and completion
+requires its own seal. This operational profile adds no scientific estimator,
+validation experiment or inference lane.
+
 The mounted additive research namespace currently contains fourteen distinct,
 independently testable scientific-inference lanes plus one integrated
 composition surface. Distinctness in the fourteen-lane mounted inventory means

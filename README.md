@@ -240,6 +240,14 @@ scoring preserves separate support, point-score and conditional-interval states.
 This extends the existing reconstruction family across the source-defined gene
 axis; it does not add a biological model or establish genome-wide discoveries.
 
+The [census execution profile](docs/research/cptac-gbm-census-execution.md)
+recomputes that frozen analysis against a locked complete baseline while handling
+transient Windows progress-file replacement failures within finite bounds.
+Every inherited numerical artifact, request and interval must remain byte-exact;
+two separate execution files bind the new operational provenance. A failed
+replacement budget leaves an incomplete run and requires fresh source fitting.
+This execution path changes no estimator or scientific-lane count.
+
 The `gbm-rna-tumor-purity/1.0.0` lane is an exact NumPy port of the published
 GBMPurity 5,829→32→16→1 neural model. It accepts raw bulk RNA counts only under
 a primary IDH-wildtype GBM attestation, preserves the source 80% gene-overlap
