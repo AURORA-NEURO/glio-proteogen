@@ -14,7 +14,6 @@ from pathlib import Path
 from typing import Any, Final
 
 import numpy as np
-from glio_proteogen.research.cptac_gbm_external_admission.plan import load_admission_plan
 
 from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
 from glio_proteogen.research.cptac_gbm_external_admission.assays import (
@@ -28,6 +27,7 @@ from glio_proteogen.research.cptac_gbm_external_admission.coverage import (
     summarize_joint_coverage,
 )
 from glio_proteogen.research.cptac_gbm_external_admission.identity import read_locked_hgnc
+from glio_proteogen.research.cptac_gbm_external_admission.plan import load_admission_plan
 from glio_proteogen.research.cptac_gbm_external_admission.protein import (
     PROTEIN_LOCK,
     SAMPLE_MAP_LOCK,
