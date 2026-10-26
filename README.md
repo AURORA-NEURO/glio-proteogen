@@ -197,6 +197,13 @@ selection in every patient-bootstrap draw and compares all families on matching
 held-out observations. This is an opt-in research candidate; numerical acceptance
 does not establish superiority over a fixed model or independent validity.
 
+The [confirmatory source-admission workflow](docs/research/cptac-gbm-confirmatory-admission.md)
+reads exact PDC protein and matched GDC RNA/CNV files through a frozen private
+specimen plan. It verifies source bytes and stable gene identities, preserves
+distinct assay axes, and reports joint measured coverage and explicit unavailable
+states. It produces aggregate local evidence without fitting, imputation, or
+promotion into the original Table S2 model.
+
 The `gbm-rna-tumor-purity/1.0.0` lane is an exact NumPy port of the published
 GBMPurity 5,829→32→16→1 neural model. It accepts raw bulk RNA counts only under
 a primary IDH-wildtype GBM attestation, preserves the source 80% gene-overlap

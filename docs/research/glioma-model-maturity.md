@@ -37,6 +37,13 @@ predictors, with full nested bootstrap refits and common held-out comparisons.
 It is an opt-in prediction-policy evaluation rather than a promoted replacement
 for the conditional-association model or a new validated glioma predictor.
 
+The [confirmatory source-admission implementation](cptac-gbm-confirmatory-admission.md)
+adds executable checks for frozen private PDC/GDC specimen bindings, exact assay
+bytes, stable HGNC/Ensembl identities, and joint finite-measurement support. Its
+aggregate coverage receipts retain source-axis incompatibility, unadmitted
+biological eligibility, and unchanged legacy support gates. It establishes no
+external prediction performance or independent validation.
+
 The mounted additive research namespace currently contains fourteen distinct,
 independently testable scientific-inference lanes plus one integrated
 composition surface. Distinctness in the fourteen-lane mounted inventory means

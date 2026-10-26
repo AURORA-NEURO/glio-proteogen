@@ -1,0 +1,29 @@
+requirement,implementation,verification
+bounded exact size and dual checksums,source.py,tests/research/test_cptac_external_foundation.py
+regular file and stable opened binding,source.py,tests/research/test_cptac_external_foundation.py
+fixed HGNC snapshot and Approved identities,identity.py,tests/research/test_cptac_external_foundation.py
+ambiguous and absent identity cross references retained,contracts.py and identity.py,tests/research/test_cptac_external_foundation.py
+Ensembl version normalization preserves PAR_Y,identity.py,tests/research/test_cptac_external_foundation.py
+fixed exact PDC protein and channel map locks,protein.py,tests/research/test_cptac_external_protein.py
+active nonreference exact specimen headers,protein.py,tests/research/test_cptac_external_protein.py
+only unshared peptide measurement used,protein.py,tests/research/test_cptac_external_protein.py
+protein blanks remain missing and zeros observed,protein.py,tests/research/test_cptac_external_protein.py
+protein stable HGNC and NCBI agreement,protein.py,tests/research/test_cptac_external_protein.py
+STAR v36 schema and explicit FPKM-UQ axis,assays.py,tests/research/test_cptac_external_assays.py
+RNA summary rows excluded and validated,assays.py,tests/research/test_cptac_external_assays.py
+Ascat total copy number retains undeclared annotation release,assays.py,tests/research/test_cptac_external_assays.py
+CNV blank triplets distinct from zero,assays.py,tests/research/test_cptac_external_assays.py
+duplicate identity fail closed and ambiguity withheld,assays.py,tests/research/test_cptac_external_assays.py
+transient values immutable hidden and nonpickleable,protein.py and assays.py,tests/research/test_cptac_external_protein.py and tests/research/test_cptac_external_assays.py
+private captures require expected digests,plan.py,tests/research/test_cptac_external_plan.py
+fixed unique candidate and file roles,plan.py,tests/research/test_cptac_external_plan.py
+safe local basenames and matching source manifests,plan.py,tests/research/test_cptac_external_plan.py
+hash integrity does not authenticate metadata issuer,plan.py,tests/research/test_cptac_external_plan.py
+all eight joint observed patterns and zero counts,coverage.py,tests/research/test_cptac_external_coverage.py
+structural absence distinct from missing measurement,coverage.py,tests/research/test_cptac_external_coverage.py
+legacy support and assay compatibility remain unadmitted,coverage.py,tests/research/test_cptac_external_coverage.py
+one plan orders every assay read,tools/evaluate_cptac_gbm_confirmatory_admission.py,tests/research/test_cptac_external_runner.py
+protocol frozen before measurements,tools/evaluate_cptac_gbm_confirmatory_admission.py,tests/research/test_cptac_external_runner.py
+all source files verified without partial result,tools/evaluate_cptac_gbm_confirmatory_admission.py,tests/research/test_cptac_external_runner.py
+aggregate exports and deterministic digest replay,tools/evaluate_cptac_gbm_confirmatory_admission.py,tests/research/test_cptac_external_runner.py
+existing outputs never overwritten and CLI errors sanitized,tools/evaluate_cptac_gbm_confirmatory_admission.py,tests/research/test_cptac_external_runner.py
