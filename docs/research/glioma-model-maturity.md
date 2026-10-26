@@ -31,6 +31,12 @@ draws. It supplies aggregate internal evaluation rather than a new validated
 predictor, biological pattern label, or independent cohort. Source measurements
 and fitted derivatives remain local-only.
 
+The [nested comparator candidate](cptac-gbm-nested-selection.md) separately
+evaluates training-only model choice among median, RNA, CNV, and combined
+predictors, with full nested bootstrap refits and common held-out comparisons.
+It is an opt-in prediction-policy evaluation rather than a promoted replacement
+for the conditional-association model or a new validated glioma predictor.
+
 The mounted additive research namespace currently contains fourteen distinct,
 independently testable scientific-inference lanes plus one integrated
 composition surface. Distinctness in the fourteen-lane mounted inventory means

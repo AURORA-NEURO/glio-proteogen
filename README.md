@@ -190,6 +190,13 @@ continuation candidate preserves all convergence tolerances and evidence gates,
 uses paired bootstrap draws, and leaves the original model and artifacts
 unchanged. All derived outputs remain local-only research evidence.
 
+The [nested comparator workflow](docs/research/cptac-gbm-nested-selection.md)
+evaluates a separate prediction policy that chooses the median, RNA-only,
+CNV-only, or combined model inside each outer training partition. It repeats
+selection in every patient-bootstrap draw and compares all families on matching
+held-out observations. This is an opt-in research candidate; numerical acceptance
+does not establish superiority over a fixed model or independent validity.
+
 The `gbm-rna-tumor-purity/1.0.0` lane is an exact NumPy port of the published
 GBMPurity 5,829→32→16→1 neural model. It accepts raw bulk RNA counts only under
 a primary IDH-wildtype GBM attestation, preserves the source 80% gene-overlap
