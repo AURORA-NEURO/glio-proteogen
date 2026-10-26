@@ -84,6 +84,7 @@ from glio_proteogen.adapters.api import (
     _support_routing_contract_schema,
     create_app,
 )
+from glio_proteogen.adapters.cohort_replication import cli as cohort_replication_app
 from glio_proteogen.adapters.cptac_gbm_cis_dosage import (
     cli as cptac_gbm_cis_dosage_app,
 )
@@ -133,7 +134,6 @@ from glio_proteogen.adapters.m2002 import m2002_app
 from glio_proteogen.adapters.m2003 import m2003_app
 from glio_proteogen.adapters.m2004 import m2004_app
 from glio_proteogen.adapters.neftel_programs import cli as neftel_programs_app
-from glio_proteogen.adapters.cohort_replication import cli as cohort_replication_app
 from glio_proteogen.adapters.research_state import cli as research_state_app
 from glio_proteogen.contracts.m01_01.v1 import (
     EvaluateMetadataRequest,
