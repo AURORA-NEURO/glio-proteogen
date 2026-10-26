@@ -44,6 +44,16 @@ aggregate coverage receipts retain source-axis incompatibility, unadmitted
 biological eligibility, and unchanged legacy support gates. It establishes no
 external prediction performance or independent validation.
 
+The [raw-assay provider-transfer stress profile](cptac-gbm-provider-transfer.md)
+adds a separate discovery source reader and strict specimen/channel lineage
+checks. Its executable evaluator completes nested source-only fitting and model
+choice before reading external measurements, compares four fixed families and
+the selected policy on identical external complete cases, and retains all panel
+abstentions. Paired external intervals are conditional on frozen source fits;
+training uncertainty is unavailable. Different provider processing and unproved
+reference-pool equivalence prevent an aligned external-validation claim. This
+is local exploratory stress evidence, with no automatic model promotion.
+
 The mounted additive research namespace currently contains fourteen distinct,
 independently testable scientific-inference lanes plus one integrated
 composition surface. Distinctness in the fourteen-lane mounted inventory means

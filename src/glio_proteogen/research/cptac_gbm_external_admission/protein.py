@@ -119,6 +119,8 @@ class _ProteinShape:
     pool_targets: int = 1
     sample_map_plexes: int = 15
     biological_rows: int = 11_159
+    trailing_blank_rows: int = 0
+    expected_panel_features: frozenset[str] = frozenset(PANEL) - {"CDKN2B"}
 
     @property
     def measurement_targets(self) -> int:
@@ -186,7 +188,15 @@ def _sample_inventory(
     withdrawn: set[str] = set()
     analytical: set[str] = set()
     row_count = 0
+    trailing_blanks = 0
     for row in reader:
+        if len(row) == len(_SAMPLE_HEADER) and not any(row):
+            if row_count != shape.sample_map_plexes or trailing_blanks >= shape.trailing_blank_rows:
+                raise ProteinAdmissionError("protein sample-map blank row is not admitted")
+            trailing_blanks += 1
+            continue
+        if trailing_blanks:
+            raise ProteinAdmissionError("protein sample-map blank row is not trailing")
         row_count += 1
         if row_count > shape.sample_map_plexes or len(row) != len(_SAMPLE_HEADER):
             raise ProteinAdmissionError("protein sample-map inventory is not admitted")
@@ -208,6 +218,7 @@ def _sample_inventory(
                 occurrences[label] += 1
     if (
         row_count != shape.sample_map_plexes
+        or trailing_blanks != shape.trailing_blank_rows
         or len(occurrences) != shape.active_aliquots
         or any(count != 1 for count in occurrences.values())
         or len(withdrawn) != shape.withdrawn_aliquots
@@ -228,7 +239,9 @@ def _measurement_columns(
     ):
         raise ProteinAdmissionError("protein matrix schema is not admitted")
     columns: dict[str, dict[str, int]] = {measure: {} for measure in _MEASURES}
-    allowed = inventory.active | inventory.withdrawn | {"POOL"}
+    allowed = inventory.active | inventory.withdrawn
+    if shape.pool_targets == 1:
+        allowed |= {"POOL"}
     for index, name in enumerate(header[1:-6], start=1):
         measure = (
             PRIMARY_MEASURE
@@ -396,8 +409,8 @@ def _decode_matrix(  # noqa: PLR0915 - one explicit source-row admission boundar
     if (
         len(identities) != shape.biological_rows
         or aggregates != Counter(dict.fromkeys(_AGGREGATES, 1))
-        or set(panel) != set(PANEL) - {"CDKN2B"}
-        or "CDKN2B" in seen_genes
+        or set(panel) != shape.expected_panel_features
+        or bool((set(PANEL) - shape.expected_panel_features).intersection(seen_genes))
     ):
         raise ProteinAdmissionError("protein feature or frozen-panel inventory is not admitted")
     panel_coverage = tuple(

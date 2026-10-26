@@ -204,6 +204,16 @@ distinct assay axes, and reports joint measured coverage and explicit unavailabl
 states. It produces aggregate local evidence without fitting, imputation, or
 promotion into the original Table S2 model.
 
+The [raw-assay provider-transfer workflow](docs/research/cptac-gbm-provider-transfer.md)
+admits the separately locked discovery cohort, fits and selects predictors using
+source patients only, and evaluates frozen predictors on the separate
+confirmatory cohort. It retains every panel gene and explicit abstentions,
+requires common comparison support, and reports paired conditional external
+sampling intervals. Historical processing and reference-material differences
+remain part of the stress test; aligned biological or clinical validation and
+training-fit uncertainty are unestablished. Measurements and numerical results
+remain local-only.
+
 The `gbm-rna-tumor-purity/1.0.0` lane is an exact NumPy port of the published
 GBMPurity 5,829→32→16→1 neural model. It accepts raw bulk RNA counts only under
 a primary IDH-wildtype GBM attestation, preserves the source 80% gene-overlap
