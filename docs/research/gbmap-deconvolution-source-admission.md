@@ -620,6 +620,59 @@ individual value, so real output remains private outside Git. No policy
 selection, calibration, empirical-unit independence or clinical validity is
 established by this report.
 
+## Request-bound simplex endpoint audit
+
+`gbmap_simplex_audit.audit_simplex_solution` takes the actual count vector,
+signature matrix, background, explicit `MixturePointPolicy` and an existing
+`ReferenceMixtureSolution`. It performs no optimization. It snapshots valid
+inputs and recomputes fitted probabilities, unknown mass, likelihood, mass
+penalty, perspective-KL shape penalty, complete objective, explicit initial
+objective, default active-set KKT residual and signature conditioning. Masked
+arrays, Boolean entries, fractional counts, unsupported count depth and invalid
+dimensions or probability domains are rejected before lossy conversion.
+
+The original scalar trace check can establish internal consistency without
+binding those reported values to the numerical request. The new audit therefore
+retains separate comparisons for reconstructed probabilities, objective,
+initial objective, KKT and conditioning. A coherent forged scalar trace or a
+solution supplied with different counts can pass the old trace check and fail
+these request comparisons. Invalid numerical computations remain explicitly
+unavailable. Zero unknown coordinates make the unchanged gradient unavailable;
+no finite gradient or zero KKT value is fabricated at that boundary.
+
+The receipt retains the original benchmark conditioning, scalar-trace and
+reported convergence/KKT decision. It also records whether a zero-step endpoint
+equals the declared initialization and is independently stationary under the
+default KKT tolerance. A stationary zero-step result still fails the original
+empty-trace gate. No result is rescued, no tolerance is relaxed, and the frozen
+hierarchy, point benchmark and prescribed real-data experiment remain unchanged.
+
+For a feasible simplex point with finite gradient, the audit reports both
+`g @ w - min(g)` and `sum(w * (g - min(g)))`, their difference and simplex
+closure error. Under convexity, the first expression is the linearization gap
+that bounds objective suboptimality in exact arithmetic; see
+[Jaggi, Section 2](https://proceedings.mlr.press/v28/jaggi13.pdf). Float64
+subtraction can make the raw value slightly negative, and imperfect closure can
+separate the two expressions. These diagnostics use no interval arithmetic and
+are not rigorous numerical bounds. The existing solver is unchanged; no
+Frank-Wolfe algorithm convergence result is claimed for it.
+
+Independent synthetic tests calculate the integer-count likelihood with finite
+log-products and the probability derivative with reciprocal sums, including
+the likelihood kernel's count-increment boundary. Interior finite differences
+check the complete penalized objective. These tests establish numerical
+behavior on their fixtures; they do not establish clinical eligibility or
+real-tissue accuracy.
+
+The closed immutable receipt contains policy and per-fit scalars, with a
+normalized-code/default-configuration binding. It retains no request vectors,
+source identifiers or hashes of numerical request contents. Per-fit scalars can
+still disclose individual information, so actual outputs remain private. A
+code digest does not authenticate biological source provenance, and the audit
+cannot replay intermediate iterates absent from the original trace.
+Admission changes, source authentication, trajectory replay, production
+artifact permission and numerical interval certification remain literal false.
+
 ## Intended model
 
 The implementation will be independently authored. No GBmap repository code,
