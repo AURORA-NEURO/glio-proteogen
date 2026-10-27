@@ -480,6 +480,102 @@ occurrences and post-selection fold scores cannot be treated as independent
 calibration observations. No real mixture calibration, patient qualification
 or purity estimate follows from this primitive.
 
+## Selected-fold checkpoint reconstruction
+
+`tools/replay_gbmap_selected_fold.py` recovers transient parameters for one
+explicitly requested evaluated fold at the complete reducer's selected
+shrinkage. It requires the entire original checkpoint inventory before
+extraction. One guarded extraction reconstructs the canonical preflight, split
+plan, complete manifest, feature axes and training matrices. Complete reduction
+runs over that reconstructed basis; a supplied saved seal cannot substitute
+for source replay. Nonselection or an abstained requested fold stops recovery.
+
+Only that fold's original K lineages are refitted with the unchanged default
+fitter. Each must converge and reproduce the exact fit digest, trace digest
+and complete checkpoint evaluation. Numerical closeness cannot replace those
+comparisons. Source identity and the complete immutable run are checked before
+fitting, after fitting and after constructing the result. Directory inspection
+creates no missing state and bounds its OS-level scan before sorting entries.
+
+The private result retains the original selected-coordinate and label order,
+a bytes-backed gene-by-label signature matrix, background, explicitly named
+lineage hierarchy concentrations and the existing raw held-count truth. It
+retains no training records, study keys or study signatures. Arrays and
+coordinates explicitly retrieved by a caller remain private; implicit
+serialization is blocked. The command emits only a closed aggregate receipt.
+The original caller-owned truth context still has unauthenticated learning
+provenance; the new evidence is the narrower source/task/checkpoint
+reconstruction performed by this producer. Internal Python builders or saved
+receipt consistency alone cannot authenticate that execution.
+
+This is a selected-fold development context. Original label eligibility partly
+depends on held support, and global shrinkage selection reused held scores.
+Reproduction therefore establishes neither an unbiased assessment nor final
+lineage qualification, mixture accuracy or a released fitted artifact.
+
+## Explicit-policy mixture benchmarks
+
+`tools/benchmark_gbmap_selected_fold.py` reads a bounded, closed policy plan
+before recovering that fold once and calling `score_replayed_fold`. Every
+policy explicitly supplies concentration, mass penalty, shape penalty and
+initial unknown mass as finite floats. The original default simplex numerics
+remain fixed and their configuration digest is recorded. Per-lineage hierarchy
+concentrations are not a pooled-mixture concentration. The library supplies
+no default research grid and selects no policy from held outcomes.
+
+For example, this is plan syntax with illustrative, unestimated working
+settings, not an admitted numerical policy:
+
+```json
+{
+  "plan_version": "gbmap-mixture-sensitivity-plan/1.0.0",
+  "policies": [
+    {
+      "concentration": 100.0,
+      "lambda_mass": 0.01,
+      "lambda_shape": 0.01,
+      "initial_unknown_mass": 0.05
+    }
+  ],
+  "omissions": []
+}
+```
+
+All policies run on every offered held donor pool, including below-floor
+reference rows. Each policy/scenario partitions all offered cases into scored
+cases and explicit terminal failures: zero source depth, zero selected depth,
+unsupported selected int64 depth, no reference columns, conditioning rejection,
+solver rejection, numerical failure, invalid trace or nonconvergence. A large
+original-axis total does not invalidate an otherwise supported selected-axis
+count vector. Failed cases receive no zero-valued error.
+
+Scored cases contribute equally to signed bias and mean absolute error for
+each modeled label, including cases with zero label truth. All 20 source labels
+retain offered/scored count-observability ledgers. Unsupported or withheld
+label errors remain null. Unknown truth includes every label outside the
+remaining known set. Total variation is half the summed absolute error over
+those known weights and aggregate unknown mass; known weights are never
+renormalized. Errors describe scored support only. Different policy coverage
+must remain visible; comparisons would require the same scored-case basis.
+
+An omission withholds signature columns and reallocates truth while preserving
+counts, feature selection and background. It is an inherited-context column
+ablation. It does not simulate a population absent from all learning stages.
+Omission also changes the coarsened error target, so lower cross-scenario total
+variation cannot establish improved accuracy. Unknown mass can be
+nonidentifiable even with distinct known signatures: a background equal to
+their midpoint can produce the same counts from different known/unknown
+allocations. Penalties and initialization can choose among such explanations.
+
+The command emits bounded aggregate JSON only. A mean over one scored case can
+equal that case's error; aggregate formatting is not a privacy guarantee. Real
+outputs remain private, outside Git; fitted signature/background arrays,
+lineage concentration vectors and per-case vectors are not serialized. The result
+claims no selected policy, calibrated interval, independent calibration unit,
+cell fraction, histologic purity or clinical eligibility. Genuine
+reference-missing tests, training-only parameter selection and untouched
+evaluation remain separate required work.
+
 ## Intended model
 
 The implementation will be independently authored. No GBmap repository code,
