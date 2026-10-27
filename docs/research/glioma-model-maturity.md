@@ -261,6 +261,15 @@ composition. Exact PyTorch/NumPy parity, source-tree admission, coverage gates,
 local numerical attribution, API/CLI replay, and claim ceilings are documented
 in [`gbm-rna-purity.md`](gbm-rna-purity.md).
 
+The [native STAR input preflight](cptac-gbm-rna-purity-admission.md) supplies a
+separate input-qualification path for this existing lane. It checks raw integer
+counts against the fixed 5,829-feature model axis, retains all 72 inherited
+discovery candidates, and conserves numerical readiness and reviewed context
+in separate aggregate partitions. Missing clinical evidence remains unknown;
+the preflight constructs no per-specimen inference request. Its complete source
+seal accounts for every planned RNA input and keeps the fourteen-lane inventory
+unchanged.
+
 This does not complete M14 cellular microenvironment replacement. A licensed,
 donor-aware GBM single-cell reference and count-native mixture model are still
 required for multi-lineage fractions.

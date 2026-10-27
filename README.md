@@ -258,6 +258,14 @@ single released model has no calibrated ensemble, so uncertainty is explicitly
 unavailable rather than synthesized. See
 [`docs/research/gbm-rna-purity.md`](docs/research/gbm-rna-purity.md).
 
+The [native STAR purity input preflight](docs/research/cptac-gbm-rna-purity-admission.md)
+qualifies exact unstranded integer counts on the released model's full feature
+axis. It preserves all 72 cases in the inherited paired-assay discovery plan,
+records zero and unavailable features separately, and seals aggregate numerical
+readiness alongside reviewed clinical-context states. Unknown or conflicting
+context remains explicit throughout the complete input inventory. This input
+qualification path prepares the existing purity lane without executing it.
+
 A separate GBmap-derived GBM composition candidate now has a real
 source-independent fitting and inference core: canonical donor/label
 pseudobulk aggregation, fold-local stable-marker selection, leakage-safe
