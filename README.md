@@ -266,6 +266,14 @@ readiness alongside reviewed clinical-context states. Unknown or conflicting
 context remains explicit throughout the complete input inventory. This input
 qualification path prepares the existing purity lane without executing it.
 
+The separate [source-qualified native RNA execution backend](docs/research/cptac-gbm-rna-purity-execution.md)
+resolves the 94 historical source identities with pinned GENCODE v36 and HGNC
+evidence while preserving all original model features and lengths. It adds exact
+clinical/specimen joins, explicit IDH assay-scope gaps and a source-withdrawal hold
+before RNA reads. Numerical readiness remains independent of clinical eligibility.
+Only fully qualified context can reach the existing estimator; local output
+contains aggregate receipts and whole-axis seals, with no individual predictions.
+
 A separate GBmap-derived GBM composition candidate now has a real
 source-independent fitting and inference core: canonical donor/label
 pseudobulk aggregation, fold-local stable-marker selection, leakage-safe

@@ -63,6 +63,7 @@ jobs:
             src/glio_proteogen/research/cptac_gbm_source_fit_census \
             src/glio_proteogen/research/cptac_gbm_census_execution \
             src/glio_proteogen/research/cptac_gbm_rna_purity_admission \
+            src/glio_proteogen/research/cptac_gbm_rna_purity_execution \
             tools/evaluate_cptac_gbm_confirmatory_admission.py \
             tools/evaluate_cptac_gbm_provider_transfer.py \
             tools/evaluate_cptac_gbm_transfer_sensitivity.py \
@@ -70,6 +71,7 @@ jobs:
             tools/evaluate_cptac_gbm_source_fit_census.py \
             tools/evaluate_cptac_gbm_census_execution.py \
             tools/evaluate_cptac_gbm_rna_purity_preflight.py \
+            tools/evaluate_cptac_gbm_rna_purity_execution.py \
             tests/research/test_cptac_external_*.py \
             tests/research/test_cptac_provider_transfer*.py \
             tests/research/test_cptac_transfer_sensitivity*.py \
@@ -83,6 +85,7 @@ jobs:
             src/glio_proteogen/research/cptac_gbm_source_fit_census \
             src/glio_proteogen/research/cptac_gbm_census_execution \
             src/glio_proteogen/research/cptac_gbm_rna_purity_admission \
+            src/glio_proteogen/research/cptac_gbm_rna_purity_execution \
             tools/evaluate_cptac_gbm_confirmatory_admission.py \
             tools/evaluate_cptac_gbm_provider_transfer.py \
             tools/evaluate_cptac_gbm_transfer_sensitivity.py \
@@ -90,6 +93,7 @@ jobs:
             tools/evaluate_cptac_gbm_source_fit_census.py \
             tools/evaluate_cptac_gbm_census_execution.py \
             tools/evaluate_cptac_gbm_rna_purity_preflight.py \
+            tools/evaluate_cptac_gbm_rna_purity_execution.py \
             tests/research/test_cptac_external_*.py \
             tests/research/test_cptac_provider_transfer*.py \
             tests/research/test_cptac_transfer_sensitivity*.py \
@@ -103,16 +107,18 @@ jobs:
             src/glio_proteogen/research/cptac_gbm_source_fit_census \
             src/glio_proteogen/research/cptac_gbm_census_execution \
             src/glio_proteogen/research/cptac_gbm_rna_purity_admission \
+            src/glio_proteogen/research/cptac_gbm_rna_purity_execution \
             tools/evaluate_cptac_gbm_confirmatory_admission.py \
             tools/evaluate_cptac_gbm_provider_transfer.py \
             tools/evaluate_cptac_gbm_transfer_sensitivity.py \
             tools/evaluate_cptac_gbm_feature_space.py \
             tools/evaluate_cptac_gbm_source_fit_census.py \
             tools/evaluate_cptac_gbm_census_execution.py \
-            tools/evaluate_cptac_gbm_rna_purity_preflight.py
+            tools/evaluate_cptac_gbm_rna_purity_preflight.py \
+            tools/evaluate_cptac_gbm_rna_purity_execution.py
           uv run coverage erase
           uv run coverage run --branch \
-            --source=src/glio_proteogen/research/cptac_gbm_external_admission,src/glio_proteogen/research/cptac_gbm_feature_space,src/glio_proteogen/research/cptac_gbm_source_fit_census,src/glio_proteogen/research/cptac_gbm_census_execution,src/glio_proteogen/research/cptac_gbm_rna_purity_admission,tools \
+            --source=src/glio_proteogen/research/cptac_gbm_external_admission,src/glio_proteogen/research/cptac_gbm_feature_space,src/glio_proteogen/research/cptac_gbm_source_fit_census,src/glio_proteogen/research/cptac_gbm_census_execution,src/glio_proteogen/research/cptac_gbm_rna_purity_admission,src/glio_proteogen/research/cptac_gbm_rna_purity_execution,tools \
             -m pytest -q -o addopts='' \
             tests/research/test_cptac_external_*.py \
             tests/research/test_cptac_provider_transfer*.py \
@@ -122,7 +128,7 @@ jobs:
             tests/research/test_cptac_census_execution*.py \
             tests/research/test_cptac_rna_purity*.py
           uv run coverage report --fail-under=95 \
-            --include='src/glio_proteogen/research/cptac_gbm_external_admission/*.py,src/glio_proteogen/research/cptac_gbm_feature_space/*.py,src/glio_proteogen/research/cptac_gbm_source_fit_census/*.py,src/glio_proteogen/research/cptac_gbm_census_execution/*.py,src/glio_proteogen/research/cptac_gbm_rna_purity_admission/*.py,tools/evaluate_cptac_gbm_confirmatory_admission.py,tools/evaluate_cptac_gbm_provider_transfer.py,tools/evaluate_cptac_gbm_transfer_sensitivity.py,tools/evaluate_cptac_gbm_feature_space.py,tools/evaluate_cptac_gbm_source_fit_census.py,tools/evaluate_cptac_gbm_census_execution.py,tools/evaluate_cptac_gbm_rna_purity_preflight.py'
+            --include='src/glio_proteogen/research/cptac_gbm_external_admission/*.py,src/glio_proteogen/research/cptac_gbm_feature_space/*.py,src/glio_proteogen/research/cptac_gbm_source_fit_census/*.py,src/glio_proteogen/research/cptac_gbm_census_execution/*.py,src/glio_proteogen/research/cptac_gbm_rna_purity_admission/*.py,src/glio_proteogen/research/cptac_gbm_rna_purity_execution/*.py,tools/evaluate_cptac_gbm_confirmatory_admission.py,tools/evaluate_cptac_gbm_provider_transfer.py,tools/evaluate_cptac_gbm_transfer_sensitivity.py,tools/evaluate_cptac_gbm_feature_space.py,tools/evaluate_cptac_gbm_source_fit_census.py,tools/evaluate_cptac_gbm_census_execution.py,tools/evaluate_cptac_gbm_rna_purity_preflight.py,tools/evaluate_cptac_gbm_rna_purity_execution.py'
 
   ui-quality:
     runs-on: ubuntu-latest
