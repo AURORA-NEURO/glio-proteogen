@@ -29,6 +29,7 @@ from .aggregate import (
 )
 from .dm import dirichlet_multinomial_per_count_nll
 from .errors import GbmapInputError, GbmapNumericalError
+from .feature_identity import GBMAP_SOURCE_SHA256, model_eligible_feature_indices
 from .hierarchy import (
     DEFAULT_HIERARCHY_CONFIGURATION,
     SIMPLEX_FLOOR,
@@ -57,6 +58,9 @@ DEFAULT_SHRINKAGE_GRID: Final = (0.1, 1.0, 10.0, 100.0)
 MIN_EVALUABLE_WHOLE_STUDY_FOLDS: Final = 3
 MIN_EVALUABLE_WITHIN_STUDY_DONOR_FOLDS: Final = 5
 MAX_SHRINKAGE_CANDIDATES: Final = 16
+FINAL_LINEAGE_VALIDATION_POLICY_ID: Final = "gbmap-final-lineage-validation-coverage/1.0.0"
+MIN_FINAL_WHOLE_STUDY_FOLDS: Final = 3
+MIN_FINAL_WITHIN_STUDY_DONOR_FOLDS: Final = 5
 
 FoldEvaluationState = Literal["evaluated", "abstained"]
 FoldAbstentionReason = Literal[
@@ -409,6 +413,7 @@ class DevelopmentTrainingResult:
 
 @dataclass(frozen=True, slots=True)
 class _PreparedFold:
+    reference: AggregateReference = field(repr=False)
     fold: TransientValidationFold
     feature_indices: tuple[int, ...]
     labels: tuple[str, ...]
@@ -446,6 +451,27 @@ def _selected_features(
         )
         if feature_id in retained
     )
+
+
+def _require_model_feature_indices(
+    reference: AggregateReference, feature_indices: tuple[int, ...]
+) -> None:
+    """Reject a source-axis or identity-policy bypass before model count slicing."""
+
+    if type(reference) is not AggregateReference:
+        raise GbmapInputError("reference must be an exact AggregateReference instance")
+    eligible = frozenset(
+        model_eligible_feature_indices(
+            reference.feature_ids, source_file_sha256=reference.source_file_sha256
+        )
+    )
+    if (
+        type(feature_indices) is not tuple
+        or len(feature_indices) < 2
+        or any(type(index) is not int or index not in eligible for index in feature_indices)
+        or len(set(feature_indices)) != len(feature_indices)
+    ):
+        raise GbmapInputError("selected hierarchy features violate source identity admission")
 
 
 def _equal_label_study_background(
@@ -533,8 +559,10 @@ def _prepare_fold(
             eligible_lineage_count=len(labels),
             selected_feature_count=len(features),
         )
+    _require_model_feature_indices(reference, features)
     background = _equal_label_study_background(usable_training, labels, features)
     return _PreparedFold(
+        reference=reference,
         fold=fold,
         feature_indices=features,
         labels=labels,
@@ -548,6 +576,7 @@ def _prepare_fold(
 def _fit_label(
     records: tuple[DonorLabelAggregate, ...],
     *,
+    reference: AggregateReference,
     label: str,
     feature_indices: tuple[int, ...],
     background: FloatArray,
@@ -555,6 +584,12 @@ def _fit_label(
     configuration: HierarchySolverConfiguration,
     cancellation: CancellationContext | None,
 ) -> LineageHierarchyFit:
+    _require_model_feature_indices(reference, feature_indices)
+    owners = {id(record) for record in reference.records}
+    if type(records) is not tuple or any(
+        type(record) is not DonorLabelAggregate or id(record) not in owners for record in records
+    ):
+        raise GbmapInputError("hierarchy records must belong to the exact aggregate reference")
     selected = tuple(record for record in records if record.modeled_label == label)
     indices = np.asarray(feature_indices, dtype=np.int64)
     counts = np.stack(
@@ -613,6 +648,7 @@ def _evaluate_prepared_fold(
             checkpoint(cancellation)
             fits[label] = _fit_label(
                 prepared.training_records,
+                reference=prepared.reference,
                 label=label,
                 feature_indices=prepared.feature_indices,
                 background=prepared.background,
@@ -733,12 +769,67 @@ def _candidate_evaluation(
     )
 
 
+def _validated_final_labels(
+    reference: AggregateReference,
+    selected: ShrinkageCandidateEvaluation,
+    prepared_folds: tuple[_PreparedFold | _AbstainedFold, ...],
+    configuration: TrainingConfiguration,
+) -> tuple[str, ...]:
+    """Admit each final label using only its selected-candidate whole folds.
+
+    The production floor is a new final-fit policy, not a statement that the
+    lineage has biological validation. Generic caller-owned fixtures retain
+    their explicitly declared validation-family requirements.
+    """
+    if not selected.selectable:
+        raise GbmapInputError("final lineage validation requires a selectable candidate")
+    prepared_by_id = {item.fold.fold_id: item for item in prepared_folds}
+    evidence_ids = tuple(item.fold_id for item in selected.folds)
+    if (
+        len(prepared_by_id) != len(prepared_folds)
+        or len(set(evidence_ids)) != len(evidence_ids)
+        or set(evidence_ids) != set(prepared_by_id)
+    ):
+        raise GbmapInputError("selected validation evidence does not match the prepared fold axis")
+    whole_minimum = configuration.minimum_whole_study_folds
+    within_minimum = configuration.minimum_within_study_donor_folds
+    if reference.source_file_sha256 == GBMAP_SOURCE_SHA256:
+        whole_minimum = max(whole_minimum, MIN_FINAL_WHOLE_STUDY_FOLDS)
+        within_minimum = max(within_minimum, MIN_FINAL_WITHIN_STUDY_DONOR_FOLDS)
+    counts: dict[str, dict[ValidationKind, int]] = {}
+    for evidence in selected.folds:
+        prepared = prepared_by_id[evidence.fold_id]
+        if evidence.kind != prepared.fold.kind:
+            raise GbmapInputError("selected fold evidence has a different validation family")
+        if evidence.state != "evaluated":
+            continue
+        if (
+            type(prepared) is not _PreparedFold
+            or prepared.reference is not reference
+            or evidence.eligible_lineage_count != len(prepared.labels)
+            or evidence.selected_feature_count != len(prepared.feature_indices)
+            or prepared.labels != tuple(sorted(set(prepared.labels)))
+        ):
+            raise GbmapInputError("accepted fold evidence does not bind its prepared lineage axis")
+        for label in prepared.labels:
+            record = counts.setdefault(label, {"whole_study": 0, "within_study_donor": 0})
+            record[evidence.kind] += 1
+    return tuple(
+        label
+        for label in sorted(counts)
+        if counts[label]["whole_study"] >= whole_minimum
+        and counts[label]["within_study_donor"] >= within_minimum
+    )
+
+
 def _final_fit(
     reference: AggregateReference,
     shrinkage: float,
     configuration: TrainingConfiguration,
     cancellation: CancellationContext | None,
     selection_cache: _ReferenceSelectionCache | None = None,
+    *,
+    validated_labels: tuple[str, ...] | None = None,
 ) -> tuple[
     StableGeneSelection,
     tuple[int, ...],
@@ -746,6 +837,15 @@ def _final_fit(
     tuple[tuple[str, LineageHierarchyFit], ...],
 ]:
     checkpoint(cancellation)
+    if validated_labels is not None and (
+        type(validated_labels) is not tuple
+        or any(type(label) is not str or not label for label in validated_labels)
+        or validated_labels != tuple(sorted(set(validated_labels)))
+        or not set(validated_labels).issubset({row.modeled_label for row in reference.records})
+    ):
+        raise GbmapInputError(
+            "final validated labels must be an exact canonical source-label subset"
+        )
     cache = (
         _build_reference_selection_cache(reference) if selection_cache is None else selection_cache
     )
@@ -757,12 +857,17 @@ def _final_fit(
         training_records=reference.records,
     )
     eligibility = lineage_eligibility(reference, selection.stable_gene_counts)
-    labels = tuple(item.modeled_label for item in eligibility if item.eligible)
+    labels = tuple(
+        item.modeled_label
+        for item in eligibility
+        if item.eligible and (validated_labels is None or item.modeled_label in validated_labels)
+    )
     if len(labels) < 2:
         raise GbmapInputError("final training has fewer than two eligible modeled lineages")
     features = _selected_features(selection, labels)
     if len(features) < 2:
         raise GbmapInputError("final training marker union has fewer than two features")
+    _require_model_feature_indices(reference, features)
     usable = tuple(record for record in reference.records if id(record) in cache.normalized)
     background = _equal_label_study_background(usable, labels, features)
     fits: list[tuple[str, LineageHierarchyFit]] = []
@@ -770,6 +875,7 @@ def _final_fit(
         checkpoint(cancellation)
         fit = _fit_label(
             usable,
+            reference=reference,
             label=label,
             feature_indices=features,
             background=background,
@@ -819,12 +925,16 @@ def train_development_candidate(
         selectable,
         key=lambda item: (_required_candidate_score(item), item.shrinkage),
     )
+    validated_labels = _validated_final_labels(reference, selected, prepared, configuration)
+    if len(validated_labels) < 2:
+        raise GbmapInputError("fewer than two lineages satisfy selected held-validation coverage")
     selection, feature_indices, labels, fits = _final_fit(
         reference,
         selected.shrinkage,
         configuration,
         cancellation,
         selection_cache,
+        validated_labels=validated_labels,
     )
     feature_ids = tuple(reference.feature_ids[index] for index in feature_indices)
     gene_symbols = tuple(reference.gene_symbols[index] for index in feature_indices)
@@ -877,9 +987,12 @@ def train_development_candidate(
 __all__ = [
     "DEFAULT_SHRINKAGE_GRID",
     "DEFAULT_TRAINING_CONFIGURATION",
+    "FINAL_LINEAGE_VALIDATION_POLICY_ID",
     "MAX_SHRINKAGE_CANDIDATES",
     "MIN_EVALUABLE_WHOLE_STUDY_FOLDS",
     "MIN_EVALUABLE_WITHIN_STUDY_DONOR_FOLDS",
+    "MIN_FINAL_WHOLE_STUDY_FOLDS",
+    "MIN_FINAL_WITHIN_STUDY_DONOR_FOLDS",
     "CandidateFoldEvaluation",
     "CandidateLineageSummary",
     "DevelopmentCandidateModel",

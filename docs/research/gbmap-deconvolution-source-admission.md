@@ -294,6 +294,69 @@ or numerical nonconvergence publishes no receipt; restart from the unchanged
 source. The retained receipt is development evidence, not source admission,
 external validation, a fitted artifact, or permission to mount a runtime.
 
+## Grouped validation and complete-task reduction
+
+The current development profile binds
+`gbmap-within-study-eligible-donors/2.0.0`. Within-study holdouts use only studies
+with at least two eligible grouped donors. Singleton-study donors remain in
+training for that family and are tested in their existing whole-study holdout.
+The count-only `within_study_holdout_coverage(plan)` ledger distinguishes those
+training-only groups from donors held exactly once. It checks partition and
+study consistency without retaining donor identifiers or hashes. All original
+lineage support requirements and the five accepted donor-fold requirement remain.
+
+Production marker ranking now uses only the pinned 4,923 unique model-eligible
+HGNC source coordinates. The complete 5,000-column raw extraction axis is retained.
+Admission occurs before candidate scoring, marker caps, feature union, background
+construction and fitting. Direct hierarchy fitting requires the bound aggregate
+reference and rejects an unadmitted selected coordinate. Generic caller-owned
+references keep their own explicitly supplied feature universe.
+
+`run_gbmap_hierarchy_tasks.py --workers 1|2|3|4` can evaluate independent tasks in
+shared private memory. The default remains one worker. Source verification and
+checkpoint publication remain on the owning thread in lexical task order, even
+when fits finish out of order. Parallel execution retains the same tasks,
+numerical controls, immutable checkpoints, source guards and resume checks.
+No donor profiles are serialized for workers. Thread count is a scheduling choice,
+not a new fitting or statistical policy. Invalid arguments produce a sanitized
+error before source access and do not echo private paths or malformed values.
+
+`tools/reduce_gbmap_hierarchy_tasks.py assess <run-directory>` checks the sealed
+preparation inventory without reading the H5AD. It reports whether the prepared
+folds could satisfy the unchanged three whole-study and five donor-fold gates;
+potential feasibility does not establish numerical success. `reduce` additionally
+requires `--source`, `--reviewed-sha256`, `--preflight`, and both development/review
+acknowledgements. It re-extracts the exact source and validates runtime bindings
+through the existing dry-run executor before reducing the complete task set.
+Checkpoint and manifest snapshots must remain identical across that replay.
+Missing, duplicate, extra, changed or unbound tasks cannot yield a selection.
+
+The reducer computes equal-lineage fold scores, equal-fold family scores and an
+equal mean of the two validation families. Any failed lineage task abstains that
+candidate's entire fold. Only candidates satisfying both family gates can be
+selected; exact ties choose the smaller shrinkage. All source labels retain an
+explicit validation-coverage disposition. The final-lineage policy
+`gbmap-final-lineage-validation-coverage/1.0.0` requires a production lineage's own
+three whole-study and five donor-fold successes from the selected candidate.
+Those checks precede final feature/background construction and remain conjunctive
+with full-source donor, study, marker and convergence gates. Another candidate's
+successful fits or another lineage's coverage cannot provide missing support.
+
+Optional `--output` publishes a new canonical private receipt outside the run
+directory and repository, without replacing different existing bytes. `verify
+<receipt>` checks saved integrity and the current method; it does not replay the
+source. A source-replayed task reduction is still signature-prediction evidence,
+not mixture accuracy, unknown-mass calibration or a released model artifact.
+
+GBmap includes different sequencing platforms. Compatibility field names such as
+`total_umis` represent admitted native raw-count mass here, not a guarantee of
+uniform unique-molecule measurement across platforms. The upstream 5,000-gene
+universe and harmonized labels were selected on the core before our splits.
+Validation is conditional on those upstream choices; annotations incorporating
+computational cell typing and inferred CNV are not independent histologic truth.
+The exact core asset must not be replaced by the newer extended atlas or mirror
+without separate source, overlap and independence review.
+
 ## Intended model
 
 The implementation will be independently authored. No GBmap repository code,
@@ -399,7 +462,7 @@ fitted-artifact digest literally to
 `None`. Model, artifact, runtime, HTTP, and CLI availability are all false, and
 `SUPPORTED` output is structurally forbidden. This implementation therefore provides a testable
 fitter and inference foundation without increasing the fitted-model inventory
-or implying that the admitted GBmap bytes have already been processed.
+or implying that a completed, validated fitted artifact exists.
 
 ## Private development-fit driver
 

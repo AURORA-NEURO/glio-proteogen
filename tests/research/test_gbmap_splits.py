@@ -116,14 +116,19 @@ def test_whole_study_fold_abstains_when_training_has_only_two_studies() -> None:
 
 def test_one_donor_study_is_not_mislabeled_as_within_study_validation() -> None:
     plan = build_validation_split_plan(_reference((1, 8, 8, 8)))
-    target = next(
+    within = tuple(fold for fold in plan.folds if fold.kind == "within_study_donor")
+    whole = next(
         fold
         for fold in plan.folds
-        if fold.kind == "within_study_donor" and "study-0" in fold.held_study_keys
+        if fold.kind == "whole_study" and "study-0" in fold.held_study_keys
     )
 
-    assert target.evaluable is False
-    assert target.abstention_reasons == ("no_same_study_training_donor",)
+    assert len(within) == 5
+    assert all("study-0" not in fold.held_study_keys for fold in within)
+    assert all("donor-0-00" in fold.training_donor_keys for fold in within)
+    assert all(fold.evaluable for fold in within)
+    assert whole.held_donor_keys == ("donor-0-00",)
+    assert "donor-0-00" not in whole.training_donor_keys
 
 
 def test_split_support_rejects_forged_evaluability() -> None:

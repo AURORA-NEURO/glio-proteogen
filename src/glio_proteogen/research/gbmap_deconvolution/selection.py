@@ -28,6 +28,7 @@ from .aggregate import (
     donor_label_is_eligible,
 )
 from .errors import GbmapInputError, GbmapNumericalError
+from .feature_identity import model_eligible_feature_indices
 
 SELECTION_PSEUDOCOUNT: Final = 32.0
 MIN_MEDIAN_LOG2_ENRICHMENT: Final = 0.75
@@ -275,6 +276,7 @@ class _ReferenceSelectionCache:
     """Reference-owned record transforms reusable across leakage-safe folds."""
 
     reference: AggregateReference
+    eligible_feature_indices: tuple[int, ...]
     record_identities: frozenset[int]
     record_ranks: dict[int, int]
     normalized: dict[int, FloatVector]
@@ -298,6 +300,9 @@ def _build_reference_selection_cache(reference: AggregateReference) -> _Referenc
 
     if type(reference) is not AggregateReference:
         raise GbmapInputError("reference must be an exact AggregateReference instance")
+    eligible_feature_indices = model_eligible_feature_indices(
+        reference.feature_ids, source_file_sha256=reference.source_file_sha256
+    )
     normalized: dict[int, FloatVector] = {}
     detections: dict[int, FloatVector] = {}
     for record in reference.records:
@@ -319,6 +324,7 @@ def _build_reference_selection_cache(reference: AggregateReference) -> _Referenc
         detections[id(record)] = detection
     return _ReferenceSelectionCache(
         reference=reference,
+        eligible_feature_indices=eligible_feature_indices,
         record_identities=frozenset(id(record) for record in reference.records),
         record_ranks={id(record): rank for rank, record in enumerate(reference.records)},
         normalized=normalized,
@@ -540,12 +546,14 @@ def _candidate_genes(
     label: str,
     metrics: _LabelMetrics,
     other_label_maximum: FloatVector,
+    eligible_feature_indices: tuple[int, ...],
 ) -> tuple[StableGeneEvidence, ...]:
     candidates: list[StableGeneEvidence] = []
     margin = metrics.median - other_label_maximum
     donor_count = len(metrics.records)
     study_count = len({record.study_key for record in metrics.records})
-    for index, feature_id in enumerate(reference.feature_ids):
+    for index in eligible_feature_indices:
+        feature_id = reference.feature_ids[index]
         median = float(metrics.median[index])
         donor_stability = float(metrics.donor_stability[index])
         study_stability = float(metrics.study_stability[index])
@@ -610,6 +618,10 @@ def _select_fold_stable_genes_precomputed(
         raise GbmapInputError("reference must be an exact AggregateReference instance")
     if type(cache) is not _ReferenceSelectionCache or cache.reference is not reference:
         raise GbmapInputError("selection cache does not bind the supplied aggregate reference")
+    if cache.eligible_feature_indices != model_eligible_feature_indices(
+        reference.feature_ids, source_file_sha256=reference.source_file_sha256
+    ):
+        raise GbmapInputError("selection cache feature eligibility differs from the source policy")
     partition, donors, studies = _training_partition(
         reference,
         training_donor_keys=training_donor_keys,
@@ -642,6 +654,7 @@ def _select_fold_stable_genes_precomputed(
             label,
             metrics[label],
             np.asarray(other_maximum, dtype=np.float64),
+            cache.eligible_feature_indices,
         )
 
     pre_union = {label: candidates[label][:MAX_GENES_PER_LABEL] for label in labels}
