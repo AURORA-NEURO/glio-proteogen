@@ -5,12 +5,20 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from threading import Barrier, Event, Lock, get_ident
 from typing import TYPE_CHECKING, Any, cast
 
+import numpy as np
 import pytest
 
-from glio_proteogen.research.gbmap_deconvolution import build_validation_split_plan
+from glio_proteogen.kernel.canonical import sha256_digest
+from glio_proteogen.research.gbmap_deconvolution import (
+    DEFAULT_TRAINING_CONFIGURATION,
+    GbmapExtractionReceipt,
+    GbmapExtractionResult,
+    build_validation_split_plan,
+)
 from tests.tooling import test_run_gbmap_hierarchy_tasks as base
 from tools import preflight_gbmap_development_candidate as preflight_driver
 from tools import run_gbmap_hierarchy_tasks as runner
@@ -21,9 +29,63 @@ if TYPE_CHECKING:
 RunInputs = tuple["Path", "Path", "Path"]
 
 
+def _extraction() -> GbmapExtractionResult:
+    """Keep real low-shrinkage fits and a genuine held-score abstention.
+
+    Only this file's synthetic reference gains the unselected sentinel. Counts
+    remain exactly20,000 per row; the base cached fixtures remain unchanged.
+    """
+
+    original = base.base._extraction()
+    first_study = min(row.study_key for row in original.reference.records)
+    records = []
+    for row in original.reference.records:
+        if row.study_key == first_study and row.modeled_label == "NPC-like":
+            counts = np.zeros(25, dtype=np.int64)
+            detected = np.zeros(25, dtype=np.int32)
+            counts[-1], detected[-1] = row.total_umis, 30
+        else:
+            counts = np.concatenate((row.gene_counts, np.zeros(1, dtype=np.int64)))
+            detected = np.concatenate((row.detected_cell_counts, np.zeros(1, dtype=np.int32)))
+        records.append(replace(row, gene_counts=counts, detected_cell_counts=detected))
+    reference = replace(
+        original.reference,
+        feature_ids=(*original.reference.feature_ids, "ENSG-SYNTHETIC-SENTINEL"),
+        gene_symbols=(*original.reference.gene_symbols, "SYNTHETIC-SENTINEL"),
+        records=tuple(records),
+    )
+    fields = original.receipt.model_dump(exclude={"receipt_digest"})
+    fields["feature_order_digest"] = reference.feature_order_digest
+    receipt = GbmapExtractionReceipt.model_validate(
+        {**fields, "receipt_digest": sha256_digest(fields)}
+    )
+    return GbmapExtractionResult(reference=reference, receipt=receipt)
+
+
+def _state():
+    extraction = _extraction()
+    plan = build_validation_split_plan(extraction.reference)
+    preflight = preflight_driver._build_receipt(extraction, plan, base._REVIEWED_SHA256)
+    manifest, tasks = runner._build_manifest_and_tasks(extraction, plan, preflight)
+    return extraction, preflight, manifest, tasks
+
+
+def _scheduling_checkpoint(manifest, task):
+    """A legal task-bound output oracle for scheduling tests, without fitting."""
+
+    evaluation = runner._evaluation_output(
+        state="abstained", reason="hierarchy_fit_failed", fit=None
+    )
+    body = runner._checkpoint_body(manifest, task.spec, evaluation)
+    return runner.GbmapHierarchyCheckpoint.model_validate(
+        {**body, "checkpoint_digest": sha256_digest(body), "evaluation": evaluation}
+    )
+
+
 def _inputs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> RunInputs:
     tmp_path.mkdir(parents=True, exist_ok=True)
-    extraction = base._install_extraction(monkeypatch)
+    extraction = _extraction()
+    monkeypatch.setattr(runner, "extract_pinned_gbmap_reference", lambda *_a, **_kw: extraction)
     plan = build_validation_split_plan(extraction.reference)
     preflight = preflight_driver._build_receipt(extraction, plan, base._REVIEWED_SHA256)
     return (
@@ -70,26 +132,78 @@ def _checkpoints(output: Path) -> tuple[runner.GbmapHierarchyCheckpoint, ...]:
     )
 
 
+def test_synthetic_sentinel_preserves_training_geometry_and_cached_fixture_isolation() -> None:
+    original = base.base._extraction()
+    original_digest = original.reference.aggregate_content_digest
+    extraction, _preflight, _manifest, tasks = _state()
+    assert extraction.reference is not original.reference
+    assert len(extraction.reference.feature_ids) == 25
+    assert len(original.reference.feature_ids) == 24
+    assert original.reference.aggregate_content_digest == original_digest
+    assert all(len(row.gene_counts) == 24 for row in original.reference.records)
+    first = tasks[0].prepared
+    _old_extraction, _old_preflight, _old_manifest, original_tasks = base._state()
+    assert len(tasks) >= 8
+    assert first.feature_indices == original_tasks[0].prepared.feature_indices
+    assert 24 not in first.feature_indices
+    assert all(row.gene_counts[-1] == 0 for row in first.training_records)
+    assert all(row.total_umis == 20_000 for row in extraction.reference.records)
+    held_npc = [row for row in first.held_records if row.modeled_label == "NPC-like"]
+    held_mes = [row for row in first.held_records if row.modeled_label == "MES-like"]
+    assert len(held_npc) == len(held_mes) == 3
+    assert all(int(row.gene_counts[-1]) == 20_000 for row in held_npc)
+    assert all(sum(map(int, row.gene_counts[:-1])) == 0 for row in held_npc)
+    assert all(int(row.gene_counts[-1]) == 0 for row in held_mes)
+    assert all(row.eligible_for_reference for row in extraction.reference.records)
+
+
 @pytest.mark.parametrize("workers", [2, 4])
 def test_parallel_checkpoint_and_batch_bytes_equal_the_default_serial_path(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     workers: int,
 ) -> None:
+    fits = []
+    original_fit = runner._fit_label
+
+    def fit(*args, **kwargs):
+        assert kwargs["configuration"] is DEFAULT_TRAINING_CONFIGURATION.hierarchy
+        fits.append((kwargs["reference"], kwargs["label"], kwargs["shrinkage"]))
+        return original_fit(*args, **kwargs)
+
+    monkeypatch.setattr(runner, "_fit_label", fit)
     serial_inputs = _inputs(tmp_path / "serial", monkeypatch)
-    serial = _run(serial_inputs, workers=None, max_tasks=8)
+    serial = _run(serial_inputs, workers=None, max_tasks=4)
     parallel_inputs = _inputs(tmp_path / "parallel", monkeypatch)
-    parallel = _run(parallel_inputs, workers=workers, max_tasks=8)
+    parallel = _run(parallel_inputs, workers=workers, max_tasks=4)
 
     assert _files(serial_inputs[2]) == _files(parallel_inputs[2])
     assert runner.canonical_batch_receipt_bytes(serial) == runner.canonical_batch_receipt_bytes(
         parallel
     )
-    assert serial.executed_task_count == parallel.executed_task_count == 8
+    assert serial.executed_task_count == parallel.executed_task_count == 4
+    assert len(fits) == 8
+    assert len({id(reference) for reference, _label, _shrinkage in fits[:4]}) == 1
+    assert len({id(reference) for reference, _label, _shrinkage in fits[4:]}) == 1
+    assert fits[0][0] is not fits[4][0]
+    expected_fits = [
+        (label, shrinkage) for shrinkage in (0.1, 1.0) for label in ("MES-like", "NPC-like")
+    ]
+    assert sorted((label, shrinkage) for _reference, label, shrinkage in fits[:4]) == sorted(
+        expected_fits
+    )
+    assert sorted((label, shrinkage) for _reference, label, shrinkage in fits[4:]) == sorted(
+        expected_fits
+    )
     assert {checkpoint.evaluation.state for checkpoint in _checkpoints(serial_inputs[2])} == {
         "evaluated",
         "abstained",
     }
+    for checkpoint in _checkpoints(serial_inputs[2]):
+        if checkpoint.modeled_label == "MES-like":
+            assert checkpoint.evaluation.state == "evaluated"
+        else:
+            assert checkpoint.evaluation.abstention_reason == "no_positive_held_marker_counts"
 
 
 def test_reverse_worker_completion_still_publishes_lexically_on_the_owning_thread(
@@ -97,7 +211,7 @@ def test_reverse_worker_completion_still_publishes_lexically_on_the_owning_threa
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     inputs = _inputs(tmp_path, monkeypatch)
-    _, _, _, tasks = base._state()
+    _, _, _, tasks = _state()
     scheduled = tuple(task.spec.task_digest for task in tasks[:4])
     ordinal = {digest: index for index, digest in enumerate(scheduled)}
     events = tuple(Event() for _ in scheduled)
@@ -105,7 +219,6 @@ def test_reverse_worker_completion_still_publishes_lexically_on_the_owning_threa
     published: list[str] = []
     published_checkpoint_digests: list[str] = []
     publisher_threads: list[int] = []
-    original_execute = runner._execute_task
     original_publish = runner._publish_checkpoint
     owner = get_ident()
 
@@ -113,7 +226,7 @@ def test_reverse_worker_completion_still_publishes_lexically_on_the_owning_threa
         index = ordinal[task.spec.task_digest]
         if index < len(events) - 1:
             assert events[index + 1].wait(timeout=10)
-        result = original_execute(manifest, task)
+        result = _scheduling_checkpoint(manifest, task)
         completed.append(task.spec.task_digest)
         events[index].set()
         return result
@@ -136,7 +249,7 @@ def test_reverse_worker_completion_still_publishes_lexically_on_the_owning_threa
 
 
 @pytest.mark.parametrize("workers", [2, 4])
-def test_actual_concurrency_reaches_but_never_exceeds_the_requested_bound(
+def test_scheduler_concurrency_reaches_but_never_exceeds_the_requested_bound(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     workers: int,
@@ -145,7 +258,6 @@ def test_actual_concurrency_reaches_but_never_exceeds_the_requested_bound(
     barrier = Barrier(workers)
     lock = Lock()
     active = peak = total = 0
-    original_execute = runner._execute_task
 
     def execute(manifest, task):
         nonlocal active, peak, total
@@ -155,7 +267,7 @@ def test_actual_concurrency_reaches_but_never_exceeds_the_requested_bound(
             peak = max(peak, active)
         try:
             barrier.wait(timeout=10)
-            return original_execute(manifest, task)
+            return _scheduling_checkpoint(manifest, task)
         finally:
             with lock:
                 active -= 1
@@ -173,16 +285,15 @@ def test_worker_failure_is_sanitized_and_resume_preserves_only_the_published_pre
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     inputs = _inputs(tmp_path, monkeypatch)
-    _, _, _, tasks = base._state()
+    _, _, _, tasks = _state()
     scheduled = tuple(task.spec.task_digest for task in tasks[:4])
     calls: list[str] = []
-    original_execute = runner._execute_task
 
     def execute(manifest, task):
         calls.append(task.spec.task_digest)
         if task.spec.task_digest == scheduled[1]:
             raise OSError("sensitive-synthetic-donor/private-source-path")
-        return original_execute(manifest, task)
+        return _scheduling_checkpoint(manifest, task)
 
     monkeypatch.setattr(runner, "_execute_task", execute)
     with pytest.raises(runner.GbmapHierarchyTaskDriverError) as failure:
@@ -197,7 +308,7 @@ def test_worker_failure_is_sanitized_and_resume_preserves_only_the_published_pre
 
     def resume(manifest, task):
         replayed.append(task.spec.task_digest)
-        return original_execute(manifest, task)
+        return _scheduling_checkpoint(manifest, task)
 
     monkeypatch.setattr(runner, "_execute_task", resume)
     receipt = _run(inputs, workers=2, max_tasks=3)
