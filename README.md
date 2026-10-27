@@ -274,6 +274,13 @@ before RNA reads. Numerical readiness remains independent of clinical eligibilit
 Only fully qualified context can reach the existing estimator; local output
 contains aggregate receipts and whole-axis seals, with no individual predictions.
 
+The [clinical source review](docs/research/cptac-gbm-clinical-resolution.md)
+adds the 2024 author supplement as privately attributed descriptive context,
+separates case-level observations from exact selected-specimen ancestry, and
+preserves explicit assay gaps, prior exclusions and withdrawal holds. Its frozen
+protocol, aggregate receipts and saved verifier do not infer a new diagnosis or
+change the existing purity model's eligibility requirements.
+
 A separate GBmap-derived GBM composition candidate now has a real
 source-independent fitting and inference core: canonical donor/label
 pseudobulk aggregation, fold-local stable-marker selection, leakage-safe
