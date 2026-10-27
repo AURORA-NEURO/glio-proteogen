@@ -403,6 +403,45 @@ and current method/profile bindings, without source replay. The diagnostic
 method is separately sealed and does not change the frozen fitting profile,
 selection gates, validation tasks or runtime inventory.
 
+## Held-donor count truth
+
+The separate `gbmap_held_mixture_truth` namespace supplies the observed-count
+side of a future mixture benchmark. For one original validation fold,
+`build_held_mixture_truth` pools every raw donor-label aggregate belonging to
+each held donor unit, including aggregates below the reference-fitting floors.
+It reconstructs the original split plan before accepting its partitions. No
+training donor contributes counts to a held case. Source units outside the
+eligible split universe remain explicit in the assignment ledger.
+
+A caller supplies a separate feature-axis and known-label context for each
+fold. The planner checks source-axis binding and training-label membership;
+it does not authenticate how signatures or selected features were learned.
+Reusing a full-source or another fold's learned context would invalidate a
+held-out model assessment. The context therefore explicitly retains
+`learned_provenance_authenticated=False`.
+
+Each private case retains all 20 public source labels and exact count mass on
+both the original feature axis and the selected axis. The corresponding
+fractions can differ. A label with original-axis mass but no selected-axis
+counts remains unobservable on that selected axis. Zero selected depth causes
+an explicit abstention. Reclassifying an omitted label changes its known and
+unknown truth allocation without deleting counts or renormalizing the known
+population. Private cases retain no donor identifiers. Collection, case and
+omission-view objects deny implicit serialization; explicitly retrieved count
+arrays remain private. The retained receipt contains aggregate counts and
+public labels only.
+
+These are empirical reference pseudobulks, rather than newly measured bulk
+specimens. A reviewed donor unit may pool several samples. Neither fraction is
+a genome-wide RNA fraction, cell fraction or histologic purity; the pinned
+source axis has already undergone feature selection, and its platforms do not
+uniformly measure UMIs. Study sampling and enrichment can distort the observed
+population proportions, as described in the
+[GBmap publication](https://pmc.ncbi.nlm.nih.gov/articles/PMC12526130/).
+The planner performs no mixture inference, threshold calibration or accuracy
+evaluation. Those stages still require fold-specific fitted signatures and
+separately justified concentration and unknown-component penalties.
+
 ## Intended model
 
 The implementation will be independently authored. No GBmap repository code,
@@ -483,8 +522,21 @@ The source-independent numerical foundation is implemented under
   KKT diagnostics;
 - an adaptive-unknown simplex solver that preserves known mass rather than
   renormalizing away unexplained evidence; and
-- normalized deviance, Pearson and Aitchison residuals, conformal unknown-mass
-  calibration, and curvature-based identifiability diagnostics.
+- normalized deviance, Pearson and Aitchison residuals, experimental unknown-mass
+  calibration primitives, and curvature-based identifiability diagnostics.
+
+The existing unknown-mass calibration helper does not yet justify nominal
+finite-sample coverage. It clamps an adjusted order-statistic rank above the
+calibration sample size to the observed maximum. That maximum cannot provide
+arbitrarily high requested coverage: the conformal construction instead needs
+an infinite upper bound, or the known support bound for explicitly bounded
+scores. Its reported specificity is measured on the calibration observations;
+that value and a hard-ceiling check do not certify future specificity. See
+[Angelopoulos and Bates, Appendix D](https://arxiv.org/html/2107.07511v6#A4).
+The hierarchy trainer, task executor and reducer do not call this helper. A
+separately versioned correction and held-out calibration assessment are required
+before it can support mixture uncertainty claims; the ongoing frozen hierarchy
+method is unchanged.
 
 The development trainer connects those components without a shortcut formula.
 For every shrinkage candidate it performs marker selection inside each
