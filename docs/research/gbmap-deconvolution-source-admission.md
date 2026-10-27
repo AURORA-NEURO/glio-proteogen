@@ -576,6 +576,50 @@ cell fraction, histologic purity or clinical eligibility. Genuine
 reference-missing tests, training-only parameter selection and untouched
 evaluation remain separate required work.
 
+## Matched-support policy sensitivity
+
+`gbmap_policy_sensitivity` adds a separate casewise point replay to the original
+explicit-policy benchmark. The caller supplies the same private reproduced
+fold, closed plan and parent benchmark. The new pass must reconstruct the
+entire parent aggregate receipt exactly before returning diagnostics. This
+establishes aggregate parity; a saved parent cannot authenticate its original
+per-case success assignments. Common support is measured during the new pass.
+
+Within each original scenario, common support is the intersection of successful
+cases across every prespecified policy. Equal original success counts cannot
+establish that intersection. The report partitions all offered cases into
+success under all policies, some policies or no policies, and retains each
+policy's original scored count and count excluded from the intersection.
+An empty intersection makes matched metrics unavailable. No favorable subgrid
+or pair is substituted.
+
+Every policy's matched total variation, unknown-mass signed error and absolute
+error use the same common cases. All 20 label slots retain original offered
+observability and common-case observability; zero-truth false positives still
+contribute, and unmodeled errors remain null. Common-support means remain
+conditional on joint numerical success. They do not establish performance over
+failed cases or the original tissue population. Omission scenarios still have
+different coarsened targets and cannot be compared as accuracy improvements.
+The closed summary preserves exact parent errors under full common support
+and bounds excluded-case error totals when the intersection is smaller.
+
+The mean and maximum within-case unknown-mass range across policies describe
+parameter sensitivity on common support. They are not confidence, credible or
+calibrated intervals. An unchanged-default synthetic midpoint example obtains
+the same fitted gene probabilities with different unknown masses. Penalty and
+initialization sensitivity therefore cannot identify a missing population or
+histologic purity.
+
+`tools/compare_gbmap_policy_sensitivity.py` validates the original bounded plan
+before one guarded selected-fold recovery. It calculates the unchanged parent
+benchmark, then repeats point solving for aggregate reconstruction and common
+support. It refits the source fold once. Only a bounded closed receipt is
+emitted; case ordinals, masks, individual predictions/errors and reference
+arrays are not serialized. Means over one case and maxima can disclose an
+individual value, so real output remains private outside Git. No policy
+selection, calibration, empirical-unit independence or clinical validity is
+established by this report.
+
 ## Intended model
 
 The implementation will be independently authored. No GBmap repository code,
