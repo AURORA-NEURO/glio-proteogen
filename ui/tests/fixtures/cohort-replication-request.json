@@ -1,0 +1,408 @@
+{
+  "schema_version": "1.0.0",
+  "analysis_id": "synthetic-replication-demo",
+  "disease_context": "glioblastoma_idh_wildtype",
+  "estimand_id": "synthetic-program-contrast",
+  "effect_scale": "standardized_mean_difference",
+  "contrast": "Entirely fictitious group A minus group B; no real source or patient data",
+  "independence_basis": "caller_declared_disjoint_participants",
+  "cohorts": [
+    {
+      "cohort_id": "synthetic-1",
+      "label": "Fictitious cohort 1",
+      "source_sha256": "sha256:8323ab7ef8389b46f9e7089ae86741c55763b7af9555129b049a1e709192d928",
+      "independence_group": "fictitious-disjoint-1",
+      "sample_size": 50
+    },
+    {
+      "cohort_id": "synthetic-2",
+      "label": "Fictitious cohort 2",
+      "source_sha256": "sha256:aa431a88b3fa8d473ee918483a1cc8d5262d89796d539d7bf0d3a991606a3bef",
+      "independence_group": "fictitious-disjoint-2",
+      "sample_size": 60
+    },
+    {
+      "cohort_id": "synthetic-3",
+      "label": "Fictitious cohort 3",
+      "source_sha256": "sha256:2b0a343cdcc30a5a5eda769ffc71e50cf8cf2b2e0bd8056ddae97b108ba6d0a6",
+      "independence_group": "fictitious-disjoint-3",
+      "sample_size": 70
+    },
+    {
+      "cohort_id": "synthetic-4",
+      "label": "Fictitious cohort 4",
+      "source_sha256": "sha256:65c0e18fc97dc87000843af99cfe2d2326494830b30e72b462d38a9d68d7e750",
+      "independence_group": "fictitious-disjoint-4",
+      "sample_size": 80
+    },
+    {
+      "cohort_id": "synthetic-5",
+      "label": "Fictitious cohort 5",
+      "source_sha256": "sha256:ede44440777a3aad2500b8d1d6453924d9fbdfc6ac445d836cb7aafc6b714a7f",
+      "independence_group": "fictitious-disjoint-5",
+      "sample_size": 90
+    }
+  ],
+  "features": [
+    {
+      "feature_id": "angiogenesis",
+      "label": "Angiogenesis program (synthetic)",
+      "effects": [
+        {
+          "cohort_id": "synthetic-1",
+          "state": "unsupported",
+          "estimate": null,
+          "standard_error": null
+        },
+        {
+          "cohort_id": "synthetic-2",
+          "state": "missing",
+          "estimate": null,
+          "standard_error": null
+        },
+        {
+          "cohort_id": "synthetic-3",
+          "state": "unsupported",
+          "estimate": null,
+          "standard_error": null
+        },
+        {
+          "cohort_id": "synthetic-4",
+          "state": "missing",
+          "estimate": null,
+          "standard_error": null
+        },
+        {
+          "cohort_id": "synthetic-5",
+          "state": "unsupported",
+          "estimate": null,
+          "standard_error": null
+        }
+      ]
+    },
+    {
+      "feature_id": "cell-cycle",
+      "label": "Cell-cycle program (synthetic)",
+      "effects": [
+        {
+          "cohort_id": "synthetic-1",
+          "state": "observed",
+          "estimate": 0.02,
+          "standard_error": 0.12
+        },
+        {
+          "cohort_id": "synthetic-2",
+          "state": "observed",
+          "estimate": -0.03,
+          "standard_error": 0.135
+        },
+        {
+          "cohort_id": "synthetic-3",
+          "state": "observed",
+          "estimate": 0.0,
+          "standard_error": 0.15
+        },
+        {
+          "cohort_id": "synthetic-4",
+          "state": "observed",
+          "estimate": 0.01,
+          "standard_error": 0.16499999999999998
+        },
+        {
+          "cohort_id": "synthetic-5",
+          "state": "observed",
+          "estimate": -0.01,
+          "standard_error": 0.18
+        }
+      ]
+    },
+    {
+      "feature_id": "dna-repair",
+      "label": "DNA-repair program (synthetic)",
+      "effects": [
+        {
+          "cohort_id": "synthetic-1",
+          "state": "observed",
+          "estimate": 0.4,
+          "standard_error": 0.12
+        },
+        {
+          "cohort_id": "synthetic-2",
+          "state": "observed",
+          "estimate": 0.45,
+          "standard_error": 0.135
+        },
+        {
+          "cohort_id": "synthetic-3",
+          "state": "observed",
+          "estimate": 0.5,
+          "standard_error": 0.15
+        },
+        {
+          "cohort_id": "synthetic-4",
+          "state": "observed",
+          "estimate": 0.42,
+          "standard_error": 0.16499999999999998
+        },
+        {
+          "cohort_id": "synthetic-5",
+          "state": "observed",
+          "estimate": 2.8,
+          "standard_error": 0.18
+        }
+      ]
+    },
+    {
+      "feature_id": "hypoxia",
+      "label": "Hypoxia program (synthetic)",
+      "effects": [
+        {
+          "cohort_id": "synthetic-1",
+          "state": "observed",
+          "estimate": 0.8,
+          "standard_error": 0.12
+        },
+        {
+          "cohort_id": "synthetic-2",
+          "state": "observed",
+          "estimate": 0.7,
+          "standard_error": 0.135
+        },
+        {
+          "cohort_id": "synthetic-3",
+          "state": "observed",
+          "estimate": 0.9,
+          "standard_error": 0.15
+        },
+        {
+          "cohort_id": "synthetic-4",
+          "state": "observed",
+          "estimate": 0.65,
+          "standard_error": 0.16499999999999998
+        },
+        {
+          "cohort_id": "synthetic-5",
+          "state": "observed",
+          "estimate": 0.75,
+          "standard_error": 0.18
+        }
+      ]
+    },
+    {
+      "feature_id": "mesenchymal",
+      "label": "Mesenchymal program (synthetic)",
+      "effects": [
+        {
+          "cohort_id": "synthetic-1",
+          "state": "observed",
+          "estimate": 0.6,
+          "standard_error": 0.12
+        },
+        {
+          "cohort_id": "synthetic-2",
+          "state": "observed",
+          "estimate": -0.5,
+          "standard_error": 0.135
+        },
+        {
+          "cohort_id": "synthetic-3",
+          "state": "observed",
+          "estimate": 0.7,
+          "standard_error": 0.15
+        },
+        {
+          "cohort_id": "synthetic-4",
+          "state": "observed",
+          "estimate": -0.4,
+          "standard_error": 0.16499999999999998
+        },
+        {
+          "cohort_id": "synthetic-5",
+          "state": "observed",
+          "estimate": 0.8,
+          "standard_error": 0.18
+        }
+      ]
+    },
+    {
+      "feature_id": "metabolism",
+      "label": "Metabolism program (synthetic)",
+      "effects": [
+        {
+          "cohort_id": "synthetic-1",
+          "state": "observed",
+          "estimate": 0.2,
+          "standard_error": 0.12
+        },
+        {
+          "cohort_id": "synthetic-2",
+          "state": "observed",
+          "estimate": 0.18,
+          "standard_error": 0.135
+        },
+        {
+          "cohort_id": "synthetic-3",
+          "state": "unsupported",
+          "estimate": null,
+          "standard_error": null
+        },
+        {
+          "cohort_id": "synthetic-4",
+          "state": "missing",
+          "estimate": null,
+          "standard_error": null
+        },
+        {
+          "cohort_id": "synthetic-5",
+          "state": "unsupported",
+          "estimate": null,
+          "standard_error": null
+        }
+      ]
+    },
+    {
+      "feature_id": "myeloid",
+      "label": "Myeloid program (synthetic)",
+      "effects": [
+        {
+          "cohort_id": "synthetic-1",
+          "state": "observed",
+          "estimate": 0.4,
+          "standard_error": 0.12
+        },
+        {
+          "cohort_id": "synthetic-2",
+          "state": "missing",
+          "estimate": null,
+          "standard_error": null
+        },
+        {
+          "cohort_id": "synthetic-3",
+          "state": "unsupported",
+          "estimate": null,
+          "standard_error": null
+        },
+        {
+          "cohort_id": "synthetic-4",
+          "state": "missing",
+          "estimate": null,
+          "standard_error": null
+        },
+        {
+          "cohort_id": "synthetic-5",
+          "state": "unsupported",
+          "estimate": null,
+          "standard_error": null
+        }
+      ]
+    },
+    {
+      "feature_id": "neuronal",
+      "label": "Neuronal program (synthetic)",
+      "effects": [
+        {
+          "cohort_id": "synthetic-1",
+          "state": "observed",
+          "estimate": -0.7,
+          "standard_error": 0.12
+        },
+        {
+          "cohort_id": "synthetic-2",
+          "state": "observed",
+          "estimate": -0.65,
+          "standard_error": 0.135
+        },
+        {
+          "cohort_id": "synthetic-3",
+          "state": "observed",
+          "estimate": -0.8,
+          "standard_error": 0.15
+        },
+        {
+          "cohort_id": "synthetic-4",
+          "state": "observed",
+          "estimate": -0.6,
+          "standard_error": 0.16499999999999998
+        },
+        {
+          "cohort_id": "synthetic-5",
+          "state": "observed",
+          "estimate": -0.75,
+          "standard_error": 0.18
+        }
+      ]
+    },
+    {
+      "feature_id": "proteostasis",
+      "label": "Proteostasis program (synthetic)",
+      "effects": [
+        {
+          "cohort_id": "synthetic-1",
+          "state": "observed",
+          "estimate": -0.1,
+          "standard_error": 0.12
+        },
+        {
+          "cohort_id": "synthetic-2",
+          "state": "observed",
+          "estimate": -0.2,
+          "standard_error": 0.135
+        },
+        {
+          "cohort_id": "synthetic-3",
+          "state": "observed",
+          "estimate": -0.15,
+          "standard_error": 0.15
+        },
+        {
+          "cohort_id": "synthetic-4",
+          "state": "observed",
+          "estimate": -0.08,
+          "standard_error": 0.16499999999999998
+        },
+        {
+          "cohort_id": "synthetic-5",
+          "state": "observed",
+          "estimate": -0.17,
+          "standard_error": 0.18
+        }
+      ]
+    },
+    {
+      "feature_id": "rtk",
+      "label": "RTK program (synthetic)",
+      "effects": [
+        {
+          "cohort_id": "synthetic-1",
+          "state": "observed",
+          "estimate": 0.6,
+          "standard_error": 0.12
+        },
+        {
+          "cohort_id": "synthetic-2",
+          "state": "observed",
+          "estimate": 0.5,
+          "standard_error": 0.135
+        },
+        {
+          "cohort_id": "synthetic-3",
+          "state": "unsupported",
+          "estimate": null,
+          "standard_error": null
+        },
+        {
+          "cohort_id": "synthetic-4",
+          "state": "observed",
+          "estimate": 0.4,
+          "standard_error": 0.16499999999999998
+        },
+        {
+          "cohort_id": "synthetic-5",
+          "state": "unsupported",
+          "estimate": null,
+          "standard_error": null
+        }
+      ]
+    }
+  ]
+}

@@ -14,6 +14,14 @@ is considered implemented only when its public contracts, executable behavior, l
 fixtures, adversarial evaluations, microbenchmarks, traceability, and safe-failure behavior
 are all present.
 
+The [cross-cohort replication observatory](docs/research/cohort-replication.md) adds
+aggregate effect synthesis, heterogeneity, fixed-family BH/BY adjustments, and
+leave-one-cohort-out sensitivity through the `/replication` workbench route,
+HTTP API, and `cohort-replication` CLI. Its demonstration uses fictitious cohorts;
+real multi-cohort validation remains a separate requirement. See the
+[glioma research expansion roadmap](docs/research/glioma-frontier-roadmap.md)
+for the next scientific and engineering gates.
+
 See [CLEAN_ROOM.md](CLEAN_ROOM.md) for the construction boundary and
 [CONTRIBUTING.md](CONTRIBUTING.md) for the module evidence workflow.
 
@@ -174,6 +182,72 @@ cannot contain patient measurements. Every estimable result is capped
 reproduction. See
 [`docs/research/cptac-gbm-transcript-protein-discordance.md`](docs/research/cptac-gbm-transcript-protein-discordance.md).
 
+The [real-data evaluation workflow](docs/research/cptac-gbm-real-data-evaluation.md)
+runs a frozen 16-gene literature panel against exact local CPTAC sources,
+retaining missingness, failed fits, numerical identification checks, and
+matched-support comparator evidence. Its separately versioned 240-iteration
+continuation candidate preserves all convergence tolerances and evidence gates,
+uses paired bootstrap draws, and leaves the original model and artifacts
+unchanged. All derived outputs remain local-only research evidence.
+
+The [nested comparator workflow](docs/research/cptac-gbm-nested-selection.md)
+evaluates a separate prediction policy that chooses the median, RNA-only,
+CNV-only, or combined model inside each outer training partition. It repeats
+selection in every patient-bootstrap draw and compares all families on matching
+held-out observations. This is an opt-in research candidate; numerical acceptance
+does not establish superiority over a fixed model or independent validity.
+
+The [confirmatory source-admission workflow](docs/research/cptac-gbm-confirmatory-admission.md)
+reads exact PDC protein and matched GDC RNA/CNV files through a frozen private
+specimen plan. It verifies source bytes and stable gene identities, preserves
+distinct assay axes, and reports joint measured coverage and explicit unavailable
+states. It produces aggregate local evidence without fitting, imputation, or
+promotion into the original Table S2 model.
+
+The [raw-assay provider-transfer workflow](docs/research/cptac-gbm-provider-transfer.md)
+admits the separately locked discovery cohort, fits and selects predictors using
+source patients only, and evaluates frozen predictors on the separate
+confirmatory cohort. It retains every panel gene and explicit abstentions,
+requires common comparison support, and reports paired conditional external
+sampling intervals. Historical processing and reference-material differences
+remain part of the stress test; aligned biological or clinical validation and
+training-fit uncertainty are unestablished. Measurements and numerical results
+remain local-only.
+
+The separate [source-refit sensitivity workflow](docs/research/cptac-gbm-transfer-source-uncertainty.md)
+repeats source fitting and model selection under patient resampling, alongside
+paired external resampling. It compares refitted and frozen models on matching
+draws and reports patient reuse, weight concentration, numerical failures,
+selection stability, and signed variance accounting. This post hoc analysis
+preserves the original point results and abstentions; its empirical percentile
+ranges do not establish calibrated coverage or biological validation.
+
+The [source-defined feature-space workflow](docs/research/cptac-gbm-feature-space.md)
+extends exact RNA, copy-number and protein admission beyond the original panel.
+It preserves an HGNC identity axis chosen from the source cohort, projects
+external measurements onto that same axis, and reports joint availability,
+identity conflicts, observed zeros, count capacity and training variation.
+Gene-wide transient inputs can feed the existing fitting engine in a separately
+specified analysis; coverage alone does not establish model eligibility or
+biological association.
+
+The [gene-wide source-fit census](docs/research/cptac-gbm-source-fit-census.md)
+applies the existing nested reconstruction fitter to every admitted HGNC identity.
+It retains source acceptances, inherited abstentions and input-domain rejections
+in bounded receipt pages, seals all source decisions before reading external
+measurements, and keeps predictors only in transient memory. Later raw-assay
+scoring preserves separate support, point-score and conditional-interval states.
+This extends the existing reconstruction family across the source-defined gene
+axis; it does not add a biological model or establish genome-wide discoveries.
+
+The [census execution profile](docs/research/cptac-gbm-census-execution.md)
+recomputes that frozen analysis against a locked complete baseline while handling
+transient Windows progress-file replacement failures within finite bounds.
+Every inherited numerical artifact, request and interval must remain byte-exact;
+two separate execution files bind the new operational provenance. A failed
+replacement budget leaves an incomplete run and requires fresh source fitting.
+This execution path changes no estimator or scientific-lane count.
+
 The `gbm-rna-tumor-purity/1.0.0` lane is an exact NumPy port of the published
 GBMPurity 5,829→32→16→1 neural model. It accepts raw bulk RNA counts only under
 a primary IDH-wildtype GBM attestation, preserves the source 80% gene-overlap
@@ -184,6 +258,29 @@ single released model has no calibrated ensemble, so uncertainty is explicitly
 unavailable rather than synthesized. See
 [`docs/research/gbm-rna-purity.md`](docs/research/gbm-rna-purity.md).
 
+The [native STAR purity input preflight](docs/research/cptac-gbm-rna-purity-admission.md)
+qualifies exact unstranded integer counts on the released model's full feature
+axis. It preserves all 72 cases in the inherited paired-assay discovery plan,
+records zero and unavailable features separately, and seals aggregate numerical
+readiness alongside reviewed clinical-context states. Unknown or conflicting
+context remains explicit throughout the complete input inventory. This input
+qualification path prepares the existing purity lane without executing it.
+
+The separate [source-qualified native RNA execution backend](docs/research/cptac-gbm-rna-purity-execution.md)
+resolves the 94 historical source identities with pinned GENCODE v36 and HGNC
+evidence while preserving all original model features and lengths. It adds exact
+clinical/specimen joins, explicit IDH assay-scope gaps and a source-withdrawal hold
+before RNA reads. Numerical readiness remains independent of clinical eligibility.
+Only fully qualified context can reach the existing estimator; local output
+contains aggregate receipts and whole-axis seals, with no individual predictions.
+
+The [clinical source review](docs/research/cptac-gbm-clinical-resolution.md)
+adds the 2024 author supplement as privately attributed descriptive context,
+separates case-level observations from exact selected-specimen ancestry, and
+preserves explicit assay gaps, prior exclusions and withdrawal holds. Its frozen
+protocol, aggregate receipts and saved verifier do not infer a new diagnosis or
+change the existing purity model's eligibility requirements.
+
 A separate GBmap-derived GBM composition candidate now has a real
 source-independent fitting and inference core: canonical donor/label
 pseudobulk aggregation, fold-local stable-marker selection, leakage-safe
@@ -191,8 +288,12 @@ whole-study and within-study donor validation, hierarchical
 Dirichlet-multinomial signature fitting, adaptive-unknown simplex inference,
 calibrated mismatch diagnostics, and an end-to-end training-only candidate
 selection protocol. It remains deliberately
-`development_unfitted`: the approximately 9 GB admitted source has not been
-downloaded, SHA-256 verified, or fitted, no model artifact is claimed, and no
+`development_unfitted`: the exact source has been downloaded, independently
+fingerprinted and structurally admitted for private offline development. Source
+validation uses grouped-donor holdouts, admitted feature identities and resumable
+hierarchy tasks. Aggregate diagnostics explain support and marker attrition for
+all 20 source labels without changing fitting gates. No completed source-derived
+model artifact is claimed, and no
 HTTP or CLI runtime is mounted. Its offline extractor is locked to the legacy
 AnnData CSR layout, all 338,564 cells, 5,000 source feature keys, 20 exact
 `CellID` states, and a leakage-safe 17-batch→16-study mapping. The authoritative

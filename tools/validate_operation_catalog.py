@@ -72,6 +72,7 @@ _S3_FIRST_MODULE: Final = 21
 _CATALOG_VERSION: Final = 2
 _CATALOG_PATH: Final = "/v2/deployment/catalog"
 _VALIDATED_EXAMPLES: Final = {
+    "/v1/research/cohort-replication/analyze": "synthetic-replication-demo",
     "/v1/research/proteogenomic-state/analyze": DEMO_ID,
     "/v1/research/gbm-functional-proteotype/analyze": FUNCTIONAL_PROTEOTYPE_DEMO_ID,
     "/v1/research/gbm-proteomic-axes/analyze": GBM_DEMO_ID,
@@ -108,6 +109,12 @@ _VALIDATED_EXAMPLES: Final = {
     "/v2/research/modules/m15/longitudinal-recurrence-proteotype/analyze": (LONGITUDINAL_DEMO_ID),
 }
 _VALIDATED_EXAMPLE_FLOWS: Final = (
+    (
+        "/v1/research/cohort-replication/demo",
+        "/v1/research/cohort-replication/analyze",
+        "analysis_id",
+        "synthetic-replication-demo",
+    ),
     (
         "/v1/research/proteogenomic-state/demo",
         "/v1/research/proteogenomic-state/analyze",

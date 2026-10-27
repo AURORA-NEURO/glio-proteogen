@@ -84,6 +84,7 @@ from glio_proteogen.adapters.api import (
     _support_routing_contract_schema,
     create_app,
 )
+from glio_proteogen.adapters.cohort_replication import cli as cohort_replication_app
 from glio_proteogen.adapters.cptac_gbm_cis_dosage import (
     cli as cptac_gbm_cis_dosage_app,
 )
@@ -749,6 +750,7 @@ app = typer.Typer(no_args_is_help=True, pretty_exceptions_enable=False)
 protocol_app = typer.Typer(no_args_is_help=True, help="M01-01 protocol operations.")
 app.add_typer(protocol_app, name="protocol")
 app.add_typer(research_state_app, name="research-state")
+app.add_typer(cohort_replication_app, name="cohort-replication")
 app.add_typer(
     immunopeptidomic_presentation_app,
     name="immunopeptidomic-presentation",

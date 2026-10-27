@@ -43,6 +43,12 @@ from .source import (
     EXPECTED_DONOR_CATEGORY_SET_DIGEST,
     SUPPLEMENT_SHA256,
 )
+from .splits import WITHIN_STUDY_SPLIT_POLICY_ID
+from .training import (
+    FINAL_LINEAGE_VALIDATION_POLICY_ID,
+    MIN_FINAL_WHOLE_STUDY_FOLDS,
+    MIN_FINAL_WITHIN_STUDY_DONOR_FOLDS,
+)
 
 ALGORITHM_ID: Final = "gbmap-dm-composition"
 ALGORITHM_VERSION: Final = "0.1.0-dev"
@@ -151,6 +157,21 @@ class GbmapDevelopmentProfile(FrozenModel):
     unique_model_eligible_hgnc_count: Literal[4923] = 4_923
     unresolved_feature_count: Literal[76] = 76
     unresolved_feature_in_model_permitted: Literal[False] = False
+    within_study_split_policy_id: Literal["gbmap-within-study-eligible-donors/2.0.0"] = (
+        WITHIN_STUDY_SPLIT_POLICY_ID
+    )
+    singleton_study_within_holdout_permitted: Literal[False] = False
+    singleton_study_whole_holdout_required: Literal[True] = True
+    feature_admission_stage: Literal["before_marker_ranking_and_fitting"] = (
+        "before_marker_ranking_and_fitting"
+    )
+    final_lineage_validation_policy_id: Literal["gbmap-final-lineage-validation-coverage/1.0.0"] = (
+        FINAL_LINEAGE_VALIDATION_POLICY_ID
+    )
+    minimum_final_whole_study_folds: Literal[3] = MIN_FINAL_WHOLE_STUDY_FOLDS
+    minimum_final_within_study_donor_folds: Literal[5] = MIN_FINAL_WITHIN_STUDY_DONOR_FOLDS
+    count_mass_interpretation: Literal["platform_native_raw_counts"] = "platform_native_raw_counts"
+    validation_conditions_on_upstream_feature_selection: Literal[True] = True
     source: ConditionalSourceExpectation
     eligibility: AggregateEligibilityPolicy
     intended_output: Literal["reference_constrained_rna_mixture_weights_with_unexplained_mass"] = (
@@ -216,6 +237,15 @@ def development_profile() -> GbmapDevelopmentProfile:
         ),
         "unresolved_feature_count": feature_identity.counts.unresolved_count,
         "unresolved_feature_in_model_permitted": False,
+        "within_study_split_policy_id": WITHIN_STUDY_SPLIT_POLICY_ID,
+        "singleton_study_within_holdout_permitted": False,
+        "singleton_study_whole_holdout_required": True,
+        "feature_admission_stage": "before_marker_ranking_and_fitting",
+        "final_lineage_validation_policy_id": FINAL_LINEAGE_VALIDATION_POLICY_ID,
+        "minimum_final_whole_study_folds": MIN_FINAL_WHOLE_STUDY_FOLDS,
+        "minimum_final_within_study_donor_folds": MIN_FINAL_WITHIN_STUDY_DONOR_FOLDS,
+        "count_mass_interpretation": "platform_native_raw_counts",
+        "validation_conditions_on_upstream_feature_selection": True,
         "source": source.model_dump(mode="json"),
         "eligibility": eligibility.model_dump(mode="json"),
         "intended_output": "reference_constrained_rna_mixture_weights_with_unexplained_mass",

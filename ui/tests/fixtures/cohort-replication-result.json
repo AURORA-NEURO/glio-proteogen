@@ -1,0 +1,1210 @@
+{
+  "schema_version": "1.0.0",
+  "profile_id": "glioma-cohort-replication/1.0.0",
+  "profile_digest": "sha256:4408004637c6f5daad13fbe3e0d0e4046d152804057bc684020f3f0aff06b25d",
+  "analysis_id": "synthetic-replication-demo",
+  "request_digest": "sha256:9e558498a909f1f63f65dcda5dede619c2ba3889dafd0e9528ffcb2aacf2e30b",
+  "result_digest": "sha256:982a3da03a405c97abce912b70331ddba59a3e11e83ffe44315a6898560b48ca",
+  "disease_context": "glioblastoma_idh_wildtype",
+  "estimand_id": "synthetic-program-contrast",
+  "effect_scale": "standardized_mean_difference",
+  "contrast": "Entirely fictitious group A minus group B; no real source or patient data",
+  "independence_basis": "caller_declared_disjoint_participants",
+  "cohorts": [
+    {
+      "cohort_id": "synthetic-1",
+      "label": "Fictitious cohort 1",
+      "source_sha256": "sha256:8323ab7ef8389b46f9e7089ae86741c55763b7af9555129b049a1e709192d928",
+      "independence_group": "fictitious-disjoint-1",
+      "sample_size": 50
+    },
+    {
+      "cohort_id": "synthetic-2",
+      "label": "Fictitious cohort 2",
+      "source_sha256": "sha256:aa431a88b3fa8d473ee918483a1cc8d5262d89796d539d7bf0d3a991606a3bef",
+      "independence_group": "fictitious-disjoint-2",
+      "sample_size": 60
+    },
+    {
+      "cohort_id": "synthetic-3",
+      "label": "Fictitious cohort 3",
+      "source_sha256": "sha256:2b0a343cdcc30a5a5eda769ffc71e50cf8cf2b2e0bd8056ddae97b108ba6d0a6",
+      "independence_group": "fictitious-disjoint-3",
+      "sample_size": 70
+    },
+    {
+      "cohort_id": "synthetic-4",
+      "label": "Fictitious cohort 4",
+      "source_sha256": "sha256:65c0e18fc97dc87000843af99cfe2d2326494830b30e72b462d38a9d68d7e750",
+      "independence_group": "fictitious-disjoint-4",
+      "sample_size": 80
+    },
+    {
+      "cohort_id": "synthetic-5",
+      "label": "Fictitious cohort 5",
+      "source_sha256": "sha256:ede44440777a3aad2500b8d1d6453924d9fbdfc6ac445d836cb7aafc6b714a7f",
+      "independence_group": "fictitious-disjoint-5",
+      "sample_size": 90
+    }
+  ],
+  "features": [
+    {
+      "feature_id": "angiogenesis",
+      "label": "Angiogenesis program (synthetic)",
+      "effects": [
+        {
+          "cohort_id": "synthetic-1",
+          "state": "unsupported",
+          "estimate": null,
+          "standard_error": null
+        },
+        {
+          "cohort_id": "synthetic-2",
+          "state": "missing",
+          "estimate": null,
+          "standard_error": null
+        },
+        {
+          "cohort_id": "synthetic-3",
+          "state": "unsupported",
+          "estimate": null,
+          "standard_error": null
+        },
+        {
+          "cohort_id": "synthetic-4",
+          "state": "missing",
+          "estimate": null,
+          "standard_error": null
+        },
+        {
+          "cohort_id": "synthetic-5",
+          "state": "unsupported",
+          "estimate": null,
+          "standard_error": null
+        }
+      ],
+      "observed_count": 0,
+      "total_count": 5,
+      "support": "abstained",
+      "fixed_effect": null,
+      "random_effect": null,
+      "heterogeneity": null,
+      "prediction_interval": null,
+      "p_value": null,
+      "adjusted_p_value": 1.0,
+      "dependence_robust_adjusted_p_value": 1.0,
+      "leave_one_out": [],
+      "direction_agreement": {
+        "positive_count": 0,
+        "negative_count": 0,
+        "zero_count": 0,
+        "majority_fraction": null,
+        "classification": "direction_indeterminate"
+      },
+      "reasons": [
+        "Fewer than two observed independent cohorts; aggregate estimates are withheld."
+      ]
+    },
+    {
+      "feature_id": "cell-cycle",
+      "label": "Cell-cycle program (synthetic)",
+      "effects": [
+        {
+          "cohort_id": "synthetic-1",
+          "state": "observed",
+          "estimate": 0.02,
+          "standard_error": 0.12
+        },
+        {
+          "cohort_id": "synthetic-2",
+          "state": "observed",
+          "estimate": -0.03,
+          "standard_error": 0.135
+        },
+        {
+          "cohort_id": "synthetic-3",
+          "state": "observed",
+          "estimate": 0.0,
+          "standard_error": 0.15
+        },
+        {
+          "cohort_id": "synthetic-4",
+          "state": "observed",
+          "estimate": 0.01,
+          "standard_error": 0.16499999999999998
+        },
+        {
+          "cohort_id": "synthetic-5",
+          "state": "observed",
+          "estimate": -0.01,
+          "standard_error": 0.18
+        }
+      ],
+      "observed_count": 5,
+      "total_count": 5,
+      "support": "limited",
+      "fixed_effect": {
+        "estimate": -0.00083998748112876,
+        "standard_error": 0.06504572848080117,
+        "lower": -0.12832727265167032,
+        "upper": 0.1266472976894128,
+        "p_value": 0.9896965653174941
+      },
+      "random_effect": {
+        "estimate": -0.00083998748112876,
+        "standard_error": 0.06504572848080117,
+        "lower": -0.12832727265167032,
+        "upper": 0.1266472976894128,
+        "p_value": 0.9896965653174941
+      },
+      "heterogeneity": {
+        "q": 0.0837532419507843,
+        "degrees_of_freedom": 4,
+        "i_squared_percent": 0.0,
+        "tau_squared": 0.0
+      },
+      "prediction_interval": {
+        "lower": -0.12832727265167032,
+        "upper": 0.1266472976894128,
+        "method": "approximate_normal_random_effects"
+      },
+      "p_value": 0.9896965653174941,
+      "adjusted_p_value": 1.0,
+      "dependence_robust_adjusted_p_value": 1.0,
+      "leave_one_out": [
+        {
+          "omitted_cohort_id": "synthetic-1",
+          "observed_count": 4,
+          "random_effect": {
+            "estimate": -0.009510694224643242,
+            "standard_error": 0.07740335194334998,
+            "lower": -0.16121847631628758,
+            "upper": 0.1421970878670011,
+            "p_value": 0.9022085651066619
+          },
+          "delta_estimate": -0.008670706743514481
+        },
+        {
+          "omitted_cohort_id": "synthetic-2",
+          "observed_count": 4,
+          "random_effect": {
+            "estimate": 0.00797621892085623,
+            "standard_error": 0.07423022723696823,
+            "lower": -0.13751235302782566,
+            "upper": 0.15346479086953813,
+            "p_value": 0.914430055432807
+          },
+          "delta_estimate": 0.00881620640198499
+        },
+        {
+          "omitted_cohort_id": "synthetic-3",
+          "observed_count": 4,
+          "random_effect": {
+            "estimate": -0.0010345209525567645,
+            "standard_error": 0.072185841017093,
+            "lower": -0.1425161695397932,
+            "upper": 0.14044712763467967,
+            "p_value": 0.9885656240942018
+          },
+          "delta_estimate": -0.00019453347142800448
+        },
+        {
+          "omitted_cohort_id": "synthetic-4",
+          "observed_count": 4,
+          "random_effect": {
+            "estimate": -0.0028345645078165257,
+            "standard_error": 0.07077745791111312,
+            "lower": -0.14155583293089777,
+            "upper": 0.13588670391526472,
+            "p_value": 0.9680540827013273
+          },
+          "delta_estimate": -0.0019945770266877657
+        },
+        {
+          "omitted_cohort_id": "synthetic-5",
+          "observed_count": 4,
+          "random_effect": {
+            "estimate": 0.0005358317667552606,
+            "standard_error": 0.06975978958804496,
+            "lower": -0.13619084339490511,
+            "upper": 0.13726250692841563,
+            "p_value": 0.9938714309141053
+          },
+          "delta_estimate": 0.0013758192478840205
+        }
+      ],
+      "direction_agreement": {
+        "positive_count": 2,
+        "negative_count": 2,
+        "zero_count": 1,
+        "majority_fraction": 0.4,
+        "classification": "mixed_directions"
+      },
+      "reasons": [
+        "Caller-supplied aggregate effects permit exploratory pooling; support remains limited.",
+        "Prediction and confidence intervals use nominal normal approximations, which are uncertain with few cohorts."
+      ]
+    },
+    {
+      "feature_id": "dna-repair",
+      "label": "DNA-repair program (synthetic)",
+      "effects": [
+        {
+          "cohort_id": "synthetic-1",
+          "state": "observed",
+          "estimate": 0.4,
+          "standard_error": 0.12
+        },
+        {
+          "cohort_id": "synthetic-2",
+          "state": "observed",
+          "estimate": 0.45,
+          "standard_error": 0.135
+        },
+        {
+          "cohort_id": "synthetic-3",
+          "state": "observed",
+          "estimate": 0.5,
+          "standard_error": 0.15
+        },
+        {
+          "cohort_id": "synthetic-4",
+          "state": "observed",
+          "estimate": 0.42,
+          "standard_error": 0.16499999999999998
+        },
+        {
+          "cohort_id": "synthetic-5",
+          "state": "observed",
+          "estimate": 2.8,
+          "standard_error": 0.18
+        }
+      ],
+      "observed_count": 5,
+      "total_count": 5,
+      "support": "limited",
+      "fixed_effect": {
+        "estimate": 0.7469233434979214,
+        "standard_error": 0.06504572848080117,
+        "lower": 0.6194360583273799,
+        "upper": 0.874410628668463,
+        "p_value": 1.6051661021445772e-30
+      },
+      "random_effect": {
+        "estimate": 0.9084903886450671,
+        "standard_error": 0.40279132732088824,
+        "lower": 0.1190338938110419,
+        "upper": 1.6979468834790925,
+        "p_value": 0.024102810648389626
+      },
+      "heterogeneity": {
+        "q": 149.92754667000526,
+        "degrees_of_freedom": 4,
+        "i_squared_percent": 97.33204465167158,
+        "tau_squared": 0.7883043082748705
+      },
+      "prediction_interval": {
+        "lower": -1.0023942482834176,
+        "upper": 2.819375025573552,
+        "method": "approximate_normal_random_effects"
+      },
+      "p_value": 0.024102810648389626,
+      "adjusted_p_value": 0.05507986497732348,
+      "dependence_robust_adjusted_p_value": 0.1613271759514383,
+      "leave_one_out": [
+        {
+          "omitted_cohort_id": "synthetic-1",
+          "observed_count": 4,
+          "random_effect": {
+            "estimate": 1.0387232397340296,
+            "standard_error": 0.5294281957741951,
+            "lower": 0.0010630436165863788,
+            "upper": 2.076383435851473,
+            "p_value": 0.04976575662563649
+          },
+          "delta_estimate": 0.13023285108896243
+        },
+        {
+          "omitted_cohort_id": "synthetic-2",
+          "observed_count": 4,
+          "random_effect": {
+            "estimate": 1.0255026704095223,
+            "standard_error": 0.5231565599668718,
+            "lower": 0.0001346545985845271,
+            "upper": 2.0508706862204598,
+            "p_value": 0.04996992138419397
+          },
+          "delta_estimate": 0.1170122817644551
+        },
+        {
+          "omitted_cohort_id": "synthetic-3",
+          "observed_count": 4,
+          "random_effect": {
+            "estimate": 1.012247969480995,
+            "standard_error": 0.5136412502222281,
+            "lower": 0.005529618071301812,
+            "upper": 2.018966320890688,
+            "p_value": 0.048754823216935396
+          },
+          "delta_estimate": 0.10375758083592779
+        },
+        {
+          "omitted_cohort_id": "synthetic-4",
+          "observed_count": 4,
+          "random_effect": {
+            "estimate": 1.031245936237209,
+            "standard_error": 0.4995637311569128,
+            "lower": 0.05211901518720985,
+            "upper": 2.010372857287208,
+            "p_value": 0.0389899399632765
+          },
+          "delta_estimate": 0.12275554759214191
+        },
+        {
+          "omitted_cohort_id": "synthetic-5",
+          "observed_count": 4,
+          "random_effect": {
+            "estimate": 0.4385545093311964,
+            "standard_error": 0.06975978958804496,
+            "lower": 0.301827834169536,
+            "upper": 0.5752811844928567,
+            "p_value": 3.2441568538563425e-10
+          },
+          "delta_estimate": -0.46993587931387076
+        }
+      ],
+      "direction_agreement": {
+        "positive_count": 5,
+        "negative_count": 0,
+        "zero_count": 0,
+        "majority_fraction": 1.0,
+        "classification": "all_nominal_intervals_positive"
+      },
+      "reasons": [
+        "Caller-supplied aggregate effects permit exploratory pooling; support remains limited.",
+        "Prediction and confidence intervals use nominal normal approximations, which are uncertain with few cohorts."
+      ]
+    },
+    {
+      "feature_id": "hypoxia",
+      "label": "Hypoxia program (synthetic)",
+      "effects": [
+        {
+          "cohort_id": "synthetic-1",
+          "state": "observed",
+          "estimate": 0.8,
+          "standard_error": 0.12
+        },
+        {
+          "cohort_id": "synthetic-2",
+          "state": "observed",
+          "estimate": 0.7,
+          "standard_error": 0.135
+        },
+        {
+          "cohort_id": "synthetic-3",
+          "state": "observed",
+          "estimate": 0.9,
+          "standard_error": 0.15
+        },
+        {
+          "cohort_id": "synthetic-4",
+          "state": "observed",
+          "estimate": 0.65,
+          "standard_error": 0.16499999999999998
+        },
+        {
+          "cohort_id": "synthetic-5",
+          "state": "observed",
+          "estimate": 0.75,
+          "standard_error": 0.18
+        }
+      ],
+      "observed_count": 5,
+      "total_count": 5,
+      "support": "limited",
+      "fixed_effect": {
+        "estimate": 0.7657488959051061,
+        "standard_error": 0.06504572848080117,
+        "lower": 0.6382616107345646,
+        "upper": 0.8932361810756476,
+        "p_value": 5.411636817569603e-32
+      },
+      "random_effect": {
+        "estimate": 0.7657488959051061,
+        "standard_error": 0.06504572848080117,
+        "lower": 0.6382616107345646,
+        "upper": 0.8932361810756476,
+        "p_value": 5.411636817569603e-32
+      },
+      "heterogeneity": {
+        "q": 1.6194725065741329,
+        "degrees_of_freedom": 4,
+        "i_squared_percent": 0.0,
+        "tau_squared": 0.0
+      },
+      "prediction_interval": {
+        "lower": 0.6382616107345646,
+        "upper": 0.8932361810756476,
+        "method": "approximate_normal_random_effects"
+      },
+      "p_value": 5.411636817569603e-32,
+      "adjusted_p_value": 5.4116368175696025e-31,
+      "dependence_robust_adjusted_p_value": 1.5850512440667155e-30,
+      "leave_one_out": [
+        {
+          "omitted_cohort_id": "synthetic-1",
+          "observed_count": 4,
+          "random_effect": {
+            "estimate": 0.751498346113877,
+            "standard_error": 0.07740335194334998,
+            "lower": 0.5997905640222326,
+            "upper": 0.9032061282055214,
+            "p_value": 2.764098685801536e-22
+          },
+          "delta_estimate": -0.014250549791229083
+        },
+        {
+          "omitted_cohort_id": "synthetic-2",
+          "observed_count": 4,
+          "random_effect": {
+            "estimate": 0.7856273454300131,
+            "standard_error": 0.07423022723696823,
+            "lower": 0.6401387734813312,
+            "upper": 0.931115917378695,
+            "p_value": 3.5482840613801924e-26
+          },
+          "delta_estimate": 0.019878449524907027
+        },
+        {
+          "omitted_cohort_id": "synthetic-3",
+          "observed_count": 4,
+          "random_effect": {
+            "estimate": 0.7346575595347979,
+            "standard_error": 0.072185841017093,
+            "lower": 0.5931759109475615,
+            "upper": 0.8761392081220344,
+            "p_value": 2.50391660415768e-24
+          },
+          "delta_estimate": -0.031091336370308142
+        },
+        {
+          "omitted_cohort_id": "synthetic-4",
+          "observed_count": 4,
+          "random_effect": {
+            "estimate": 0.7870468991582201,
+            "standard_error": 0.07077745791111312,
+            "lower": 0.6483256307351388,
+            "upper": 0.9257681675813014,
+            "p_value": 1.0024711000514986e-28
+          },
+          "delta_estimate": 0.02129800325311404
+        },
+        {
+          "omitted_cohort_id": "synthetic-5",
+          "observed_count": 4,
+          "random_effect": {
+            "estimate": 0.7681143549123429,
+            "standard_error": 0.06975978958804496,
+            "lower": 0.6313876797506826,
+            "upper": 0.9048410300740033,
+            "p_value": 3.388042372095721e-28
+          },
+          "delta_estimate": 0.0023654590072368364
+        }
+      ],
+      "direction_agreement": {
+        "positive_count": 5,
+        "negative_count": 0,
+        "zero_count": 0,
+        "majority_fraction": 1.0,
+        "classification": "all_nominal_intervals_positive"
+      },
+      "reasons": [
+        "Caller-supplied aggregate effects permit exploratory pooling; support remains limited.",
+        "Prediction and confidence intervals use nominal normal approximations, which are uncertain with few cohorts."
+      ]
+    },
+    {
+      "feature_id": "mesenchymal",
+      "label": "Mesenchymal program (synthetic)",
+      "effects": [
+        {
+          "cohort_id": "synthetic-1",
+          "state": "observed",
+          "estimate": 0.6,
+          "standard_error": 0.12
+        },
+        {
+          "cohort_id": "synthetic-2",
+          "state": "observed",
+          "estimate": -0.5,
+          "standard_error": 0.135
+        },
+        {
+          "cohort_id": "synthetic-3",
+          "state": "observed",
+          "estimate": 0.7,
+          "standard_error": 0.15
+        },
+        {
+          "cohort_id": "synthetic-4",
+          "state": "observed",
+          "estimate": -0.4,
+          "standard_error": 0.16499999999999998
+        },
+        {
+          "cohort_id": "synthetic-5",
+          "state": "observed",
+          "estimate": 0.8,
+          "standard_error": 0.18
+        }
+      ],
+      "observed_count": 5,
+      "total_count": 5,
+      "support": "limited",
+      "fixed_effect": {
+        "estimate": 0.23414869876885772,
+        "standard_error": 0.06504572848080117,
+        "lower": 0.10666141359831616,
+        "upper": 0.3616359839393993,
+        "p_value": 0.000318516910236255
+      },
+      "random_effect": {
+        "estimate": 0.2386651584018145,
+        "standard_error": 0.2815988747016182,
+        "lower": -0.31325849410036455,
+        "upper": 0.7905888109039935,
+        "p_value": 0.3966964803333408
+      },
+      "heterogeneity": {
+        "q": 73.16699921676373,
+        "degrees_of_freedom": 4,
+        "i_squared_percent": 94.53305446059139,
+        "tau_squared": 0.37364188405304516
+      },
+      "prediction_interval": {
+        "lower": -1.0804063443862975,
+        "upper": 1.5577366611899264,
+        "method": "approximate_normal_random_effects"
+      },
+      "p_value": 0.3966964803333408,
+      "adjusted_p_value": 0.5667092576190583,
+      "dependence_robust_adjusted_p_value": 1.0,
+      "leave_one_out": [
+        {
+          "omitted_cohort_id": "synthetic-1",
+          "observed_count": 4,
+          "random_effect": {
+            "estimate": 0.14661351104598852,
+            "standard_error": 0.3491266162098628,
+            "lower": -0.5376620827696804,
+            "upper": 0.8308891048616575,
+            "p_value": 0.6745266077307028
+          },
+          "delta_estimate": -0.09205164735582597
+        },
+        {
+          "omitted_cohort_id": "synthetic-2",
+          "observed_count": 4,
+          "random_effect": {
+            "estimate": 0.42663515006154235,
+            "standard_error": 0.25736824442160405,
+            "lower": -0.07779733976910325,
+            "upper": 0.931067639892188,
+            "p_value": 0.09738132051737268
+          },
+          "delta_estimate": 0.18796999165972786
+        },
+        {
+          "omitted_cohort_id": "synthetic-3",
+          "observed_count": 4,
+          "random_effect": {
+            "estimate": 0.1233789278646889,
+            "standard_error": 0.33241195838077964,
+            "lower": -0.5281365385920667,
+            "upper": 0.7748943943214444,
+            "p_value": 0.7105163353965053
+          },
+          "delta_estimate": -0.11528623053712558
+        },
+        {
+          "omitted_cohort_id": "synthetic-4",
+          "observed_count": 4,
+          "random_effect": {
+            "estimate": 0.3960387258275876,
+            "standard_error": 0.30954685050729824,
+            "lower": -0.21066195269452115,
+            "upper": 1.0027394043496964,
+            "p_value": 0.20075113398972344
+          },
+          "delta_estimate": 0.1573735674257731
+        },
+        {
+          "omitted_cohort_id": "synthetic-5",
+          "observed_count": 4,
+          "random_effect": {
+            "estimate": 0.1023434720864453,
+            "standard_error": 0.3199393954211222,
+            "lower": -0.5247262201744732,
+            "upper": 0.7294131643473639,
+            "p_value": 0.7490563181600173
+          },
+          "delta_estimate": -0.13632168631536917
+        }
+      ],
+      "direction_agreement": {
+        "positive_count": 3,
+        "negative_count": 2,
+        "zero_count": 0,
+        "majority_fraction": 0.6,
+        "classification": "mixed_directions"
+      },
+      "reasons": [
+        "Caller-supplied aggregate effects permit exploratory pooling; support remains limited.",
+        "Prediction and confidence intervals use nominal normal approximations, which are uncertain with few cohorts."
+      ]
+    },
+    {
+      "feature_id": "metabolism",
+      "label": "Metabolism program (synthetic)",
+      "effects": [
+        {
+          "cohort_id": "synthetic-1",
+          "state": "observed",
+          "estimate": 0.2,
+          "standard_error": 0.12
+        },
+        {
+          "cohort_id": "synthetic-2",
+          "state": "observed",
+          "estimate": 0.18,
+          "standard_error": 0.135
+        },
+        {
+          "cohort_id": "synthetic-3",
+          "state": "unsupported",
+          "estimate": null,
+          "standard_error": null
+        },
+        {
+          "cohort_id": "synthetic-4",
+          "state": "missing",
+          "estimate": null,
+          "standard_error": null
+        },
+        {
+          "cohort_id": "synthetic-5",
+          "state": "unsupported",
+          "estimate": null,
+          "standard_error": null
+        }
+      ],
+      "observed_count": 2,
+      "total_count": 5,
+      "support": "limited",
+      "fixed_effect": {
+        "estimate": 0.19117241379310346,
+        "standard_error": 0.08968911824203916,
+        "lower": 0.015384972233552341,
+        "upper": 0.3669598553526546,
+        "p_value": 0.03304791898639409
+      },
+      "random_effect": {
+        "estimate": 0.19117241379310346,
+        "standard_error": 0.08968911824203916,
+        "lower": 0.015384972233552341,
+        "upper": 0.3669598553526546,
+        "p_value": 0.03304791898639409
+      },
+      "heterogeneity": {
+        "q": 0.012260536398467454,
+        "degrees_of_freedom": 1,
+        "i_squared_percent": 0.0,
+        "tau_squared": 0.0
+      },
+      "prediction_interval": null,
+      "p_value": 0.03304791898639409,
+      "adjusted_p_value": 0.05507986497732348,
+      "dependence_robust_adjusted_p_value": 0.1613271759514383,
+      "leave_one_out": [],
+      "direction_agreement": {
+        "positive_count": 2,
+        "negative_count": 0,
+        "zero_count": 0,
+        "majority_fraction": 1.0,
+        "classification": "direction_indeterminate"
+      },
+      "reasons": [
+        "Caller-supplied aggregate effects permit exploratory pooling; support remains limited.",
+        "Missing or unsupported cohorts are excluded without imputation and remain visible in coverage.",
+        "Prediction interval and leave-one-cohort-out refits require at least three observed cohorts."
+      ]
+    },
+    {
+      "feature_id": "myeloid",
+      "label": "Myeloid program (synthetic)",
+      "effects": [
+        {
+          "cohort_id": "synthetic-1",
+          "state": "observed",
+          "estimate": 0.4,
+          "standard_error": 0.12
+        },
+        {
+          "cohort_id": "synthetic-2",
+          "state": "missing",
+          "estimate": null,
+          "standard_error": null
+        },
+        {
+          "cohort_id": "synthetic-3",
+          "state": "unsupported",
+          "estimate": null,
+          "standard_error": null
+        },
+        {
+          "cohort_id": "synthetic-4",
+          "state": "missing",
+          "estimate": null,
+          "standard_error": null
+        },
+        {
+          "cohort_id": "synthetic-5",
+          "state": "unsupported",
+          "estimate": null,
+          "standard_error": null
+        }
+      ],
+      "observed_count": 1,
+      "total_count": 5,
+      "support": "abstained",
+      "fixed_effect": null,
+      "random_effect": null,
+      "heterogeneity": null,
+      "prediction_interval": null,
+      "p_value": null,
+      "adjusted_p_value": 1.0,
+      "dependence_robust_adjusted_p_value": 1.0,
+      "leave_one_out": [],
+      "direction_agreement": {
+        "positive_count": 1,
+        "negative_count": 0,
+        "zero_count": 0,
+        "majority_fraction": 1.0,
+        "classification": "direction_indeterminate"
+      },
+      "reasons": [
+        "Fewer than two observed independent cohorts; aggregate estimates are withheld."
+      ]
+    },
+    {
+      "feature_id": "neuronal",
+      "label": "Neuronal program (synthetic)",
+      "effects": [
+        {
+          "cohort_id": "synthetic-1",
+          "state": "observed",
+          "estimate": -0.7,
+          "standard_error": 0.12
+        },
+        {
+          "cohort_id": "synthetic-2",
+          "state": "observed",
+          "estimate": -0.65,
+          "standard_error": 0.135
+        },
+        {
+          "cohort_id": "synthetic-3",
+          "state": "observed",
+          "estimate": -0.8,
+          "standard_error": 0.15
+        },
+        {
+          "cohort_id": "synthetic-4",
+          "state": "observed",
+          "estimate": -0.6,
+          "standard_error": 0.16499999999999998
+        },
+        {
+          "cohort_id": "synthetic-5",
+          "state": "observed",
+          "estimate": -0.75,
+          "standard_error": 0.18
+        }
+      ],
+      "observed_count": 5,
+      "total_count": 5,
+      "support": "limited",
+      "fixed_effect": {
+        "estimate": -0.6981852433205706,
+        "standard_error": 0.06504572848080117,
+        "lower": -0.8256725284911122,
+        "upper": -0.5706979581500291,
+        "p_value": 7.066114715472773e-27
+      },
+      "random_effect": {
+        "estimate": -0.6981852433205706,
+        "standard_error": 0.06504572848080117,
+        "lower": -0.8256725284911122,
+        "upper": -0.5706979581500291,
+        "p_value": 7.066114715472773e-27
+      },
+      "heterogeneity": {
+        "q": 1.025310214162204,
+        "degrees_of_freedom": 4,
+        "i_squared_percent": 0.0,
+        "tau_squared": 0.0
+      },
+      "prediction_interval": {
+        "lower": -0.8256725284911122,
+        "upper": -0.5706979581500291,
+        "method": "approximate_normal_random_effects"
+      },
+      "p_value": 7.066114715472773e-27,
+      "adjusted_p_value": 3.5330573577363865e-26,
+      "dependence_robust_adjusted_p_value": 1.0348212840258837e-25,
+      "leave_one_out": [
+        {
+          "omitted_cohort_id": "synthetic-1",
+          "observed_count": 4,
+          "random_effect": {
+            "estimate": -0.6974301937797581,
+            "standard_error": 0.07740335194334998,
+            "lower": -0.8491379758714025,
+            "upper": -0.5457224116881138,
+            "p_value": 2.0542649099012934e-19
+          },
+          "delta_estimate": 0.0007550495408125135
+        },
+        {
+          "omitted_cohort_id": "synthetic-2",
+          "observed_count": 4,
+          "random_effect": {
+            "estimate": -0.7127535172665814,
+            "standard_error": 0.07423022723696823,
+            "lower": -0.8582420892152633,
+            "upper": -0.5672649453178995,
+            "p_value": 7.846052343509675e-22
+          },
+          "delta_estimate": -0.01456827394601079
+        },
+        {
+          "omitted_cohort_id": "synthetic-3",
+          "observed_count": 4,
+          "random_effect": {
+            "estimate": -0.6746058704079748,
+            "standard_error": 0.072185841017093,
+            "lower": -0.8160875189952113,
+            "upper": -0.5331242218207384,
+            "p_value": 9.153905425470834e-21
+          },
+          "delta_estimate": 0.02357937291259582
+        },
+        {
+          "omitted_cohort_id": "synthetic-4",
+          "observed_count": 4,
+          "random_effect": {
+            "estimate": -0.716251503178148,
+            "standard_error": 0.07077745791111312,
+            "lower": -0.8549727716012292,
+            "upper": -0.5775302347550668,
+            "p_value": 4.5148128608620434e-24
+          },
+          "delta_estimate": -0.01806625985757737
+        },
+        {
+          "omitted_cohort_id": "synthetic-5",
+          "observed_count": 4,
+          "random_effect": {
+            "estimate": -0.6904027496376067,
+            "standard_error": 0.06975978958804496,
+            "lower": -0.8271294247992671,
+            "upper": -0.5536760744759464,
+            "p_value": 4.2955755874794523e-23
+          },
+          "delta_estimate": 0.007782493682963909
+        }
+      ],
+      "direction_agreement": {
+        "positive_count": 0,
+        "negative_count": 5,
+        "zero_count": 0,
+        "majority_fraction": 1.0,
+        "classification": "all_nominal_intervals_negative"
+      },
+      "reasons": [
+        "Caller-supplied aggregate effects permit exploratory pooling; support remains limited.",
+        "Prediction and confidence intervals use nominal normal approximations, which are uncertain with few cohorts."
+      ]
+    },
+    {
+      "feature_id": "proteostasis",
+      "label": "Proteostasis program (synthetic)",
+      "effects": [
+        {
+          "cohort_id": "synthetic-1",
+          "state": "observed",
+          "estimate": -0.1,
+          "standard_error": 0.12
+        },
+        {
+          "cohort_id": "synthetic-2",
+          "state": "observed",
+          "estimate": -0.2,
+          "standard_error": 0.135
+        },
+        {
+          "cohort_id": "synthetic-3",
+          "state": "observed",
+          "estimate": -0.15,
+          "standard_error": 0.15
+        },
+        {
+          "cohort_id": "synthetic-4",
+          "state": "observed",
+          "estimate": -0.08,
+          "standard_error": 0.16499999999999998
+        },
+        {
+          "cohort_id": "synthetic-5",
+          "state": "observed",
+          "estimate": -0.17,
+          "standard_error": 0.18
+        }
+      ],
+      "observed_count": 5,
+      "total_count": 5,
+      "support": "limited",
+      "fixed_effect": {
+        "estimate": -0.13864997643718202,
+        "standard_error": 0.06504572848080117,
+        "lower": -0.26613726160772355,
+        "upper": -0.011162691266640462,
+        "p_value": 0.03304163916268241
+      },
+      "random_effect": {
+        "estimate": -0.13864997643718202,
+        "standard_error": 0.06504572848080117,
+        "lower": -0.26613726160772355,
+        "upper": -0.011162691266640462,
+        "p_value": 0.03304163916268241
+      },
+      "heterogeneity": {
+        "q": 0.4726648328039194,
+        "degrees_of_freedom": 4,
+        "i_squared_percent": 0.0,
+        "tau_squared": 0.0
+      },
+      "prediction_interval": {
+        "lower": -0.26613726160772355,
+        "upper": -0.011162691266640462,
+        "method": "approximate_normal_random_effects"
+      },
+      "p_value": 0.03304163916268241,
+      "adjusted_p_value": 0.05507986497732348,
+      "dependence_robust_adjusted_p_value": 0.1613271759514383,
+      "leave_one_out": [
+        {
+          "omitted_cohort_id": "synthetic-1",
+          "observed_count": 4,
+          "random_effect": {
+            "estimate": -0.15473072560433068,
+            "standard_error": 0.07740335194334998,
+            "lower": -0.306438507695975,
+            "upper": -0.003022943512686338,
+            "p_value": 0.0456063618724582
+          },
+          "delta_estimate": -0.01608074916714866
+        },
+        {
+          "omitted_cohort_id": "synthetic-2",
+          "observed_count": 4,
+          "random_effect": {
+            "estimate": -0.12010147718168913,
+            "standard_error": 0.07423022723696823,
+            "lower": -0.26559004913037104,
+            "upper": 0.02538709476699276,
+            "p_value": 0.10567139621679926
+          },
+          "delta_estimate": 0.018548499255492887
+        },
+        {
+          "omitted_cohort_id": "synthetic-3",
+          "observed_count": 4,
+          "random_effect": {
+            "estimate": -0.13602141406682666,
+            "standard_error": 0.072185841017093,
+            "lower": -0.2775030626540631,
+            "upper": 0.005460234520409779,
+            "p_value": 0.05952134766792787
+          },
+          "delta_estimate": 0.0026285623703553584
+        },
+        {
+          "omitted_cohort_id": "synthetic-4",
+          "observed_count": 4,
+          "random_effect": {
+            "estimate": -0.14944167668785432,
+            "standard_error": 0.07077745791111312,
+            "lower": -0.28816294511093554,
+            "upper": -0.01072040826477308,
+            "p_value": 0.03473533388074651
+          },
+          "delta_estimate": -0.010791700250672304
+        },
+        {
+          "omitted_cohort_id": "synthetic-5",
+          "observed_count": 4,
+          "random_effect": {
+            "estimate": -0.13394125297741782,
+            "standard_error": 0.06975978958804496,
+            "lower": -0.2706679281390782,
+            "upper": 0.0027854221842425475,
+            "p_value": 0.05485345075815127
+          },
+          "delta_estimate": 0.004708723459764197
+        }
+      ],
+      "direction_agreement": {
+        "positive_count": 0,
+        "negative_count": 5,
+        "zero_count": 0,
+        "majority_fraction": 1.0,
+        "classification": "direction_indeterminate"
+      },
+      "reasons": [
+        "Caller-supplied aggregate effects permit exploratory pooling; support remains limited.",
+        "Prediction and confidence intervals use nominal normal approximations, which are uncertain with few cohorts."
+      ]
+    },
+    {
+      "feature_id": "rtk",
+      "label": "RTK program (synthetic)",
+      "effects": [
+        {
+          "cohort_id": "synthetic-1",
+          "state": "observed",
+          "estimate": 0.6,
+          "standard_error": 0.12
+        },
+        {
+          "cohort_id": "synthetic-2",
+          "state": "observed",
+          "estimate": 0.5,
+          "standard_error": 0.135
+        },
+        {
+          "cohort_id": "synthetic-3",
+          "state": "unsupported",
+          "estimate": null,
+          "standard_error": null
+        },
+        {
+          "cohort_id": "synthetic-4",
+          "state": "observed",
+          "estimate": 0.4,
+          "standard_error": 0.16499999999999998
+        },
+        {
+          "cohort_id": "synthetic-5",
+          "state": "unsupported",
+          "estimate": null,
+          "standard_error": null
+        }
+      ],
+      "observed_count": 3,
+      "total_count": 5,
+      "support": "limited",
+      "fixed_effect": {
+        "estimate": 0.5203132561925293,
+        "standard_error": 0.07880001067533009,
+        "lower": 0.3658680732875106,
+        "upper": 0.6747584390975481,
+        "p_value": 4.030304655150242e-11
+      },
+      "random_effect": {
+        "estimate": 0.5203132561925293,
+        "standard_error": 0.07880001067533009,
+        "lower": 0.3658680732875106,
+        "upper": 0.6747584390975481,
+        "p_value": 4.030304655150242e-11
+      },
+      "heterogeneity": {
+        "q": 0.9953021348155315,
+        "degrees_of_freedom": 2,
+        "i_squared_percent": 0.0,
+        "tau_squared": 0.0
+      },
+      "prediction_interval": {
+        "lower": 0.3658680732875106,
+        "upper": 0.6747584390975481,
+        "method": "approximate_normal_random_effects"
+      },
+      "p_value": 4.030304655150242e-11,
+      "adjusted_p_value": 1.3434348850500808e-10,
+      "dependence_robust_adjusted_p_value": 3.9348781295851767e-10,
+      "leave_one_out": [
+        {
+          "omitted_cohort_id": "synthetic-1",
+          "observed_count": 2,
+          "random_effect": {
+            "estimate": 0.4599009900990099,
+            "standard_error": 0.10448423539244833,
+            "lower": 0.255115651777606,
+            "upper": 0.6646863284204139,
+            "p_value": 1.0744044921743772e-05
+          },
+          "delta_estimate": -0.06041226609351941
+        },
+        {
+          "omitted_cohort_id": "synthetic-2",
+          "observed_count": 2,
+          "random_effect": {
+            "estimate": 0.5308108108108108,
+            "standard_error": 0.09704833011638263,
+            "lower": 0.340599579022947,
+            "upper": 0.7210220425986746,
+            "p_value": 4.511765682438527e-08
+          },
+          "delta_estimate": 0.010497554618281502
+        },
+        {
+          "omitted_cohort_id": "synthetic-4",
+          "observed_count": 2,
+          "random_effect": {
+            "estimate": 0.5558620689655173,
+            "standard_error": 0.08968911824203916,
+            "lower": 0.38007462740596615,
+            "upper": 0.7316495105250684,
+            "p_value": 5.731117107902244e-10
+          },
+          "delta_estimate": 0.03554881277298794
+        }
+      ],
+      "direction_agreement": {
+        "positive_count": 3,
+        "negative_count": 0,
+        "zero_count": 0,
+        "majority_fraction": 1.0,
+        "classification": "all_nominal_intervals_positive"
+      },
+      "reasons": [
+        "Caller-supplied aggregate effects permit exploratory pooling; support remains limited.",
+        "Missing or unsupported cohorts are excluded without imputation and remain visible in coverage.",
+        "Prediction and confidence intervals use nominal normal approximations, which are uncertain with few cohorts."
+      ]
+    }
+  ],
+  "family_size": 10,
+  "limitations": [
+    "All cohorts use the declared disease context, contrast, effect scale, and estimand with aligned signs; this is a caller assertion, not empirically verified compatibility.",
+    "Participants are disjoint across cohorts by caller declaration. Unique source digests and independence groups are conservative checks, not proof of independence.",
+    "Input standard errors are treated as supplied positive uncertainty summaries; their estimation and validity are not verified. Sample sizes are descriptive and are not additional analytic weights.",
+    "Normal intervals and prediction intervals are approximate and can be unreliable with few cohorts; no Student-t, Hartung-Knapp, or interval-calibration correction is applied.",
+    "Benjamini-Hochberg relies on independence or suitable positive dependence. Benjamini-Yekutieli provides a dependence-robust adjustment under valid marginal null p-values, which this exploratory lane does not establish.",
+    "The selected feature family must be fixed before inspecting effects. Adjustment does not repair selective reporting, invalid standard errors, publication bias, or incompatible cohorts.",
+    "No real dataset or source-derived biological result ships with this algorithm; the demo is entirely fictitious."
+  ],
+  "contains_participant_data": false
+}

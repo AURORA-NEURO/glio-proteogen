@@ -40,6 +40,15 @@ units. An inverse conditional RNA coefficient may reflect correlation
 structure, collinearity, tumor composition, missingness, or technical effects;
 it is not sufficient evidence of post-transcriptional buffering or repression.
 
+The additive [real-data evaluation workflow](cptac-gbm-real-data-evaluation.md)
+executes a frozen 16-gene literature panel against the exact local source
+snapshots. It retains absent and failed genes, measures assay missingness,
+audits fold-local RNA/CNV design identifiability, and reconstructs matched-support
+out-of-fold comparator diagnostics. Its separate evaluation policy withholds
+conditional-direction eligibility when a training design is unidentified. It
+does not change this version 1.0 estimator, promote its support ceiling, or
+turn nominal bootstrap intervals into discovery tests.
+
 ## Exact local sources and GBM scope
 
 The source cohort comes from the CPTAC study reported by Wang et al. The paper

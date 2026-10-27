@@ -1,0 +1,9 @@
+requirement,implementation,verification
+Locked primary clinical supplement and exact schema,research/cptac_gbm_rna_purity_resolution/source.py,tests/research/test_cptac_rna_purity_resolution_source.py
+Case context remains separate from selected specimen evidence,research/cptac_gbm_rna_purity_resolution/source.py,tests/research/test_cptac_rna_purity_resolution_source.py
+Negative or missing IDH1 results never imply IDH-wildtype,research/cptac_gbm_rna_purity_resolution/source.py,tests/research/test_cptac_rna_purity_resolution_source.py
+Historical exclusions and withdrawal holds remain bound,research/cptac_gbm_rna_purity_resolution/source.py,tests/research/test_cptac_rna_purity_resolution_source.py
+Aggregate receipts preserve strict types and separate clinical gaps,research/cptac_gbm_rna_purity_resolution/receipts.py,tests/research/test_cptac_rna_purity_resolution_receipts.py
+Source roles and frozen method checked before new source reads,research/cptac_gbm_rna_purity_resolution/review.py,tests/research/test_cptac_rna_purity_resolution_review.py
+Saved receipt verification remains distinct from fresh source replay,research/cptac_gbm_rna_purity_resolution/review.py,tests/research/test_cptac_rna_purity_resolution_review.py
+CLI errors and outputs omit private source rows and identifiers,tools/evaluate_cptac_gbm_clinical_resolution.py,tests/research/test_cptac_rna_purity_resolution_review.py

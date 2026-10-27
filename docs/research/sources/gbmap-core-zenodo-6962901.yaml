@@ -136,6 +136,15 @@ fit_policy:
   cell_barcodes_may_be_redistributed: false
   aggregate_fitted_parameters_only: true
   raw_observed_cell_abundance_is_prevalence: false
+  within_study_split_policy: gbmap-within-study-eligible-donors/2.0.0
+  singleton_study_within_holdout_permitted: false
+  singleton_study_whole_holdout_required: true
+  feature_admission_stage: before_marker_ranking_and_fitting
+  final_lineage_validation_policy: gbmap-final-lineage-validation-coverage/1.0.0
+  final_lineage_minimum_whole_study_folds: 3
+  final_lineage_minimum_within_study_donor_folds: 5
+  count_mass_interpretation: platform_native_raw_counts
+  validation_conditions_on_upstream_feature_selection: true
 
 validation_policy:
   donor_held_out_pseudobulk: required
@@ -147,8 +156,8 @@ validation_policy:
 claim_ceiling: limited_reference_fitted_unvalidated_external_bulk
 
 blockers:
-  - add deterministic resumable hierarchy-task execution before the full fit
+  - complete the frozen resumable validation schedule and complete-task reduction
+  - complete final lineage fits after their own held-validation coverage passes
   - train and validate the unknown-background component and its penalties
-  - resolve selected source feature keys to stable admitted identifiers
   - complete donor-held-out and study-held-out calibration
   - complete independent-cohort stress testing

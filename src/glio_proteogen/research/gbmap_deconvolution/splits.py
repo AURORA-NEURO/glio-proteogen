@@ -7,6 +7,7 @@ counts and study keys: it never emits donor identifiers or identifier hashes.
 
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass, field
 from typing import Final, Literal
 
@@ -27,6 +28,7 @@ from .errors import GbmapInputError
 ValidationKind = Literal["whole_study", "within_study_donor"]
 
 STRATIFIED_DONOR_FOLD_COUNT: Final = 5
+WITHIN_STUDY_SPLIT_POLICY_ID: Final = "gbmap-within-study-eligible-donors/2.0.0"
 MAX_REFERENCE_DONORS: Final = 4_096
 MAX_REFERENCE_STUDIES: Final = 64
 MAX_VALIDATION_FOLDS: Final = 1_024
@@ -450,16 +452,20 @@ def build_validation_split_plan(
         study: tuple(donor for donor in donor_keys if donor_study[donor] == study)
         for study in study_keys
     }
+    # A singleton study cannot supply both a held donor and a same-study
+    # training donor. Its donor remains training-only for within-study folds,
+    # and is still evaluated in the separate whole-study holdout family.
+    within_studies = tuple(study for study in study_keys if len(donors_by_study[study]) >= 2)
     donor_fold_count = min(
         STRATIFIED_DONOR_FOLD_COUNT,
-        max(len(donors) for donors in donors_by_study.values()),
+        max((len(donors_by_study[study]) for study in within_studies), default=0),
     )
     for group in range(donor_fold_count):
         checkpoint(cancellation)
         held = tuple(
             sorted(
                 donor
-                for study in study_keys
+                for study in within_studies
                 for offset, donor in enumerate(donors_by_study[study])
                 if offset % donor_fold_count == group
             )
@@ -496,16 +502,108 @@ def build_validation_split_plan(
     )
 
 
+@dataclass(frozen=True, slots=True)
+class WithinStudyHoldoutCoverage:
+    """Counts of grouped-donor coverage, without identifiers or identifier hashes."""
+
+    donor_groups_total: int
+    study_groups_total: int
+    within_eligible_donor_groups: int
+    within_ineligible_donor_groups: int
+    within_ineligible_study_groups: int
+    within_fold_count: int
+    held_once_eligible_donor_groups: int
+    unheld_eligible_donor_groups: int
+    repeated_within_donor_groups: int
+    held_ineligible_donor_groups: int
+    singleton_whole_study_covered_donor_groups: int
+
+    def __post_init__(self) -> None:
+        for name in self.__dataclass_fields__:
+            _exact_nonnegative_int(getattr(self, name), name)
+        if (
+            self.donor_groups_total
+            != self.within_eligible_donor_groups + self.within_ineligible_donor_groups
+            or self.within_ineligible_donor_groups != self.within_ineligible_study_groups
+            or self.within_ineligible_study_groups > self.study_groups_total
+            or self.held_once_eligible_donor_groups != self.within_eligible_donor_groups
+            or self.unheld_eligible_donor_groups != 0
+            or self.repeated_within_donor_groups != 0
+            or self.held_ineligible_donor_groups != 0
+            or self.singleton_whole_study_covered_donor_groups
+            != self.within_ineligible_donor_groups
+            or self.within_fold_count > STRATIFIED_DONOR_FOLD_COUNT
+            or (self.within_fold_count == 0) != (self.within_eligible_donor_groups == 0)
+        ):
+            raise GbmapInputError("within-study donor coverage does not conserve eligible groups")
+
+
+def within_study_holdout_coverage(plan: ValidationSplitPlan) -> WithinStudyHoldoutCoverage:
+    """Audit exactly-once eligible holdouts and singleton whole-study coverage."""
+    if type(plan) is not ValidationSplitPlan:
+        raise GbmapInputError("within-study coverage requires an exact validation plan")
+    owner: dict[str, str] = {}
+    for fold in plan.folds:
+        if fold.kind != "whole_study":
+            continue
+        if len(fold.held_study_keys) != 1:
+            raise GbmapInputError("whole-study coverage requires one held study per fold")
+        for donor in fold.held_donor_keys:
+            if donor in owner:
+                raise GbmapInputError("whole-study coverage repeats a grouped donor")
+            owner[donor] = fold.held_study_keys[0]
+    if not owner:
+        raise GbmapInputError("whole-study coverage is missing")
+    for fold in plan.folds:
+        training, holdout = set(fold.training_donor_keys), set(fold.held_donor_keys)
+        if training & holdout or training | holdout != set(owner):
+            raise GbmapInputError("validation fold does not conserve the grouped-donor axis")
+        training_studies = {owner[donor] for donor in training}
+        held_studies = {owner[donor] for donor in holdout}
+        if (
+            tuple(sorted(training_studies)) != fold.training_study_keys
+            or tuple(sorted(held_studies)) != fold.held_study_keys
+            or (fold.kind == "within_study_donor" and not held_studies <= training_studies)
+        ):
+            raise GbmapInputError("validation study labels do not match grouped-donor partitions")
+    study_sizes = Counter(owner.values())
+    eligible = {donor for donor, study in owner.items() if study_sizes[study] >= 2}
+    singleton = set(owner) - eligible
+    within = tuple(fold for fold in plan.folds if fold.kind == "within_study_donor")
+    held: Counter[str] = Counter()
+    for fold in within:
+        training, holdout = set(fold.training_donor_keys), set(fold.held_donor_keys)
+        if training & holdout or training | holdout != set(owner):
+            raise GbmapInputError("within-study fold does not conserve the grouped-donor axis")
+        held.update(holdout)
+    return WithinStudyHoldoutCoverage(
+        donor_groups_total=len(owner),
+        study_groups_total=len(study_sizes),
+        within_eligible_donor_groups=len(eligible),
+        within_ineligible_donor_groups=len(singleton),
+        within_ineligible_study_groups=len(singleton),
+        within_fold_count=len(within),
+        held_once_eligible_donor_groups=sum(held[donor] == 1 for donor in eligible),
+        unheld_eligible_donor_groups=sum(held[donor] == 0 for donor in eligible),
+        repeated_within_donor_groups=sum(held[donor] > 1 for donor in eligible),
+        held_ineligible_donor_groups=sum(held[donor] > 0 for donor in singleton),
+        singleton_whole_study_covered_donor_groups=len(singleton),
+    )
+
+
 __all__ = [
     "MAX_REFERENCE_DONORS",
     "MAX_REFERENCE_STUDIES",
     "MAX_VALIDATION_FOLDS",
     "STRATIFIED_DONOR_FOLD_COUNT",
+    "WITHIN_STUDY_SPLIT_POLICY_ID",
     "DeidentifiedValidationFoldReceipt",
     "LabelFoldSupport",
     "TransientValidationFold",
     "ValidationKind",
     "ValidationSplitPlan",
     "ValidationSplitReceipt",
+    "WithinStudyHoldoutCoverage",
     "build_validation_split_plan",
+    "within_study_holdout_coverage",
 ]

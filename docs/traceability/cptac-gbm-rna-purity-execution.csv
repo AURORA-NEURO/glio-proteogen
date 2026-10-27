@@ -1,0 +1,16 @@
+requirement,implementation,verification
+Exact author axis and original lengths preserved,research/cptac_gbm_rna_purity_execution/identity.py,tests/research/test_cptac_rna_purity_execution_identity.py
+Historical coordinates remain distinct from current approved HGNC assertions,research/cptac_gbm_rna_purity_execution/identity.py,tests/research/test_cptac_rna_purity_execution_identity.py
+Wrong locus or mutable resealed axis rejected,research/cptac_gbm_rna_purity_execution/identity.py,tests/research/test_cptac_rna_purity_execution_identity.py
+Whole native file and all count coordinates validated,research/cptac_gbm_rna_purity_execution/native_counts.py,tests/research/test_cptac_rna_purity_execution_native_counts.py
+Unavailable values remain separate from observed zero,research/cptac_gbm_rna_purity_execution/native_counts.py,tests/research/test_cptac_rna_purity_execution_native_counts.py
+Exact bounded clinical sources and case-specimen joins,research/cptac_gbm_rna_purity_execution/clinical.py,tests/research/test_cptac_rna_purity_execution_clinical.py
+Clinical negatives and missing somatic calls do not assert integrated IDH-wildtype diagnosis,research/cptac_gbm_rna_purity_execution/clinical.py,tests/research/test_cptac_rna_purity_execution_clinical.py
+Historical source hold precedes any assay read,research/cptac_gbm_rna_purity_execution/execution.py,tests/research/test_cptac_rna_purity_execution_orchestration.py
+Full metadata-context-policy freeze precedes assay access,research/cptac_gbm_rna_purity_execution/execution.py,tests/research/test_cptac_rna_purity_execution_orchestration.py
+Seven context and numerical gates precede request and model access,research/cptac_gbm_rna_purity_execution/inference.py,tests/research/test_cptac_rna_purity_execution_inference.py
+Private immutable buffers and result seals bind unchanged model requests,research/cptac_gbm_rna_purity_execution/inference.py,tests/research/test_cptac_rna_purity_execution_inference.py
+No implicit individual data or prediction export,research/cptac_gbm_rna_purity_execution/inference.py,tests/research/test_cptac_rna_purity_execution_inference.py
+Complete aggregate axis and source holds conserved across saved receipts,research/cptac_gbm_rna_purity_execution/receipts.py,tests/research/test_cptac_rna_purity_execution_orchestration.py
+Failed integrity or unexpected execution stays incomplete,research/cptac_gbm_rna_purity_execution/execution.py,tests/research/test_cptac_rna_purity_execution_orchestration.py
+Atomic completion and exact aggregate replay verification,research/cptac_gbm_rna_purity_execution/execution.py,tests/research/test_cptac_rna_purity_execution_orchestration.py

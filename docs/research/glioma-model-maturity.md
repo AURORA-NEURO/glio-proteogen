@@ -5,7 +5,93 @@ workflow, and release plumbing. A package being `0.1.0-provisional` does not by
 itself mean that it contains a fake model, and a passing schema or replay test
 does not make a numerical method scientifically mature.
 
+## Aggregate cross-cohort evaluation
+
+`glioma-cohort-replication/1.0.0` is an additive research evaluator, mounted at
+`/v1/research/cohort-replication` and visualized at `/replication`. It pools
+compatible caller-supplied effect/standard-error summaries with explicit
+missingness, FE/DL estimates, heterogeneity, BH/BY adjustments, and leave-one-out
+sensitivity. It verifies replay and source-content bindings but does not
+independently authenticate study disjointness, effect compatibility, or marginal
+p-value calibration. Every estimable result remains `limited`; the supplied
+cohorts are fictitious. This is a methodological capability, not a new fitted
+glioma predictor or completed external validation. See
+[method and limitations](cohort-replication.md) and the
+[expansion roadmap](glioma-frontier-roadmap.md).
+
 ## Implemented research inference
+
+The existing local CPTAC transcript--protein conditional-association feature now
+also has an [exact-source evaluation workflow](cptac-gbm-real-data-evaluation.md).
+It evaluates a frozen literature panel, exposes missingness and fold failures,
+checks training-design identification, and compares numerical iteration budgets
+on one fixed OOF support. A separately identified 240-iteration continuation
+preserves the original estimator, support thresholds, and paired bootstrap
+draws. It supplies aggregate internal evaluation rather than a new validated
+predictor, biological pattern label, or independent cohort. Source measurements
+and fitted derivatives remain local-only.
+
+The [nested comparator candidate](cptac-gbm-nested-selection.md) separately
+evaluates training-only model choice among median, RNA, CNV, and combined
+predictors, with full nested bootstrap refits and common held-out comparisons.
+It is an opt-in prediction-policy evaluation rather than a promoted replacement
+for the conditional-association model or a new validated glioma predictor.
+
+The [confirmatory source-admission implementation](cptac-gbm-confirmatory-admission.md)
+adds executable checks for frozen private PDC/GDC specimen bindings, exact assay
+bytes, stable HGNC/Ensembl identities, and joint finite-measurement support. Its
+aggregate coverage receipts retain source-axis incompatibility, unadmitted
+biological eligibility, and unchanged legacy support gates. It establishes no
+external prediction performance or independent validation.
+
+The [raw-assay provider-transfer stress profile](cptac-gbm-provider-transfer.md)
+adds a separate discovery source reader and strict specimen/channel lineage
+checks. Its executable evaluator completes nested source-only fitting and model
+choice before reading external measurements, compares four fixed families and
+the selected policy on identical external complete cases, and retains all panel
+abstentions. Paired external intervals are conditional on frozen source fits;
+training uncertainty is unavailable. Different provider processing and unproved
+reference-pool equivalence prevent an aligned external-validation claim. This
+is local exploratory stress evidence, with no automatic model promotion.
+
+An additive [two-cohort sensitivity workflow](cptac-gbm-transfer-source-uncertainty.md)
+now repeats the source fitting and selection procedure under empirical patient
+resampling. It pairs each refitted model with the frozen model on identical
+external draws, preserves original folds for every copied patient, and exposes
+distinct-unit and frequency-mass diagnostics separately. Signed covariance terms
+remain visible in paired variance accounting. Original point admission remains
+fixed, while numerical refit failures and selection instability remain in the
+sensitivity evidence. This is post hoc analysis conditional on the admitted
+measurements and original folds, with unproved post-selection coverage and no
+claim to full measurement, batch, biological, or clinical uncertainty.
+
+A separate [source-defined feature-space admission workflow](cptac-gbm-feature-space.md)
+removes the sixteen-gene import restriction while retaining the original panel
+as anchors. It builds an exact source HGNC axis, preserves missingness and
+identity conflicts, and applies the frozen axis to the external cohort.
+Its fold counts and simple training-variation diagnostics are prerequisites
+for later analysis, with fit eligibility and biological association still
+unestablished. This adds reusable backend inputs and aggregate coverage
+catalogs; it does not add a fitted scientific-inference lane.
+
+A separately versioned [gene-wide source-fit census](cptac-gbm-source-fit-census.md)
+extends the same reconstruction family to every admitted source identity. It
+attempts the unchanged source fitter without filtering on count-capacity flags,
+preserves all inherited receipts and distinct input-domain rejections, and seals
+bounded aggregate pages before external measurement reads. Private predictors
+remain in memory for later scoring without refitting. Original panel receipts
+and complete external results must replay. Numerical acceptance, external
+support, finite scores and conditional intervals remain distinct statuses;
+this expansion does not increase the scientific-lane inventory or establish
+gene-level biological discovery, simultaneous inference or clinical validity.
+
+The separately identified [census execution profile](cptac-gbm-census-execution.md)
+adds bounded Windows progress replacement retries with exact replay of the
+inherited numerical artifacts. It recomputes source fits and external results;
+a baseline is comparison evidence, not a predictor cache. New execution
+provenance is separate from inherited numerical request seeds, and completion
+requires its own seal. This operational profile adds no scientific estimator,
+validation experiment or inference lane.
 
 The mounted additive research namespace currently contains fourteen distinct,
 independently testable scientific-inference lanes plus one integrated
@@ -174,6 +260,15 @@ protein evidence, and emits one malignant-cell-fraction estimate—not immune
 composition. Exact PyTorch/NumPy parity, source-tree admission, coverage gates,
 local numerical attribution, API/CLI replay, and claim ceilings are documented
 in [`gbm-rna-purity.md`](gbm-rna-purity.md).
+
+The [native STAR input preflight](cptac-gbm-rna-purity-admission.md) supplies a
+separate input-qualification path for this existing lane. It checks raw integer
+counts against the fixed 5,829-feature model axis, retains all 72 inherited
+discovery candidates, and conserves numerical readiness and reviewed context
+in separate aggregate partitions. Missing clinical evidence remains unknown;
+the preflight constructs no per-specimen inference request. Its complete source
+seal accounts for every planned RNA input and keeps the fourteen-lane inventory
+unchanged.
 
 This does not complete M14 cellular microenvironment replacement. A licensed,
 donor-aware GBM single-cell reference and count-native mixture model are still

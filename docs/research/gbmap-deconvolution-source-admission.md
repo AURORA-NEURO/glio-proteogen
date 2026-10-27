@@ -294,6 +294,385 @@ or numerical nonconvergence publishes no receipt; restart from the unchanged
 source. The retained receipt is development evidence, not source admission,
 external validation, a fitted artifact, or permission to mount a runtime.
 
+## Grouped validation and complete-task reduction
+
+The current development profile binds
+`gbmap-within-study-eligible-donors/2.0.0`. Within-study holdouts use only studies
+with at least two eligible grouped donors. Singleton-study donors remain in
+training for that family and are tested in their existing whole-study holdout.
+The count-only `within_study_holdout_coverage(plan)` ledger distinguishes those
+training-only groups from donors held exactly once. It checks partition and
+study consistency without retaining donor identifiers or hashes. All original
+lineage support requirements and the five accepted donor-fold requirement remain.
+
+Production marker ranking now uses only the pinned 4,923 unique model-eligible
+HGNC source coordinates. The complete 5,000-column raw extraction axis is retained.
+Admission occurs before candidate scoring, marker caps, feature union, background
+construction and fitting. Direct hierarchy fitting requires the bound aggregate
+reference and rejects an unadmitted selected coordinate. Generic caller-owned
+references keep their own explicitly supplied feature universe.
+
+`run_gbmap_hierarchy_tasks.py --workers 1|2|3|4` can evaluate independent tasks in
+shared private memory. The default remains one worker. Source verification and
+checkpoint publication remain on the owning thread in lexical task order, even
+when fits finish out of order. Parallel execution retains the same tasks,
+numerical controls, immutable checkpoints, source guards and resume checks.
+No donor profiles are serialized for workers. Thread count is a scheduling choice,
+not a new fitting or statistical policy. Invalid arguments produce a sanitized
+error before source access and do not echo private paths or malformed values.
+
+`tools/reduce_gbmap_hierarchy_tasks.py assess <run-directory>` checks the sealed
+preparation inventory without reading the H5AD. It reports whether the prepared
+folds could satisfy the unchanged three whole-study and five donor-fold gates;
+potential feasibility does not establish numerical success. `reduce` additionally
+requires `--source`, `--reviewed-sha256`, `--preflight`, and both development/review
+acknowledgements. It re-extracts the exact source and validates runtime bindings
+through the existing dry-run executor before reducing the complete task set.
+Checkpoint and manifest snapshots must remain identical across that replay.
+Missing, duplicate, extra, changed or unbound tasks cannot yield a selection.
+
+The reducer computes equal-lineage fold scores, equal-fold family scores and an
+equal mean of the two validation families. Any failed lineage task abstains that
+candidate's entire fold. Only candidates satisfying both family gates can be
+selected; exact ties choose the smaller shrinkage. All source labels retain an
+explicit validation-coverage disposition. The final-lineage policy
+`gbmap-final-lineage-validation-coverage/1.0.0` requires a production lineage's own
+three whole-study and five donor-fold successes from the selected candidate.
+Those checks precede final feature/background construction and remain conjunctive
+with full-source donor, study, marker and convergence gates. Another candidate's
+successful fits or another lineage's coverage cannot provide missing support.
+
+Optional `--output` publishes a new canonical private receipt outside the run
+directory and repository, without replacing different existing bytes. `verify
+<receipt>` checks saved integrity and the current method; it does not replay the
+source. A source-replayed task reduction is still signature-prediction evidence,
+not mixture accuracy, unknown-mass calibration or a released model artifact.
+
+GBmap includes different sequencing platforms. Compatibility field names such as
+`total_umis` represent admitted native raw-count mass here, not a guarantee of
+uniform unique-molecule measurement across platforms. The upstream 5,000-gene
+universe and harmonized labels were selected on the core before our splits.
+Validation is conditional on those upstream choices; annotations incorporating
+computational cell typing and inferred CNV are not independent histologic truth.
+The exact core asset must not be replaced by the newer extended atlas or mirror
+without separate source, overlap and independence review.
+
+## Feature preparation diagnostics
+
+The additive `gbmap_development_diagnostics` namespace explains preparation under
+the unchanged fitter. It retains every one of the 20 public source labels in the
+full reference and each original validation partition. Its support counts
+separate eligible donor/label aggregates from aggregates failing only the cell
+threshold, only the native count-mass threshold, or both. Comparator counts
+separate same-donor comparisons, the original same-study fallback and missing
+comparators. An unavailable selector result remains null across labels, rather
+than being replaced by zero passing markers.
+
+For completed selection, the receipt records individual gate pass counts and a
+fixed cumulative order: strict label winner, enrichment, donor stability, study
+stability, detection and label margin. This order describes attrition; it does
+not establish which gate caused a biological difference. The original selector
+still includes all usable labels in competition and in the label/union caps,
+including labels that later fail preparation support. Counts reconcile with the
+original selector, and actual original fold preparation is checked without
+calling a hierarchy or final fitter. Selector-wide union retention remains
+distinct from the feature union entering a prepared fold.
+
+Full-source held counts and preparation eligibility are not applicable. Those
+diagnostics establish neither selected-candidate validation coverage nor final
+fit eligibility. No rows, donor/study keys, donor hashes, gene identities,
+expression vectors, fitted parameters or reference-content digest are retained.
+Excluded source coordinates are not all unresolved mappings; identity admission
+can also exclude resolved but nonunique model coordinates.
+
+`tools/audit_gbmap_feature_attrition.py run <source>` requires the independently
+reviewed SHA-256, the canonical `--preflight` and both development/review
+acknowledgements. It re-extracts the exact source through the pinned reader,
+checks fresh structural preflight equality, reconciles the original ordered
+fold axis, and keeps the read-only source guard through report construction.
+The pure API's caller-supplied profile digest is not authenticated by itself;
+the driver supplies and checks the current source/profile context.
+
+Optional `--run-directory` compares the existing immutable manifest's preparation
+counts and exact scheduled lineage axis. It does not inspect checkpoints,
+replay numerical task matrices, execute fits or reduce validation outcomes.
+Optional `--output` publishes canonical bounded aggregate JSON outside the
+repository and hierarchy directory, using ordinary verified ancestors and
+refusing to replace different bytes. `verify <receipt>` checks saved integrity
+and current method/profile bindings, without source replay. The diagnostic
+method is separately sealed and does not change the frozen fitting profile,
+selection gates, validation tasks or runtime inventory.
+
+## Held-donor count truth
+
+The separate `gbmap_held_mixture_truth` namespace supplies the observed-count
+side of a future mixture benchmark. For one original validation fold,
+`build_held_mixture_truth` pools every raw donor-label aggregate belonging to
+each held donor unit, including aggregates below the reference-fitting floors.
+It reconstructs the original split plan before accepting its partitions. No
+training donor contributes counts to a held case. Source units outside the
+eligible split universe remain explicit in the assignment ledger.
+
+A caller supplies a separate feature-axis and known-label context for each
+fold. The planner checks source-axis binding and training-label membership;
+it does not authenticate how signatures or selected features were learned.
+Reusing a full-source or another fold's learned context would invalidate a
+held-out model assessment. The context therefore explicitly retains
+`learned_provenance_authenticated=False`.
+
+Each private case retains all 20 public source labels and exact count mass on
+both the original feature axis and the selected axis. The corresponding
+fractions can differ. A label with original-axis mass but no selected-axis
+counts remains unobservable on that selected axis. Zero selected depth causes
+an explicit abstention. Reclassifying an omitted label changes its known and
+unknown truth allocation without deleting counts or renormalizing the known
+population. Private cases retain no donor identifiers. Collection, case and
+omission-view objects deny implicit serialization; explicitly retrieved count
+arrays remain private. The retained receipt contains aggregate counts and
+public labels only.
+
+These are empirical reference pseudobulks, rather than newly measured bulk
+specimens. A reviewed donor unit may pool several samples. Neither fraction is
+a genome-wide RNA fraction, cell fraction or histologic purity; the pinned
+source axis has already undergone feature selection, and its platforms do not
+uniformly measure UMIs. Study sampling and enrichment can distort the observed
+population proportions, as described in the
+[GBmap publication](https://pmc.ncbi.nlm.nih.gov/articles/PMC12526130/).
+The planner performs no mixture inference, threshold calibration or accuracy
+evaluation. Those stages still require fold-specific fitted signatures and
+separately justified concentration and unknown-component penalties.
+
+## Bounded unknown-mass calibration
+
+The additive `gbmap_mixture_calibration` namespace supplies the separately
+versioned `bounded-unknown-mass-decimal-rank-v1` rule for caller-supplied scores.
+It leaves the frozen hierarchy experiment and its earlier helper unchanged.
+For `n` known calibration scores and requested specificity `c`, the candidate is
+the `ceil((n+1)*c)` order statistic. A rank above `n` uses the known support
+bound `1`, rather than substituting the sample maximum. For example, four
+scores at specificity `0.99` require rank five and therefore that support
+bound. This follows the infinite-cutoff convention in
+[Angelopoulos and Bates, Appendix D](https://arxiv.org/html/2107.07511v6#A4)
+for the explicit bounded score domain.
+
+The API rejects Boolean, masked, nonfinite and out-of-support inputs. It checks
+the original real value before normalizing to float64. The rank policy uses
+the canonical decimal rendering `str(float(c))` as an exact rational when
+forming the rank; floating multiplication cannot round across an integer rank
+boundary. Future scores use the same normalization and inclusive acceptance
+rule through the returned summary's `accepts` method.
+
+`hard_ceiling=None` or `1` leaves the rank rule uncapped. Any ceiling below one
+declares a modified rule even when it does not truncate the observed candidate.
+The observed truncation flag describes that sample only. It cannot certify
+conditional or future coverage. Omission scores evaluate sensitivity after
+the cutoff is fixed and never choose it. Empty omission evaluation reports
+unknown sensitivity as null. Both specificity and sensitivity are explicitly
+empirical counts and ratios.
+
+The immutable result retains cutoff scalars and empirical summaries, without
+score vectors or per-observation records. An order-statistic candidate can
+equal an observed score. It checks arithmetic consistency without
+authenticating observations, learned signatures or exchangeability;
+`exchangeability_verified` remains false. A fixed scoring rule and appropriate
+calibration units still need independent justification. Repeated donor-fold
+occurrences and post-selection fold scores cannot be treated as independent
+calibration observations. No real mixture calibration, patient qualification
+or purity estimate follows from this primitive.
+
+## Selected-fold checkpoint reconstruction
+
+`tools/replay_gbmap_selected_fold.py` recovers transient parameters for one
+explicitly requested evaluated fold at the complete reducer's selected
+shrinkage. It requires the entire original checkpoint inventory before
+extraction. One guarded extraction reconstructs the canonical preflight, split
+plan, complete manifest, feature axes and training matrices. Complete reduction
+runs over that reconstructed basis; a supplied saved seal cannot substitute
+for source replay. Nonselection or an abstained requested fold stops recovery.
+
+Only that fold's original K lineages are refitted with the unchanged default
+fitter. Each must converge and reproduce the exact fit digest, trace digest
+and complete checkpoint evaluation. Numerical closeness cannot replace those
+comparisons. Source identity and the complete immutable run are checked before
+fitting, after fitting and after constructing the result. Directory inspection
+creates no missing state and bounds its OS-level scan before sorting entries.
+
+The private result retains the original selected-coordinate and label order,
+a bytes-backed gene-by-label signature matrix, background, explicitly named
+lineage hierarchy concentrations and the existing raw held-count truth. It
+retains no training records, study keys or study signatures. Arrays and
+coordinates explicitly retrieved by a caller remain private; implicit
+serialization is blocked. The command emits only a closed aggregate receipt.
+The original caller-owned truth context still has unauthenticated learning
+provenance; the new evidence is the narrower source/task/checkpoint
+reconstruction performed by this producer. Internal Python builders or saved
+receipt consistency alone cannot authenticate that execution.
+
+This is a selected-fold development context. Original label eligibility partly
+depends on held support, and global shrinkage selection reused held scores.
+Reproduction therefore establishes neither an unbiased assessment nor final
+lineage qualification, mixture accuracy or a released fitted artifact.
+
+## Explicit-policy mixture benchmarks
+
+`tools/benchmark_gbmap_selected_fold.py` reads a bounded, closed policy plan
+before recovering that fold once and calling `score_replayed_fold`. Every
+policy explicitly supplies concentration, mass penalty, shape penalty and
+initial unknown mass as finite floats. The original default simplex numerics
+remain fixed and their configuration digest is recorded. Per-lineage hierarchy
+concentrations are not a pooled-mixture concentration. The library supplies
+no default research grid and selects no policy from held outcomes.
+
+For example, this is plan syntax with illustrative, unestimated working
+settings, not an admitted numerical policy:
+
+```json
+{
+  "plan_version": "gbmap-mixture-sensitivity-plan/1.0.0",
+  "policies": [
+    {
+      "concentration": 100.0,
+      "lambda_mass": 0.01,
+      "lambda_shape": 0.01,
+      "initial_unknown_mass": 0.05
+    }
+  ],
+  "omissions": []
+}
+```
+
+All policies run on every offered held donor pool, including below-floor
+reference rows. Each policy/scenario partitions all offered cases into scored
+cases and explicit terminal failures: zero source depth, zero selected depth,
+unsupported selected int64 depth, no reference columns, conditioning rejection,
+solver rejection, numerical failure, invalid trace or nonconvergence. A large
+original-axis total does not invalidate an otherwise supported selected-axis
+count vector. Failed cases receive no zero-valued error.
+
+Scored cases contribute equally to signed bias and mean absolute error for
+each modeled label, including cases with zero label truth. All 20 source labels
+retain offered/scored count-observability ledgers. Unsupported or withheld
+label errors remain null. Unknown truth includes every label outside the
+remaining known set. Total variation is half the summed absolute error over
+those known weights and aggregate unknown mass; known weights are never
+renormalized. Errors describe scored support only. Different policy coverage
+must remain visible; comparisons would require the same scored-case basis.
+
+An omission withholds signature columns and reallocates truth while preserving
+counts, feature selection and background. It is an inherited-context column
+ablation. It does not simulate a population absent from all learning stages.
+Omission also changes the coarsened error target, so lower cross-scenario total
+variation cannot establish improved accuracy. Unknown mass can be
+nonidentifiable even with distinct known signatures: a background equal to
+their midpoint can produce the same counts from different known/unknown
+allocations. Penalties and initialization can choose among such explanations.
+
+The command emits bounded aggregate JSON only. A mean over one scored case can
+equal that case's error; aggregate formatting is not a privacy guarantee. Real
+outputs remain private, outside Git; fitted signature/background arrays,
+lineage concentration vectors and per-case vectors are not serialized. The result
+claims no selected policy, calibrated interval, independent calibration unit,
+cell fraction, histologic purity or clinical eligibility. Genuine
+reference-missing tests, training-only parameter selection and untouched
+evaluation remain separate required work.
+
+## Matched-support policy sensitivity
+
+`gbmap_policy_sensitivity` adds a separate casewise point replay to the original
+explicit-policy benchmark. The caller supplies the same private reproduced
+fold, closed plan and parent benchmark. The new pass must reconstruct the
+entire parent aggregate receipt exactly before returning diagnostics. This
+establishes aggregate parity; a saved parent cannot authenticate its original
+per-case success assignments. Common support is measured during the new pass.
+
+Within each original scenario, common support is the intersection of successful
+cases across every prespecified policy. Equal original success counts cannot
+establish that intersection. The report partitions all offered cases into
+success under all policies, some policies or no policies, and retains each
+policy's original scored count and count excluded from the intersection.
+An empty intersection makes matched metrics unavailable. No favorable subgrid
+or pair is substituted.
+
+Every policy's matched total variation, unknown-mass signed error and absolute
+error use the same common cases. All 20 label slots retain original offered
+observability and common-case observability; zero-truth false positives still
+contribute, and unmodeled errors remain null. Common-support means remain
+conditional on joint numerical success. They do not establish performance over
+failed cases or the original tissue population. Omission scenarios still have
+different coarsened targets and cannot be compared as accuracy improvements.
+The closed summary preserves exact parent errors under full common support
+and bounds excluded-case error totals when the intersection is smaller.
+
+The mean and maximum within-case unknown-mass range across policies describe
+parameter sensitivity on common support. They are not confidence, credible or
+calibrated intervals. An unchanged-default synthetic midpoint example obtains
+the same fitted gene probabilities with different unknown masses. Penalty and
+initialization sensitivity therefore cannot identify a missing population or
+histologic purity.
+
+`tools/compare_gbmap_policy_sensitivity.py` validates the original bounded plan
+before one guarded selected-fold recovery. It calculates the unchanged parent
+benchmark, then repeats point solving for aggregate reconstruction and common
+support. It refits the source fold once. Only a bounded closed receipt is
+emitted; case ordinals, masks, individual predictions/errors and reference
+arrays are not serialized. Means over one case and maxima can disclose an
+individual value, so real output remains private outside Git. No policy
+selection, calibration, empirical-unit independence or clinical validity is
+established by this report.
+
+## Request-bound simplex endpoint audit
+
+`gbmap_simplex_audit.audit_simplex_solution` takes the actual count vector,
+signature matrix, background, explicit `MixturePointPolicy` and an existing
+`ReferenceMixtureSolution`. It performs no optimization. It snapshots valid
+inputs and recomputes fitted probabilities, unknown mass, likelihood, mass
+penalty, perspective-KL shape penalty, complete objective, explicit initial
+objective, default active-set KKT residual and signature conditioning. Masked
+arrays, Boolean entries, fractional counts, unsupported count depth and invalid
+dimensions or probability domains are rejected before lossy conversion.
+
+The original scalar trace check can establish internal consistency without
+binding those reported values to the numerical request. The new audit therefore
+retains separate comparisons for reconstructed probabilities, objective,
+initial objective, KKT and conditioning. A coherent forged scalar trace or a
+solution supplied with different counts can pass the old trace check and fail
+these request comparisons. Invalid numerical computations remain explicitly
+unavailable. Zero unknown coordinates make the unchanged gradient unavailable;
+no finite gradient or zero KKT value is fabricated at that boundary.
+
+The receipt retains the original benchmark conditioning, scalar-trace and
+reported convergence/KKT decision. It also records whether a zero-step endpoint
+equals the declared initialization and is independently stationary under the
+default KKT tolerance. A stationary zero-step result still fails the original
+empty-trace gate. No result is rescued, no tolerance is relaxed, and the frozen
+hierarchy, point benchmark and prescribed real-data experiment remain unchanged.
+
+For a feasible simplex point with finite gradient, the audit reports both
+`g @ w - min(g)` and `sum(w * (g - min(g)))`, their difference and simplex
+closure error. Under convexity, the first expression is the linearization gap
+that bounds objective suboptimality in exact arithmetic; see
+[Jaggi, Section 2](https://proceedings.mlr.press/v28/jaggi13.pdf). Float64
+subtraction can make the raw value slightly negative, and imperfect closure can
+separate the two expressions. These diagnostics use no interval arithmetic and
+are not rigorous numerical bounds. The existing solver is unchanged; no
+Frank-Wolfe algorithm convergence result is claimed for it.
+
+Independent synthetic tests calculate the integer-count likelihood with finite
+log-products and the probability derivative with reciprocal sums, including
+the likelihood kernel's count-increment boundary. Interior finite differences
+check the complete penalized objective. These tests establish numerical
+behavior on their fixtures; they do not establish clinical eligibility or
+real-tissue accuracy.
+
+The closed immutable receipt contains policy and per-fit scalars, with a
+normalized-code/default-configuration binding. It retains no request vectors,
+source identifiers or hashes of numerical request contents. Per-fit scalars can
+still disclose individual information, so actual outputs remain private. A
+code digest does not authenticate biological source provenance, and the audit
+cannot replay intermediate iterates absent from the original trace.
+Admission changes, source authentication, trajectory replay, production
+artifact permission and numerical interval certification remain literal false.
+
 ## Intended model
 
 The implementation will be independently authored. No GBmap repository code,
@@ -374,8 +753,21 @@ The source-independent numerical foundation is implemented under
   KKT diagnostics;
 - an adaptive-unknown simplex solver that preserves known mass rather than
   renormalizing away unexplained evidence; and
-- normalized deviance, Pearson and Aitchison residuals, conformal unknown-mass
-  calibration, and curvature-based identifiability diagnostics.
+- normalized deviance, Pearson and Aitchison residuals, experimental unknown-mass
+  calibration primitives, and curvature-based identifiability diagnostics.
+
+The existing unknown-mass calibration helper does not yet justify nominal
+finite-sample coverage. It clamps an adjusted order-statistic rank above the
+calibration sample size to the observed maximum. That maximum cannot provide
+arbitrarily high requested coverage: the conformal construction instead needs
+an infinite upper bound, or the known support bound for explicitly bounded
+scores. Its reported specificity is measured on the calibration observations;
+that value and a hard-ceiling check do not certify future specificity. See
+[Angelopoulos and Bates, Appendix D](https://arxiv.org/html/2107.07511v6#A4).
+The hierarchy trainer, task executor and reducer do not call this helper. The
+separate bounded-score correction described above is available for new work;
+a held-out calibration assessment is still required before supporting mixture
+uncertainty claims. The ongoing frozen hierarchy method is unchanged.
 
 The development trainer connects those components without a shortcut formula.
 For every shrinkage candidate it performs marker selection inside each
@@ -399,7 +791,7 @@ fitted-artifact digest literally to
 `None`. Model, artifact, runtime, HTTP, and CLI availability are all false, and
 `SUPPORTED` output is structurally forbidden. This implementation therefore provides a testable
 fitter and inference foundation without increasing the fitted-model inventory
-or implying that the admitted GBmap bytes have already been processed.
+or implying that a completed, validated fitted artifact exists.
 
 ## Private development-fit driver
 

@@ -19,11 +19,12 @@ import os
 import re
 import stat
 import sys
-from contextlib import suppress
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import nullcontext, suppress
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Final, Literal, Protocol, Self, cast
+from typing import TYPE_CHECKING, Final, Literal, Never, Protocol, Self, cast
 
 import numpy as np
 from pydantic import Field, model_validator
@@ -82,6 +83,7 @@ MAX_MANIFEST_BYTES: Final = 16 * 1024 * 1024
 MAX_CHECKPOINT_BYTES: Final = 4 * 1024 * 1024
 MAX_PREFLIGHT_BYTES: Final = preflight_driver.MAX_OUTPUT_BYTES
 MAX_TASKS_PER_BATCH: Final = 256
+MAX_TASK_WORKERS: Final = 4
 _MINIMUM_MODELED_DIMENSION: Final = 2
 
 _SHA256_PATTERN: Final = re.compile(r"^sha256:[0-9a-f]{64}$")
@@ -767,6 +769,7 @@ def _execute_task(
     try:
         fit = _fit_label(
             task.prepared.training_records,
+            reference=task.prepared.reference,
             label=spec.modeled_label,
             feature_indices=task.prepared.feature_indices,
             background=task.prepared.background,
@@ -818,6 +821,15 @@ def _execute_task(
             **body,
             "evaluation": evaluation,
         }
+    )
+
+
+def _execute_private_task(
+    manifest: GbmapHierarchyRunManifest, task: _RuntimeTask
+) -> GbmapHierarchyCheckpoint:
+    return _privacy_call(
+        "GBmap hierarchy task execution failed closed",
+        partial(_execute_task, manifest, task),
     )
 
 
@@ -984,7 +996,7 @@ def _read_regular_bytes(path: Path, maximum: int, message: str) -> bytes:
     return _privacy_call(message, read)
 
 
-def _inspect_private_directory(path: Path) -> Path:
+def _inspect_private_directory(path: Path) -> Path:  # noqa: C901 - ordered filesystem boundary
     if not isinstance(path, Path):
         raise GbmapHierarchyTaskDriverError("run directory must be a pathlib Path")
     lexical = _privacy_call(
@@ -995,27 +1007,56 @@ def _inspect_private_directory(path: Path) -> Path:
         raise GbmapHierarchyTaskDriverError(
             "GBmap hierarchy run directory must remain outside the repository"
         )
-    _privacy_call(
-        "GBmap hierarchy run directory could not be prepared safely",
-        lambda: lexical.mkdir(parents=True, exist_ok=True),
-    )
-    chain: list[Path] = [lexical]
-    cursor = lexical.parent
-    while True:
-        chain.append(cursor)
-        if cursor == cursor.parent:
-            break
-        cursor = cursor.parent
-    records = _privacy_call(
-        "GBmap hierarchy run directory could not be inspected safely",
-        lambda: tuple(os.lstat(item) for item in chain),
-    )
-    if any(
-        fit_driver._is_link_or_reparse(info) or not stat.S_ISDIR(info.st_mode) for info in records
-    ):
-        raise GbmapHierarchyTaskDriverError(
-            "GBmap hierarchy run directory must use ordinary non-reparse ancestors"
+    chain = tuple(reversed((lexical, *lexical.parents)))
+    verified: list[tuple[Path, tuple[int, ...]]] = []
+
+    def require_directory(item: Path, info: os.stat_result) -> None:
+        if fit_driver._is_link_or_reparse(info) or not stat.S_ISDIR(info.st_mode):
+            raise GbmapHierarchyTaskDriverError(
+                "GBmap hierarchy run directory must use ordinary non-reparse ancestors"
+            )
+        verified.append((item, fit_driver._ancestor_identity(info)))
+
+    def existing_info(item: Path) -> os.stat_result | None:
+        try:
+            return os.lstat(item)
+        except FileNotFoundError:
+            return None
+
+    def revalidate_ancestors() -> None:
+        for ancestor, expected in verified:
+            current = _privacy_call(
+                "GBmap hierarchy run directory could not be inspected safely",
+                partial(os.lstat, ancestor),
+            )
+            # The admitted identity includes file type and reparse attributes.
+            if fit_driver._ancestor_identity(current) != expected:
+                raise GbmapHierarchyTaskDriverError(
+                    "GBmap hierarchy run directory ancestors changed during preparation"
+                )
+
+    for item in chain:
+        info = _privacy_call(
+            "GBmap hierarchy run directory could not be inspected safely",
+            partial(existing_info, item),
         )
+        if info is None:
+            break
+        require_directory(item, info)
+    if not verified:
+        raise GbmapHierarchyTaskDriverError("GBmap hierarchy run directory root is unavailable")
+    for item in chain[len(verified) :]:
+        revalidate_ancestors()
+        _privacy_call(
+            "GBmap hierarchy run directory could not be prepared safely",
+            partial(item.mkdir, exist_ok=True),
+        )
+        info = _privacy_call(
+            "GBmap hierarchy run directory could not be inspected safely",
+            partial(os.lstat, item),
+        )
+        require_directory(item, info)
+    revalidate_ancestors()
     return lexical
 
 
@@ -1167,6 +1208,17 @@ def _batch_receipt(
     )
 
 
+def _validate_work_limits(max_tasks: int, workers: int) -> None:
+    if type(max_tasks) is not int or not 1 <= max_tasks <= MAX_TASKS_PER_BATCH:
+        raise GbmapHierarchyTaskDriverError(
+            f"max_tasks must be an exact integer from 1 through {MAX_TASKS_PER_BATCH}"
+        )
+    if type(workers) is not int or not 1 <= workers <= MAX_TASK_WORKERS:
+        raise GbmapHierarchyTaskDriverError(
+            "hierarchy workers must be an exact integer from one through four"
+        )
+
+
 def run_batch(  # noqa: PLR0913
     source: Path,
     reviewed_sha256: str,
@@ -1177,6 +1229,7 @@ def run_batch(  # noqa: PLR0913
     dry_run: bool = False,
     development_only_acknowledged: bool,
     sha256_independently_reviewed: bool,
+    workers: int = 1,
 ) -> GbmapHierarchyBatchReceipt:
     """Re-extract, verify existing state, and execute a bounded pending prefix."""
 
@@ -1185,10 +1238,7 @@ def run_batch(  # noqa: PLR0913
         sha256_independently_reviewed=sha256_independently_reviewed,
     )
     reviewed = fit_driver._reviewed_sha256(reviewed_sha256)
-    if type(max_tasks) is not int or not 1 <= max_tasks <= MAX_TASKS_PER_BATCH:
-        raise GbmapHierarchyTaskDriverError(
-            f"max_tasks must be an exact integer from 1 through {MAX_TASKS_PER_BATCH}"
-        )
+    _validate_work_limits(max_tasks, workers)
     preflight_payload = _read_regular_bytes(
         preflight_path,
         MAX_PREFLIGHT_BYTES,
@@ -1268,25 +1318,33 @@ def run_batch(  # noqa: PLR0913
             ]
         )
         executed: list[GbmapHierarchyCheckpoint] = []
-        for task in pending:
-            checkpoint = _privacy_call(
-                "GBmap hierarchy task execution failed closed",
-                partial(_execute_task, manifest, task),
+        # Independent fits share immutable in-memory aggregates. map preserves
+        # lexical task order even when worker completion order differs; only
+        # the owning thread validates source identity and publishes checkpoints.
+        with (
+            ThreadPoolExecutor(max_workers=workers) if workers > 1 and pending else nullcontext()
+        ) as executor:
+            action = partial(_execute_private_task, manifest)
+            results = (
+                executor.map(action, pending)
+                if executor is not None
+                else (action(task) for task in pending)
             )
-            current_snapshot = fit_driver._capture_source_snapshot(source)
-            fit_driver._require_source_unchanged(before_snapshot, current_snapshot, guard)
-            _privacy_call(
-                "GBmap hierarchy checkpoint failed numerical replay",
-                partial(
-                    _validate_checkpoint_binding,
-                    checkpoint,
-                    manifest,
-                    task.spec,
-                    task,
-                ),
-            )
-            _publish_checkpoint(private_directory, source, checkpoint)
-            executed.append(checkpoint)
+            for task, checkpoint in zip(pending, results, strict=True):
+                current_snapshot = fit_driver._capture_source_snapshot(source)
+                fit_driver._require_source_unchanged(before_snapshot, current_snapshot, guard)
+                _privacy_call(
+                    "GBmap hierarchy checkpoint failed numerical replay",
+                    partial(
+                        _validate_checkpoint_binding,
+                        checkpoint,
+                        manifest,
+                        task.spec,
+                        task,
+                    ),
+                )
+                _publish_checkpoint(private_directory, source, checkpoint)
+                executed.append(checkpoint)
         final_snapshot = fit_driver._capture_source_snapshot(source)
         fit_driver._require_source_unchanged(before_snapshot, final_snapshot, guard)
         return _batch_receipt(
@@ -1301,8 +1359,14 @@ def run_batch(  # noqa: PLR0913
             guard.close()
 
 
+class _Parser(argparse.ArgumentParser):
+    def error(self, _message: str) -> Never:
+        sys.stderr.write("error: hierarchy task arguments were not accepted\n")
+        raise SystemExit(2)
+
+
 def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = _Parser(description=__doc__)
     parser.add_argument("source", type=Path, help="exact local scarches_core_GBmap.h5ad path")
     parser.add_argument(
         "--reviewed-sha256",
@@ -1328,6 +1392,12 @@ def _parser() -> argparse.ArgumentParser:
         help=f"bounded pending task count, from 1 through {MAX_TASKS_PER_BATCH}",
     )
     parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="independent in-memory hierarchy workers (one through four)",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="verify and publish the exact task schedule without executing a hierarchy",
@@ -1350,6 +1420,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             cast("Path", args.preflight),
             cast("Path", args.run_directory),
             max_tasks=cast("int", args.max_tasks),
+            workers=cast("int", args.workers),
             dry_run=cast("bool", args.dry_run),
             development_only_acknowledged=cast("bool", args.acknowledge_development_only),
             sha256_independently_reviewed=cast(

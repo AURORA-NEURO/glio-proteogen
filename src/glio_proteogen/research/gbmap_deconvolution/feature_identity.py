@@ -539,6 +539,24 @@ def require_stable_feature_indices(
     return indices
 
 
+def model_eligible_feature_indices(
+    feature_ids: Sequence[str],
+    *,
+    source_file_sha256: str,
+) -> tuple[int, ...]:
+    """Bind production marker eligibility before ranking without changing its axis.
+
+    The exact admitted GBmap source must match the pinned source-symbol order.
+    Other caller-owned references keep their own feature universe; their symbols
+    are not interpreted using this source-specific identity crosswalk.
+    """
+
+    observed = tuple(feature_ids)
+    if source_file_sha256 == GBMAP_SOURCE_SHA256:
+        return require_stable_feature_indices(observed)
+    return tuple(range(len(observed)))
+
+
 __all__ = [
     "EXPECTED_FEATURE_IDENTITY_ARTIFACT_DIGEST",
     "EXPECTED_FEATURE_IDENTITY_CONTENT_DIGEST",
@@ -562,6 +580,7 @@ __all__ = [
     "build_feature_identity_crosswalk",
     "feature_identity_content_digest",
     "load_feature_identity_crosswalk_bytes",
+    "model_eligible_feature_indices",
     "parse_hgnc_complete_set",
     "production_feature_identity_crosswalk",
     "require_stable_feature_indices",
