@@ -442,6 +442,44 @@ The planner performs no mixture inference, threshold calibration or accuracy
 evaluation. Those stages still require fold-specific fitted signatures and
 separately justified concentration and unknown-component penalties.
 
+## Bounded unknown-mass calibration
+
+The additive `gbmap_mixture_calibration` namespace supplies the separately
+versioned `bounded-unknown-mass-decimal-rank-v1` rule for caller-supplied scores.
+It leaves the frozen hierarchy experiment and its earlier helper unchanged.
+For `n` known calibration scores and requested specificity `c`, the candidate is
+the `ceil((n+1)*c)` order statistic. A rank above `n` uses the known support
+bound `1`, rather than substituting the sample maximum. For example, four
+scores at specificity `0.99` require rank five and therefore that support
+bound. This follows the infinite-cutoff convention in
+[Angelopoulos and Bates, Appendix D](https://arxiv.org/html/2107.07511v6#A4)
+for the explicit bounded score domain.
+
+The API rejects Boolean, masked, nonfinite and out-of-support inputs. It checks
+the original real value before normalizing to float64. The rank policy uses
+the canonical decimal rendering `str(float(c))` as an exact rational when
+forming the rank; floating multiplication cannot round across an integer rank
+boundary. Future scores use the same normalization and inclusive acceptance
+rule through the returned summary's `accepts` method.
+
+`hard_ceiling=None` or `1` leaves the rank rule uncapped. Any ceiling below one
+declares a modified rule even when it does not truncate the observed candidate.
+The observed truncation flag describes that sample only. It cannot certify
+conditional or future coverage. Omission scores evaluate sensitivity after
+the cutoff is fixed and never choose it. Empty omission evaluation reports
+unknown sensitivity as null. Both specificity and sensitivity are explicitly
+empirical counts and ratios.
+
+The immutable result retains cutoff scalars and empirical summaries, without
+score vectors or per-observation records. An order-statistic candidate can
+equal an observed score. It checks arithmetic consistency without
+authenticating observations, learned signatures or exchangeability;
+`exchangeability_verified` remains false. A fixed scoring rule and appropriate
+calibration units still need independent justification. Repeated donor-fold
+occurrences and post-selection fold scores cannot be treated as independent
+calibration observations. No real mixture calibration, patient qualification
+or purity estimate follows from this primitive.
+
 ## Intended model
 
 The implementation will be independently authored. No GBmap repository code,
@@ -533,10 +571,10 @@ an infinite upper bound, or the known support bound for explicitly bounded
 scores. Its reported specificity is measured on the calibration observations;
 that value and a hard-ceiling check do not certify future specificity. See
 [Angelopoulos and Bates, Appendix D](https://arxiv.org/html/2107.07511v6#A4).
-The hierarchy trainer, task executor and reducer do not call this helper. A
-separately versioned correction and held-out calibration assessment are required
-before it can support mixture uncertainty claims; the ongoing frozen hierarchy
-method is unchanged.
+The hierarchy trainer, task executor and reducer do not call this helper. The
+separate bounded-score correction described above is available for new work;
+a held-out calibration assessment is still required before supporting mixture
+uncertainty claims. The ongoing frozen hierarchy method is unchanged.
 
 The development trainer connects those components without a shortcut formula.
 For every shrinkage candidate it performs marker selection inside each
