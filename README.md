@@ -291,7 +291,9 @@ selection protocol. It remains deliberately
 `development_unfitted`: the exact source has been downloaded, independently
 fingerprinted and structurally admitted for private offline development. Source
 validation uses grouped-donor holdouts, admitted feature identities and resumable
-hierarchy tasks; no completed source-derived model artifact is claimed, and no
+hierarchy tasks. Aggregate diagnostics explain support and marker attrition for
+all 20 source labels without changing fitting gates. No completed source-derived
+model artifact is claimed, and no
 HTTP or CLI runtime is mounted. Its offline extractor is locked to the legacy
 AnnData CSR layout, all 338,564 cells, 5,000 source feature keys, 20 exact
 `CellID` states, and a leakage-safe 17-batch→16-study mapping. The authoritative

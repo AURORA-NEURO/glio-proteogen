@@ -357,6 +357,52 @@ computational cell typing and inferred CNV are not independent histologic truth.
 The exact core asset must not be replaced by the newer extended atlas or mirror
 without separate source, overlap and independence review.
 
+## Feature preparation diagnostics
+
+The additive `gbmap_development_diagnostics` namespace explains preparation under
+the unchanged fitter. It retains every one of the 20 public source labels in the
+full reference and each original validation partition. Its support counts
+separate eligible donor/label aggregates from aggregates failing only the cell
+threshold, only the native count-mass threshold, or both. Comparator counts
+separate same-donor comparisons, the original same-study fallback and missing
+comparators. An unavailable selector result remains null across labels, rather
+than being replaced by zero passing markers.
+
+For completed selection, the receipt records individual gate pass counts and a
+fixed cumulative order: strict label winner, enrichment, donor stability, study
+stability, detection and label margin. This order describes attrition; it does
+not establish which gate caused a biological difference. The original selector
+still includes all usable labels in competition and in the label/union caps,
+including labels that later fail preparation support. Counts reconcile with the
+original selector, and actual original fold preparation is checked without
+calling a hierarchy or final fitter. Selector-wide union retention remains
+distinct from the feature union entering a prepared fold.
+
+Full-source held counts and preparation eligibility are not applicable. Those
+diagnostics establish neither selected-candidate validation coverage nor final
+fit eligibility. No rows, donor/study keys, donor hashes, gene identities,
+expression vectors, fitted parameters or reference-content digest are retained.
+Excluded source coordinates are not all unresolved mappings; identity admission
+can also exclude resolved but nonunique model coordinates.
+
+`tools/audit_gbmap_feature_attrition.py run <source>` requires the independently
+reviewed SHA-256, the canonical `--preflight` and both development/review
+acknowledgements. It re-extracts the exact source through the pinned reader,
+checks fresh structural preflight equality, reconciles the original ordered
+fold axis, and keeps the read-only source guard through report construction.
+The pure API's caller-supplied profile digest is not authenticated by itself;
+the driver supplies and checks the current source/profile context.
+
+Optional `--run-directory` compares the existing immutable manifest's preparation
+counts and exact scheduled lineage axis. It does not inspect checkpoints,
+replay numerical task matrices, execute fits or reduce validation outcomes.
+Optional `--output` publishes canonical bounded aggregate JSON outside the
+repository and hierarchy directory, using ordinary verified ancestors and
+refusing to replace different bytes. `verify <receipt>` checks saved integrity
+and current method/profile bindings, without source replay. The diagnostic
+method is separately sealed and does not change the frozen fitting profile,
+selection gates, validation tasks or runtime inventory.
+
 ## Intended model
 
 The implementation will be independently authored. No GBmap repository code,
