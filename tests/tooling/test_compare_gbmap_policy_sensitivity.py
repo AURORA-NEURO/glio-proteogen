@@ -14,6 +14,7 @@ import json
 import runpy
 import sys
 from functools import lru_cache
+from io import BytesIO, TextIOWrapper
 from pathlib import Path
 
 import pytest
@@ -403,6 +404,19 @@ def test_cli_dispatches_exact_paths_and_prints_only_canonical_aggregate(monkeypa
             },
         )
     ]
+
+
+def test_cli_uses_binary_stdout_without_text_encoding_or_newline_rewrites(monkeypatch):
+    receipt = _comparison_fixture()[3]
+    monkeypatch.setattr(driver, "run_policy_sensitivity", lambda *_args, **_kwargs: receipt)
+    binary = BytesIO()
+    # Reproduce Windows CRLF translation, and a non-UTF-8 text encoding,
+    # independently of the host running this synthetic transport regression.
+    with TextIOWrapper(binary, encoding="utf-16", newline="\r\n", write_through=True) as stream:
+        monkeypatch.setattr(sys, "stdout", stream)
+        assert driver.main(_arguments()) == 0
+        stream.flush()
+        assert binary.getvalue() == driver.canonical_receipt_bytes(receipt)
 
 
 def test_cli_failure_hides_private_exception(monkeypatch, capsys):

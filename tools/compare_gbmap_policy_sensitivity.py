@@ -141,7 +141,7 @@ def main(argv: list[str] | None = None) -> int:
             development_only_acknowledged=args.acknowledge_development_only,
             sha256_independently_reviewed=args.acknowledge_sha256_independently_reviewed,
         )
-        sys.stdout.write(canonical_receipt_bytes(receipt).decode())
+        sys.stdout.buffer.write(canonical_receipt_bytes(receipt))
     except InferenceCancelledError:
         raise
     except Exception:  # noqa: BLE001 -- sanitized private CLI boundary
